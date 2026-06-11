@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 03 — Generics From First Principles</title>
+<style>
+  :root { --ink:#1a1a1a; --paper:#fffff8; --accent:#7b1e1e; --muted:#6b6b63;
+          --rule:#d8d8cf; --good:#1b6b3a; --bad:#9a1f1f; --code:#f1f0e6; }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    line-height: 1.55; margin: 0; padding: 3.5rem 1.5rem 6rem; font-size: 19px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  .kicker { letter-spacing: .18em; text-transform: uppercase; font-size: .72rem;
+            color: var(--accent); margin: 0 0 .4rem; font-family: sans-serif; }
+  h1 { font-size: 2.3rem; font-weight: 600; line-height: 1.08; margin: 0 0 .3rem; }
+  .sub { color: var(--muted); font-style: italic; margin: 0 0 .6rem; }
+  .mission { font-size: .82rem; color: var(--muted); font-family: sans-serif;
+             border-left: 3px solid var(--rule); padding: .3rem 0 .3rem .8rem; margin: 0 0 2.4rem; }
+  h2 { font-size: 1.3rem; font-weight: 600; margin: 2.6rem 0 .6rem; }
+  p { margin: 0 0 1rem; }
+  ul { margin: 0 0 1rem; } li { margin: .25rem 0; }
+  code { font-family: "SF Mono","DejaVu Sans Mono",Menlo,Consolas,monospace;
+         font-size: .82em; background: var(--code); padding: .08em .35em; border-radius: 3px; }
+  pre { background: #2b2b28; color: #f4f3ea; padding: 1rem 1.1rem; border-radius: 6px;
+        overflow-x: auto; font-size: .8rem; line-height: 1.5; margin: 1rem 0; }
+  pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+  .tok-c { color: #8f9183; } .tok-k { color: #e0a36b; } .tok-t { color: #8fbcd4; }
+  .tok-s { color: #c3d39a; } .tok-f { color: #d9b3e0; }
+  a { color: var(--accent); }
+  sup a { text-decoration: none; font-size: .7em; }
+  aside.note { background:#f6f5ea; border:1px solid var(--rule); border-radius:6px;
+        padding:.9rem 1.1rem; font-size:.92rem; margin:1.4rem 0; }
+  aside.note b { color: var(--accent); }
+
+  .quiz { border-top: 2px solid var(--ink); margin-top: 3rem; padding-top: 1.4rem; }
+  .q { margin: 1.8rem 0; }
+  .q .stem { font-weight: 600; margin-bottom: .7rem; }
+  .q .stem .n { color: var(--accent); margin-right:.4rem; }
+  .opts { display: grid; gap: .5rem; }
+  .opt { text-align:left; font: inherit; cursor: pointer; background: #fff;
+         border: 1px solid var(--rule); border-radius: 6px; padding: .6rem .85rem;
+         transition: background .12s, border-color .12s; }
+  .opt:hover:not(:disabled) { border-color: var(--accent); }
+  .opt:disabled { cursor: default; }
+  .opt.correct { border-color: var(--good); background: #eaf5ee; }
+  .opt.wrong { border-color: var(--bad); background: #f7ebeb; }
+  .fb { font-size: .9rem; margin-top: .55rem; min-height: 1.2em; }
+  .fb.correct { color: var(--good); } .fb.wrong { color: var(--bad); }
+  .fb b { font-weight: 600; }
+  #score { font-family: sans-serif; font-size: 1rem; margin-top: 2rem;
+           padding: 1rem; border: 1px dashed var(--rule); border-radius: 6px;
+           text-align: center; color: var(--muted); }
+  #score.done { color: var(--ink); border-style: solid; }
+
+  .next { border-top: 1px solid var(--rule); margin-top: 3rem; padding-top: 1.4rem; }
+  .pill { display:inline-block; font-family:sans-serif; font-size:.72rem; letter-spacing:.08em;
+          text-transform:uppercase; background:var(--code); color:var(--muted);
+          padding:.2rem .55rem; border-radius:99px; margin-right:.4rem; }
+  footer { color: var(--muted); font-size: .85rem; margin-top: 2rem; }
+  .ask { background:#fdf6e3; border:1px solid #e4d9a8; border-radius:6px;
+         padding:.9rem 1.1rem; font-size:.92rem; margin-top:2rem; }
+  @media print { body{font-size:12pt;padding:1rem;} pre{background:#eee;color:#000;}
+    .opt{background:#fff;} a{color:var(--ink);} .quiz .fb{display:block;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">Lesson 03 · Foundations</p>
+  <h1>Generics From First Principles</h1>
+  <p class="sub">A generic is a function whose arguments are <em>types</em>, not values.</p>
+  <p class="mission">★ Mission link: generics are the unit of every <em>reusable utility</em> and every
+     <em>type-safe API</em> you'll design. They're also the gateway to type-level programming — conditional
+     and mapped types are just generics that compute. Builds on
+     <a href="0001-types-as-sets.html">Lesson 01</a>.</p>
+
+  <h2>The idea: a function over types</h2>
+  <p>You already think of a normal function as taking a value and returning a value. A <strong>generic</strong>
+     takes a <em>type</em> and returns a <em>type</em>. The <code>&lt;Type&gt;</code> in angle brackets is a
+     <strong>type parameter</strong> — a variable that stands for a set you'll fill in later.<sup><a href="#r1">1</a></sup></p>
+  <pre><code><span class="tok-k">function</span> <span class="tok-f">identity</span>&lt;<span class="tok-t">Type</span>&gt;(arg: <span class="tok-t">Type</span>): <span class="tok-t">Type</span> {
+  <span class="tok-k">return</span> arg;
+}</code></pre>
+
+  <h2>Why this beats <code>any</code></h2>
+  <p>The whole point: a generic <strong>preserves the relationship</strong> between input and output.
+     <code>any</code> throws that relationship away.<sup><a href="#r1">1</a></sup></p>
+  <pre><code><span class="tok-k">function</span> <span class="tok-f">bad</span>(arg: <span class="tok-t">any</span>): <span class="tok-t">any</span> {}        <span class="tok-c">// in: number → out: ??? (anything)</span>
+<span class="tok-k">function</span> <span class="tok-f">good</span>&lt;<span class="tok-t">T</span>&gt;(arg: <span class="tok-t">T</span>): <span class="tok-t">T</span> {}        <span class="tok-c">// in: number → out: number (linked)</span>
+
+<span class="tok-k">const</span> a = <span class="tok-f">bad</span>(<span class="tok-s">42</span>);   <span class="tok-c">// a: any  — type info destroyed</span>
+<span class="tok-k">const</span> b = <span class="tok-f">good</span>(<span class="tok-s">42</span>);  <span class="tok-c">// b: 42   — type info threaded through</span></code></pre>
+  <p><code>any</code> collapses the set to "I give up." A generic keeps the caller's set intact all the way out.</p>
+
+  <h2>Inference: you rarely write <code>&lt;T&gt;</code></h2>
+  <p>The compiler reads the argument and figures out the type parameter for you.<sup><a href="#r1">1</a></sup>
+     Passing it explicitly is the exception, not the rule:</p>
+  <pre><code><span class="tok-f">identity</span>&lt;<span class="tok-t">string</span>&gt;(<span class="tok-s">"hi"</span>);  <span class="tok-c">// explicit — rarely needed</span>
+<span class="tok-f">identity</span>(<span class="tok-s">"hi"</span>);          <span class="tok-c">// inferred — T = "hi". the normal way</span></code></pre>
+
+  <h2>Constraints: <code>extends</code> is Lesson 01's subset</h2>
+  <p>An unconstrained <code>T</code> could be <em>any</em> set, so you can't touch its members. A
+     <strong>constraint</strong> shrinks the allowed sets. And here's the payoff from
+     Lesson 01: <code>T extends X</code> means exactly <em>"T's set is a subset of X's set."</em><sup><a href="#r2">2</a></sup></p>
+  <pre><code><span class="tok-k">function</span> <span class="tok-f">logLen</span>&lt;<span class="tok-t">T</span> <span class="tok-k">extends</span> { length: <span class="tok-t">number</span> }&gt;(arg: <span class="tok-t">T</span>): <span class="tok-t">T</span> {
+  console.log(arg.length);  <span class="tok-c">// safe: every allowed T has .length</span>
+  <span class="tok-k">return</span> arg;
+}
+<span class="tok-f">logLen</span>(<span class="tok-s">"abc"</span>);       <span class="tok-c">// ✅ string ⊆ {length:number}</span>
+<span class="tok-f">logLen</span>([<span class="tok-s">1</span>, <span class="tok-s">2</span>]);      <span class="tok-c">// ✅ arrays have length</span>
+<span class="tok-f">logLen</span>(<span class="tok-s">3</span>);           <span class="tok-c">// ❌ number ⊄ {length:number}</span></code></pre>
+  <aside class="note"><b>The mental hook:</b> wherever you later see <code>extends</code> — in constraints,
+     and soon in <em>conditional types</em> (<code>T extends U ? … : …</code>) — read it as <b>"is a subset of"</b>,
+     not the class-inheritance "extends" from other languages. Same keyword, set-theory meaning.</aside>
+
+  <h2>One parameter constraining another: <code>keyof</code></h2>
+  <p>Type parameters can reference each other. <code>keyof T</code> is the <em>union of T's keys</em>; constraining
+     <code>K extends keyof T</code> makes a property getter that can't reach for a missing key:<sup><a href="#r3">3</a></sup></p>
+  <pre><code><span class="tok-k">function</span> <span class="tok-f">getProp</span>&lt;<span class="tok-t">T</span>, <span class="tok-t">K</span> <span class="tok-k">extends</span> <span class="tok-k">keyof</span> <span class="tok-t">T</span>&gt;(obj: <span class="tok-t">T</span>, key: <span class="tok-t">K</span>): <span class="tok-t">T</span>[<span class="tok-t">K</span>] {
+  <span class="tok-k">return</span> obj[key];
+}
+<span class="tok-k">const</span> x = { a: <span class="tok-s">1</span>, b: <span class="tok-s">"hi"</span> };
+<span class="tok-f">getProp</span>(x, <span class="tok-s">"a"</span>);  <span class="tok-c">// returns number — exact, not a union</span>
+<span class="tok-f">getProp</span>(x, <span class="tok-s">"z"</span>);  <span class="tok-c">// ❌ "z" is not in keyof T</span></code></pre>
+  <p>Note <code>T[K]</code> — an <em>indexed access type</em>. The return type tracks the exact property. This
+     precise input→output linkage is what makes a generic utility delightful to use.</p>
+
+  <aside class="note"><b>Coming next — variance:</b> if <code>Cat ⊆ Animal</code>, is <code>Cat[] ⊆ Animal[]</code>?
+     What about <code>(x: Animal) =&gt; void</code> vs <code>(x: Cat) =&gt; void</code>? The answers aren't symmetric,
+     and getting them wrong is a classic senior trap. That's Lesson 04.</aside>
+
+  <!-- ============ QUIZ ============ -->
+  <div class="quiz">
+    <p class="kicker">Retrieval practice</p>
+    <h2 style="margin-top:.3rem">Check yourself</h2>
+    <p style="color:var(--muted);font-size:.92rem">From memory. Q3 interleaves the set model from Lesson 01 — on purpose.</p>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">1.</span>A generic function is best understood as…</div>
+      <div class="opts">
+        <button class="opt">a function over types</button>
+        <button class="opt">a synonym for any</button>
+        <button class="opt">a runtime type check</button>
+        <button class="opt">an interface with methods</button>
+      </div>
+      <div class="fb" data-why="The type parameter <T> is an argument that is itself a type (a set), filled in by the caller."></div>
+    </div>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">2.</span>Why does <code>identity&lt;T&gt;(x:T):T</code> beat <code>(x:any):any</code>?</div>
+      <div class="opts">
+        <button class="opt">It preserves the relationship</button>
+        <button class="opt">It runs much faster</button>
+        <button class="opt">It avoids all imports</button>
+        <button class="opt">It allows more values</button>
+      </div>
+      <div class="fb" data-why="The output type stays linked to the input type. any severs that link and returns 'anything'."></div>
+    </div>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">3.</span>In <code>T extends string</code>, what does <code>extends</code> assert (set terms)?</div>
+      <div class="opts">
+        <button class="opt">T is a subset</button>
+        <button class="opt">T is a superset</button>
+        <button class="opt">T equals exactly string</button>
+        <button class="opt">T is unrelated entirely</button>
+      </div>
+      <div class="fb" data-why="extends means ⊆ — T's set fits inside string's. Same reading you'll use for conditional types."></div>
+    </div>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">4.</span>When calling a generic function, you usually omit…</div>
+      <div class="opts">
+        <button class="opt">writing the type argument</button>
+        <button class="opt">passing any real value</button>
+        <button class="opt">importing the type module</button>
+        <button class="opt">declaring a return type</button>
+      </div>
+      <div class="fb" data-why="Type-argument inference: the compiler reads the value you pass and fills in <T> for you."></div>
+    </div>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">5.</span>In <code>K extends keyof T</code>, what does <code>keyof T</code> produce?</div>
+      <div class="opts">
+        <button class="opt">A union of keys</button>
+        <button class="opt">An array of values</button>
+        <button class="opt">The object value types</button>
+        <button class="opt">A brand-new object</button>
+      </div>
+      <div class="fb" data-why="keyof T is the union of T's property-name literals — so K is constrained to a real key."></div>
+    </div>
+
+    <div id="score">Answer all five to see your score.</div>
+  </div>
+
+  <!-- ============ NEXT ============ -->
+  <div class="next">
+    <h2>Primary source (read this next)</h2>
+    <p><span class="pill">Most trusted</span>
+       <a href="https://www.typescriptlang.org/docs/handbook/2/generics.html" target="_blank">TS Handbook — Generics</a>.
+       Identity functions through generic classes and constraints, with runnable examples. ~25 min.</p>
+    <p style="font-size:.9rem;color:var(--muted)">Deeper, when ready:
+       <a href="https://type-level-typescript.com/" target="_blank">Type-Level TypeScript</a> treats generics as the
+       computation primitive for everything that follows.</p>
+
+    <h2>Where this goes</h2>
+    <p><span class="pill">Lesson 04</span> <strong>Variance</strong> — when <code>Cat ⊆ Animal</code>, which of
+       <code>Cat[]</code>, <code>() =&gt; Cat</code>, and <code>(c: Cat) =&gt; void</code> stay assignable? The
+       answers reveal how the type system really thinks.</p>
+    <p style="margin-top:1.4rem"><a href="../reference/glossary.html">→ Glossary</a> &nbsp;·&nbsp;
+       <a href="0002-narrowing.html">← Lesson 02</a> &nbsp;·&nbsp;
+       <a href="../RESOURCES.md">All resources</a></p>
+  </div>
+
+  <div class="ask">
+    <b>I'm your teacher.</b> A great exercise: try writing a generic <code>firstElement&lt;T&gt;(arr: T[]): T | undefined</code>,
+    or a <code>pick&lt;T, K extends keyof T&gt;</code>. Paste your attempt and I'll review the signature like a senior
+    reviewer would — most of the craft is in getting the constraints exactly right.
+  </div>
+
+  <footer>
+    <span id="r1">1.</span> <a href="https://www.typescriptlang.org/docs/handbook/2/generics.html">TS Handbook — Generics</a> (identity, vs any, inference). &nbsp;
+    <span id="r2">2.</span> <a href="https://www.typescriptlang.org/docs/handbook/2/generics.html#generic-constraints">TS Handbook — Generic constraints</a>. &nbsp;
+    <span id="r3">3.</span> <a href="https://www.typescriptlang.org/docs/handbook/2/generics.html#using-type-parameters-in-generic-constraints">TS Handbook — keyof constraints</a>.
+  </footer>
+</div>
+
+<script>
+  const qs = [...document.querySelectorAll('.q')];
+  let answered = 0, correct = 0;
+  qs.forEach(q => {
+    const right = +q.dataset.correct;
+    const opts = [...q.querySelectorAll('.opt')];
+    const fb = q.querySelector('.fb');
+    opts.forEach((opt, i) => {
+      opt.addEventListener('click', () => {
+        opts.forEach(o => o.disabled = true);
+        const ok = i === right;
+        opts[right].classList.add('correct');
+        if (!ok) opt.classList.add('wrong');
+        fb.classList.add(ok ? 'correct' : 'wrong');
+        fb.innerHTML = (ok ? '<b>Correct.</b> ' : '<b>Not quite.</b> ') + fb.dataset.why;
+        answered++; if (ok) correct++;
+        if (answered === qs.length) {
+          const s = document.getElementById('score');
+          s.classList.add('done');
+          const msg = correct === qs.length ? 'Generics solid. Variance is next.' :
+                      correct >= 3 ? 'Good. Revisit the misses, then continue.' :
+                      'Re-read above and retake — generics underpin every utility you will write.';
+          s.textContent = `Score: ${correct} / ${qs.length}. ${msg}`;
+        }
+      });
+    });
+  });
+</script>
+</body>
+</html>

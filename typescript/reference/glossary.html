@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Advanced TypeScript — Glossary</title>
+<style>
+  :root { --ink:#1a1a1a; --paper:#fffff8; --accent:#7b1e1e; --muted:#6b6b63; --rule:#d8d8cf; }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    line-height: 1.5; margin: 0; padding: 4rem 1.5rem 6rem;
+    font-size: 19px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 2.2rem; font-weight: 600; line-height: 1.1; margin: 0 0 .25rem; }
+  .sub { color: var(--muted); font-style: italic; margin: 0 0 2.5rem; }
+  h2 { font-size: 1.2rem; font-weight: 600; margin: 2.5rem 0 .5rem;
+       border-bottom: 1px solid var(--rule); padding-bottom: .3rem; }
+  dl { margin: 0; }
+  dt { font-weight: 600; margin: 1.3rem 0 .2rem; }
+  dt code, dd code, .sym {
+    font-family: "SF Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace;
+    font-size: .82em; background: #f1f0e6; padding: .08em .35em; border-radius: 3px;
+  }
+  dd { margin: 0 0 .2rem; }
+  dd.eg { color: var(--muted); font-size: .92em; }
+  a { color: var(--accent); }
+  .top { font-size: .8rem; color: var(--muted); text-decoration: none; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 3rem 0; }
+  footer { color: var(--muted); font-size: .85rem; margin-top: 3rem; }
+  @media print { body { font-size: 12pt; padding: 1rem; } a { color: var(--ink); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Glossary</h1>
+  <p class="sub">Advanced TypeScript — the canonical vocabulary. Adhered to in every lesson.</p>
+
+  <h2 id="set-model">The Set Model</h2>
+  <dl>
+    <dt>Type (as a set)</dt>
+    <dd>A type is the <em>set of all values</em> that belong to it. Reasoning about types
+        as sets is the foundation of everything else here.</dd>
+    <dd class="eg"><code>string</code> = the set of every possible string value.</dd>
+
+    <dt>Literal type</dt>
+    <dd>A type whose set contains exactly <em>one</em> value.</dd>
+    <dd class="eg"><code>"on"</code> is a set of size 1; it is a subset of <code>string</code>.</dd>
+
+    <dt>Assignability</dt>
+    <dd>"B is assignable to A" means a B value is accepted where an A is expected.
+        Equivalent to <span class="sym">B ⊆ A</span> — B's set is a subset of A's.</dd>
+
+    <dt>Subtype / supertype</dt>
+    <dd>B is a <em>subtype</em> of A when <span class="sym">B ⊆ A</span> (B is narrower).
+        A is then the <em>supertype</em> (wider). Subtypes are assignable to supertypes.</dd>
+
+    <dt>Structural typing</dt>
+    <dd>TypeScript decides assignability by an object's <em>shape</em> (its members),
+        not by its declared name. An object with all the required members fits.</dd>
+
+    <dt>Union <code>A | B</code></dt>
+    <dd>Set <em>union</em> (<span class="sym">∪</span>) — a value in A <em>or</em> B.
+        Wider than either part.</dd>
+
+    <dt>Intersection <code>A &amp; B</code></dt>
+    <dd>Set <em>intersection</em> (<span class="sym">∩</span>) — a value in A <em>and</em> B.
+        For object types, this <em>combines</em> members (narrower).</dd>
+
+    <dt><code>never</code></dt>
+    <dd>The <em>empty set</em> (<span class="sym">∅</span>). No value has this type. It is
+        the subtype of every type and the absorbing element of unions
+        (<code>T | never</code> = <code>T</code>).</dd>
+
+    <dt><code>unknown</code></dt>
+    <dd>The <em>universal set</em> — contains every value. The supertype of every type.
+        You must narrow it before use. The type-safe top type.</dd>
+
+    <dt><code>any</code></dt>
+    <dd>An escape hatch that <em>disables</em> type checking. Assignable to and from everything.
+        Not a set — a hole in the type system. Avoid in senior code.</dd>
+  </dl>
+
+  <h2 id="narrowing">Narrowing &amp; Control Flow</h2>
+  <dl>
+    <dt>Narrowing</dt>
+    <dd>Using a runtime check to <em>shrink</em> a type's set within a branch — ruling out
+        members that the check excludes.</dd>
+    <dd class="eg">Inside <code>if (typeof x === "number")</code>, <code>string | number</code> ⟶ <code>number</code>.</dd>
+
+    <dt>Control-flow analysis</dt>
+    <dd>TypeScript's engine that tracks the most specific type at every point along every
+        code path (branches, loops, assignments, early returns).</dd>
+
+    <dt>Type guard</dt>
+    <dd>Any expression TypeScript recognizes as narrowing: <code>typeof</code>, <code>instanceof</code>,
+        <code>in</code>, equality, truthiness.</dd>
+
+    <dt>Type predicate</dt>
+    <dd>A user-defined guard: a function whose return type is <code>arg is T</code>. Callers narrow on
+        a <code>true</code> result. <b>TS trusts the body — it does not verify it.</b></dd>
+    <dd class="eg"><code>function isFish(p: Fish | Bird): p is Fish</code></dd>
+
+    <dt>Discriminant / Discriminated union</dt>
+    <dd>A union whose members share a common <em>literal</em> property (the <em>discriminant</em>),
+        letting a <code>switch</code> narrow each case cleanly.</dd>
+    <dd class="eg"><code>{ kind: "circle" } | { kind: "square" }</code> — <code>kind</code> is the discriminant.</dd>
+
+    <dt>Exhaustiveness check</dt>
+    <dd>Assigning the value to <code>never</code> in a <code>default</code> branch so that an unhandled
+        union member becomes a <em>compile error</em>. Relies on <code>never</code> being the empty set.</dd>
+
+    <dt>The <code>null</code> trap</dt>
+    <dd>A JS quirk: <code>typeof null === "object"</code>. Use <code>x != null</code> (loose <code>!=</code>)
+        to exclude both <code>null</code> and <code>undefined</code>.</dd>
+  </dl>
+
+  <h2 id="generics">Generics</h2>
+  <dl>
+    <dt>Generic</dt>
+    <dd>A function, type, or class parameterized by one or more <em>types</em>. Think:
+        a function whose arguments are sets, returning a set.</dd>
+
+    <dt>Type parameter</dt>
+    <dd>The variable in angle brackets (<code>&lt;T&gt;</code>) standing for a type the caller supplies
+        or the compiler infers.</dd>
+
+    <dt>Type-argument inference</dt>
+    <dd>The compiler deducing a type parameter from the values passed, so you rarely write
+        <code>&lt;T&gt;</code> explicitly.</dd>
+
+    <dt>Constraint (<code>extends</code>)</dt>
+    <dd>An upper bound on a type parameter. <code>T extends X</code> means <em>T's set ⊆ X's set</em> —
+        the same subset meaning as in conditional types. <b>Not</b> class inheritance.</dd>
+
+    <dt><code>keyof T</code></dt>
+    <dd>The <em>union of T's property-name literals</em>. <code>keyof {a:1; b:2}</code> = <code>"a" | "b"</code>.</dd>
+
+    <dt>Indexed access type <code>T[K]</code></dt>
+    <dd>The type of property <code>K</code> on <code>T</code>. Tracks the exact value type, e.g.
+        <code>{a:number}["a"]</code> = <code>number</code>.</dd>
+  </dl>
+
+  <hr>
+  <p><a class="top" href="#">↑ top</a></p>
+  <footer>
+    Living document — grows with each lesson. Companion to the
+    <a href="../lessons/0001-types-as-sets.html">lessons</a>.<br>
+    Grounded in the <a href="https://www.typescriptlang.org/docs/handbook/type-compatibility.html">TS Handbook (Type Compatibility)</a>
+    and <a href="https://type-level-typescript.com/types-are-just-data">Type-Level TypeScript</a>.
+  </footer>
+</div>
+</body>
+</html>

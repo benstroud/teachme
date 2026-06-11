@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 02 — Narrowing &amp; Control-Flow Analysis</title>
+<style>
+  :root { --ink:#1a1a1a; --paper:#fffff8; --accent:#7b1e1e; --muted:#6b6b63;
+          --rule:#d8d8cf; --good:#1b6b3a; --bad:#9a1f1f; --code:#f1f0e6; }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    line-height: 1.55; margin: 0; padding: 3.5rem 1.5rem 6rem; font-size: 19px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  .kicker { letter-spacing: .18em; text-transform: uppercase; font-size: .72rem;
+            color: var(--accent); margin: 0 0 .4rem; font-family: sans-serif; }
+  h1 { font-size: 2.3rem; font-weight: 600; line-height: 1.08; margin: 0 0 .3rem; }
+  .sub { color: var(--muted); font-style: italic; margin: 0 0 .6rem; }
+  .mission { font-size: .82rem; color: var(--muted); font-family: sans-serif;
+             border-left: 3px solid var(--rule); padding: .3rem 0 .3rem .8rem; margin: 0 0 2.4rem; }
+  h2 { font-size: 1.3rem; font-weight: 600; margin: 2.6rem 0 .6rem; }
+  h3 { font-size: 1rem; font-weight: 600; margin: 1.6rem 0 .3rem; font-family: sans-serif; }
+  p { margin: 0 0 1rem; }
+  ul { margin: 0 0 1rem; } li { margin: .2rem 0; }
+  code { font-family: "SF Mono","DejaVu Sans Mono",Menlo,Consolas,monospace;
+         font-size: .82em; background: var(--code); padding: .08em .35em; border-radius: 3px; }
+  pre { background: #2b2b28; color: #f4f3ea; padding: 1rem 1.1rem; border-radius: 6px;
+        overflow-x: auto; font-size: .8rem; line-height: 1.5; margin: 1rem 0; }
+  pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+  .tok-c { color: #8f9183; } .tok-k { color: #e0a36b; } .tok-t { color: #8fbcd4; }
+  .tok-s { color: #c3d39a; } .tok-f { color: #d9b3e0; }
+  a { color: var(--accent); }
+  sup a { text-decoration: none; font-size: .7em; }
+  aside.note { background:#f6f5ea; border:1px solid var(--rule); border-radius:6px;
+        padding:.9rem 1.1rem; font-size:.92rem; margin:1.4rem 0; }
+  aside.note b { color: var(--accent); }
+  table.guards { width:100%; border-collapse:collapse; font-size:.86rem; margin:1rem 0; }
+  table.guards th, table.guards td { text-align:left; padding:.45rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top; }
+  table.guards th { font-family:sans-serif; font-size:.74rem; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); }
+  table.guards td code { font-size:.78em; }
+
+  .quiz { border-top: 2px solid var(--ink); margin-top: 3rem; padding-top: 1.4rem; }
+  .q { margin: 1.8rem 0; }
+  .q .stem { font-weight: 600; margin-bottom: .7rem; }
+  .q .stem .n { color: var(--accent); margin-right:.4rem; }
+  .opts { display: grid; gap: .5rem; }
+  .opt { text-align:left; font: inherit; cursor: pointer; background: #fff;
+         border: 1px solid var(--rule); border-radius: 6px; padding: .6rem .85rem;
+         transition: background .12s, border-color .12s; }
+  .opt:hover:not(:disabled) { border-color: var(--accent); }
+  .opt:disabled { cursor: default; }
+  .opt.correct { border-color: var(--good); background: #eaf5ee; }
+  .opt.wrong { border-color: var(--bad); background: #f7ebeb; }
+  .fb { font-size: .9rem; margin-top: .55rem; min-height: 1.2em; }
+  .fb.correct { color: var(--good); } .fb.wrong { color: var(--bad); }
+  .fb b { font-weight: 600; }
+  #score { font-family: sans-serif; font-size: 1rem; margin-top: 2rem;
+           padding: 1rem; border: 1px dashed var(--rule); border-radius: 6px;
+           text-align: center; color: var(--muted); }
+  #score.done { color: var(--ink); border-style: solid; }
+
+  .next { border-top: 1px solid var(--rule); margin-top: 3rem; padding-top: 1.4rem; }
+  .pill { display:inline-block; font-family:sans-serif; font-size:.72rem; letter-spacing:.08em;
+          text-transform:uppercase; background:var(--code); color:var(--muted);
+          padding:.2rem .55rem; border-radius:99px; margin-right:.4rem; }
+  footer { color: var(--muted); font-size: .85rem; margin-top: 2rem; }
+  .ask { background:#fdf6e3; border:1px solid #e4d9a8; border-radius:6px;
+         padding:.9rem 1.1rem; font-size:.92rem; margin-top:2rem; }
+  @media print { body{font-size:12pt;padding:1rem;} pre{background:#eee;color:#000;}
+    .opt{background:#fff;} a{color:var(--ink);} .quiz .fb{display:block;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">Lesson 02 · Foundations</p>
+  <h1>Narrowing &amp; Control-Flow Analysis</h1>
+  <p class="sub">Watch TypeScript shrink a set, line by line, as it reads your code.</p>
+  <p class="mission">★ Mission link: narrowing is how you make a type-safe API <em>feel</em> safe —
+     the compiler proves which branch you're in. It's also the #1 source of "why is this still
+     <code>string | undefined</code>?" errors. Builds directly on
+     <a href="0001-types-as-sets.html">Lesson 01</a>.</p>
+
+  <h2>The idea: narrowing = shrinking the set</h2>
+  <p>From Lesson 01, a union like <code>string | number</code> is the <em>union of two sets</em>.
+     <strong>Narrowing</strong> is what happens when TypeScript uses your runtime checks to rule out
+     members and leave a smaller set in a given branch.<sup><a href="#r1">1</a></sup> The engine that
+     does this — tracking the type at every point along every code path — is called
+     <strong>control-flow analysis</strong>.</p>
+  <pre><code><span class="tok-k">function</span> <span class="tok-f">pad</span>(p: <span class="tok-t">number</span> | <span class="tok-t">string</span>) {
+  <span class="tok-k">if</span> (<span class="tok-k">typeof</span> p === <span class="tok-s">"number"</span>) {
+    <span class="tok-c">// here the set is narrowed to ⟶ number</span>
+    <span class="tok-k">return</span> <span class="tok-s">" "</span>.repeat(p);
+  }
+  <span class="tok-c">// the number was ruled out, so here ⟶ string</span>
+  <span class="tok-k">return</span> p.toUpperCase();
+}</code></pre>
+
+  <h2>The guards (your set-shrinking tools)</h2>
+  <table class="guards">
+    <tr><th>Guard</th><th>Narrows by</th><th>Example</th></tr>
+    <tr><td><code>typeof</code></td><td>primitive tag</td><td><code>typeof x === "string"</code></td></tr>
+    <tr><td>truthiness</td><td>falsy values out</td><td><code>if (x) { … }</code></td></tr>
+    <tr><td>equality</td><td><code>===</code> / <code>!=</code></td><td><code>if (x != null)</code></td></tr>
+    <tr><td><code>in</code></td><td>property presence</td><td><code>if ("swim" in animal)</code></td></tr>
+    <tr><td><code>instanceof</code></td><td>prototype chain</td><td><code>if (x instanceof Date)</code></td></tr>
+  </table>
+  <aside class="note"><b>Senior gotcha — the <code>null</code> trap:</b> <code>typeof null === "object"</code> in
+     JavaScript. So <code>if (typeof x === "object")</code> does <em>not</em> remove <code>null</code> from
+     <code>string[] | null</code>.<sup><a href="#r1">1</a></sup> Reach for <code>x != null</code> (loose
+     <code>!=</code> catches both <code>null</code> and <code>undefined</code>) before treating something as present.</aside>
+
+  <h2>Type predicates: teach the compiler your own guard</h2>
+  <p>A function returning <code>arg is Type</code> is a <strong>type predicate</strong> (user-defined type guard).
+     It exports a narrowing decision so callers narrow automatically:<sup><a href="#r2">2</a></sup></p>
+  <pre><code><span class="tok-k">function</span> <span class="tok-f">isFish</span>(pet: Fish | Bird): pet <span class="tok-k">is</span> <span class="tok-t">Fish</span> {
+  <span class="tok-k">return</span> (pet <span class="tok-k">as</span> Fish).swim !== <span class="tok-k">undefined</span>;
+}
+<span class="tok-k">if</span> (<span class="tok-f">isFish</span>(pet)) pet.<span class="tok-f">swim</span>();   <span class="tok-c">// pet ⟶ Fish</span>
+<span class="tok-k">else</span>           pet.<span class="tok-f">fly</span>();    <span class="tok-c">// pet ⟶ Bird</span></code></pre>
+  <aside class="note"><b>Power tool, sharp edge:</b> a predicate is an <em>assertion you are trusted on</em> — TypeScript
+     does not verify the body matches the claim. A wrong predicate silently lies to every caller. Use them, but
+     keep the body honest.</aside>
+
+  <h2>The senior pattern: discriminated unions + exhaustiveness</h2>
+  <p>Give each member of a union a shared <em>literal</em> property (the <strong>discriminant</strong>).
+     Switching on it narrows cleanly — and a <code>never</code> in the <code>default</code> turns a missed
+     case into a <em>compile error</em>.<sup><a href="#r3">3</a></sup> This is where Lesson 01's
+     "<code>never</code> = empty set" earns its keep:</p>
+  <pre><code><span class="tok-k">type</span> <span class="tok-t">Shape</span> =
+  | { kind: <span class="tok-s">"circle"</span>; radius: <span class="tok-t">number</span> }
+  | { kind: <span class="tok-s">"square"</span>; side: <span class="tok-t">number</span> };
+
+<span class="tok-k">function</span> <span class="tok-f">area</span>(s: Shape) {
+  <span class="tok-k">switch</span> (s.kind) {
+    <span class="tok-k">case</span> <span class="tok-s">"circle"</span>: <span class="tok-k">return</span> Math.PI * s.radius ** <span class="tok-s">2</span>;
+    <span class="tok-k">case</span> <span class="tok-s">"square"</span>: <span class="tok-k">return</span> s.side ** <span class="tok-s">2</span>;
+    <span class="tok-k">default</span>:
+      <span class="tok-k">const</span> _exhaustive: <span class="tok-t">never</span> = s; <span class="tok-c">// add a 3rd shape ⟶ this line errors</span>
+      <span class="tok-k">return</span> _exhaustive;
+  }
+}</code></pre>
+  <p>Add a <code>"triangle"</code> later and forget to handle it? <code>s</code> in the default is no longer
+     <code>never</code> — it's <code>{kind:"triangle";…}</code> — and the assignment fails to compile. The
+     type system <em>forces</em> you to update every consumer. That's senior-grade safety.</p>
+
+  <!-- ============ QUIZ ============ -->
+  <div class="quiz">
+    <p class="kicker">Retrieval practice</p>
+    <h2 style="margin-top:.3rem">Check yourself</h2>
+    <p style="color:var(--muted);font-size:.92rem">From memory. Interleave with Lesson 01 — some of these lean on the set model.</p>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">1.</span>In set terms, narrowing does what to a union's set?</div>
+      <div class="opts">
+        <button class="opt">Shrinks it</button>
+        <button class="opt">Widens it</button>
+        <button class="opt">Empties it</button>
+        <button class="opt">Reverses it</button>
+      </div>
+      <div class="fb" data-why="A guard rules out members, leaving a smaller set in that branch. Control-flow analysis tracks it."></div>
+    </div>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">2.</span>What distinguishes union members by a shared literal property?</div>
+      <div class="opts">
+        <button class="opt">A discriminated union</button>
+        <button class="opt">A truthiness guard</button>
+        <button class="opt">An instanceof check</button>
+        <button class="opt">A typeof comparison</button>
+      </div>
+      <div class="fb" data-why="The shared literal field is the discriminant; switching on it narrows each case cleanly."></div>
+    </div>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">3.</span>A function returning <code>pet is Fish</code> is a…</div>
+      <div class="opts">
+        <button class="opt">type predicate function</button>
+        <button class="opt">discriminated union member</button>
+        <button class="opt">truthiness narrowing check</button>
+        <button class="opt">control flow analyzer</button>
+      </div>
+      <div class="fb" data-why="A type predicate (user-defined guard). It exports a narrowing decision — but TS trusts the body blindly."></div>
+    </div>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">4.</span>For exhaustiveness, the <code>default</code> case assigns the value to which type?</div>
+      <div class="opts">
+        <button class="opt">never</button>
+        <button class="opt">unknown</button>
+        <button class="opt">void</button>
+        <button class="opt">any</button>
+      </div>
+      <div class="fb" data-why="never = the empty set (Lesson 01). A still-inhabited value won't assign to it, so a missed case errors."></div>
+    </div>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">5.</span>Why is <code>typeof x === "object"</code> unsafe when <code>x</code> may be null?</div>
+      <div class="opts">
+        <button class="opt">null is typeof object</button>
+        <button class="opt">arrays are not objects</button>
+        <button class="opt">strings pass that check</button>
+        <button class="opt">object means any value</button>
+      </div>
+      <div class="fb" data-why="A historic JS quirk: typeof null === 'object'. Use x != null to actually exclude null and undefined."></div>
+    </div>
+
+    <div id="score">Answer all five to see your score.</div>
+  </div>
+
+  <!-- ============ NEXT ============ -->
+  <div class="next">
+    <h2>Primary source (read this next)</h2>
+    <p><span class="pill">Most trusted</span>
+       <a href="https://www.typescriptlang.org/docs/handbook/2/narrowing.html" target="_blank">TS Handbook — Narrowing</a>.
+       The canonical reference: every guard, type predicates, discriminated unions, and the exhaustiveness
+       pattern, with runnable examples. ~20 min.</p>
+
+    <h2>Where this goes</h2>
+    <p><span class="pill">Lesson 03</span> <strong>Generics from first principles</strong> — functions over <em>sets</em>.
+       You'll see why <code>&lt;T&gt;</code> is a parameter that the compiler <em>infers</em>, and meet variance.</p>
+    <p style="margin-top:1.4rem"><a href="../reference/glossary.html">→ Glossary</a> &nbsp;·&nbsp;
+       <a href="0001-types-as-sets.html">← Lesson 01</a> &nbsp;·&nbsp;
+       <a href="../RESOURCES.md">All resources</a></p>
+  </div>
+
+  <div class="ask">
+    <b>I'm your teacher.</b> Bring me a real one: paste a spot where TypeScript <em>won't</em> narrow the way
+    you expect (a stubborn <code>| undefined</code>, narrowing lost after a function call, a predicate that
+    isn't kicking in). Those are the most instructive cases — let's debug it together.
+  </div>
+
+  <footer>
+    <span id="r1">1.</span> <a href="https://www.typescriptlang.org/docs/handbook/2/narrowing.html">TS Handbook — Narrowing</a> (typeof, truthiness, the null trap). &nbsp;
+    <span id="r2">2.</span> <a href="https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates">TS Handbook — Type predicates</a>. &nbsp;
+    <span id="r3">3.</span> <a href="https://www.typescriptlang.org/docs/handbook/2/narrowing.html#exhaustiveness-checking">TS Handbook — Exhaustiveness checking</a>.
+  </footer>
+</div>
+
+<script>
+  const qs = [...document.querySelectorAll('.q')];
+  let answered = 0, correct = 0;
+  qs.forEach(q => {
+    const right = +q.dataset.correct;
+    const opts = [...q.querySelectorAll('.opt')];
+    const fb = q.querySelector('.fb');
+    opts.forEach((opt, i) => {
+      opt.addEventListener('click', () => {
+        opts.forEach(o => o.disabled = true);
+        const ok = i === right;
+        opts[right].classList.add('correct');
+        if (!ok) opt.classList.add('wrong');
+        fb.classList.add(ok ? 'correct' : 'wrong');
+        fb.innerHTML = (ok ? '<b>Correct.</b> ' : '<b>Not quite.</b> ') + fb.dataset.why;
+        answered++; if (ok) correct++;
+        if (answered === qs.length) {
+          const s = document.getElementById('score');
+          s.classList.add('done');
+          const msg = correct === qs.length ? 'Control flow mastered. On to generics.' :
+                      correct >= 3 ? 'Good. Revisit the misses, then continue.' :
+                      'Re-read above and retake — narrowing is load-bearing for everything next.';
+          s.textContent = `Score: ${correct} / ${qs.length}. ${msg}`;
+        }
+      });
+    });
+  });
+</script>
+</body>
+</html>

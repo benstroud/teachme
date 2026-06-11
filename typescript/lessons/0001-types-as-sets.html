@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 01 — Types as Sets</title>
+<style>
+  :root { --ink:#1a1a1a; --paper:#fffff8; --accent:#7b1e1e; --muted:#6b6b63;
+          --rule:#d8d8cf; --good:#1b6b3a; --bad:#9a1f1f; --code:#f1f0e6; }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    line-height: 1.55; margin: 0; padding: 3.5rem 1.5rem 6rem; font-size: 19px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  .kicker { letter-spacing: .18em; text-transform: uppercase; font-size: .72rem;
+            color: var(--accent); margin: 0 0 .4rem; font-family: sans-serif; }
+  h1 { font-size: 2.3rem; font-weight: 600; line-height: 1.08; margin: 0 0 .3rem; }
+  .sub { color: var(--muted); font-style: italic; margin: 0 0 .6rem; }
+  .mission { font-size: .82rem; color: var(--muted); font-family: sans-serif;
+             border-left: 3px solid var(--rule); padding: .3rem 0 .3rem .8rem; margin: 0 0 2.4rem; }
+  h2 { font-size: 1.3rem; font-weight: 600; margin: 2.6rem 0 .6rem; }
+  p { margin: 0 0 1rem; }
+  code { font-family: "SF Mono","DejaVu Sans Mono",Menlo,Consolas,monospace;
+         font-size: .82em; background: var(--code); padding: .08em .35em; border-radius: 3px; }
+  pre { background: #2b2b28; color: #f4f3ea; padding: 1rem 1.1rem; border-radius: 6px;
+        overflow-x: auto; font-size: .8rem; line-height: 1.5; margin: 1rem 0; }
+  pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+  .tok-c { color: #8f9183; } .tok-k { color: #e0a36b; } .tok-t { color: #8fbcd4; }
+  .tok-s { color: #c3d39a; }
+  a { color: var(--accent); }
+  sup a { text-decoration: none; font-size: .7em; }
+  .sets { display:flex; gap:1rem; flex-wrap:wrap; justify-content:center; margin:1.4rem 0; }
+  .venn { text-align:center; font-family:sans-serif; font-size:.78rem; color:var(--muted); }
+  aside.note { background:#f6f5ea; border:1px solid var(--rule); border-radius:6px;
+        padding:.9rem 1.1rem; font-size:.92rem; margin:1.4rem 0; }
+  aside.note b { color: var(--accent); }
+
+  /* Quiz */
+  .quiz { border-top: 2px solid var(--ink); margin-top: 3rem; padding-top: 1.4rem; }
+  .q { margin: 1.8rem 0; }
+  .q .stem { font-weight: 600; margin-bottom: .7rem; }
+  .q .stem .n { color: var(--accent); margin-right:.4rem; }
+  .opts { display: grid; gap: .5rem; }
+  .opt { text-align:left; font: inherit; cursor: pointer; background: #fff;
+         border: 1px solid var(--rule); border-radius: 6px; padding: .6rem .85rem;
+         transition: background .12s, border-color .12s; }
+  .opt:hover:not(:disabled) { border-color: var(--accent); }
+  .opt:disabled { cursor: default; }
+  .opt.correct { border-color: var(--good); background: #eaf5ee; }
+  .opt.wrong { border-color: var(--bad); background: #f7ebeb; }
+  .fb { font-size: .9rem; margin-top: .55rem; min-height: 1.2em; }
+  .fb.correct { color: var(--good); } .fb.wrong { color: var(--bad); }
+  .fb b { font-weight: 600; }
+  #score { font-family: sans-serif; font-size: 1rem; margin-top: 2rem;
+           padding: 1rem; border: 1px dashed var(--rule); border-radius: 6px;
+           text-align: center; color: var(--muted); }
+  #score.done { color: var(--ink); border-style: solid; }
+
+  .next { border-top: 1px solid var(--rule); margin-top: 3rem; padding-top: 1.4rem; }
+  .pill { display:inline-block; font-family:sans-serif; font-size:.72rem; letter-spacing:.08em;
+          text-transform:uppercase; background:var(--code); color:var(--muted);
+          padding:.2rem .55rem; border-radius:99px; margin-right:.4rem; }
+  footer { color: var(--muted); font-size: .85rem; margin-top: 2rem; }
+  .ask { background:#fdf6e3; border:1px solid #e4d9a8; border-radius:6px;
+         padding:.9rem 1.1rem; font-size:.92rem; margin-top:2rem; }
+  @media print { body{font-size:12pt;padding:1rem;} pre{background:#eee;color:#000;}
+    .opt{background:#fff;} a{color:var(--ink);} .quiz .fb{display:block;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">Lesson 01 · Foundations</p>
+  <h1>Types as Sets</h1>
+  <p class="sub">The one mental model that makes assignability, <code>never</code>, unions, and half your error messages obvious.</p>
+  <p class="mission">★ Mission link: this is the bedrock under <em>type-level programming</em> and <em>reading any error</em>.
+     Every advanced trick later is set arithmetic in disguise.</p>
+
+  <h2>The idea</h2>
+  <p>Stop thinking of a type as a "kind of thing." Think of it as a <strong>set of values</strong> —
+     the collection of every value allowed to inhabit it.<sup><a href="#r1">1</a></sup></p>
+  <ul>
+    <li><code>string</code> is the (infinite) set of <em>all</em> strings.</li>
+    <li><code>boolean</code> is the set <code>{ true, false }</code> — just two values.</li>
+    <li><code>"on"</code> is a <strong>literal type</strong>: a set of size <em>one</em>.</li>
+  </ul>
+  <p>Once types are sets, the relationships between them are just set relationships.</p>
+
+  <h2>Assignability = subset</h2>
+  <p>The rule that governs every <code>error TS2322: Type 'X' is not assignable to type 'Y'</code>:</p>
+  <pre><code><span class="tok-c">// "B is assignable to A"  ⟺  B ⊆ A  (B's set fits inside A's)</span>
+<span class="tok-k">const</span> mode: <span class="tok-t">string</span> = <span class="tok-s">"on"</span>;   <span class="tok-c">// ✅ {"on"} ⊆ string</span>
+<span class="tok-k">const</span> only: <span class="tok-s">"on"</span> = mode;       <span class="tok-c">// ❌ string ⊄ {"on"} — string is too wide</span></code></pre>
+  <p>A narrower set flows into a wider one, never the reverse. This is the whole game.<sup><a href="#r2">2</a></sup>
+     When you read an assignability error, ask: <em>which set is bigger, and which way is the value flowing?</em></p>
+
+  <h2>Union and intersection are set operations</h2>
+  <div class="sets">
+    <div class="venn">A&nbsp;|&nbsp;B<br>= A ∪ B<br><b>wider</b> (either)</div>
+    <div class="venn">A&nbsp;&amp;&nbsp;B<br>= A ∩ B<br><b>narrower</b> (both)</div>
+  </div>
+  <p><code>A | B</code> is the <strong>union</strong> — a value in A <em>or</em> B, so it is <em>wider</em>.
+     <code>A &amp; B</code> is the <strong>intersection</strong> — a value in A <em>and</em> B.</p>
+  <aside class="note"><b>The senior gotcha:</b> for <em>object</em> types, intersection <em>combines</em> members
+     (<code>{a:1} &amp; {b:2}</code> needs <em>both</em> a and b), while union <em>restricts</em> you to the
+     shared members. People expect the opposite. Sets explain why: an object with more required keys
+     describes <em>fewer</em> possible objects.</aside>
+
+  <h2>The two edges: <code>never</code> and <code>unknown</code></h2>
+  <p>If types are sets, two sets sit at the extremes:<sup><a href="#r3">3</a></sup></p>
+  <ul>
+    <li><code>never</code> = the <strong>empty set ∅</strong>. No value is a <code>never</code>. That's why
+        <code>T | never</code> is just <code>T</code>, and why <code>string &amp; number</code> is <code>never</code>
+        (no value is both a string and a number — the overlap is empty).</li>
+    <li><code>unknown</code> = the <strong>universal set</strong>. Every value fits, so you must <em>narrow</em>
+        it before you can use it. The type-safe top of the hierarchy.</li>
+  </ul>
+  <p><code>any</code> is <em>not</em> a set — it switches checking off. A hole in the type system. Senior code avoids it.</p>
+
+  <!-- ============ QUIZ ============ -->
+  <div class="quiz">
+    <p class="kicker">Retrieval practice</p>
+    <h2 style="margin-top:.3rem">Check yourself</h2>
+    <p style="color:var(--muted);font-size:.92rem">Answer from memory — no scrolling up. Effortful recall is what builds retention.</p>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">1.</span>Which set does <code>never</code> represent?</div>
+      <div class="opts">
+        <button class="opt">The empty set</button>
+        <button class="opt">The whole universe</button>
+        <button class="opt">A single value</button>
+        <button class="opt">Every object type</button>
+      </div>
+      <div class="fb" data-why="never is ∅ — no value inhabits it, which is why T | never collapses to T."></div>
+    </div>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">2.</span>If <code>B</code> is assignable to <code>A</code>, what holds for their sets?</div>
+      <div class="opts">
+        <button class="opt">B is a subset of A</button>
+        <button class="opt">A is a subset of B</button>
+        <button class="opt">B and A are equal</button>
+        <button class="opt">B and A never overlap</button>
+      </div>
+      <div class="fb" data-why="Assignable ⟺ subset. A narrower set (B) flows into a wider one (A)."></div>
+    </div>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">3.</span>Compared with <code>A</code> alone, the type <code>A | B</code> is…</div>
+      <div class="opts">
+        <button class="opt">wider</button>
+        <button class="opt">narrower</button>
+        <button class="opt">identical</button>
+        <button class="opt">empty</button>
+      </div>
+      <div class="fb" data-why="Union = set union (∪). More values allowed, so it is wider than either part."></div>
+    </div>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">4.</span>What type is <code>string &amp; number</code>?</div>
+      <div class="opts">
+        <button class="opt">never</button>
+        <button class="opt">string</button>
+        <button class="opt">number</button>
+        <button class="opt">unknown</button>
+      </div>
+      <div class="fb" data-why="No value is both a string and a number, so the intersection is the empty set: never."></div>
+    </div>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">5.</span>A value of type <code>{a:1} &amp; {b:2}</code> must have which members?</div>
+      <div class="opts">
+        <button class="opt">Both a and b</button>
+        <button class="opt">Either a or b</button>
+        <button class="opt">Only member a</button>
+        <button class="opt">Neither a nor b</button>
+      </div>
+      <div class="fb" data-why="Object intersection combines members — more required keys means a smaller set of valid objects."></div>
+    </div>
+
+    <div id="score">Answer all five to see your score.</div>
+  </div>
+
+  <!-- ============ NEXT ============ -->
+  <div class="next">
+    <h2>Primary source (read this next)</h2>
+    <p><span class="pill">Most trusted</span>
+       <a href="https://type-level-typescript.com/types-are-just-data" target="_blank">Type-Level TypeScript — “Types are just data”</a>.
+       The single best treatment of the set model, by the author of the ts-pattern library. ~15 min.</p>
+    <p style="font-size:.9rem;color:var(--muted)">Backup / official:
+       <a href="https://www.typescriptlang.org/docs/handbook/type-compatibility.html" target="_blank">TS Handbook — Type Compatibility</a>.</p>
+
+    <h2>Where this goes</h2>
+    <p><span class="pill">Lesson 02</span> <strong>Narrowing &amp; control-flow analysis</strong> — how TypeScript
+       <em>shrinks</em> a set as it reads your <code>if</code> checks. It only makes sense once you see types as sets.</p>
+
+    <p style="margin-top:1.4rem"><a href="../reference/glossary.html">→ Glossary</a> &nbsp;·&nbsp;
+       <a href="../RESOURCES.md">All resources</a></p>
+  </div>
+
+  <div class="ask">
+    <b>I'm your teacher.</b> If any of this is fuzzy — <em>why</em> object intersection feels backwards,
+    what <code>any</code> really does, how this shows up in a real error you've hit — ask me follow-up
+    questions in the chat. That's where the deep learning happens.
+  </div>
+
+  <footer>
+    <span id="refs">
+      <span id="r1">1.</span> <a href="https://type-level-typescript.com/types-are-just-data">Type-Level TypeScript — Types are just data</a>. &nbsp;
+      <span id="r2">2.</span> <a href="https://www.typescriptlang.org/docs/handbook/type-compatibility.html">TS Handbook — Type Compatibility</a>. &nbsp;
+      <span id="r3">3.</span> <a href="https://ivov.dev/notes/typescript-and-set-theory">Ovejero — TypeScript &amp; set theory</a>.
+    </span>
+  </footer>
+</div>
+
+<script>
+  const qs = [...document.querySelectorAll('.q')];
+  let answered = 0, correct = 0;
+  qs.forEach(q => {
+    const right = +q.dataset.correct;
+    const opts = [...q.querySelectorAll('.opt')];
+    const fb = q.querySelector('.fb');
+    opts.forEach((opt, i) => {
+      opt.addEventListener('click', () => {
+        opts.forEach(o => o.disabled = true);
+        const ok = i === right;
+        opts[right].classList.add('correct');
+        if (!ok) opt.classList.add('wrong');
+        fb.classList.add(ok ? 'correct' : 'wrong');
+        fb.innerHTML = (ok ? '<b>Correct.</b> ' : '<b>Not quite.</b> ') + fb.dataset.why;
+        answered++; if (ok) correct++;
+        if (answered === qs.length) {
+          const s = document.getElementById('score');
+          s.classList.add('done');
+          const msg = correct === qs.length ? 'Set model locked in. Onward to narrowing.' :
+                      correct >= 3 ? 'Solid. Re-read the ones you missed, then move on.' :
+                      'Worth a second pass — re-read above and retake. This model pays off everywhere.';
+          s.textContent = `Score: ${correct} / ${qs.length}. ${msg}`;
+        }
+      });
+    });
+  });
+</script>
+</body>
+</html>
