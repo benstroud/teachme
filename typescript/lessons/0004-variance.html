@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 04 — Variance</title>
+<style>
+  :root { --ink:#1a1a1a; --paper:#fffff8; --accent:#7b1e1e; --muted:#6b6b63;
+          --rule:#d8d8cf; --good:#1b6b3a; --bad:#9a1f1f; --code:#f1f0e6; }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    line-height: 1.55; margin: 0; padding: 3.5rem 1.5rem 6rem; font-size: 19px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  .kicker { letter-spacing: .18em; text-transform: uppercase; font-size: .72rem;
+            color: var(--accent); margin: 0 0 .4rem; font-family: sans-serif; }
+  h1 { font-size: 2.3rem; font-weight: 600; line-height: 1.08; margin: 0 0 .3rem; }
+  .sub { color: var(--muted); font-style: italic; margin: 0 0 .6rem; }
+  .mission { font-size: .82rem; color: var(--muted); font-family: sans-serif;
+             border-left: 3px solid var(--rule); padding: .3rem 0 .3rem .8rem; margin: 0 0 2.4rem; }
+  h2 { font-size: 1.3rem; font-weight: 600; margin: 2.6rem 0 .6rem; }
+  h3 { font-size: 1.02rem; font-weight: 600; margin: 1.6rem 0 .3rem; font-family: sans-serif; }
+  p { margin: 0 0 1rem; }
+  ul { margin: 0 0 1rem; } li { margin: .25rem 0; }
+  code { font-family: "SF Mono","DejaVu Sans Mono",Menlo,Consolas,monospace;
+         font-size: .82em; background: var(--code); padding: .08em .35em; border-radius: 3px; }
+  pre { background: #2b2b28; color: #f4f3ea; padding: 1rem 1.1rem; border-radius: 6px;
+        overflow-x: auto; font-size: .8rem; line-height: 1.5; margin: 1rem 0; }
+  pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+  .tok-c { color: #8f9183; } .tok-k { color: #e0a36b; } .tok-t { color: #8fbcd4; }
+  .tok-s { color: #c3d39a; } .tok-f { color: #d9b3e0; }
+  a { color: var(--accent); }
+  sup a { text-decoration: none; font-size: .7em; }
+  aside.note { background:#f6f5ea; border:1px solid var(--rule); border-radius:6px;
+        padding:.9rem 1.1rem; font-size:.92rem; margin:1.4rem 0; }
+  aside.note b { color: var(--accent); }
+  table.var { width:100%; border-collapse:collapse; margin:1.2rem 0; font-size:.9rem;
+        font-family: sans-serif; }
+  table.var th, table.var td { text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); }
+  table.var th { font-size:.72rem; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+  table.var code { font-size:.82em; }
+
+  .quiz { border-top: 2px solid var(--ink); margin-top: 3rem; padding-top: 1.4rem; }
+  .q { margin: 1.8rem 0; }
+  .q .stem { font-weight: 600; margin-bottom: .7rem; }
+  .q .stem .n { color: var(--accent); margin-right:.4rem; }
+  .opts { display: grid; gap: .5rem; }
+  .opt { text-align:left; font: inherit; cursor: pointer; background: #fff;
+         border: 1px solid var(--rule); border-radius: 6px; padding: .6rem .85rem;
+         transition: background .12s, border-color .12s; }
+  .opt:hover:not(:disabled) { border-color: var(--accent); }
+  .opt:disabled { cursor: default; }
+  .opt.correct { border-color: var(--good); background: #eaf5ee; }
+  .opt.wrong { border-color: var(--bad); background: #f7ebeb; }
+  .fb { font-size: .9rem; margin-top: .55rem; min-height: 1.2em; }
+  .fb.correct { color: var(--good); } .fb.wrong { color: var(--bad); }
+  .fb b { font-weight: 600; }
+  #score { font-family: sans-serif; font-size: 1rem; margin-top: 2rem;
+           padding: 1rem; border: 1px dashed var(--rule); border-radius: 6px;
+           text-align: center; color: var(--muted); }
+  #score.done { color: var(--ink); border-style: solid; }
+
+  .next { border-top: 1px solid var(--rule); margin-top: 3rem; padding-top: 1.4rem; }
+  .pill { display:inline-block; font-family:sans-serif; font-size:.72rem; letter-spacing:.08em;
+          text-transform:uppercase; background:var(--code); color:var(--muted);
+          padding:.2rem .55rem; border-radius:99px; margin-right:.4rem; }
+  footer { color: var(--muted); font-size: .85rem; margin-top: 2rem; }
+  .ask { background:#fdf6e3; border:1px solid #e4d9a8; border-radius:6px;
+         padding:.9rem 1.1rem; font-size:.92rem; margin-top:2rem; }
+  @media print { body{font-size:12pt;padding:1rem;} pre{background:#eee;color:#000;}
+    .opt{background:#fff;} a{color:var(--ink);} .quiz .fb{display:block;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">Lesson 04 · Foundations</p>
+  <h1>Variance</h1>
+  <p class="sub">When <code>Cat ⊆ Animal</code>, which compound types keep that relationship — and which flip it?</p>
+  <p class="mission">★ Mission link: variance is <em>the</em> rule behind cryptic "<code>X is not assignable to Y</code>"
+     errors on functions and callbacks — the ones that stop most mid-level devs cold. Get it from first
+     principles and you can both <em>read</em> those errors and <em>design</em> signatures that accept exactly
+     what's safe. Builds on <a href="0001-types-as-sets.html">Lesson 01</a> (subsets) and
+     <a href="0003-generics.html">Lesson 03</a> (<code>extends</code> = ⊆).</p>
+
+  <h2>The one question</h2>
+  <p>Start from a fact you already own: <code>Cat ⊆ Animal</code> — every cat is an animal, so
+     <code>Cat</code> is assignable to <code>Animal</code>.<sup><a href="#r1">1</a></sup> <strong>Variance</strong>
+     asks: when you wrap those types in something — an array, a function return, a function parameter — does
+     the <code>⊆</code> relationship <em>survive</em>, <em>flip</em>, or <em>vanish</em>?</p>
+  <p>There are exactly four answers, and they have names:</p>
+  <table class="var">
+    <tr><th>Name</th><th>Relationship</th><th>Lives in</th></tr>
+    <tr><td><b>Covariant</b></td><td>survives — <code>Cat[] ⊆ Animal[]</code></td><td>outputs: return types, readonly arrays</td></tr>
+    <tr><td><b>Contravariant</b></td><td>flips — see below</td><td>inputs: function parameters</td></tr>
+    <tr><td><b>Invariant</b></td><td>neither direction holds</td><td>read-write slots (theoretically: mutable arrays)</td></tr>
+    <tr><td><b>Bivariant</b></td><td>both directions accepted</td><td>TS method params (an unsound convenience)</td></tr>
+  </table>
+
+  <h2>Outputs are covariant (the intuitive one)</h2>
+  <p>If a function promises to <em>return</em> a <code>Cat</code>, it certainly satisfies a caller expecting an
+     <code>Animal</code> — a cat is an animal. So return position preserves the direction.<sup><a href="#r1">1</a></sup></p>
+  <pre><code><span class="tok-k">type</span> <span class="tok-t">GetCat</span>    = () =&gt; <span class="tok-t">Cat</span>;
+<span class="tok-k">type</span> <span class="tok-t">GetAnimal</span> = () =&gt; <span class="tok-t">Animal</span>;
+
+<span class="tok-k">const</span> g: <span class="tok-t">GetAnimal</span> = <span class="tok-f">getCat</span>;  <span class="tok-c">// ✅ () =&gt; Cat is assignable to () =&gt; Animal</span></code></pre>
+  <p>Same logic for read-only containers: a <code>readonly Cat[]</code> is safely a <code>readonly Animal[]</code>,
+     because all you can do is read cats out, and every cat is an animal.</p>
+
+  <h2>Inputs are contravariant (the counter-intuitive one)</h2>
+  <p>Now flip to <em>parameters</em>. Which is safe to use where a <code>(c: Cat) =&gt; void</code> is expected?
+     The surprise: a handler that accepts the <strong>wider</strong> type.<sup><a href="#r2">2</a></sup></p>
+  <pre><code><span class="tok-k">type</span> <span class="tok-t">HandleCat</span>    = (c: <span class="tok-t">Cat</span>)    =&gt; <span class="tok-t">void</span>;
+<span class="tok-k">type</span> <span class="tok-t">HandleAnimal</span> = (a: <span class="tok-t">Animal</span>) =&gt; <span class="tok-t">void</span>;
+
+<span class="tok-k">const</span> h: <span class="tok-t">HandleCat</span> = <span class="tok-f">handleAnimal</span>;  <span class="tok-c">// ✅ accepts any Animal, so it surely accepts a Cat</span>
+<span class="tok-k">const</span> b: <span class="tok-t">HandleAnimal</span> = <span class="tok-f">handleCat</span>;  <span class="tok-c">// ❌ would receive a Dog and call cat-only methods</span></code></pre>
+  <p>Read it as a contract: the slot promises to hand your function a <code>Cat</code>. A function that can
+     stomach <em>any</em> <code>Animal</code> honors that promise with room to spare. A function demanding
+     something <em>narrower</em> than <code>Cat</code> would be handed values it can't handle. So in parameter
+     position the <code>⊆</code> runs <strong>backwards</strong> — that's contravariance.</p>
+  <aside class="note"><b>The whole rule in one line:</b> a function <code>A</code> is assignable to function
+     <code>B</code> when <code>A</code>'s parameters are <em>wider</em> (contravariant) <b>and</b> <code>A</code>'s
+     return is <em>narrower</em> (covariant). "Demand less, deliver more." Memorize this and most function
+     assignability errors decode themselves.</aside>
+
+  <h2>The famous unsound hole: mutable arrays</h2>
+  <p>Strictly, a <em>mutable</em> <code>Cat[]</code> should <strong>not</strong> be an <code>Animal[]</code>,
+     because an <code>Animal[]</code> lets you <em>write</em> a <code>Dog</code> into it — corrupting the cats.
+     A read-write slot is logically <strong>invariant</strong>. But TypeScript deliberately treats arrays as
+     <em>covariant</em> anyway, trading a bit of soundness for everyday ergonomics:<sup><a href="#r3">3</a></sup></p>
+  <pre><code><span class="tok-k">const</span> cats: <span class="tok-t">Cat</span>[] = [<span class="tok-f">felix</span>];
+<span class="tok-k">const</span> animals: <span class="tok-t">Animal</span>[] = cats;  <span class="tok-c">// ✅ allowed — but unsound</span>
+animals.<span class="tok-f">push</span>(<span class="tok-f">rex</span>);            <span class="tok-c">// 🔥 a Dog is now in `cats`; no compile error</span></code></pre>
+  <p>Knowing this is the difference between trusting the checker blindly and knowing exactly where it has
+     your back versus where it's looking the other way.</p>
+
+  <aside class="note"><b>Senior gotcha — methods vs. function properties:</b> under
+     <code>strictFunctionTypes</code>, standalone function-typed parameters are checked
+     <em>contravariantly</em> (strict). But parameters of <em>methods</em> (and constructors) stay
+     <strong>bivariant</strong> — checked in both directions — for backward compatibility with patterns like
+     event handlers and arrays.<sup><a href="#r3">3</a></sup> Same shape, different strictness, depending on
+     whether you wrote <code>method(x): T</code> or <code>method: (x) =&gt; T</code>.</aside>
+
+  <aside class="note"><b>Coming next — conditional types:</b> <code>T extends U ? X : Y</code>. You'll see
+     <code>infer</code> reach <em>into</em> a type and pull a piece out — and the place it matters most is
+     extracting a function's parameter and return types, exactly the positions you just learned have opposite
+     variance. That's Lesson 05.</aside>
+
+  <!-- ============ QUIZ ============ -->
+  <div class="quiz">
+    <p class="kicker">Retrieval practice</p>
+    <h2 style="margin-top:.3rem">Check yourself</h2>
+    <p style="color:var(--muted);font-size:.92rem">From memory. The first reaches back to Lesson 01's subset model — on purpose.</p>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">1.</span>Output positions — return types and <code>readonly</code> arrays — are…</div>
+      <div class="opts">
+        <button class="opt">covariant</button>
+        <button class="opt">contravariant</button>
+        <button class="opt">bivariant</button>
+        <button class="opt">invariant</button>
+      </div>
+      <div class="fb" data-why="Outputs preserve the direction: () => Cat is assignable to () => Animal. A cat produced is an animal produced."></div>
+    </div>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">2.</span>Function parameters, under <code>strictFunctionTypes</code>, are…</div>
+      <div class="opts">
+        <button class="opt">covariant</button>
+        <button class="opt">contravariant</button>
+        <button class="opt">bivariant</button>
+        <button class="opt">invariant</button>
+      </div>
+      <div class="fb" data-why="Inputs flip: a handler taking the wider Animal can stand in where one taking Cat is required. 'Demand less.'"></div>
+    </div>
+
+    <div class="q" data-correct="3">
+      <div class="stem"><span class="n">3.</span>To be fully <em>sound</em>, a mutable array's element position would be…</div>
+      <div class="opts">
+        <button class="opt">covariant</button>
+        <button class="opt">contravariant</button>
+        <button class="opt">bivariant</button>
+        <button class="opt">invariant</button>
+      </div>
+      <div class="fb" data-why="A read-write slot allows both reads and writes, so neither direction is safe — invariant. TS chooses covariant anyway, unsoundly."></div>
+    </div>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">4.</span>A producer type <code>() =&gt; T</code> varies with <code>T</code>…</div>
+      <div class="opts">
+        <button class="opt">contravariantly</button>
+        <button class="opt">covariantly</button>
+        <button class="opt">bivariantly</button>
+        <button class="opt">invariantly</button>
+      </div>
+      <div class="fb" data-why="Return position is covariant: narrow the return, and the function stays assignable to the wider-return type."></div>
+    </div>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">5.</span>By "demand less, deliver more," you may safely <em>widen</em> a type in which position?</div>
+      <div class="opts">
+        <button class="opt">input</button>
+        <button class="opt">output</button>
+        <button class="opt">parameter</button>
+        <button class="opt">argument</button>
+      </div>
+      <div class="fb" data-why="Widening is safe in the contravariant input position — a function that accepts more still satisfies a narrower demand. (input = parameter = argument; the odd one out is output, the covariant position you widen by narrowing.)"></div>
+    </div>
+
+    <div id="score">Answer all five to see your score.</div>
+  </div>
+
+  <!-- ============ NEXT ============ -->
+  <div class="next">
+    <h2>Primary source (read this next)</h2>
+    <p><span class="pill">Most trusted</span>
+       <a href="https://www.typescriptlang.org/docs/handbook/type-compatibility.html" target="_blank">TS Handbook — Type Compatibility</a>.
+       The official treatment of structural assignability, function parameter/return variance, and the
+       array/method bivariance exceptions. ~20 min.</p>
+    <p style="font-size:.9rem;color:var(--muted)">Optional self-serve practice (you opted out of communities):
+       the function-assignability puzzles in <a href="https://github.com/type-challenges/type-challenges" target="_blank">Type Challenges</a>
+       lean directly on this.</p>
+
+    <h2>Where this goes</h2>
+    <p><span class="pill">Lesson 05</span> <strong>Conditional types &amp; <code>infer</code></strong> —
+       <code>T extends U ? X : Y</code>, and pulling parameter/return types back out of a function with
+       <code>infer</code>. Variance is the reason those two positions behave differently when you extract them.</p>
+    <p style="margin-top:1.4rem"><a href="../reference/glossary.html#variance">→ Glossary (Variance)</a> &nbsp;·&nbsp;
+       <a href="0003-generics.html">← Lesson 03</a> &nbsp;·&nbsp;
+       <a href="../RESOURCES.md">All resources</a></p>
+  </div>
+
+  <div class="ask">
+    <b>I'm your teacher.</b> Try this: write down whether <code>(x: string | number) =&gt; void</code> is
+    assignable to <code>(x: string) =&gt; void</code> — and which way the other direction goes — then paste your
+    reasoning and I'll check it like a senior reviewer. Or hand me any real "<code>not assignable</code>" function
+    error you've hit and we'll decode it with "demand less, deliver more."
+  </div>
+
+  <footer>
+    <span id="r1">1.</span> <a href="https://www.typescriptlang.org/docs/handbook/type-compatibility.html#comparing-two-functions">TS Handbook — Comparing two functions</a> (return-type covariance). &nbsp;
+    <span id="r2">2.</span> <a href="https://www.typescriptlang.org/docs/handbook/type-compatibility.html#function-parameter-bivariance">TS Handbook — Function parameters</a> (parameter contravariance). &nbsp;
+    <span id="r3">3.</span> <a href="https://www.typescriptlang.org/tsconfig/#strictFunctionTypes">tsconfig — <code>strictFunctionTypes</code></a> (method bivariance &amp; the array exception).
+  </footer>
+</div>
+
+<script>
+  const qs = [...document.querySelectorAll('.q')];
+  let answered = 0, correct = 0;
+  qs.forEach(q => {
+    const right = +q.dataset.correct;
+    const opts = [...q.querySelectorAll('.opt')];
+    const fb = q.querySelector('.fb');
+    opts.forEach((opt, i) => {
+      opt.addEventListener('click', () => {
+        opts.forEach(o => o.disabled = true);
+        const ok = i === right;
+        opts[right].classList.add('correct');
+        if (!ok) opt.classList.add('wrong');
+        fb.classList.add(ok ? 'correct' : 'wrong');
+        fb.innerHTML = (ok ? '<b>Correct.</b> ' : '<b>Not quite.</b> ') + fb.dataset.why;
+        answered++; if (ok) correct++;
+        if (answered === qs.length) {
+          const s = document.getElementById('score');
+          s.classList.add('done');
+          const msg = correct === qs.length ? 'Variance solid. Conditional types are next.' :
+                      correct >= 3 ? 'Good. Re-read the misses — "demand less, deliver more" is the anchor.' :
+                      'Re-read above and retake — variance underpins every function error you will read.';
+          s.textContent = `Score: ${correct} / ${qs.length}. ${msg}`;
+        }
+      });
+    });
+  });
+</script>
+</body>
+</html>

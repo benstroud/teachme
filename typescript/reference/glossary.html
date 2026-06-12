@@ -144,6 +144,37 @@
         <code>{a:number}["a"]</code> = <code>number</code>.</dd>
   </dl>
 
+  <h2 id="variance">Variance</h2>
+  <dl>
+    <dt>Variance</dt>
+    <dd>How the subset relation <span class="sym">⊆</span> between types is transformed when they're wrapped
+        in a compound type (array, function parameter, function return). Either preserved, flipped, dropped,
+        or both-ways.</dd>
+
+    <dt>Covariant</dt>
+    <dd>Preserves the direction: if <code>Cat ⊆ Animal</code> then the wrapped type does too. Holds for
+        <em>output</em> positions — function return types and <code>readonly</code> arrays.</dd>
+    <dd class="eg"><code>() =&gt; Cat</code> is assignable to <code>() =&gt; Animal</code>.</dd>
+
+    <dt>Contravariant</dt>
+    <dd>Flips the direction. Holds for <em>input</em> positions — function parameters (under
+        <code>strictFunctionTypes</code>). A function taking the <em>wider</em> type is assignable where a
+        narrower-parameter type is expected.</dd>
+    <dd class="eg"><code>(a: Animal) =&gt; void</code> is assignable to <code>(c: Cat) =&gt; void</code>.</dd>
+
+    <dt>Invariant</dt>
+    <dd>Neither direction is safe. The logically-correct variance for a read-write slot (e.g. a
+        <em>mutable</em> array, which is both read and written).</dd>
+
+    <dt>Bivariant</dt>
+    <dd>Both directions accepted — deliberately unsound, kept for ergonomics. TS uses it for
+        <em>method</em> parameters and treats mutable arrays as covariant for the same reason.</dd>
+
+    <dt>"Demand less, deliver more"</dt>
+    <dd>The function-assignability rule: <code>A</code> is assignable to <code>B</code> when <code>A</code>'s
+        parameters are <em>wider</em> (contravariant) and its return is <em>narrower</em> (covariant).</dd>
+  </dl>
+
   <hr>
   <p><a class="top" href="#">↑ top</a></p>
   <footer>
