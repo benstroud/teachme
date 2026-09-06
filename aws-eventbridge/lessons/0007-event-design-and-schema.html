@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — Event Design and Schema</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 8</span><span>AWS EventBridge</span></div>
+  <h1>Event design and schema</h1>
+  <p class="subtitle">Naming events well and giving them a contract, so producers and consumers evolve safely.</p>
+</header>
+
+<section>
+<h2>An event is a public API</h2>
+<p>Once a service publishes <code>Order Placed</code>, other teams write consumers against it. That makes an event every bit as much a contract as a REST endpoint. Naming and shape deserve real care, because changing them later means breaking everyone who subscribed.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Naming conventions that hold up</h2>
+<ul>
+  <li><code>source</code> is a reverse domain you own: <code>com.acme.orders</code>. It names <em>who</em>.</li>
+  <li><code>detail-type</code> is a past-tense, business-langued phrase naming <em>what happened</em>: <code>Order Placed</code>, <code>Order Shipped</code>, not <code>placeOrder</code> or <code>do_stuff</code>.</li>
+  <li>The pair must be unambiguous. <code>OrderPlaced</code> as a single concatenated string robs you of the two-axis routing that patterns expect.</li>
+  <li>Keep <code>detail</code> payload facts, not presentation. It should say what the consumer can rely on, not how to render it.</li>
+</ul>
+<aside class="callout callout-tip"><strong>Why past tense</strong> An event records that something <em>already happened</em>. Consumers react to facts — "Order Placed" — not to commands. This stays true even when a Lambda reacts with further actions.</aside>
+
+<h2>The Schema Registry as your contract store</h2>
+<p>EventBridge ships a <strong>Schema Registry</strong>: a central store of event schemas, written in OpenAPI 3 or JSON Schema Draft4. Built-in pieces:<sup><a href="#r2">2</a></sup></p>
+<ul>
+  <li><code>aws.events</code> — schemas for all AWS-service events.</li>
+  <li><code>discovered-schemas</code> — populated automatically by <strong>schema discovery</strong>, which infers a schema from the events flowing through a bus.</li>
+  <li>Custom registries you create for your own domains.</li>
+</ul>
+<p>Schemas are <strong>versioned</strong>, and every version is a snapshot of the event shape at a point in time. Consumers can pull <strong>code bindings</strong> (generated TypeScript classes/interfaces) directly from the registry, so a consumer's code reflects the producer's real contract instead of a hand-maintained guess.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Evolving a contract without breaking consumers</h2>
+<p>Events change. Scheme the way you'd version an API:</p>
+<ul>
+  <li><strong>Additive changes are safe</strong> — adding an optional field to <code>detail</code> won't break consumers that read specific keys.</li>
+  <li><strong>Removing or renaming is a new event</strong> — bump the <code>detail-type</code> (e.g. <code>Order Placed</code> → <code>Order Placed v2</code>) or publish a new event name; keep the old one working while consumers migrate.</li>
+  <li>Register the schema early and let discovery version it, so there is a record of how it evolved.<sup><a href="#r1">1</a></sup></li>
+</ul>
+<p>Treat "the event is the API" as load-bearing in every design you draw.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section class="quiz-section">
+<h2>Check yourself</h2>
+
+<div class="q" data-correct="3">
+  <h4>1. Which is the better <code>detail-type</code> for an event announcing an order moved to shipped?</h4>
+  <button class="opt" data-fb="Commands tell a consumer what to do; events record what happened.">shipThisOrder</button>
+  <button class="opt" data-fb="Lowercase imperative, not the past-tense event convention.">mark_shipped</button>
+  <button class="opt" data-fb="Not quite — past tense and business language preferred.">SHIPPED</button>
+  <button class="opt" data-fb="Correct — a past-tense, business-langued event name.">Order Shipped</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="0">
+  <h4>2. What does <code>source</code> primarily name in an event?</h4>
+  <button class="opt" data-fb="Correct — it identifies the producer of the event.">Which service produced the event</button>
+  <button class="opt" data-fb="Wrong — the payload is in detail, not source.">The business data carried in the event</button>
+  <button class="opt" data-fb="No — the event id is the unique key, not source.">The unique id of this particular message</button>
+  <button class="opt" data-fb="Not right — source and detail-type are separate fields.">The event kind, like Order Placed</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="2">
+  <h4>3. Suppose the detail of <code>Order Placed</code> must gain an optional <code>couponCode</code> field. Best move?</h4>
+  <button class="opt" data-fb="That is the risky route; it changes an existing public contract.">Rename the whole event to Order Placed v2</button>
+  <button class="opt" data-fb="Wrong — dropping the old event strand orphans consumers.">Cancel the old event and publish only a new one</button>
+  <button class="opt" data-fb="Correct — adding an optional field is backward compatible.">Add the optional field; consumers keep working</button>
+  <button class="opt" data-fb="Not right — the registry versions events; it does not replace them.">Ship it without any schema registration at all</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="1">
+  <h4>4. Which format does the EventBridge Schema Registry use for schemas?</h4>
+  <button class="opt" data-fb="Not quite — TypeScript is generated code bindings, not the schema format.">TypeScript interfaces only</button>
+  <button class="opt" data-fb="Correct — OpenAPI 3 and JSON Schema Draft4 are supported.">OpenAPI 3 or JSON Schema Draft4</button>
+  <button class="opt" data-fb="No — YAML is a serialization, not the schema spec.">YAML frontmatter only</button>
+  <button class="opt" data-fb="Wrong — Swagger 2.0 is not the registry's format.">Swagger 2.0 exclusively</button>
+  <div class="fb"></div>
+</div>
+
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Hands-on step (attempt one at a time)</h2>
+<ol>
+  <li>Write, by hand, a versioned contract for one event in a domain you know well: <code>source</code>, <code>detail-type</code>, and the full <code>detail</code> shape with types (its "schema").</li>
+  <li>Turn it into an OpenAPI 3 schema and register it in the Schema Registry (or write the JSON schema by hand and compare).</li>
+</ol>
+<div class="ask"><strong>Ask the agent</strong> Paste the event contract you designed and ask: could a new team consume this without asking the producer? Is anything too coupled to a specific UI? Then get feedback.</div>
+</section>
+
+<section>
+<h2>Primary source</h2>
+<p>Read AWS's own best practices — the single most senior source on this lesson: <a href="https://builder.aws.com/content/2dhVUFPH16jZbhZfUB73aRVJ5uD/best-practices-when-working-with-events-schema-registry-and-amazon-eventbridge">AWS Builder Content — Best practices for events, schema registry, and EventBridge</a>, plus <a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-schema.html">the Schema Registry docs</a>.</p>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://builder.aws.com/content/2dhVUFPH16jZbhZfUB73aRVJ5uD/best-practices-when-working-with-events-schema-registry-and-amazon-eventbridge">AWS Builder Content — Events, schema registry, EventBridge best practices</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-schema.html">AWS — Amazon EventBridge schemas</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-delivery-guarantees-and-failures.html">← Lesson 6</a></span>
+  <span class="nav-next"><a href="0008-putting-it-together-orders-app.html">Lesson 8: Putting it together →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">MISSION</a> · <a href="../RESOURCES.md">RESOURCES</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/eventbridge-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() {
+    if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; }
+  }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

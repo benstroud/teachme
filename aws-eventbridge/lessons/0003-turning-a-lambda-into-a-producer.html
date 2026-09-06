@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — Turning a Lambda into a Producer</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 8</span><span>AWS EventBridge</span></div>
+  <h1>Turning a Lambda into a producer</h1>
+  <p class="subtitle">How one service publishes events so many others can react.</p>
+</header>
+
+<section>
+<h2>The producer's only job</h2>
+<p>Recall the flow: <em>producer → PutEvents → bus → rules → targets</em>. On the producer side there is exactly one API call that matters: <code>PutEvents</code>.<sup><a href="#r1">1</a></sup> It sends one or more event entries to a bus. The producer does not decide who receives the event — it just announces that something happened.</p>
+
+<p>Here is a minimal TypeScript producer using the AWS SDK v3:</p>
+<pre><code>import {
+  EventBridgeClient, PutEventsCommand
+} from "@aws-sdk/client-eventbridge";
+
+const client = new EventBridgeClient({
+  region: process.env.AWS_REGION
+});
+
+export async function putOrderPlaced(orderId: string, customerId: string, total: number) {
+  await client.send(new PutEventsCommand({
+    Entries: [{
+      Source: "com.acme.orders",
+      DetailType: "Order Placed",
+      Detail: JSON.stringify({ orderId, customerId, total }),
+      EventBusName: process.env.EVENT_BUS_NAME
+    }]
+  }));
+}</code></pre>
+
+<h2>The rules of a correct entry</h2>
+<ul>
+  <li><code>Source</code>, <code>DetailType</code>, and <code>Detail</code> are all required. Drop one and that entry fails.<sup><a href="#r2">2</a></sup></li>
+  <li><code>Detail</code> must be a <strong>string</strong> containing the JSON — not a JavaScript object. That's why the code calls <code>JSON.stringify</code>.<sup><a href="#r2">2</a></sup></li>
+  <li><code>DetailType</code> is a free-form string, capped at 128 characters.<sup><a href="#r2">2</a></sup></li>
+  <li><code>EventBusName</code> is optional; omit it and the event goes to the default bus.</li>
+  <li>One <code>PutEvents</code> call can carry up to <strong>10 entries</strong>. The total entry size of a request must stay under <strong>256 KB</strong>.<sup><a href="#r1">1</a></sup></li>
+  <li>Batch related events into one call for efficiency, but don't exceed the 10-entry / 256 KB caps.</li>
+</ul>
+
+<aside class="callout callout-tip"><strong>Common bug</strong> Newcomers pass <code>Detail: { orderId, ... }</code> as an object and wonder why the event won't publish. The SDK is typed — <code>Detail</code> is a string field. Always stringify.</aside>
+
+<h2>Missing: idempotency (why it matters already)</h2>
+<p>You will see this properly in Lesson 6, but hold the thought now: event-driven delivery is <em>at-least-once</em>, so the same event can reach a consumer more than once. That pushes a discipline onto both sides — and it starts here, by giving every event a stable identity you can dedupe on later (a business key like <code>orderId</code>, plus the envelope's <code>id</code>).<sup><a href="#r3">3</a></sup> You make this decision at design time, not after an outage.</p>
+</section>
+
+<section class="quiz-section">
+<h2>Check yourself</h2>
+
+<div class="q" data-correct="2">
+  <h4>1. Which three fields are required on every PutEvents entry?</h4>
+  <button class="opt" data-fb="Not quite — Time and Region are optional envelope hints, not requirements.">Time, Region, Resources</button>
+  <button class="opt" data-fb="No — EventBusName is optional (default bus) and id is generated.">EventBusName, id, Time</button>
+  <button class="opt" data-fb="Correct — without all three the entry is rejected.">Source, DetailType, Detail</button>
+  <button class="opt" data-fb="Not right — account and id are managed fields, not inputs.">Account, Source, id</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="1">
+  <h4>2. In TypeScript, what must <code>Detail</code> be set to on a PutEvents entry?</h4>
+  <button class="opt" data-fb="Not quite — the SDK lacks batching knowledge that you as producer must handle yourself.">The JavaScript object directly</button>
+  <button class="opt" data-fb="Correct — Detail is a string field; stringify the object.">A string produced by JSON.stringify</button>
+  <button class="opt" data-fb="No — an array of objects is not a valid Detail value.">An array of the payload fields</button>
+  <button class="opt" data-fb="Not right — the buffer contents are not a JSON string here.">A Node Buffer of the raw bytes</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="0">
+  <h4>3. You have 14 unrelated events to publish at once. What is the best approach?</h4>
+  <button class="opt" data-fb="Correct — cap is 10 entries per call, so split into two calls.">Batch up to 10 in one call, send the rest in a second call</button>
+  <button class="opt" data-fb="No — a single request is capped at 10 entries.">Send all 14 in a single PutEvents call</button>
+  <button class="opt" data-fb="Not right — that is far heavier than a second batched call.">Send each of the 14 in its own separate call</button>
+  <button class="opt" data-fb="SNS is a topic, not the bus you target with PutEvents.">Publish all 14 to a single SNS topic instead</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="3">
+  <h4>4. Your event carries a shipping update with progress text well under 128 characters. What is a sound source/detail-type pairing?</h4>
+  <button class="opt" data-fb="Not right — 'shipping' alone says who, not what.">Source: "shipping", DetailType: "progress"</button>
+  <button class="opt" data-fb="No — source should name the producer, not the patient.">Source: "info", DetailType: "warning"</button>
+  <button class="opt" data-fb="Not quite — that names the state, not the event purpose.">Source: "tracking", DetailType: "queued"</button>
+  <button class="opt" data-fb="Correct — a clear namespace plus the event kind name.">Source: "com.acme.shipping", DetailType: "Shipment Progress"</button>
+  <div class="fb"></div>
+</div>
+
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Hands-on step (attempt one at a time)</h2>
+<p>Do this with a real AWS account if you have one; otherwise trace it by hand. <strong>Try step 1 now, then come back for the next.</strong></p>
+<ol>
+  <li>Create a custom bus named <code>com.acme.order-bus</code> (console: Amazon EventBridge → Event buses → Create).</li>
+  <li>Give a Lambda permission to <code>events:PutEvents</code> on that bus (attach a policy, or add an EventBridge resource-based policy).</li>
+  <li>Publish your first event with the AWS CLI: <code>aws events put-events --entries '[{ "Source":"com.acme.orders","DetailType":"Order Placed","Detail":"{\"orderId\":\"1\"}","EventBusName":"com.acme.order-bus"}]'</code></li>
+</ol>
+<div class="ask"><strong>Ask the agent</strong> Paste the entry you published (or your traced payload) and ask: is the source/detail-type pair clean? Should the event carry more identity for idempotency?</div>
+</section>
+
+<section>
+<h2>Primary source</h2>
+<p>Read the exact shape of an entry: <a href="https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_PutEventsRequestEntry.html">AWS — PutEventsRequestEntry</a>, then the size guidance at <a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-putevent-size.html">Calculating PutEvents event entry size</a>.</p>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_PutEvents.html">AWS — PutEvents API</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_PutEventsRequestEntry.html">AWS — PutEventsRequestEntry</a></li>
+    <li id="r3"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-putevent-size.html">AWS — PutEvents event entry size</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-eventbridge-core-concepts.html">← Lesson 2</a></span>
+  <span class="nav-next"><a href="0004-rules-and-event-patterns.html">Lesson 4: Rules and event patterns →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">MISSION</a> · <a href="../RESOURCES.md">RESOURCES</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/eventbridge-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() {
+    if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; }
+  }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

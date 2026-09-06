@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — Putting It Together</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 8</span><span>AWS EventBridge</span></div>
+  <h1>Putting it together: an orders system</h1>
+  <p class="subtitle">The capstone — one architecture that uses everything you have learned.</p>
+</header>
+
+<section>
+<h2>The system</h2>
+<p>We are coordinating four Lambda services with an EventBridge bus: an orders API, an inventory service, a payment service, and a notifications service. Nothing calls anything directly.<sup><a href="#r1">1</a></sup></p>
+
+<pre><code>PlaceOrder (API Lambda)
+   │ PutEvents "Order Placed" → com.acme.order-bus
+   ▼
+com.acme.order-bus  (custom event bus)
+   │
+   ├─ rule: InventoryOrders  detail.orderId   → Inventory Lambda
+   ├─ rule: ChargeCard       detail.total &gt;= 1 → Payment Lambda
+   ├─ rule: Notifications    source/detail     → Notifications Lambda
+   └─ rule: ShipUpdates      detail.status      → SQS FIFO → Shipper Lambda (ordered per order)</code></pre>
+
+<h2>Decisions and the reasoning behind each</h2>
+<table>
+  <tr><th>Piece</th><th>Choice</th><th>Why</th></tr>
+  <tr><td>Integration style</td><td>Custom event bus</td><td>Orders domain gets its own bus — clean rules, isolated permissions.</td></tr>
+  <tr><td>Producer</td><td>API Lambda calls PutEvents</td><td>It records that an order happened; it never calls consumers.</td></tr>
+  <tr><td>Routing</td><td>Event patterns + content filtering</td><td>Payment only gets orders with a chargeable total; others are omitted at the bus.</td></tr>
+  <tr><td>Easy consumers</td><td>Direct Lambda targets</td><td>Inventory and notifications react now, fire and forget.</td></tr>
+  <tr><td>Ordered work</td><td>SQS FIFO target for shipping</td><td>Shipment updates for one order must process in sequence → FIFO <code>MessageGroupId = $.detail.orderId</code>.<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td>Reliability</td><td>DLQ + retry ceiling on every target</td><td>A failed consumer never silently loses an event.</td></tr>
+  <tr><td>Consumer contracts</td><td>Idempotent on <code>orderId</code> + registered schema</td><td>At-least-once duplicates and future evolution are both handled.<sup><a href="#r3">3</a></sup></td></tr>
+</table>
+
+<h2>What decoupling is buying you here</h2>
+<ul>
+  <li><strong>Add a consumer</strong> (e.g. an analytics Lambda) tomorrow by creating one rule — no change to PlaceOrder.</li>
+  <li><strong>Take a consumer down</strong> (payment outage) and orders still get accepted and broadcast; payment catches up later.</li>
+  <li><strong>Scale independently</strong> — a burst of orders fans out; each target scales on its own Lambda concurrency.</li>
+  <li><strong>Pay only for matches</strong> — content filtering keeps irrelevant events from ever invoking a Lambda.</li>
+</ul>
+
+<aside class="callout callout-tip"><strong>The whole course in one sentence</strong> With an event bus, services announce what happened and the bus routes each announcement to exactly the services that care — producers stop knowing consumers, consumers stop blocking producers, and reliability is handled with idempotency, retries, and dead-letter queues rather than hope.</aside>
+
+<h2>Your capstone exercise (attempt one at a time)</h2>
+<ol>
+  <li>Re-draw the diagram <em>from memory</em> with the bus, rules, targets, and the SQS FIFO lane — no peeking. Check it against the diagram above.</li>
+  <li>For each of the four decisions in the table, write one sentence saying <em>why</em> you would defend it in an interview.</li>
+  <li>Introduce a fifth consumer (a loyalty-points Lambda) and state exactly what you'd create in EventBridge and what you would <em>not</em> touch.</li>
+</ol>
+<div class="ask"><strong>Ask the agent</strong> Write the three interviews-sentence answers from step 2 and paste them. The agent will push back like a senior interviewer — tighten them until they hold.</div>
+</section>
+
+<section class="quiz-section">
+<h2>Check yourself</h2>
+
+<div class="q" data-correct="2">
+  <h4>1. A fifth consumer must start reacting to Order Placed without touching PlaceOrder. What do you create?</h4>
+  <button class="opt" data-fb="Wrong — editing the producer re-tightens the coupling you avoided.">A new call inside the producer</button>
+  <button class="opt" data-fb="Not right — re-publishing is unnecessary fan-out by hand.">A second event from the producer</button>
+  <button class="opt" data-fb="Correct — one new rule routes matching events to the new target.">A new rule on the bus targeting it</button>
+  <button class="opt" data-fb="No — step functions do not add a bus consumer alone.">A dedicated step function</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="1">
+  <h4>2. Payment must only run when total is at least one. Where should that decision live?</h4>
+  <button class="opt" data-fb="Too late — the bus should filter so irrelevant work never starts.">Inside the payment Lambda</button>
+  <button class="opt" data-fb="Correct — the rule's event pattern filters before any invoke.">In the rule's event pattern via a numeric check</button>
+  <button class="opt" data-fb="Wrong — that routes to the wrong consumer for a value test.">In the producer's signup handler</button>
+  <button class="opt" data-fb="Not right — a DLQ handles failures, not routing decisions.">On the dead-letter queue</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="3">
+  <h4>3. Shipment updates for one order must process in sequence. What guarantees that in this design?</h4>
+  <button class="opt" data-fb="Wrong — the bus has no ordering guarantee at all.">The event bus's FIFO mode</button>
+  <button class="opt" data-fb="No — EventBridge alone delivers in arbitrary order.">Trusting publish order on the bus</button>
+  <button class="opt" data-fb="Not enough — a standard queue gives no ordering.">A standard SQS queue target</button>
+  <button class="opt" data-fb="Correct — FIFO with the order as the message group does it.">SQS FIFO keyed by the order id</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="0">
+  <h4>4. Payment goes down for an hour. What happens to new orders during that time?</h4>
+  <button class="opt" data-fb="Correct — the producer never waits on payment; it catches up later.">They are still accepted and published; payment processes them later</button>
+  <button class="opt" data-fb="Wrong — ordering is not guaranteed, but acceptance is not gated.">They block until payment returns</button>
+  <button class="opt" data-fb="No — the bus keeps the events flowing to other targets.">They are all rejected at the bus</button>
+  <button class="opt" data-fb="Not right — logs do not re-drive the payment flow.">They are silently dropped with no record</button>
+  <div class="fb"></div>
+</div>
+
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source</h2>
+<p>Re-read the reference that ties it all together, now with full context: <a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-what-is.html">AWS — What is Amazon EventBridge?</a> Then run <code>aws events</code> hands-on if you have an account. You finished — good work.</p>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-what-is.html">AWS — What is Amazon EventBridge?</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-sqs.html">AWS — SQS as an EventBridge target (FIFO ordering)</a></li>
+    <li id="r3"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-rule-dlq.html">AWS — Dead-letter queues</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-event-design-and-schema.html">← Lesson 7</a></span>
+  <span class="nav-next"><a href="../reference/eventbridge-cheatsheet.html">Review: cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">MISSION</a> · <a href="../RESOURCES.md">RESOURCES</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/eventbridge-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() {
+    if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; }
+  }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

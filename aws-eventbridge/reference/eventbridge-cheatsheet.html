@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Amazon EventBridge — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  .two-col { display: flex; flex-wrap: wrap; gap: 1.4rem; }
+  .two-col > div { flex: 1 1 46%; min-width: 18rem; }
+  code i { color: var(--accent); font-style: normal; }
+  td code, .q code { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>AWS EventBridge</span></div>
+  <h1>EventBridge Cheat Sheet</h1>
+  <p class="subtitle">The compressed essence of the course. Skim before a lesson, study it fully before an interview.</p>
+</header>
+
+<section>
+<h2>1. The event envelope</h2>
+<p>A standard EventBridge event looks like this:</p>
+<pre><code>{
+  "version": "0",
+  "id": "a1b2c3d4-0000-0000-0000-000000000000",
+  "detail-type": "Order Placed",
+  "source": "com.acme.orders",
+  "account": "123456789012",
+  "time": "2026-09-06T10:30:00Z",
+  "region": "us-east-1",
+  "resources": [],
+  "detail": {
+    "orderId": "ord_1001",
+    "customerId": "cust_42",
+    "total": 129.99
+  }
+}</code></pre>
+<table>
+  <tr><th>Field</th><th>Meaning</th></tr>
+  <tr><td><code>source</code></td><td>Producer namespace, dotted, e.g. <code>com.acme.orders</code></td></tr>
+  <tr><td><code>detail-type</code></td><td>Name of the event kind, e.g. <code>Order Placed</code></td></tr>
+  <tr><td><code>detail</code></td><td>Business payload (this is what patterns filter)</td></tr>
+  <tr><td><code>id / version</code></td><td>Unique event id / envelope version</td></tr>
+  <tr><td><code>account / region / time</code></td><td>Where and when the event happened</td></tr>
+  <tr><td><code>resources</code></td><td>ARNs of related resources (often empty)</td></tr>
+</table>
+</section>
+
+<section>
+<h2>2. Publishing (producer Lambda)</h2>
+<p>Every <code>PutEvents</code> entry needs at least:</p>
+<pre><code>{
+  "Source": "com.acme.orders",
+  "DetailType": "Order Placed",
+  "Detail": "{\"orderId\":\"ord_1001\",\"total\":129.99}",
+  "Resources": [],
+  "EventBusName": "com.acme.order-bus"
+}</code></pre>
+<ul>
+  <li><code>Detail</code> must be a <strong>string</strong> containing JSON, not an object.</li>
+  <li>You may publish multiple entries in one call; each is routed independently.</li>
+  <li>Omit <code>EventBusName</code> to hit the default bus.</li>
+</ul>
+</section>
+
+<section>
+<h2>3. Rules &amp; event patterns</h2>
+<p>Only specify the fields you match on. Everything else is a wildcard.</p>
+<pre><code>{
+  "source": ["com.acme.orders"],
+  "detail-type": ["Order Placed"],
+  "detail": {
+    "total": [{ "numeric": [">=", 100] }]
+  }
+}</code></pre>
+<p>Matching rules:</p>
+<ul>
+  <li>Strings match character-for-character — no case folding, no normalization.</li>
+  <li>Numbers compare by string representation: <code>300</code>, <code>300.0</code>, <code>3.0e2</code> are <em>not</em> equal.</li>
+  <li>values are arrays: <code>{"source": ["a", "b"]}</code> means a <em>or</em> b.</li>
+  <li>All matching rules fire → one event fans out to many targets.</li>
+  <li>Dots in keys are the joining character: <code>state.status</code> ≡ nested <code>state &gt; status</code>.</li>
+</ul>
+</section>
+
+<section>
+<h2>4. Content-filtering operators</h2>
+<table>
+  <tr><th>Operator</th><th>Example</th><th>Matches when…</th></tr>
+  <tr><td>prefix</td><td><code>{"prefix": "ord_"}</code></td><td>value starts with the string</td></tr>
+  <tr><td>suffix</td><td><code>{"suffix": "-DRAFT"}</code></td><td>value ends with the string</td></tr>
+  <tr><td>anything-but</td><td><code>{"anything-but": ["a","b"]}</code></td><td>value is none of the listed</td></tr>
+  <tr><td>numeric</td><td><code>{"numeric": ["&gt;=", 100]}</code></td><td>number in the declared range</td></tr>
+  <tr><td>exists</td><td><code>{"exists": false}</code></td><td>field is (not) present</td></tr>
+  <tr><td>wildcard</td><td><code>{"wildcard": "ord_*"}</code></td><td>glob-style match</td></tr>
+  <tr><td>equals-ignore-case</td><td><code>{"equals-ignore-case":"placed"}</code></td><td>case-insensitive equality</td></tr>
+</table>
+</section>
+
+<section>
+<h2>5. Targets</h2>
+<table>
+  <tr><th>Target</th><th>When to reach for it</th></tr>
+  <tr><td><strong>Lambda</strong></td><td>Fast, push-based compute on the matched event</td></tr>
+  <tr><td><strong>SQS queue</strong></td><td>Durable buffer; flow control; ordering via FIFO</td></tr>
+  <tr><td><strong>SNS topic</strong></td><td>Further fan-out to many subscribers</td></tr>
+  <tr><td><strong>Step Functions</strong></td><td>Long-running workflow from the event</td></tr>
+  <tr><td><strong>API destination</strong></td><td>Call an external HTTP endpoint</td></tr>
+  <tr><td><strong>Event bus (other account)</strong></td><td>Cross-account distribution</td></tr>
+</table>
+<p>Use an <strong>input transformer</strong> to reshape the payload the target receives.</p>
+</section>
+
+<section>
+<h2>6. Reliability numbers</h2>
+<ul>
+  <li><strong>Delivery:</strong> at-least-once. Expect duplicates — make consumers idempotent.</li>
+  <li><strong>Ordering:</strong> none by default. Route into SQS FIFO (<code>MessageGroupId</code>) when order matters.</li>
+  <li><strong>Retry:</strong> per-target; default <strong>24 hours</strong>, up to <strong>185 attempts</strong>, exponential backoff + jitter. Set <code>MaximumRetryAttempts</code> and <code>MaximumEventAgeInSeconds</code>.</li>
+  <li><strong>DLQ:</strong> must be a standard SQS queue (FIFO unsupported). Config is per target. Requires a resource policy granting <code>events.amazonaws.com</code> write — auto-added by the console, manual otherwise.</li>
+  <li>DLQ messages include metadata: <code>ErrorMessage</code>, <code>ErrorCode</code>, <code>RuleArn</code>, <code>TargetArn</code>, <code>RetryAttempts</code>, exhausted-retry reason.</li>
+</ul>
+</section>
+
+<section>
+<h2>7. Choosing: EventBridge vs SQS vs SNS vs Pipes</h2>
+<table>
+  <tr><th>Behavior needed</th><th>Reach for</th></tr>
+  <tr><td>Route one event to the right of several consumers by structure</td><td><strong>EventBridge bus</strong></td></tr>
+  <tr><td>Guaranteed order (same entity) + durable buffer</td><td><strong>EventBridge → SQS FIFO</strong> (via <code>MessageGroupId</code>)</td></tr>
+  <tr><td>High-volume buffering, consumers pull at their own pace</td><td><strong>SQS</strong></td></tr>
+  <tr><td>Simple tell-everyone fan-out</td><td><strong>SNS</strong></td></tr>
+  <tr><td>Point-to-point, ordered, enrich-in-between</td><td><strong>EventBridge Pipes</strong></td></tr>
+</table>
+</section>
+
+<section>
+<h2>8. Design goals</h2>
+<ul>
+  <li><code>source</code> = <strong>who</strong>; pairing with <code>detail-type</code> = <strong>what</strong>; <code>detail</code> = <strong>business data</strong>. Name them consistently and reuse them.</li>
+  <li>One bus (or namespace) per domain; don't throw unrelated events at the same rule set.</li>
+  <li>Make consumers <strong>idempotent</strong> (dedupe on <code>id</code> or a business key).</li>
+  <li>Version your events and register schemas so producers and consumers evolve safely.</li>
+  <li>Give every target a DLQ + sensible retry policy; monitor <code>FailedInvocations</code> / <code>InvocationsSentToDlq</code>.</li>
+</ul>
+</section>
+
+<footer class="citation">
+  Primary sources: <a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-what-is.html">EventBridge User Guide</a>, <a href="https://docs.aws.amazon.com/decision-guides/latest/decision-guides/sns-or-sqs-or-eventbridge.html">AWS Decision Guide</a>.
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="../lessons/0001-why-events-not-lambda-chains.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

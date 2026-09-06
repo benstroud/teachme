@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — Rules and Event Patterns</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  tr > td:first-child code { white-space: pre-wrap; word-break: break-word; }
+</style>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 8</span><span>AWS EventBridge</span></div>
+  <h1>Rules and event patterns</h1>
+  <p class="subtitle">How the bus decides which consumer gets which event.</p>
+</header>
+
+<section>
+<h2>A rule is a filter plus a destination</h2>
+<p>A <strong>rule</strong> on a bus has two halves: an <strong>event pattern</strong> (what it matches) and a list of <strong>targets</strong> (where matches go). Remember the default posture: <em>all matching rules fire</em>. If three rules match the same event, all three targets get it — that is how one event fans out to many consumers without the producer knowing.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Patterns only mention the fields they care about</h2>
+<p>You match on <code>source</code>, <code>detail-type</code>, and anything inside <code>detail</code>. Fields you don't list act as wildcards. Compare the event to the pattern:</p>
+<pre><code>{
+  "source": ["com.acme.orders"],
+  "detail-type": ["Order Placed"],
+  "detail": {
+    "customerId": ["cust_42"]
+  }
+}</code></pre>
+<p>This matches any event that carries that source, that detail-type, <em>and</em> a <code>detail.customerId</code> of <code>cust_42</code>. The rest of the detail doesn't matter.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Matching semantics that trip people up</h2>
+<p>These are the rules the AWS docs spell out — internalize them:<sup><a href="#r2">2</a></sup></p>
+<ul>
+  <li>Values are arrays: <code>"source": ["a", "b"]</code> means match <em>a OR b</em>.</li>
+  <li>String matching is exact, character-for-character. No case-folding, no trimming.</li>
+  <li>Numbers compare as their <em>string representation</em>: <code>300</code>, <code>300.0</code>, and <code>3.0e2</code> are <strong>not</strong> equal.</li>
+  <li>Only the last value listed for a duplicated field is used.</li>
+  <li>A dot in a key is a joining character: <code>detail.state.status</code> is the same as nesting <code>detail &gt; state &gt; status</code>.</li>
+</ul>
+
+<h2>Content filtering: matching beyond exact equality</h2>
+<p>When equality isn't enough, use a comparison operator in place of the value:<sup><a href="#r3">3</a></sup></p>
+<pre><code>{
+  "source": ["com.acme.orders"],
+  "detail": {
+    "total":  [{ "numeric": [">=", 100] }],
+    "region": [{ "prefix": "us-" }],
+    "expedited": [{ "exists": true }],
+    "status": [{ "anything-but": ["CANCELLED"] }]
+  }
+}</code></pre>
+<ul>
+  <li><code>prefix</code> / <code>suffix</code> — string starts / ends with.</li>
+  <li><code>numeric</code> — range like <code>[">=", 100]</code> or closed <code>[1, 10]</code>.</li>
+  <li><code>exists</code> — <code>true</code>/<code>false</code> for field present or absent.</li>
+  <li><code>anything-but</code> — a list of values to exclude.</li>
+  <li><code>wildcard</code> — glob-style <code>"ord_*"</code>.</li>
+  <li><code>equals-ignore-case</code> — case-insensitive equality.</li>
+</ul>
+
+<aside class="callout callout-tip"><strong>Why this is powerful</strong> Routing happens at the bus, before your Lambda ever runs. Filtering early means consumers see only the events they should pay for, and you don't pay Lambda compute for events you'll just discard.</aside>
+</section>
+
+<section class="quiz-section">
+<h2>Check yourself</h2>
+
+<div class="q" data-correct="2">
+  <h4>1. The event has <code>detail-type: "Order Placed"</code>, source <code>com.acme.orders</code>, and detail total <code>250</code>. Which single fragment will the full pattern match?</h4>
+  <button class="opt" data-fb="Not quite — without the source/detail-type guard, other producers could match.">detail: { "total": [{ "numeric": [">=", 100] }] }</button>
+  <button class="opt" data-fb="No — numeric 250 does not equal the string form that pattern implies without the right comparison.">detail: { "total": [25] }</button>
+  <button class="opt" data-fb="Correct — source, detail-type, and the >=100 filter all hold.">source + detail-type + detail.total &gt;= 100</button>
+  <button class="opt" data-fb="Not right — matches only an exact literal detail-type that does not apply.">{"detail-type": ["Order Cancelled"]}</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="0">
+  <h4>2. You list <code>"detail-type": ["Order Placed", "Order Shipped"]</code>. What does this match?</h4>
+  <button class="opt" data-fb="Correct — the array is an OR over the listed values.">Either Order Placed or Order Shipped</button>
+  <button class="opt" data-fb="No — the bus has no AND across two different detail-type values.">Both Order Placed and Order Shipped</button>
+  <button class="opt" data-fb="Not right — the array is not a nested object match.">Only the first value listed</button>
+  <button class="opt" data-fb="No — string matching here is exact, not phonetic.">Anything that sounds like either</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="3">
+  <h4>3. Which statement about EventBridge matching is true?</h4>
+  <button class="opt" data-fb="Wrong — matching is exact character-for-character.">Strings match case-insensitively by default</button>
+  <button class="opt" data-fb="Wrong — numbers compare by their string representation.">300, 300.0, and 3.0e2 are equal</button>
+  <button class="opt" data-fb="Wrong — only the last duplicate value is used.">The first of several duplicate fields wins</button>
+  <button class="opt" data-fb="Correct — fields absent from the pattern match anything.">Fields you do not list act as wildcards</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="1">
+  <h4>4. You want high-value orders (total &gt;= 500) to route to a premium Lambda. Which pattern fragment does it?</h4>
+  <button class="opt" data-fb="Not quite — that requires the total to literally equal 500.">detail: { "total": [500] }</button>
+  <button class="opt" data-fb="Correct — the numeric operator filters >= 500 at the bus.">detail: { "total": [{ "numeric": [">=", 500] }] }</button>
+  <button class="opt" data-fb="prefix is for strings, not numeric thresholds.">detail: { "total": [{ "prefix": "5" }] }</button>
+  <button class="opt" data-fb="exists just checks the field is present, not its value.">detail: { "total": [{ "exists": true }] }</button>
+  <div class="fb"></div>
+</div>
+
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Hands-on step (attempt one at a time)</h2>
+<ol>
+  <li>Take the <code>Order Placed</code> entry from Lesson 3 and write a rule pattern that matches only orders from <code>com.acme.orders</code> with a total >= 100. Write it as JSON, by hand.</li>
+  <li>Target the rule at a test Lambda and publish two events (under and over 100) to confirm only one fires.</li>
+</ol>
+<div class="ask"><strong>Ask the agent</strong> Paste your finished pattern and ask: does it also exclude cancelled orders? Should it filter on a status field too?</div>
+</section>
+
+<section>
+<h2>Primary source</h2>
+<p>Study the official reference and test patterns in the sandbox: <a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-create-pattern.html">AWS — Event pattern syntax</a> and <a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-create-pattern-operators.html">AWS — Comparison operators</a>.</p>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-rules.html">AWS — Amazon EventBridge rules</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-create-pattern.html">AWS — Event pattern syntax</a></li>
+    <li id="r3"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-create-pattern-operators.html">AWS — Content-based filtering</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-turning-a-lambda-into-a-producer.html">← Lesson 3</a></span>
+  <span class="nav-next"><a href="0005-targets-and-picking-the-right-destination.html">Lesson 5: Targets — choosing the right destination →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">MISSION</a> · <a href="../RESOURCES.md">RESOURCES</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/eventbridge-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() {
+    if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; }
+  }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

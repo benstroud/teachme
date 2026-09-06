@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — EventBridge Core Concepts</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 8</span><span>AWS EventBridge</span></div>
+  <h1>EventBridge: the core concepts</h1>
+  <p class="subtitle">Events, buses, producers, consumers, rules, and targets — the vocabulary you build everything on.</p>
+</header>
+
+<section>
+<h2>The five pieces</h2>
+<p>Everything in EventBridge is one of these five things:<sup><a href="#r1">1</a></sup></p>
+<table>
+  <tr><th>Piece</th><th>Role</th></tr>
+  <tr><td><strong>Event</strong></td><td>A JSON record describing that something happened.</td></tr>
+  <tr><td><strong>Event bus</strong></td><td>The pipe events flow through; rules live on it.</td></tr>
+  <tr><td><strong>Producer</strong></td><td>Publishes events onto a bus.</td></tr>
+  <tr><td><strong>Rule</strong></td><td>A filter + target list on a bus.</td></tr>
+  <tr><td><strong>Target</strong></td><td>Where a matched event is delivered.</td></tr>
+</table>
+
+<p>The flow is always the same: <em>producer → PutEvents → bus → rules match → targets</em>.</p>
+
+<h2>Buses</h2>
+<p>Every account owns a <strong>default</strong> bus. AWS services (S3, EC2, CodePipeline…) emit their events into it by default, and custom apps may too. You can also create <strong>custom</strong> buses to isolate one application or domain. Custom buses keep your rules clean and your permissions auditable — if a team owns <code>acme-order-bus</code>, its rules don't compete with unrelated AWS noise.<sup><a href="#r1">1</a></sup></p>
+<p>Two more kinds matter later: a <strong>partner bus</strong> receives events from integrated SaaS providers (Stripe, Datadog…) without you writing ingestion code, and a bus can route events <strong>cross-account</strong> to another account's targets using resource policies.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Reading the event envelope</h2>
+<p>The skill for this lesson: look at any event and label its parts. Every EventBridge event carries this standard envelope:<sup><a href="#r3">3</a></sup></p>
+<pre><code>{
+  "version": "0",
+  "id": "9149a97f-7f6a-4a4f-9b9a-111111111111",
+  "detail-type": "Order Shipped",
+  "source": "com.acme.orders",
+  "account": "123456789012",
+  "time": "2026-09-06T10:30:00Z",
+  "region": "us-east-1",
+  "resources": [],
+  "detail": {
+    "orderId": "ord_1001",
+    "carrier": "FedEx",
+    "tracking": "7923987593"
+  }
+}</code></pre>
+<p>Train yourself to read it the way EventBridge does:<br>
+<code>source</code> = <em>who</em> produced it (<code>com.acme.orders</code>) &nbsp;·&nbsp;
+<code>detail-type</code> = <em>what</em> it is (<code>Order Shipped</code>) &nbsp;·&nbsp;
+<code>detail</code> = <em>the business payload</em> (the shippable facts). The <code>id</code> is a per-event unique key you can exploit for idempotency later.<sup><a href="#r3">3</a></sup></p>
+
+<aside class="callout callout-tip"><strong>Pattern to remember</strong> The pair <code>source</code> + <code>detail-type</code> is almost always what a rule filters on. Think "who + what", then filter the payload for anything narrower.</aside>
+</section>
+
+<section class="quiz-section">
+<h2>Check yourself</h2>
+
+<div class="q" data-correct="0">
+  <h4>1. An event arrives with <code>source: "com.acme.orders"</code> and <code>detail-type: "Order Placed"</code>. What do the two fields tell you?</h4>
+  <button class="opt" data-fb="Correct — source names the producer, detail-type names the event kind.">Who produced it and what kind of event it is</button>
+  <button class="opt" data-fb="Not quite — those fields name origin and kind, not a single unique message.">A unique message id and its delivery address</button>
+  <button class="opt" data-fb="No — payload facts live in the detail object, not these two fields.">The customer id and the order amount</button>
+  <button class="opt" data-fb="Not right — region and time are separate fields in the envelope.">The AWS region and the event timestamp</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="3">
+  <h4>2. Where does the business payload live in an EventBridge event?</h4>
+  <button class="opt" data-fb="No — version is the envelope format marker.">Inside the version field</button>
+  <button class="opt" data-fb="Not quite — id is a unique identifier, not the payload.">Inside the id field</button>
+  <button class="opt" data-fb="Not right — resources holds related ARNs, rarely the payload.">Inside the resources array</button>
+  <button class="opt" data-fb="Correct — the object under detail carries the business data.">Inside the detail object</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="1">
+  <h4>3. You want a clean home for just the orders domain's events. What should you create?</h4>
+  <button class="opt" data-fb="Not the default move — that is the shared account-wide bus.">Use the default event bus</button>
+  <button class="opt" data-fb="Correct — a custom bus isolates the domain's events and rules.">A custom event bus</button>
+  <button class="opt" data-fb="Partner buses receive SaaS-provider events, not your own.">A partner event bus</button>
+  <button class="opt" data-fb="Pipes are point-to-point, not a bus for a domain.">An EventBridge Pipe</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="2">
+  <h4>4. Which label matches the piece that filters events and sends them to targets?</h4>
+  <button class="opt" data-fb="Not quite — the bus is the pipe, not the filter.">The event bus</button>
+  <button class="opt" data-fb="No — the producer publishes; it does not filter.">The producer</button>
+  <button class="opt" data-fb="Correct — a rule holds the pattern and the target list.">A rule</button>
+  <button class="opt" data-fb="Not right — the target is where events are delivered.">A target</button>
+  <div class="fb"></div>
+</div>
+
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source</h2>
+<p>The official tour of buses, events, rules, and targets: <a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-what-is.html">AWS — What is Amazon EventBridge?</a> Read the "How it works" and "Event buses" sections. Also skim <a href="../reference/glossary.html">the glossary</a> so these names stick.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Done? Paste an event envelope of your own (invent a domain) with the five pieces labeled, and get feedback before lesson 3.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-what-is.html">AWS — What is Amazon EventBridge?</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-event-bus.html">AWS — Amazon EventBridge event buses</a></li>
+    <li id="r3"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-events.html">AWS — Amazon EventBridge events (envelope)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-why-events-not-lambda-chains.html">← Lesson 1</a></span>
+  <span class="nav-next"><a href="0003-turning-a-lambda-into-a-producer.html">Lesson 3: Turning a Lambda into a producer →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">MISSION</a> · <a href="../RESOURCES.md">RESOURCES</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/eventbridge-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() {
+    if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; }
+  }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

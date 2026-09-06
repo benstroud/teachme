@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — Why Events, Not Lambda Chains</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 8</span><span>AWS EventBridge</span></div>
+  <h1>Why Events, Not Lambda Chains</h1>
+  <p class="subtitle">The coordination problem that EventBridge exists to solve.</p>
+</header>
+
+<section>
+<h2>The trap: services that call each other</h2>
+<p>Here is how most people start coordinating multiple Lambdas: the orders service needs inventory reduced, a wallet charged, and an email sent. So it calls each in turn.</p>
+<pre><code>// inside the orders Lambda handler
+await lambda.invoke({ FunctionName: "inventoryService", Payload: ... });
+await lambda.invoke({ FunctionName: "paymentService",  Payload: ... });
+await lambda.invoke({ FunctionName: "emailService",    Payload: ... });</code></pre>
+<p>This works on the demo, and it collapses in production. Each <code>invoke</code> is a synchronous hop with its own timeout<sup><a href="#r1">1</a></sup>. Your order handler now fails if <em>any</em> downstream service is slow, down, or misconfigured. You have coupled the fate of ordering to the fate of email.</p>
+
+<aside class="note"><strong>Key idea</strong> This coupling is the disease. Event-driven architecture is the treatment: a service publishes <em>what happened</em>, and any number of other services react to it — without the producer knowing or caring who they are.</aside>
+
+<h2>Four failure modes of direct Lambda-to-Lambda calls</h2>
+<table>
+  <tr><th>Failure mode</th><th>What happens</th></tr>
+  <tr><td>Cascade timeouts</td><td>Slow downstream eats the caller's whole budget; the caller retries, adding load on an already-struggling service.</td></tr>
+  <tr><td>Fan-out by hand</td><td>To notify three consumers you write three <code>invoke</code> calls and keep them in sync. A fourth consumer means editing the producer.</td></tr>
+  <tr><td>Tight coupling</td><td>The producer holds names/ARNs of consumers and must redeploy when a consumer appears, renames, or disappears.</td></tr>
+  <tr><td>Partial failure</td><td>Payment succeeded but email failed. Who retries the email? Who knows payment already went through? Manual and error-prone.<sup><a href="#r2">2</a></sup></td></tr>
+</table>
+
+<h2>What an event changes</h2>
+<p>With an event bus, the orders service changes roles. It stops being a conductor and starts being a <em>broadcaster</em>:</p>
+<ol>
+  <li>It publishes one event: <code>Order Placed</code>.</li>
+  <li>Inventory, payment, and email each subscribe to events they care about.</li>
+  <li>The producer has no idea any of them exist. Add a new consumer tomorrow and nothing in the producer changes.</li>
+</ol>
+<p>This is the core trade of event-driven architecture: you give up a guaranteed synchronous result (knowing every step completed) in exchange for <strong>decoupling</strong>, <strong>independent scaling</strong>, and <strong>resilience</strong> — each consumer reacts at its own pace and can fail without blocking the producer.<sup><a href="#r3">3</a></sup></p>
+
+<p>Two things are required for this to work, and they are the heart of this whole course:</p>
+<ul>
+  <li>A service that <em>publishes</em> events (the producer side).</li>
+  <li>A way to <em>route</em> each event to everyone who cares, and only to them (the rules side).</li>
+</ul>
+<p>Amazon EventBridge is the AWS service that gives you both: a fully managed <strong>event bus</strong> that receives events and routes them to targets by matching rules. It is not a queue and not a topic — it is a router, and it is what the rest of this series builds on.<sup><a href="#r4">4</a></sup></p>
+
+<aside class="callout callout-tip"><strong>Engineer's check</strong> If you ever wonder "should this communication become an event?", ask: <em>does the caller need the result before it can continue, or does it just need to record that something happened?</em> If the latter, an event is the right tool.</aside>
+</section>
+
+<section class="quiz-section">
+<h2>Check yourself</h2>
+<p>Read the scenario and pick the best answer.</p>
+
+<div class="q" data-correct="1">
+  <h4>1. An orders Lambda currently invokes a shipping Lambda directly with the AWS SDK, then returns "success" to the caller. Shipping is slow today and takes down the whole order flow. What is the most direct cause?</h4>
+  <button class="opt" data-fb="Not quite — same region arguably helps latency, but the coupling is the structural problem. Try again.">The Lambda regions are too far apart</button>
+  <button class="opt" data-fb="Correct. The synchronous invoke makes the order function wait on shipping, so shipping's slowness becomes the order flow's slowness.">Synchronous coupling makes the caller wait on a downstream service's timing</button>
+  <button class="opt" data-fb="Not the core issue — concerns like permissions matter for health but aren't the 'slow today' cause here.">IAM permissions are misconfigured</button>
+  <button class="opt" data-fb="Cold starts hurt latency but do not explain coupling-driven outages.">The Lambda cold starts are too high</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="0">
+  <h4>2. Which statement best describes what the producer gains by publishing an event instead of calling consumers directly?</h4>
+  <button class="opt" data-fb="Correct. The producer no longer depends on who consumes; it can grow and change independently.">It no longer needs to know who consumes the event, so it can evolve independently</button>
+  <button class="opt" data-fb="Not quite — an event bus is a router, not a queue; buffering is not its main job.">It gains guaranteed delivery and buffering for free</button>
+  <button class="opt" data-fb="No — an event tells consumers what happened, not how to make a decision; the ordering changes.">It keeps a synchronous, ordered confirmation that every step finished</button>
+  <button class="opt" data-fb="The opposite: with events the producer code no longer changes when consumers change.">It must edit the producer every time a new consumer is added</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="3">
+  <h4>3. A "welcome email" feature only needs to run after a user signs up; signing up must succeed regardless of whether the email works. Which shape matches the philosophy of this lesson?</h4>
+  <button class="opt" data-fb="That is the old pattern — it couples signup to email and fails signup when email fails.">Signup calls the email Lambda synchronously as its final step</button>
+  <button class="opt" data-fb="Not quite — that still spreads signup logic across three callers.">Signup calls the email Lambda three times for reliability</button>
+  <button class="opt" data-fb="A queue has a role, but the cleaner description here is one event to a subscriber; routing by rules is EventBridge's job.">Signup sends the email to a dead-letter queue</button>
+  <button class="opt" data-fb="Correct. Signup publishes 'User Signed Up'; the email service subscribes, and signup never waits on it.">Signup publishes a "User Signed Up" event and the email service reacts to it</button>
+  <div class="fb"></div>
+</div>
+
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>The official framing of event-driven architecture on AWS and how services like EventBridge fit: <a href="https://docs.aws.amazon.com/wellarchitected/latest/serverless-applications-lens/event-driven-architectures.html">AWS Well-Architected — Event-driven architectures (Serverless Lens)</a>. It names the trade-offs this lesson only sketches.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Finished here? Paste the event vs synchronous-call reasoning in your own words, or bring a coupling problem from your own code, and get feedback before moving on.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/lambda/latest/dg/lambda-invocation.html">AWS — Lambda invocation modes (sync vs async)</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/wellarchitected/latest/serverless-applications-lens/event-driven-architectures.html">AWS Well-Architected — Event-driven architectures</a></li>
+    <li id="r3"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-what-is.html">AWS — What is Amazon EventBridge?</a></li>
+    <li id="r4"><a href="https://docs.aws.amazon.com/decision-guides/latest/decision-guides/sns-or-sqs-or-eventbridge.html">AWS Decision Guide — SQS, SNS, or EventBridge?</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Glossary &amp; cheat sheet</span>
+  <span class="nav-next"><a href="0002-eventbridge-core-concepts.html">Lesson 2: EventBridge core concepts →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  MISSION · RESOURCES · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/eventbridge-cheatsheet.html">Cheat sheet</a> · <a href="../MISSION.md">Mission</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() {
+    if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; }
+  }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

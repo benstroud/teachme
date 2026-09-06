@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — Targets: Choosing the Right Destination</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 8</span><span>AWS EventBridge</span></div>
+  <h1>Targets: choosing the right destination</h1>
+  <p class="subtitle">The second half of a rule — deciding what a matched event is handed to.</p>
+</header>
+
+<section>
+<h2>What a target can be</h2>
+<p>Once a rule matches an event, EventBridge pushes it to each of the rule's targets. The common ones for application coordination:<sup><a href="#r1">1</a></sup></p>
+<table>
+  <tr><th>Target</th><th>Model</th><th>Typical job</th></tr>
+  <tr><td><strong>Lambda</strong></td><td>Push</td><td>React and compute right now on the event.</td></tr>
+  <tr><td><strong>SQS queue</strong></td><td>Push → pull</td><td>Buffer events; consumers work at their own pace.</td></tr>
+  <tr><td><strong>SNS topic</strong></td><td>Push</td><td>Fan out to even more subscribers.</td></tr>
+  <tr><td><strong>Step Functions</strong></td><td>Push</td><td>Start a long-running workflow from the event.</td></tr>
+  <tr><td><strong>API destination</strong></td><td>Push</td><td>Call an external HTTP endpoint.</td></tr>
+  <tr><td><strong>Event bus (cross-account)</strong></td><td>Push</td><td>Hand the event off to another account's bus.</td></tr>
+</table>
+<p>EventBridge pushes: when an event matches, EventBridge <em>delivers</em> it to the target. It does not wait for the target to come ask.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Lambda directly vs. an SQS buffer</h2>
+<p>This is the most consequential target decision for Lambda coordination. Ask two questions:</p>
+<ul>
+  <li><strong>Do consumers need a durable buffer?</strong> A direct Lambda target gets the event pushed and that's it — EventBridge does not retain it. An SQS target stores the event (up to 14 days), so a slow or down worker can catch up later.<sup><a href="#r2">2</a></sup></li>
+  <li><strong>Does order or flow control matter?</strong> EventBridge alone gives no ordering and no backpressure. Routing into an SQS queue gives you visibility-timeout flow control, and a <strong>FIFO</strong> queue gives ordered processing — the topic of Lesson 6.</li>
+</ul>
+
+<aside class="callout callout-tip"><strong>Heuristic</strong> Direct Lambda = "react now, fire and forget." SQS buffer = "guarantee it eventually gets processed, even at the cost of latency." Use a buffer when the work is heavy, bursty, or must be strictly ordered.</aside>
+
+<h2>Input transformation: reshape what the target sees</h2>
+<p>The whole envelope is delivered by default, but a target often wants less. An <strong>input transformer</strong> lets a rule rewrite the payload before delivery using JSONPath references like <code>$.detail.orderId</code>:<sup><a href="#r3">3</a></sup></p>
+<pre><code>{
+  "InputPathsMap": {
+    "oid": "$.detail.orderId",
+    "cust": "$.detail.customerId",
+    "total": "$.detail.total"
+  },
+  "InputTemplate": "{\"orderId\": \"&lt;oid&gt;\", \"total\": \"&lt;total&gt;\"}"
+}</code></pre>
+<p>Now the Lambda receives a slim JSON with just what it uses — less parsing, less coupling to the full event shape, and a smaller invocation payload.</p>
+</section>
+
+<section class="quiz-section">
+<h2>Check yourself</h2>
+
+<div class="q" data-correct="3">
+  <h4>1. You must guarantee a heavy batch job eventually runs for every event, even if the worker is down for an hour. Best target choice?</h4>
+  <button class="opt" data-fb="Not the safe pick — EventBridge does not retain the event after delivery.">A direct Lambda target</button>
+  <button class="opt" data-fb="An SNS topic alone does not buffer the way a queue does.">An SNS topic</button>
+  <button class="opt" data-fb="An API destination is for HTTP calls, not durable buffering.">An API destination</button>
+  <button class="opt" data-fb="Correct — SQS persists the event so a delayed worker can catch up.">An SQS queue target</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="0">
+  <h4>2. A matched event should start a state machine that runs a multi-step process. Which target fits?</h4>
+  <button class="opt" data-fb="Correct — Step Functions runs a workflow from the event.">Step Functions state machine</button>
+  <button class="opt" data-fb="Not quite — a single Lambda is not a multi-step workflow.">A single Lambda function</button>
+  <button class="opt" data-fb="A queue would just wait for a worker to pick it up.">An SQS queue</button>
+  <button class="opt" data-fb="SNS is fan-out to subscribers, not a workflow.">An SNS topic</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="2">
+  <h4>3. Your target Lambda only needs <code>orderId</code> and <code>total</code>. What is the cleanest approach?</h4>
+  <button class="opt" data-fb="Not right — that leaks the whole envelope and more coupling.">Send the full envelope and parse it in the Lambda</button>
+  <button class="opt" data-fb="No — detail is producer data; it is not how the bus trims work.">Ask the producer to change the event to two fields</button>
+  <button class="opt" data-fb="Correct — the input transformer trims fields before delivery.">Use an input transformer to map only those fields</button>
+  <button class="opt" data-fb="Having the producer put two events is overkill and muddies the story.">Publish two separate events for two fields</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="1">
+  <h4>4. When a matched event must reach multiple independent consumers, what happens on the bus?</h4>
+  <button class="opt" data-fb="Wrong — one event can feed many rules and many targets.">Only one target receives it</button>
+  <button class="opt" data-fb="Correct — the producer stays unaware of all of them.">Every matching rule pushes it to its own targets</button>
+  <button class="opt" data-fb="No — the producer does not re-publish to fan out.">The producer must re-publish it for each consumer</button>
+  <button class="opt" data-fb="EventBridge pushes to targets; it does not wait to be pulled.">A consumer must pull the event first</button>
+  <div class="fb"></div>
+</div>
+
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Hands-on step (attempt one at a time)</h2>
+<ol>
+  <li>Add a second target to the rule from Lesson 4 — one Lambda and one SQS queue — pointing at the same event, and watch a single event land on both.</li>
+  <li>Add an input transformer to one target so it receives only <code>orderId</code> and <code>total</code>, then inspect what the Lambda actually receives.</li>
+</ol>
+<div class="ask"><strong>Ask the agent</strong> Describe one of your Lambda calls that should really be an event with a specific target — and say which target type you'd choose and why.</div>
+</section>
+
+<section>
+<h2>Primary source</h2>
+<p>See the full options and the Lambda target details: <a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-targets.html">AWS — EventBridge targets</a>, <a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-lambda.html">AWS — Lambda as an EventBridge target</a>, and <a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-transform-input.html">AWS — Transforming input</a>.</p>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-targets.html">AWS — EventBridge targets</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-sqs.html">AWS — SQS as an EventBridge target</a></li>
+    <li id="r3"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-transform-input.html">AWS — Transforming input event</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-rules-and-event-patterns.html">← Lesson 4</a></span>
+  <span class="nav-next"><a href="0006-delivery-guarantees-and-failures.html">Lesson 6: Delivery guarantees &amp; failures →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">MISSION</a> · <a href="../RESOURCES.md">RESOURCES</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/eventbridge-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() {
+    if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; }
+  }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

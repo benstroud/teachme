@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — Delivery Guarantees and Failures</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 8</span><span>AWS EventBridge</span></div>
+  <h1>Delivery guarantees and failures</h1>
+  <p class="subtitle">At-least-once, retries, dead-letter queues, idempotency, and the ordering question.</p>
+</header>
+
+<section>
+<h2>What EventBridge guarantees (and what it won't)</h2>
+<p>Two guarantees dominate every design decision here:<sup><a href="#r1">1</a></sup></p>
+<table>
+  <tr><th>Guarantee</th><th>Meaning for you</th></tr>
+  <tr><td><strong>At-least-once delivery</strong></td><td>A target receives the event at least once — but may receive it more than once. Duplicates are possible.</td></tr>
+  <tr><td><strong>No ordering guarantee</strong></td><td>Events are delivered in arbitrary order, even from the same source in the same region.</td></tr>
+</table>
+<p>These are not bugs — they are the price of a fully managed, massively parallel bus. Your job is to design so the system behaves correctly despite them. That means <strong>idempotent consumers</strong> and a <strong>deliberate choice about ordering</strong>.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Retries and dead-letter queues</h2>
+<p>When a target fails to accept an event, EventBridge retries <em>per target</em>. The default policy keeps trying for up to <strong>24 hours</strong> and as many as <strong>185 attempts</strong>, using exponential backoff with jitter. You tune the ceiling with <code>MaximumRetryAttempts</code> and <code>MaximumEventAgeInSeconds</code>.<sup><a href="#r2">2</a></sup></p>
+<p>After retries are exhausted, the event is dropped — <em>unless</em> you attach a <strong>dead-letter queue (DLQ)</strong>. A DLQ is a standard SQS queue that receives the events that could not be delivered, so you can inspect and reprocess them later.<sup><a href="#r3">3</a></sup></p>
+<p>Three DLQ facts that bite people:</p>
+<ul>
+  <li>DLQ and retry config are <strong>per target</strong>, not per rule or per bus. Adding a second target means configuring it again.</li>
+  <li>A DLQ must be a <strong>standard</strong> SQS queue — FIFO queues are not supported.</li>
+  <li>The queue needs a resource policy granting <code>events.amazonaws.com</code> permission to write. The console adds it automatically; if you configure via API or across accounts, you must add it by hand.<sup><a href="#r3">3</a></sup></li>
+</ul>
+
+<aside class="callout callout-tip"><strong>Senior habit</strong> Treat "no DLQ" as a code smell. Every production target should have a DLQ and a retry ceiling that makes business sense, and you should monitor <code>InvocationsSentToDlq</code>.</aside>
+
+<h2>Idempotency: the non-negotiable</h2>
+<p>Because delivery is at-least-once, a consumer must be able to process the same event twice with no harmful effect. The classic approach: dedupe on a stable key. The event envelope has a unique <code>id</code>, but the <em>business</em> key (like <code>orderId</code>) is usually the right dedupe key — because the same order event might legitimately arrive via more than one path. Store the processed key (in a DB or DDB) and skip work if it's already done.<sup><a href="#r5">5</a></sup></p>
+
+<h2>When order genuinely matters</h2>
+<p>If events must be processed in order (e.g. user updates that build on each other), EventBridge alone can't deliver that. The standard fix: point the rule at an <strong>SQS FIFO</strong> queue and key each message by a group:<sup><a href="#r4">4</a></sup></p>
+<pre><code>{
+  "Targets": [{
+    "Id": "UserEventsFifo",
+    "Arn": "arn:aws:sqs:us-east-1:123456789012:UserEvents.fifo",
+    "SqsParameters": {
+      "MessageGroupId": "$.detail.userId",
+      "MessageDeduplicationId": "$.detail.eventId"
+    }
+  }]
+}</code></pre>
+<p>FIFO delivers messages within the same <code>MessageGroupId</code> in order and once-only per dedup id. Using the event's business key as the group id routes all of one customer's events into a single ordered lane. This is how you get order out of an unordered bus — by delegating ordering to the service that guarantees it.<sup><a href="#r4">4</a></sup></p>
+</section>
+
+<section class="quiz-section">
+<h2>Check yourself</h2>
+
+<div class="q" data-correct="2">
+  <h4>1. A consumer must handle the same event arriving twice. What is the essential design requirement?</h4>
+  <button class="opt" data-fb="Not quite — reconnect logic helps network flakiness, not duplicates.">It must retry the same request twice</button>
+  <button class="opt" data-fb="Wrong — that involves the producer, not the consumer's resilience.">The producer must be told to stop replaying</button>
+  <button class="opt" data-fb="Correct — processing twice must not cause a different outcome.">Processing must be idempotent</button>
+  <button class="opt" data-fb="No — a queue does not remove the need to dedupe at-least-once.">A queue is all that is needed</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="1">
+  <h4>2. After retries are exhausted, what does EventBridge do with a failed event by default?</h4>
+  <button class="opt" data-fb="Wrong — a retry policy is what limits attempts, not what recovers.">It retries forever until it succeeds</button>
+  <button class="opt" data-fb="Correct — without a DLQ the event is dropped.">It drops the event unless a DLQ is configured</button>
+  <button class="opt" data-fb="Wrong — ordering is already not guaranteed for anything.">It re-inserts the event at the front of the queue</button>
+  <button class="opt" data-fb="Not right — a DLQ must be specifically attached to catch it.">It always saves the event to a dead-letter queue</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="0">
+  <h4>3. You must process a user's events in strict order. What belongs in the design?</h4>
+  <button class="opt" data-fb="Correct — a FIFO queue keyed by the user keeps one lane in order.">Route to an SQS FIFO queue with the user as the message group</button>
+  <button class="opt" data-fb="Wrong — EventBridge has no ordering guarantee to rely on.">Trust the event bus to deliver in publish order</button>
+  <button class="opt" data-fb="Not right — a standard SQS queue has no ordering guarantee.">Use a standard SQS queue and hope for the best</button>
+  <button class="opt" data-fb="No — SNS topics have no FIFO ordering here.">Send each event to a separate SNS topic</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="3">
+  <h4>4. Why must a DLQ be a standard SQS queue rather than a FIFO one?</h4>
+  <button class="opt" data-fb="Not right — DLQs are the standard remedy for discarded events.">Standard queues cannot be used for failures</button>
+  <button class="opt" data-fb="Wrong — a standard queue does not require the fifo suffix.">The .fifo suffix is required on every DLQ</button>
+  <button class="opt" data-fb="Not quite — order is unneeded, but the real limit is service support.">FIFO queues are slower for dead letters</button>
+  <button class="opt" data-fb="Correct — EventBridge DLQs intentionally support only standard queues.">EventBridge DLQs only support standard queues</button>
+  <div class="fb"></div>
+</div>
+
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Hands-on step (attempt one at a time)</h2>
+<ol>
+  <li>Give one of your target rules a dead-letter queue and a retry policy with a low cap (e.g. 3 attempts / 60 seconds), then trigger a deliberate failure and watch the event land in the DLQ with its error metadata.</li>
+  <li>Make your consumer idempotent: track processed order ids in a DynamoDB table and skip repeat work.</li>
+</ol>
+<div class="ask"><strong>Ask the agent</strong> Take the cleanest consumer you've written in this course and explain how you'd make it idempotent — what key would you dedupe on and where would you store it? Paste your reasoning and get feedback.</div>
+</section>
+
+<section>
+<h2>Primary source</h2>
+<p>These two pages carry the senior-level depth: <a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-rule-retry-policy.html">AWS — Retrying event delivery</a> and <a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-rule-dlq.html">AWS — Dead-letter queues</a>. See also the <a href="https://docs.powertools.aws.dev/lambda/typescript/utilities/idempotency/">Lambda Powertools idempotency utility</a> for a ready-made TypeScript implementation.</p>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/decision-guides/latest/decision-guides/sns-or-sqs-or-eventbridge.html">AWS Decision Guide — delivery &amp; ordering guarantees</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-rule-retry-policy.html">AWS — Retrying event delivery</a></li>
+    <li id="r3"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-rule-dlq.html">AWS — Dead-letter queues</a></li>
+    <li id="r4"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-sqs.html">AWS — SQS as an EventBridge target (FIFO ordering)</a></li>
+    <li id="r5"><a href="https://docs.powertools.aws.dev/lambda/typescript/utilities/idempotency/">AWS Lambda Powertools — Idempotency</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-targets-and-picking-the-right-destination.html">← Lesson 5</a></span>
+  <span class="nav-next"><a href="0007-event-design-and-schema.html">Lesson 7: Event design &amp; schema →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">MISSION</a> · <a href="../RESOURCES.md">RESOURCES</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/eventbridge-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() {
+    if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; }
+  }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

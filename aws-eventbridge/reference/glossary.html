@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Amazon EventBridge — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>AWS EventBridge</span></div>
+  <h1>EventBridge Glossary</h1>
+  <p class="subtitle">Every term in this course, in one place. Return here when a lesson uses a word you do not fully own.</p>
+</header>
+
+<section>
+<h2>Events &amp; the bus</h2>
+<dl>
+  <dt><strong>Event</strong></dt>
+  <dd>A JSON record that describes a state change or an action ("an order was placed", "a user was created"). It carries metadata (who, when, where) plus a <code>detail</code> payload. It is a <em>notification of what happened</em>, not a command to a specific service.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>Event bus</strong></dt>
+  <dd>The managed pipe that events flow through. Producers <code>PutEvents</code> onto a bus; rules on the bus match events and route them to targets. Every account has a <strong>default</strong> bus plus any number of <strong>custom</strong> buses.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>Default event bus</strong></dt>
+  <dd>The bus every AWS account gets automatically. Many AWS services emit their events here (e.g. S3, EC2, CodePipeline). Custom applications can also publish to it.</dd>
+
+  <dt><strong>Custom event bus</strong></dt>
+  <dd>A bus you create to keep one application's or team's events separate from AWS noise. Cleaner rules, permissions, and auditing.</dd>
+
+  <dt><strong>Partner event bus</strong></dt>
+  <dd>Receives events from integrated SaaS providers (Stripe, Datadog, …) via EventBridge Partner Sources, without you running ingestion code.</dd>
+
+  <dt><strong>Cross-account / cross-region</strong></dt>
+  <dd>An event bus can route events to targets in another AWS account (via resource policies) or by replicating events to a bus in another region.</dd>
+
+  <dt><strong>Producer</strong></dt>
+  <dd>Anything that <em>publishes</em> an event onto a bus — frequently a Lambda convenience endpoint or an AWS service.</dd>
+
+  <dt><strong>Consumer / subscriber</strong></dt>
+  <dd>Anything that <em>receives</em> matched events — a Lambda, an SQS queue, a Step Functions workflow, an API destination, another bus.</dd>
+</dl>
+</section>
+
+<section>
+<h2>Producers &amp; how events are shaped</h2>
+<dl>
+  <dt><strong>PutEvents</strong></dt>
+  <dd>The API a producer calls to send one or more events to a bus. Each entry needs at least a <code>Source</code>, <code>DetailType</code>, and <code>Detail</code>.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>Envelope</strong></dt>
+  <dd>The standard outer structure every EventBridge event carries: <code>version</code>, <code>id</code>, <code>detail-type</code>, <code>source</code>, <code>account</code>, <code>time</code>, <code>region</code>, <code>resources</code>, <code>detail</code>.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>Source</strong></dt>
+  <dd>Identifies <em>who</em> produced the event, as a dotted namespace, e.g. <code>com.acme.orders</code>. Pairs with <code>detail-type</code> to say WHAT the event is about.</dd>
+
+  <dt><strong>Detail-Type</strong></dt>
+  <dd>A free-form string naming the event kind, e.g. <code>Order Placed</code>. The <code>source</code> + <code>detail-type</code> pair is usually the key you route on.</dd>
+
+  <dt><strong>Detail</strong></dt>
+  <dd>The JSON payload — the business data. Nested fields here are what content filtering inspects (e.g. <code>$.detail.price &gt;= 100</code>).</dd>
+</dl>
+</section>
+
+<section>
+<h2>Routing</h2>
+<dl>
+  <dt><strong>Rule</strong></dt>
+  <dd>A named subscription on a bus: <em>an event pattern</em> plus the <em>targets</em> the matched events are sent to. All matching rules fire, so one event fans out to many consumers.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>Event pattern</strong></dt>
+  <dd>The JSON filter of a rule. It matches on the fields you specify (usually <code>source</code>, <code>detail-type</code>, and nested <code>detail</code> paths); everything else matches as a wildcard.<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>Content filtering</strong></dt>
+  <dd>Comparison operators inside a pattern — <code>prefix</code>, <code>suffix</code>, <code>anything-but</code>, numeric ranges, <code>exists</code>, and wildcards — to match on more than exact equality.<sup><a href="#r6">6</a></sup></dd>
+
+  <dt><strong>Target</strong></dt>
+  <dd>The destination a matched event is delivered to: Lambda, SQS queue, SNS topic, Step Functions, API destination, another event bus, and more.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>Input transformer</strong></dt>
+  <dd>Rewrites the event payload right before delivery, so a target sees a trimmed/combined JSON instead of the whole envelope.<sup><a href="#r7">7</a></sup></dd>
+
+  <dt><strong>EventBridge Pipes</strong></dt>
+  <dd>A separate, point-to-point pattern: source → optional enrichment → target. Where the bus is many-to-many, a Pipe is one source to one target and can preserve ordering from ordered sources.<sup><a href="#r8">8</a></sup></dd>
+</dl>
+</section>
+
+<section>
+<h2>Reliability</h2>
+<dl>
+  <dt><strong>At-least-once delivery</strong></dt>
+  <dd>The guarantee EventBridge makes: an event is delivered to a target at least once, but <em>may be delivered more than once</em>. Consumers must be idempotent.<sup><a href="#r9">9</a></sup></dd>
+
+  <dt><strong>Ordering</strong></dt>
+  <dd>EventBridge does <strong>not</strong> guarantee events arrive in the order they were published. When order matters, route into an SQS FIFO queue keyed by a <code>MessageGroupId</code>.<sup><a href="#r9">9</a></sup></dd>
+
+  <dt><strong>Retry policy</strong></dt>
+  <dd>Per-target delivery retries with exponential backoff and jitter. Default: up to 24 hours and up to 185 attempts. You set the retry attempts and maximum event age.<sup><a href="#r10">10</a></sup></dd>
+
+  <dt><strong>Dead-letter queue (DLQ)</strong></dt>
+  <dd>A standard SQS queue that receives events EventBridge could not deliver after retries (or immediately, for non-retriable errors). Configured per target. Must be a standard queue — FIFO is not supported for EventBridge DLQs.<sup><a href="#r11">11</a></sup></dd>
+
+  <dt><strong>Idempotency</strong></dt>
+  <dd>Designing a consumer so processing the same event twice has the same effect as once. Required because at-least-once can deliver duplicates.</dd>
+</dl>
+</section>
+
+<section>
+<h2>Contract &amp; schema</h2>
+<dl>
+  <dt><strong>Schema</strong></dt>
+  <dd>A formal description of an event's shape — an OpenAPI 3 or JSON Schema Draft4 document. The contract that lets producers and consumers stay in sync.<sup><a href="#r12">12</a></sup></dd>
+
+  <dt><strong>Schema Registry</strong></dt>
+  <dd>EventBridge's central store of schemas. Built-in registries: <code>aws.events</code> (all AWS service event schemas) and <code>discovered-schemas</code> (from <em>schema discovery</em>), plus custom registries you create.</dd>
+
+  <dt><strong>Schema discovery</strong></dt>
+  <dd>A bus setting that infers schemas from the events flowing through, so you don't maintain them by hand. Schemas are versioned as events evolve.</dd>
+
+  <dt><strong>Code bindings</strong></dt>
+  <dd>Generated typed classes/interfaces for a schema (Java, TypeScript, etc.) you can download to speed up development against a known event shape.</dd>
+</dl>
+</section>
+
+<section>
+<h2>Related services (for choosing)</h2>
+<dl>
+  <dt><strong>Amazon SQS</strong></dt>
+  <dd>A <em>queue</em>. Pull-based: a consumer polls messages, which persist (up to 14 days). Great for buffering and fine-grained flow control. FIFO queues add strict ordering.</dd>
+
+  <dt><strong>Amazon SNS</strong></dt>
+  <dd>A <em>pub/sub topic</em>. Push-based fan-out of one message to many subscribers. No content routing the way EventBridge rules do; filtering is simpler.</dd>
+
+  <dt><strong>EventBridge vs these</strong></dt>
+  <dd>EventBridge is an <em>event bus with routing rules</em> and content-based filtering and many target types. Choose it when you need to route one event to the right consumer(s) by structure. Combine it with SQS when you also need a durable buffer.<sup><a href="#r13">13</a></sup></dd>
+</dl>
+</section>
+
+<footer class="citation" id="refs">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-events.html">AWS — Amazon EventBridge events (envelope structure)</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-event-bus.html">AWS — Amazon EventBridge event buses</a></li>
+    <li id="r3"><a href="https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_PutEventsRequestEntry.html">AWS — PutEventsRequestEntry</a></li>
+    <li id="r4"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-rules.html">AWS — Amazon EventBridge rules</a></li>
+    <li id="r5"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-create-pattern.html">AWS — Event pattern syntax</a></li>
+    <li id="r6"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-create-pattern-operators.html">AWS — Content-based filtering (comparison operators)</a></li>
+    <li id="r7"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-transform-input.html">AWS — Transforming input event</a></li>
+    <li id="r8"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-pipes.html">AWS — Amazon EventBridge Pipes</a></li>
+    <li id="r9"><a href="https://docs.aws.amazon.com/decision-guides/latest/decision-guides/sns-or-sqs-or-eventbridge.html">AWS Decision Guide — ordering &amp; delivery guarantees</a></li>
+    <li id="r10"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-rule-retry-policy.html">AWS — Retrying event delivery</a></li>
+    <li id="r11"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-rule-dlq.html">AWS — Dead-letter queues for EventBridge</a></li>
+    <li id="r12"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-schema.html">AWS — Amazon EventBridge schemas</a></li>
+    <li id="r13"><a href="https://docs.aws.amazon.com/decision-guides/latest/decision-guides/sns-or-sqs-or-eventbridge.html">AWS Decision Guide — SQS, SNS, or EventBridge?</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../lessons/0001-why-events-not-lambda-chains.html">← Lesson 1</a></span>
+  <span class="nav-next"><a href="../reference/eventbridge-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>
