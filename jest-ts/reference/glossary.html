@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jest + TypeScript — Glossary & Cheat-Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  /* reference-specific: denser layout, two-column sections for cheat-sheet */
+  body { padding: 2.5rem 1.5rem 4rem; }
+  .wrap { max-width: 760px; }
+  h2 { margin-top: 2.2rem; border-bottom: 1px solid var(--rule); padding-bottom: .3rem; }
+  h3 { font-family: sans-serif; font-size: .95rem; color: var(--accent);
+       text-transform: uppercase; letter-spacing: .08em; margin-top: 1.6rem; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin: 1rem 0; }
+  @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
+  dl { margin: 1rem 0; }
+  dt { font-weight: 600; font-family: sans-serif; font-size: .92rem; margin-top: .8rem; }
+  dt code { font-size: .88em; }
+  dd { margin: .2rem 0 .6rem 1.2rem; font-size: .92rem; color: var(--ink); }
+  dd p { margin: .3rem 0; }
+  .sec { margin: 1.4rem 0; padding: 1rem 1.2rem; background: #222220;
+         border: 1px solid var(--rule); border-radius: 6px; }
+  .sec h3 { margin-top: 0; }
+  .back { font-family: sans-serif; font-size: .85rem; color: var(--muted);
+          margin-bottom: 1.5rem; }
+  @media print { .back { display: none; } body { font-size: 11pt; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="back">← <a href="../lessons/0001-from-zero-to-a-test-that-runs.html">Lesson 01</a>
+     · <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a></p>
+  <p class="kicker">Reference</p>
+  <h1>Jest + TypeScript — Glossary & Cheat-Sheet</h1>
+  <p class="sub">The compressed essence of Lessons 01–07. Print this; revisit
+     when a concept gets fuzzy.</p>
+
+  <h2>Transformers — the one decision</h2>
+  <table class="cmp">
+    <tr><th>Transformer</th><th>Type-checks?</th><th>Speed</th><th>Config</th></tr>
+    <tr><td><code>ts-jest</code></td><td>Yes (<code>tsc</code>)</td><td>Slowest</td>
+        <td><code>createDefaultPreset()</code> (modern) or <code>preset: 'ts-jest'</code> (legacy)</td></tr>
+    <tr><td><code>babel-jest</code></td><td>No</td><td>Fast</td>
+        <td>Jest's default; add <code>@babel/preset-typescript</code></td></tr>
+    <tr><td><code>@swc/jest</code></td><td>No</td><td>Fastest</td>
+        <td><code>transform: { '^.+\\.(t|j)sx?$': '@swc/jest' }</code></td></tr>
+  </table>
+  <p><strong>Decision:</strong> if CI runs <code>tsc --noEmit</code>, pick by
+     speed (babel-jest or @swc/jest). If not, ts-jest type-checks in the test
+     run. Hybrid: ts-jest with <code>isolatedModules: true</code> for
+     transpile-only speed without switching transformers.</p>
+
+  <h2>Matchers — the families</h2>
+  <dl>
+    <dt><code>toBe</code> — identity</dt>
+    <dd>Uses <code>Object.is</code>. Reference identity for objects, value
+        equality for primitives. <code>expect(NaN).toBe(NaN)</code> passes.</dd>
+    <dt><code>toEqual</code> — deep equality</dt>
+    <dd>Recursive deep equality. Ignores <code>undefined</code> properties and
+        sparseness.</dd>
+    <dt><code>toStrictEqual</code> — strict deep equality</dt>
+    <dd>Like <code>toEqual</code> but rejects extra keys, <code>undefined</code>
+        properties, and sparseness. Use when exact shape matters.</dd>
+    <dt>Truthiness — <code>toBeTruthy</code>, <code>toBeFalsy</code></dt>
+    <dd>"Something is there" / "nothing there." Not the same as
+        <code>toBe(true)</code>.</dd>
+    <dt>Numbers — <code>toBeGreaterThan</code>, <code>toBeLessThan</code>, <code>toBeCloseTo</code></dt>
+    <dd>Comparisons. <code>toBeCloseTo</code> for floats (avoids 0.1+0.2
+        precision traps).</dd>
+    <dt>Strings — <code>toMatch</code> (regex), <code>toContain</code></dt>
+    <dd>Pattern or substring.</dd>
+    <dt>Arrays — <code>toContain</code>, <code>toContainEqual</code>, <code>toHaveLength</code></dt>
+    <dd><code>toContainEqual</code> for deep membership.</dd>
+    <dt>Exceptions — <code>toThrow</code>, <code>toThrowError</code></dt>
+    <dd>Pass a function, not its result: <code>expect(() =&gt; fn()).toThrow()</code>.</dd>
+    <dt>Negation — <code>.not</code></dt>
+    <dd>Prefix any matcher: <code>expect(x).not.toBe(y)</code>.</dd>
+    <dt>Async — <code>.resolves</code>, <code>.rejects</code></dt>
+    <dd><strong>Must <code>await</code>:</strong>
+        <code>await expect(p).resolves.toBe(x)</code>. Without
+        <code>await</code>, silent pass.</dd>
+  </dl>
+  <div class="sec">
+    <h3>The type-level trap</h3>
+    <p><code>expect(actual: any)</code> — the matcher chain is loosely typed.
+       The code under test is type-checked (ts-jest), but the <em>expected</em>
+       side isn't guarded by Jest. A typo in the expected object is a runtime
+       failure, not a compile error. Mitigate: type the actual explicitly —
+       <code>const r: ReturnType&lt;typeof fn&gt; = fn(); expect(r).toEqual(...)</code>.</p>
+  </div>
+
+  <h2>Mocks — the typed-mock toolkit</h2>
+  <dl>
+    <dt><code>jest.fn&lt;typeof realFn&gt;()</code></dt>
+    <dd>Type-safe mock matching the real function's signature. The senior
+        default — a signature change in <code>realFn</code> fails the mock at
+        compile time.</dd>
+    <dt><code>jest.fn&lt;() =&gt; Promise&lt;T&gt;&gt;()</code></dt>
+    <dd>Async return shorthands: <code>mockResolvedValue</code>,
+        <code>mockRejectedValue</code>. The generic is the whole signature.</dd>
+    <dt><code>jest.Mocked&lt;T&gt;</code></dt>
+    <dd>Type that wraps <code>T</code> with mock definitions. Variants:
+        <code>jest.MockedFunction</code>, <code>jest.MockedClass</code>,
+        <code>jest.MockedObject</code>.</dd>
+    <dt><code>jest.mocked(source, { shallow? })</code></dt>
+    <dd>Runtime helper — wraps the source with mock types. Preferred over
+        casting. Deep-wraps by default; <code>{ shallow: true }</code> for top
+        level only.</dd>
+    <dt><code>jest.mock&lt;typeof import('m')&gt;('m', factory)</code></dt>
+    <dd>Module mock with typed factory. Factory must include
+        <code>__esModule: true</code> for default exports. Partial mock: spread
+        <code>jest.requireActual('m')</code>.</dd>
+    <dt><code>jest.Spied&lt;T&gt;</code></dt>
+    <dd>Return type of <code>jest.spyOn</code>. Variants:
+        <code>jest.SpiedFunction</code>, <code>jest.SpiedClass</code>,
+        <code>jest.SpiedGetter</code>, <code>jest.SpiedSetter</code>.</dd>
+  </dl>
+  <div class="sec">
+    <h3>Contract vs implementation</h3>
+    <p><strong>Mock the contract</strong> (inject a <code>jest.fn</code> typed
+       against an interface) when you own the boundary — the test survives
+       refactors. <strong>Mock the implementation</strong>
+       (<code>jest.mock('path')</code>) for boundaries you don't control
+       (external packages, <code>fs</code>, <code>fetch</code>).</p>
+  </div>
+
+  <h2>Async — the four patterns</h2>
+  <dl>
+    <dt>1. Return the promise</dt>
+    <dd><code>return fn().then(x =&gt; expect(x).toBe(y))</code>. The
+        <code>return</code> is the fix; without it, silent pass.</dd>
+    <dt>2. <code>.resolves</code> / <code>.rejects</code></dt>
+    <dd><code>await expect(fn()).resolves.toMatchObject(...)</code>. The
+        <code>await</code> is required — not optional.</dd>
+    <dt>3. <code>async</code>/<code>await</code> — the senior default</dt>
+    <dd><code>const x = await fn(); expect(x).toBe(y)</code>. Cleanest:
+        implicit return, Jest waits, rejections fail the test.</dd>
+    <dt>4. Callbacks with <code>done</code> — legacy</dt>
+    <dd><code>test('...', done =&gt; { fn(cb =&gt; { expect(...); done(); }); })</code>.
+        For APIs that don't return promises. <code>expect</code> before
+        <code>done()</code>.</dd>
+  </dl>
+  <div class="sec">
+    <h3>The silent-pass trap</h3>
+    <p>A test that calls <code>promise.then(...)</code> without returning the
+       promise <em>passes</em> — Jest sees the function complete, runs zero
+       assertions, reports green. The <code>.then</code> runs <em>after</em>
+       the test finishes. Fix: <code>return</code> the promise, or use
+       <code>async</code>/<code>await</code>.</p>
+  </div>
+
+  <h2>Config — the cheat-sheet</h2>
+  <h3>Modern ts-jest (preset-creator functions)</h3>
+  <pre>&lt;code&gt;<span class="tok-k">import type</span> { Config } <span class="tok-k">from</span> <span class="tok-s">'jest'</span>;
+<span class="tok-k">import</span> { createDefaultPreset } <span class="tok-k">from</span> <span class="tok-s">'ts-jest'</span>;
+
+<span class="tok-k">const</span> config: Config = {
+  ...createDefaultPreset({ tsconfig: <span class="tok-s">'tsconfig.test.json'</span> }),
+  testEnvironment: <span class="tok-s">'node'</span>,
+};&lt;/code&gt;</pre>
+  <h3>Path aliases (tsconfig → Jest)</h3>
+  <pre>&lt;code&gt;<span class="tok-k">import</span> { pathsToModuleNameMapper } <span class="tok-k">from</span> <span class="tok-s">'ts-jest'</span>;
+<span class="tok-k">import</span> { compilerOptions } <span class="tok-k">from</span> <span class="tok-s">'./tsconfig.json'</span>;
+
+moduleNameMapper: pathsToModuleNameMapper(compilerOptions.paths,
+  { prefix: <span class="tok-s">'&lt;rootDir&gt;/'</span> }),&lt;/code&gt;</pre>
+  <h3>ESM mode</h3>
+  <pre>&lt;code&gt;<span class="tok-c"># run with the flag</span>
+node --experimental-vm-modules node_modules/.bin/jest
+
+<span class="tok-c"># config: use createDefaultEsmPreset() or:</span>
+<span class="tok-c">#   useESM: true in transform, extensionsToTreatAsEsm: ['.ts']</span>
+<span class="tok-c"># tsconfig: module = ES2022/ESNext or Node16/NodeNext</span>
+<span class="tok-c"># hybrid Node16/Next requires isolatedModules: true</span>
+
+<span class="tok-c"># ESM mocking (jest.mock does NOT work):</span>
+jest.unstable_mockModule(<span class="tok-s">'./db'</span>, () =&gt; ({ saveUser: <span class="tok-k">async</span> () =&gt; <span class="tok-s">true</span> }));
+<span class="tok-k">const</span> { saveUser } = <span class="tok-k">await</span> <span class="tok-k">import</span>(<span class="tok-s">'./db'</span>);  <span class="tok-c">// after mock</span>&lt;/code&gt;</pre>
+  <div class="sec">
+    <h3>Two configs, one goal</h3>
+    <p><code>tsconfig.json</code> — how TS compiles (<code>module</code>,
+       <code>paths</code>, <code>strict</code>, <code>esModuleInterop</code>).
+       Read by <code>tsc</code>, editor, ts-jest.<br>
+       <code>jest.config.ts</code> — how tests run (<code>transform</code>,
+       <code>preset</code>, <code>moduleNameMapper</code>, <code>testEnvironment</code>).
+       Read by Jest.<br>
+       The overlap is the transformer: ts-jest reads <code>tsconfig</code> to
+       know how to compile. <code>esModuleInterop</code> is a tsconfig setting
+       that ts-jest respects — not a Jest config.</p>
+  </div>
+
+  <h2>Senior testing principles</h2>
+  <dl>
+    <dt>Arrange-Act-Assert</dt>
+    <dd>One <code>Act</code> line, one behavior per test. Long Arrange = too
+        many dependencies. Three Act calls = testing a flow, not a unit.</dd>
+    <dt>Test behavior, not implementation</dt>
+    <dd>Assert results, not calls. <code>expect(spy).toHaveBeenCalled()</code>
+        on your own internals is the smell. Spy on boundaries (network, DB),
+        not internal functions.</dd>
+    <dt>One behavior per test</dt>
+    <dd>Not one assertion — one <em>behavior</em>. A behavior may need several
+        assertions (reject + right error + logged). Avoid two behaviors in one
+        test — when it fails, you don't know which broke.</dd>
+    <dt>What not to test</dt>
+    <dd>Getters/setters with no logic. Framework internals. Third-party
+        libraries. Constants. Private methods. Test behavior and contracts.</dd>
+    <dt>Refactor-resilience</dt>
+    <dd>The quality bar: can you refactor the code without rewriting the
+        tests? Coupling (breaks on internal change), signal (failure tells you
+        what/where), speed (slow suites get skipped).</dd>
+    <dt>Name tests for what they verify</dt>
+    <dd><code>"rejects expired tokens with 401"</code> not
+        <code>"works"</code>. The name is the failure message.</dd>
+  </dl>
+
+  <h2>Glossary</h2>
+  <dl>
+    <dt>Transformer</dt>
+    <dd>Jest's hook for compiling non-JS. A regex maps file patterns to a
+        transformer (ts-jest, babel-jest, @swc/jest). Configured via
+        <code>transform</code> or a preset.</dd>
+    <dt>Preset</dt>
+    <dd>A base Jest config from an npm module. ts-jest's modern form:
+        <code>createDefaultPreset()</code> returns the transform object
+        directly. Legacy: <code>preset: 'ts-jest'</code>.</dd>
+    <dt><code>moduleNameMapper</code></dt>
+    <dd>Jest's regex-to-path map for resolving module specifiers. Use
+        <code>pathsToModuleNameMapper</code> to sync with tsconfig
+        <code>paths</code>.</dd>
+    <dt><code>esModuleInterop</code></dt>
+    <dd>TS compiler option (not Jest). Controls how
+        <code>import x from 'cjs'</code> works under strict mode. ts-jest
+        inherits it.</dd>
+    <dt>Distribution (conditional types)</dt>
+    <dd>(From the <a href="../../typescript/lessons/0005-conditional-types-infer.html">type-level track</a>.)
+        Not a Jest concept — but <code>jest.Mocked&lt;T&gt;</code> uses
+        conditional types internally to wrap nested members.</dd>
+    <dt>Silent pass</dt>
+    <dd>A test that reports green because no assertion ever ran. The async
+        trap: forgetting to <code>return</code>/<code>await</code> a
+        promise.</dd>
+    <dt>Contract vs implementation mock</dt>
+    <dd>Contract: mock an interface (inject <code>jest.fn</code> typed
+        against it). Implementation: mock a module
+        (<code>jest.mock('path')</code>). Seniors prefer contracts for code
+        they own.</dd>
+    <dt><code>isolatedModules</code></dt>
+    <dd>ts-jest option: transpile per-file without project-wide type-checking.
+        ts-jest's "transpile-only" mode — same speed as babel-jest without
+        switching transformers.</dd>
+    <dt><code>--experimental-vm-modules</code></dt>
+    <dd>Node flag required for Jest ESM. Jest's ESM support is experimental
+        (still labeled so in Jest 30.4). ESM mocking uses
+        <code>jest.unstable_mockModule</code>, not <code>jest.mock</code>.</dd>
+  </dl>
+
+  <h2>Lesson index</h2>
+  <ol>
+    <li><a href="../lessons/0001-from-zero-to-a-test-that-runs.html">From Zero to a Test That Runs</a> — transformers, setup</li>
+    <li><a href="../lessons/0002-matchers-and-the-type-system.html">Matchers & the Type System</a> — families, toBe vs toEqual, the type trap</li>
+    <li><a href="../lessons/0003-mocks-done-right.html">Mocks Done Right</a> — typed mocks, jest.Mocked, contract vs implementation</li>
+    <li><a href="../lessons/0004-async-testing.html">Async Testing</a> — four patterns, the silent-pass trap, fake timers</li>
+    <li><a href="../lessons/0005-config-deep-dive.html">Config Deep-Dive</a> — tsconfig vs Jest, paths, ESM</li>
+    <li><a href="../lessons/0006-choosing-your-transformer.html">Choosing Your Transformer</a> — decision framework</li>
+    <li><a href="../lessons/0007-testing-like-a-senior.html">Testing Like a Senior</a> — structure, what not to test, refactor-resilience</li>
+  </ol>
+
+  <footer>
+    Compiled from Jest 30.4 docs, ts-jest 29.4 docs, and the
+    <a href="../RESOURCES.md">curated resources</a>. Verified 2026-08-06.
+  </footer>
+</div>
+</body>
+</html>

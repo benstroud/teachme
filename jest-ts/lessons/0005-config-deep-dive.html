@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 05 — Config Deep-Dive</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">Lesson 05 · Jest + TypeScript</p>
+  <h1>Config Deep-Dive</h1>
+  <p class="sub">tsconfig vs Jest config, path aliases, ESM mode, and the
+     preset-creator functions we deferred from Lesson 01.</p>
+  <p class="mission">★ Mission link: this is the "justify every config line"
+     success criterion from the
+     <a href="../MISSION.md">mission</a>. Builds on
+     <a href="0001-from-zero-to-a-test-that-runs.html">Lesson 01</a> (the
+     transformer choice) and
+     <a href="0004-async-testing.html">Lesson 04</a> (async, which ESM affects).
+     The win today: read a <code>jest.config.ts</code> + <code>tsconfig.json</code>
+     pair and explain every line — and configure path aliases without
+     copy-pasting from Stack Overflow.</p>
+
+  <h2>Two configs, one goal</h2>
+  <p>You have two config files. They look related; they serve different
+     masters:<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+  <table class="cmp">
+    <tr><th>File</th><th>Who reads it</th><th>What it controls</th></tr>
+    <tr><td><code>tsconfig.json</code></td><td><code>tsc</code>, your editor, ts-jest</td><td>How TS is compiled: <code>module</code>, <code>target</code>, <code>paths</code>, <code>strict</code>, <code>esModuleInterop</code></td></tr>
+    <tr><td><code>jest.config.ts</code></td><td>Jest</td><td>How tests run: <code>transform</code>, <code>preset</code>, <code>moduleNameMapper</code>, <code>testEnvironment</code></td></tr>
+  </table>
+  <p>The overlap is the <em>transformer</em> — ts-jest reads your
+     <code>tsconfig</code> to know how to compile. Everything else is
+     separate. A common senior mistake: change <code>tsconfig</code> paths
+     and forget that Jest has its own resolution layer.</p>
+
+  <h2>The preset-creator functions (the modern form)</h2>
+  <p>In <a href="0001-from-zero-to-a-test-that-runs.html">Lesson 01</a> we used
+     <code>preset: 'ts-jest'</code> — the legacy string. The current ts-jest
+     docs recommend <strong>preset-creator functions</strong>
+     instead:<sup><a href="#r2">2</a></sup></p>
+  <pre>&lt;code&gt;<span class="tok-c">// jest.config.ts — the modern form</span>
+<span class="tok-k">import type</span> { Config } <span class="tok-k">from</span> <span class="tok-s">'jest'</span>;
+<span class="tok-k">import</span> { createDefaultPreset } <span class="tok-k">from</span> <span class="tok-s">'ts-jest'</span>;
+
+<span class="tok-k">const</span> config: Config = {
+  ...createDefaultPreset(),   <span class="tok-c">// ← { transform: { '^.+\\.tsx?$': ['ts-jest', {}] } }</span>
+  testEnvironment: <span class="tok-s">'node'</span>,
+};
+
+<span class="tok-k">export default</span> config;&lt;/code&gt;</pre>
+  <p>The function returns the <code>transform</code> object directly, so you
+     can spread it and override. For ESM, swap to
+     <code>createDefaultEsmPreset()</code>. The docs are explicit: <em>if you
+     use custom transform config, remove <code>preset</code> from your Jest
+     config</em> — mixing both causes "Jest doesn't transform files
+     correctly."<sup><a href="#r2">2</a></sup> Options (<code>tsconfig</code>,
+     <code>diagnostics</code>, <code>isolatedModules</code>, <code>useESM</code>)
+     live in the transform tuple's second element:</p>
+  <pre>&lt;code&gt;<span class="tok-k">const</span> config: Config = {
+  ...createDefaultPreset({
+    tsconfig: <span class="tok-s">'tsconfig.test.json'</span>,
+    diagnostics: <span class="tok-s">false</span>,          <span class="tok-c">// skip type-checking (transpile-only)</span>
+    isolatedModules: <span class="tok-s">true</span>,        <span class="tok-c">// ← per-file transpile, no project-wide check</span>
+  }),
+  testEnvironment: <span class="tok-s">'node'</span>,
+};&lt;/code&gt;</pre>
+  <p><code>isolatedModules: true</code> disables type-checking — it's the
+     ts-jest equivalent of switching to babel-jest or @swc/jest, but without
+     changing transformers. Use it when you want ts-jest's ESM handling but
+     type-check elsewhere.<sup><a href="#r3">3</a></sup></p>
+
+  <h2>Path aliases: <code>pathsToModuleNameMapper</code></h2>
+  <p>The classic pain: <code>tsconfig</code> has <code>paths</code> like
+     <code>@/* -&gt; ./src/*</code>, your code imports <code>@/db</code>, and Jest
+     can't resolve it. The fix is <code>moduleNameMapper</code> — but don't
+     write it by hand. ts-jest ships a
+     converter:<sup><a href="#r4">4</a></sup></p>
+  <pre>&lt;code&gt;<span class="tok-c">// jest.config.ts</span>
+<span class="tok-k">import</span> { pathsToModuleNameMapper } <span class="tok-k">from</span> <span class="tok-s">'ts-jest'</span>;
+<span class="tok-k">import</span> { compilerOptions } <span class="tok-k">from</span> <span class="tok-s">'./tsconfig.json'</span>;
+
+<span class="tok-k">const</span> config: Config = {
+  ...createDefaultPreset(),
+  roots: [<span class="tok-s">'&lt;rootDir&gt;'</span>],
+  modulePaths: [compilerOptions.baseUrl],   <span class="tok-c">// ← usually './'</span>
+  moduleNameMapper: pathsToModuleNameMapper(
+    compilerOptions.paths,
+    { prefix: <span class="tok-s">'&lt;rootDir&gt;/'</span> }    <span class="tok-c">// ← resolve relative to project root</span>
+  ),
+};&lt;/code&gt;</pre>
+  <p>Why this matters: <code>moduleNameMapper</code> is a regex-to-path map.
+     Writing it by hand means maintaining the same aliases in two files —
+     drift is inevitable. The converter keeps them in sync: change
+     <code>tsconfig</code> paths, Jest follows.<sup><a href="#r4">4</a></sup></p>
+  <aside class="note"><b>One gotcha:</b> <code>globalSetup</code> and
+     <code>globalTeardown</code> files <em>bypass</em> <code>moduleNameMapper</code>.
+     If those files need path aliases, use
+     <code>import 'tsconfig-paths/register'</code> at the top of the setup
+     file.<sup><a href="#r4">4</a></sup></aside>
+
+  <h2>ESM mode: experimental, but usable</h2>
+  <p>Jest's ESM support is still labeled experimental in 30.4 (May
+     2026).<sup><a href="#r5">5</a></sup> If your project uses
+     <code>"type": "module"</code> in <code>package.json</code>, you'll need
+     it. Three things change:<sup><a href="#r5">5</a></sup><sup><a href="#r6">6</a></sup></p>
+  <ol>
+    <li><strong>Run with the flag:</strong> <code>node --experimental-vm-modules node_modules/.bin/jest</code>
+        (or <code>NODE_OPTIONS</code>). Jest relies on Node's experimental VM
+        modules API — doubly experimental.</li>
+    <li><strong>Tell the transformer to emit ESM:</strong> use
+        <code>createDefaultEsmPreset()</code>, or set
+        <code>useESM: true</code> in the transform options and
+        <code>extensionsToTreatAsEsm: ['.ts', '.tsx']</code> in Jest config.
+        Your tsconfig <code>module</code> must be <code>ES2022</code>/
+        <code>ESNext</code> or <code>Node16</code>/<code>NodeNext</code>.</li>
+    <li><strong>Mocking changes:</strong> <code>jest.mock</code> (CJS, hoisted)
+        does NOT work in ESM. Use <code>jest.unstable_mockModule</code> — the
+        factory is <em>required</em> and can be async, and you load the mocked
+        module with <code>await import(...)</code>. Also: the <code>jest</code>
+        global is <em>not injected</em> in ESM — import it from
+        <code>@jest/globals</code>.</li>
+  </ol>
+  <pre>&lt;code&gt;<span class="tok-c">// ESM mocking — the unstable API</span>
+<span class="tok-k">import</span> { jest, test, expect } <span class="tok-k">from</span> <span class="tok-s">'@jest/globals'</span>;  <span class="tok-c">// ← no global jest</span>
+
+jest.unstable_mockModule(<span class="tok-s">'./db'</span>, () =&gt; ({
+  saveUser: <span class="tok-k">async</span> () =&gt; <span class="tok-s">true</span>,    <span class="tok-c">// factory is required, can be async</span>
+}));
+
+test(<span class="tok-s">'saves'</span>, <span class="tok-k">async</span> () =&gt; {
+  <span class="tok-k">const</span> { saveUser } = <span class="tok-k">await</span> <span class="tok-k">import</span>(<span class="tok-s">'./db'</span>);   <span class="tok-c">// ← dynamic import after mock</span>
+  expect(<span class="tok-k">await</span> saveUser(<span class="tok-s">'Ada'</span>)).toBe(<span class="tok-s">true</span>);
+});&lt;/code&gt;</pre>
+  <p>The <code>unstable_</code> prefix is honest: this API may change. For
+     hybrid <code>Node16</code>/<code>NodeNext</code> mode, ts-jest requires
+     <code>isolatedModules: true</code>.<sup><a href="#r6">6</a></sup></p>
+
+  <h2><code>esModuleInterop</code>: what it actually does</h2>
+  <p>You've seen <code>"esModuleInterop": true</code> in every tsconfig. It
+     affects how <code>import x from 'cjs-module'</code> works — without it,
+     default-importing a CommonJS module is an error under strict mode. ts-jest
+     inherits your tsconfig setting, so if your app needs it, tests need
+     it.<sup><a href="#r6">6</a></sup> It's not a Jest config — it's a TS
+     compiler option that ts-jest respects.</p>
+
+  <!-- ============ QUIZ ============ -->
+  <div class="quiz">
+    <p class="kicker">Retrieval practice</p>
+    <h2 style="margin-top:.3rem">Check yourself</h2>
+    <p style="color:var(--muted);font-size:.92rem">From memory. Q3 and Q5 are
+       the ones that bite in real projects.</p>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">1.</span>The modern ts-jest config form replaces <code>preset: 'ts-jest'</code> with…</div>
+      <div class="opts">
+        <button class="opt">a babel preset</button>
+        <button class="opt">createDefaultPreset()</button>
+        <button class="opt">a jest-preset file</button>
+        <button class="opt">globals.ts-jest</button>
+      </div>
+      <div class="fb" data-why="createDefaultPreset() (and ESM variants) returns the transform object directly so you can spread and override. The docs say: if you use custom transform config, remove preset."></div>
+    </div>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">2.</span><code>isolatedModules: true</code> in ts-jest options means…</div>
+      <div class="opts">
+        <button class="opt">each file is a module</button>
+        <button class="opt">no type-checking</button>
+        <button class="opt">only one module</button>
+        <button class="opt">ESM is required</button>
+      </div>
+      <div class="fb" data-why="isolatedModules: true makes ts-jest transpile per-file without a project-wide type check — the ts-jest equivalent of switching to babel-jest, but keeping the same transformer. Use when you type-check elsewhere."></div>
+    </div>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">3.</span>Jest can't resolve <code>@/db</code> from your tsconfig paths. The fix is…</div>
+      <div class="opts">
+        <button class="opt">pathsToModuleNameMapper</button>
+        <button class="opt">add to tsconfig only</button>
+        <button class="opt">use require instead</button>
+        <button class="opt">disable moduleNameMapper</button>
+      </div>
+      <div class="fb" data-why="pathsToModuleNameMapper(compilerOptions.paths, { prefix: '<rootDir>/' }) converts tsconfig paths to Jest moduleNameMapper entries — keeping the two in sync so you don't maintain aliases in two files."></div>
+    </div>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">4.</span>In ESM mode, <code>jest.mock('./db')</code>…</div>
+      <div class="opts">
+        <button class="opt">works the same as CJS</button>
+        <button class="opt">does not work — use unstable_mockModule</button>
+        <button class="opt">works but is slower</button>
+        <button class="opt">requires a factory</button>
+      </div>
+      <div class="fb" data-why="jest.mock is CJS-only (hoisted, sync factory). ESM uses jest.unstable_mockModule — factory is required and can be async — and you load the module with await import(). The jest global also isn't injected; import from @jest/globals."></div>
+    </div>
+
+    <div class="q" data-correct="2">
+      <div class="stem"><span class="n">5.</span><code>esModuleInterop</code> is a setting in…</div>
+      <div class="opts">
+        <button class="opt">jest.config only</button>
+        <button class="opt">both, set in jest</button>
+        <button class="opt">tsconfig, respected by ts-jest</button>
+        <button class="opt">package.json</button>
+      </div>
+      <div class="fb" data-why="esModuleInterop is a TS compiler option that ts-jest inherits. It controls how import x from 'cjs' works under strict mode. It's not a Jest config — it's a tsconfig setting ts-jest respects."></div>
+    </div>
+
+    <div id="score">Answer all five to see your score.</div>
+  </div>
+
+  <!-- ============ NEXT ============ -->
+  <div class="next">
+    <h2>Primary source (read this next)</h2>
+    <p><span class="pill">Most trusted</span>
+       <a href="https://kulshekhar.github.io/ts-jest/docs/getting-started/options" target="_blank">ts-jest — Options</a>.
+       Every transform-tuple option: <code>tsconfig</code>,
+       <code>diagnostics</code>, <code>isolatedModules</code>, <code>useESM</code>.
+       ~15 min.</p>
+    <p style="font-size:.9rem;color:var(--muted)">Deeper, when ready:
+       <a href="https://kulshekhar.github.io/ts-jest/docs/getting-started/paths-mapping" target="_blank">ts-jest — Paths Mapping</a>
+       for <code>pathsToModuleNameMapper</code>, and
+       <a href="https://kulshekhar.github.io/ts-jest/docs/guides/esm-support" target="_blank">ts-jest — ESM Support</a>
+       for the ESM setup.</p>
+
+    <h2>Where this goes</h2>
+    <p><span class="pill">Lesson 06</span> <strong>Choosing your transformer</strong> —
+       ts-jest vs @swc/jest vs babel-jest, with a decision framework. This
+       lesson showed you <em>how</em> to configure each; Lesson 06 gives you
+       the framework for <em>which</em> to pick and why.</p>
+    <p style="margin-top:1.4rem"><a href="../RESOURCES.md">→ All resources</a> &nbsp;·&nbsp;
+       <a href="0004-async-testing.html">← Lesson 04</a> &nbsp;·&nbsp;
+       <a href="../reference/glossary.html">→ Glossary</a></p>
+  </div>
+
+  <div class="ask">
+    <b>I'm your teacher.</b> Take a real project (or make a small one) with a
+    path alias in tsconfig — <code>@/*</code> pointing to <code>./src/*</code>.
+    Write a test that imports <code>@/something</code>. First, run it without
+    <code>moduleNameMapper</code> — paste the error. Then add
+    <code>pathsToModuleNameMapper</code> and paste the passing run. If you're
+    feeling bold, switch to <code>createDefaultEsmPreset()</code> and run with
+    <code>--experimental-vm-modules</code> — paste what happens. The ESM path
+    is the frontier; the alias path is the daily reality.
+  </div>
+
+  <footer>
+    <span id="r1">1.</span> <a href="https://jestjs.io/docs/configuration">Jest — Configuration (<code>transform</code>, <code>preset</code>, <code>moduleNameMapper</code>)</a>. &nbsp;
+    <span id="r2">2.</span> <a href="https://kulshekhar.github.io/ts-jest/docs/getting-started/presets">ts-jest — Presets (preset-creator functions)</a>. &nbsp;
+    <span id="r3">3.</span> <a href="https://kulshekhar.github.io/ts-jest/docs/getting-started/options">ts-jest — Options (<code>isolatedModules</code>, <code>diagnostics</code>)</a>. &nbsp;
+    <span id="r4">4.</span> <a href="https://kulshekhar.github.io/ts-jest/docs/getting-started/paths-mapping">ts-jest — Paths Mapping (<code>pathsToModuleNameMapper</code>)</a>. &nbsp;
+    <span id="r5">5.</span> <a href="https://jestjs.io/docs/ecmascript-modules">Jest — ECMAScript Modules (experimental, <code>--experimental-vm-modules</code>)</a>. &nbsp;
+    <span id="r6">6.</span> <a href="https://kulshekhar.github.io/ts-jest/docs/guides/esm-support">ts-jest — ESM Support (<code>useESM</code>, hybrid mode requires <code>isolatedModules</code>)</a>.
+  </footer>
+</div>
+
+<script>
+  const qs = [...document.querySelectorAll('.q')];
+  let answered = 0, correct = 0;
+  qs.forEach(q => {
+    const right = +q.dataset.correct;
+    const opts = [...q.querySelectorAll('.opt')];
+    const fb = q.querySelector('.fb');
+    opts.forEach((opt, i) => {
+      opt.addEventListener('click', () => {
+        opts.forEach(o => o.disabled = true);
+        const ok = i === right;
+        opts[right].classList.add('correct');
+        if (!ok) opt.classList.add('wrong');
+        fb.classList.add(ok ? 'correct' : 'wrong');
+        fb.innerHTML = (ok ? '<b>Correct.</b> ' : '<b>Not quite.</b> ') + fb.dataset.why;
+        answered++; if (ok) correct++;
+        if (answered === qs.length) {
+          const s = document.getElementById('score');
+          s.classList.add('done');
+          const msg = correct === qs.length ? 'Config solid. You can now justify every line — that\'s the mission criterion. The transformer decision framework is next.' :
+                      correct >= 3 ? 'Good. Re-read pathsToModuleNameMapper and the ESM mocking change — those are the two that bite in real projects.' :
+                      'Re-read above and retake. The two-configs/one-goal model and the ESM mocking change are the load-bearing bits.';
+          s.textContent = `Score: ${correct} / ${qs.length}. ${msg}`;
+        }
+      });
+    });
+  });
+</script>
+</body>
+</html>

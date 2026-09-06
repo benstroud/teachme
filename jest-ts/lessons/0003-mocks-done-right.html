@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 03 — Mocks Done Right</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">Lesson 03 · Jest + TypeScript</p>
+  <h1>Mocks Done Right</h1>
+  <p class="sub">Type-safe mocks, the <code>jest.Mocked&lt;T&gt;</code> family, and the
+     one decision that separates a senior's mocks from everyone else's.</p>
+  <p class="mission">★ Mission link: builds on
+     <a href="0002-matchers-and-the-type-system.html">Lesson 02</a> (the
+     type-level trap: <code>expect</code> is loosely typed). Mocks are where that
+     trap becomes the whole story — an untyped mock lets a refactor silently
+     break a test, and you find out in production. The win today: write mocks
+     that the compiler enforces, so a signature change either updates the mock
+     or fails the build.</p>
+
+  <h2>The two layers of mocking</h2>
+  <p>Jest mocking has two layers, and seniors keep them straight:<sup><a href="#r1">1</a></sup></p>
+  <ul>
+    <li><strong>Function mocks</strong> — <code>jest.fn()</code> creates a spy
+        you control. Use for: callbacks, injected dependencies, standalone
+        functions.</li>
+    <li><strong>Module mocks</strong> — <code>jest.mock('path')</code> replaces
+        an entire module with an auto-mock or a factory. Use for: external
+        services, <code>fs</code>, <code>fetch</code>, anything imported.</li>
+  </ul>
+  <p>Both have TypeScript-specific patterns. The failure mode is the same in
+     both: an <em>untyped</em> mock that doesn't match the real thing.</p>
+
+  <h2><code>jest.fn</code>: type it or regret it</h2>
+  <p><code>jest.fn()</code> with no arguments is loosely typed. The fix is a
+     generic — either infer from an implementation, or state the signature
+     explicitly:<sup><a href="#r2">2</a></sup></p>
+  <pre>&lt;code&gt;<span class="tok-k">function</span> <span class="tok-f">add</span>(a: <span class="tok-t">number</span>, b: <span class="tok-t">number</span>): <span class="tok-t">number</span> { <span class="tok-k">return</span> a + b; }
+
+<span class="tok-c">// ❌ untyped — mockImplementation params are any</span>
+<span class="tok-k">const</span> bad = jest.fn();
+bad.mockImplementation((a, b) =&gt; a + b);  <span class="tok-c">// a, b are any</span>
+
+<span class="tok-c">// ✅ infer from implementation</span>
+<span class="tok-k">const</span> ok1 = jest.fn((a: <span class="tok-t">number</span>, b: <span class="tok-t">number</span>) =&gt; a + b);
+
+<span class="tok-c">// ✅ explicit generic — matches the real function's type</span>
+<span class="tok-k">const</span> ok2 = jest.fn&lt;typeof add&gt;();
+ok2.mockImplementation((a, b) =&gt; a + b);  <span class="tok-c">// a, b inferred as number</span>&lt;/code&gt;</pre>
+  <p>The <code>jest.fn&lt;typeof add&gt;()</code> pattern is the senior default: the
+     mock's signature <em>mirrors</em> the real function. When <code>add</code>
+     gains a third parameter, the mock fails to compile until you update it —
+     which is exactly what you want.<sup><a href="#r2">2</a></sup></p>
+
+  <aside class="note"><b>Async return shorthands are generic too:</b>
+     <code>jest.fn&lt;() =&gt; Promise&lt;number&gt;&gt;().mockResolvedValue(43)</code>
+     or <code>jest.fn&lt;() =&gt; string&gt;().mockReturnValue('x')</code>. The generic
+     is the whole signature, not just the return type — note the
+     <code>() =&gt;</code> inside the angle brackets.<sup><a href="#r2">2</a></sup></aside>
+
+  <h2>The <code>jest.Mocked&lt;T&gt;</code> family</h2>
+  <p>After <code>jest.mock('module')</code>, the import binding still has the
+     <em>original</em> TypeScript type — <code>.mock.calls</code> isn't visible
+     on it. You need to wrap it. Jest provides a family of utility types for
+     this:<sup><a href="#r2">2</a></sup></p>
+  <table class="cmp">
+    <tr><th>Utility type</th><th>Wraps</th><th>Use for</th></tr>
+    <tr><td><code>jest.Mocked&lt;T&gt;</code></td><td>Any — deep-wraps nested</td><td>The general case</td></tr>
+    <tr><td><code>jest.MockedFunction&lt;T&gt;</code></td><td>A function</td><td>When T is a standalone fn</td></tr>
+    <tr><td><code>jest.MockedClass&lt;T&gt;</code></td><td>A class</td><td>Class constructors + methods</td></tr>
+    <tr><td><code>jest.MockedObject&lt;T&gt;</code></td><td>An object</td><td>Objects with fn properties</td></tr>
+  </table>
+  <pre>&lt;code&gt;jest.mock(<span class="tok-s">'./db'</span>);
+<span class="tok-k">import</span> { saveUser } <span class="tok-k">from</span> <span class="tok-s">'./db'</span>;
+
+<span class="tok-c">// saveUser's TS type is still the real one — .mock is not visible</span>
+<span class="tok-c">// Option A: cast</span>
+(<span class="tok-k">const</span> m = saveUser <span class="tok-k">as</span> jest.MockedFunction&lt;typeof saveUser&gt;);
+
+<span class="tok-c">// Option B: the runtime helper (preferred — no cast)</span>
+<span class="tok-k">const</span> m = jest.mocked(saveUser);
+m.mockImplementation(<span class="tok-k">async</span> () =&gt; <span class="tok-s">true</span>);
+expect(m).toHaveBeenCalledWith(<span class="tok-s">'Ada'</span>);&lt;/code&gt;</pre>
+  <p><code>jest.mocked(source)</code> is the <em>runtime</em> helper — it returns
+     the source object wrapped with mock types. Prefer it over the cast: it
+     deep-wraps nested members by default, and you can pass
+     <code>{ shallow: true }</code> to wrap only the top
+     level.<sup><a href="#r2">2</a></sup></p>
+
+  <h2><code>jest.mock</code> factories: type the whole module</h2>
+  <p>When you provide a factory, TypeScript checks its return against the real
+     module shape. Use a generic on <code>jest.mock</code> to get that
+     checking:<sup><a href="#r3">3</a></sup></p>
+  <pre>&lt;code&gt;jest.mock&lt;typeof <span class="tok-k">import</span>(<span class="tok-s">'./random'</span>)&gt;(<span class="tok-s">'./random'</span>, () =&gt; ({
+  __esModule: <span class="tok-s">true</span>,          <span class="tok-c">// ← required for default exports</span>
+  getRandom: jest.fn(() =&gt; <span class="tok-s">10</span>),
+}));&lt;/code&gt;</pre>
+  <p>Two traps here, both documented:<sup><a href="#r3">3</a></sup></p>
+  <ol>
+    <li><strong>Missing <code>__esModule: true</code></strong> — for modules with
+        a default export, the factory <em>must</em> include it. Babel/TS normally
+        generate this; in a manual factory you set it yourself.</li>
+    <li><strong>Partial mock fails the type check</strong> — if you mock only
+        one export, the factory return doesn't match the full module type. Fix:
+        spread the actual module:
+        <code>return { __esModule: true, ...jest.requireActual('./m'), getRandom: jest.fn() }</code>.</li>
+  </ol>
+
+  <h2>The senior decision: contract vs implementation</h2>
+  <p>This is the one that separates seniors. You have two things you can
+     mock:</p>
+  <ul>
+    <li><strong>The contract</strong> — the <em>interface</em> your code depends
+        on. "A thing with a <code>save()</code> method that returns
+        <code>Promise&lt;boolean&gt;</code>." Mock this when you own the
+        boundary.</li>
+    <li><strong>The implementation</strong> — the <em>specific module</em>
+        your code imports. <code>jest.mock('./db')</code> replaces a concrete
+        dependency. Mock this when you don't control the boundary.</li>
+  </ul>
+  <p>The senior rule: <strong>mock the contract, not the implementation, whenever
+     you can.</strong> If your code takes a <code>Database</code> <em>interface</em>
+     and you inject a <code>jest.fn()</code> typed against it, you test that your
+     code works with <em>any</em> Database — and a refactor of the real DB module
+     can't break your test. If you <code>jest.mock('./db')</code> instead, your
+     test is now coupled to a specific module's export shape; rename an export
+     and the test breaks even if the contract is unchanged.<sup><a href="#r4">4</a></sup></p>
+  <aside class="note"><b>Implementation mocks have a cost:</b> they couple your
+     test to a module's internal structure. Every <code>jest.mock('path')</code>
+     is a dependency on that path existing and that export shape holding. Reach
+     for dependency injection (mock the contract) for code you own; reach for
+     <code>jest.mock</code> for boundaries you don't control (external packages,
+     Node built-ins like <code>fs</code>).</aside>
+
+  <!-- ============ QUIZ ============ -->
+  <div class="quiz">
+    <p class="kicker">Retrieval practice</p>
+    <h2 style="margin-top:.3rem">Check yourself</h2>
+    <p style="color:var(--muted);font-size:.92rem">From memory. Q4 is the senior
+       decision — it's the load-bearing idea of the lesson.</p>
+
+    <div class="q" data-correct="2">
+      <div class="stem"><span class="n">1.</span><code>jest.fn()</code> with no arguments gives you a mock whose <code>mockImplementation</code> params are…</div>
+      <div class="opts">
+        <button class="opt">inferred from context</button>
+        <button class="opt">the real function's</button>
+        <button class="opt">any (untyped)</button>
+        <button class="opt">unknown</button>
+      </div>
+      <div class="fb" data-why="jest.fn() with no args is loosely typed — params are any. Fix: jest.fn<typeof realFn>() to mirror the real signature, or pass an implementation to infer from it."></div>
+    </div>
+
+    <div class="q" data-correct="3">
+      <div class="stem"><span class="n">2.</span>After <code>jest.mock('./db')</code>, why can't you access <code>.mock.calls</code> on the import?</div>
+      <div class="opts">
+        <button class="opt">jest.mock failed silently</button>
+        <button class="opt">the import is hoisted away</button>
+        <button class="opt">ts-jest disables it</button>
+        <button class="opt">TS still sees the original type</button>
+      </div>
+      <div class="fb" data-why="The import binding retains its original TS type after jest.mock. Wrap it: jest.mocked(fn) (runtime helper, preferred) or cast with jest.MockedFunction<typeof fn>."></div>
+    </div>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">3.</span>In a <code>jest.mock</code> factory for a module with a default export, you must include…</div>
+      <div class="opts">
+        <button class="opt">__esModule: true</button>
+        <button class="opt">export default: true</button>
+        <button class="opt">module.exports: {}</button>
+        <button class="opt">requireActual: true</button>
+      </div>
+      <div class="fb" data-why="For ES modules with a default export, the factory must include __esModule: true — Babel/TS normally generate this, but in a manual factory you set it yourself."></div>
+    </div>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">4.</span>When you own the boundary, the senior default is to mock the…</div>
+      <div class="opts">
+        <button class="opt">contract (interface)</button>
+        <button class="opt">implementation (module)</button>
+        <button class="opt">test file itself</button>
+        <button class="opt">return value only</button>
+      </div>
+      <div class="fb" data-why="Mock the contract: inject a jest.fn() typed against an interface. The test then works with any implementation, and refactoring the real module can't break it. Use jest.mock('path') for boundaries you don't control."></div>
+    </div>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">5.</span><code>jest.mocked(source, { shallow: true })</code> does what the plain call does, except…</div>
+      <div class="opts">
+        <button class="opt">it skips type checking</button>
+        <button class="opt">no deep-wrapping nested</button>
+        <button class="opt">it returns any</button>
+        <button class="opt">it disables the mock</button>
+      </div>
+      <div class="fb" data-why="jest.mocked() deep-wraps nested members by default. { shallow: true } wraps only the top level — useful when deep-wrapping would over-constrain."></div>
+    </div>
+
+    <div id="score">Answer all five to see your score.</div>
+  </div>
+
+  <!-- ============ NEXT ============ -->
+  <div class="next">
+    <h2>Primary source (read this next)</h2>
+    <p><span class="pill">Most trusted</span>
+       <a href="https://jestjs.io/docs/mock-function-api#typescript-usage" target="_blank">Jest — Mock Function API (TypeScript Usage)</a>.
+       The typed-mock reference: <code>jest.fn&lt;T&gt;</code>,
+       <code>jest.Mocked</code>, <code>jest.mocked()</code>, <code>jest.Spied</code>.
+       ~20 min.</p>
+    <p style="font-size:.9rem;color:var(--muted)">Deeper, when ready:
+       <a href="https://jestjs.io/docs/jest-object#jestmockmodulename-factory-options" target="_blank">Jest — <code>jest.mock</code> factory & <code>jest.requireActual</code></a>
+       for the module-mock patterns and the <code>__esModule</code> rule.</p>
+
+    <h2>Where this goes</h2>
+    <p><span class="pill">Lesson 04</span> <strong>Async testing</strong> —
+       <code>.resolves</code>/<code>.rejects</code>, async/await, the "missing
+       await silently passes" trap, and fake timers. Mocks from this lesson
+       become the return values you control in async tests.</p>
+    <p style="margin-top:1.4rem"><a href="../RESOURCES.md">→ All resources</a> &nbsp;·&nbsp;
+       <a href="0002-matchers-and-the-type-system.html">← Lesson 02</a> &nbsp;·&nbsp;
+       <a href="../reference/glossary.html">→ Glossary</a></p>
+  </div>
+
+  <div class="ask">
+    <b>I'm your teacher.</b> Take a small function that depends on something
+    external (a <code>fetch</code>, an injected <code>save()</code>, a
+    <code>fs.readFile</code>). Write it two ways: (1) using
+    <code>jest.mock('module')</code> + <code>jest.mocked()</code>, and (2) using
+    dependency injection with a <code>jest.fn&lt;typeof dep&gt;()</code> typed
+    against an interface. Then break the dependency's signature (rename a
+    method, change a return type) and tell me which test caught it and which
+    didn't. That difference is the whole lesson.
+  </div>
+
+  <footer>
+    <span id="r1">1.</span> <a href="https://jestjs.io/docs/mock-functions">Jest — Mock Functions (the two layers)</a>. &nbsp;
+    <span id="r2">2.</span> <a href="https://jestjs.io/docs/mock-function-api#typescript-usage">Jest — Mock Function API: TypeScript Usage (<code>jest.fn&lt;T&gt;</code>, <code>jest.Mocked</code>, <code>jest.mocked</code>)</a>. &nbsp;
+    <span id="r3">3.</span> <a href="https://jestjs.io/docs/jest-object#jestmockmodulename-factory-options">Jest — <code>jest.mock</code> factory & <code>__esModule</code></a>. &nbsp;
+    <span id="r4">4.</span> <a href="https://kentcdodds.com/blog/avoid-the-test-library">Kent C. Dodds — "Avoid the Test Library" (test behavior, not implementation)</a>.
+  </footer>
+</div>
+
+<script>
+  const qs = [...document.querySelectorAll('.q')];
+  let answered = 0, correct = 0;
+  qs.forEach(q => {
+    const right = +q.dataset.correct;
+    const opts = [...q.querySelectorAll('.opt')];
+    const fb = q.querySelector('.fb');
+    opts.forEach((opt, i) => {
+      opt.addEventListener('click', () => {
+        opts.forEach(o => o.disabled = true);
+        const ok = i === right;
+        opts[right].classList.add('correct');
+        if (!ok) opt.classList.add('wrong');
+        fb.classList.add(ok ? 'correct' : 'wrong');
+        fb.innerHTML = (ok ? '<b>Correct.</b> ' : '<b>Not quite.</b> ') + fb.dataset.why;
+        answered++; if (ok) correct++;
+        if (answered === qs.length) {
+          const s = document.getElementById('score');
+          s.classList.add('done');
+          const msg = correct === qs.length ? 'Mocks solid. The contract-vs-implementation distinction is the thing to carry into every test you write.' :
+                      correct >= 3 ? 'Good. Re-read the Mocked family and the factory __esModule rule — those are the mechanical traps.' :
+                      'Re-read above and retake. Typed mocks and the contract decision are the load-bearing bits of this lesson.';
+          s.textContent = `Score: ${correct} / ${qs.length}. ${msg}`;
+        }
+      });
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 01 — Jest + TypeScript from Zero</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  /* lesson-specific: a config comparison table */
+  table.cmp { width: 100%; border-collapse: collapse; margin: 1.4rem 0;
+    font-family: sans-serif; font-size: .88rem; }
+  table.cmp th, table.cmp td { border: 1px solid var(--rule); padding: .5rem .7rem;
+    text-align: left; vertical-align: top; }
+  table.cmp th { background: #222220; font-weight: 600; color: var(--accent); }
+  table.cmp code { font-size: .92em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">Lesson 01 · Jest + TypeScript</p>
+  <h1>From Zero to a Test That Runs</h1>
+  <p class="sub">Install, configure, and write your first typed test — and understand
+     the one decision that quietly shapes everything else.</p>
+  <p class="mission">★ Mission link: this is the bedrock of the testing track — the
+     equivalent of <a href="../../typescript/lessons/0001-types-as-sets.html">Types as Sets</a>
+     for your type-level arc. Every later lesson (matchers, mocks, async, config)
+     assumes you can set up a Jest+TS project and explain <em>why</em> it's configured
+     that way. The win today: one test that compiles, runs, and passes — plus the
+     vocabulary to choose between the three transformers.</p>
+
+  <h2>The thing nobody tells you first</h2>
+  <p>Jest does not understand TypeScript out of the box. Its default transformer is
+     <strong>babel-jest</strong>, which <em>strips</em> type annotations and runs the
+     code — it never type-checks anything.<sup><a href="#r1">1</a></sup> So this
+     <em>passes</em> under a default setup:</p>
+  <pre>&lt;code&gt;<span class="tok-c">// this has a type error AND a logic error — but passes under babel-jest</span>
+test(<span class="tok-s">'adds numbers'</span>, () =&gt; {
+  <span class="tok-k">const</span> x: <span class="tok-t">number</span> = <span class="tok-s">"five"</span> <span class="tok-k">as</span> <span class="tok-k">any</span>;  <span class="tok-c">// string in number's clothes</span>
+  expect(x + <span class="tok-s">1</span>).toBe(<span class="tok-s">"five1"</span>);        <span class="tok-c">// not what you meant — green check</span>
+});&lt;/code&gt;</pre>
+  <p>The fix is to choose a transformer. This is the first senior decision, and it
+     has three answers:<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+  <table class="cmp">
+    <tr><th>Transformer</th><th>Type-checks?</th><th>Speed</th><th>When to reach for it</th></tr>
+    <tr>
+      <td><code>ts-jest</code></td>
+      <td><b>Yes</b> (runs <code>tsc</code>)</td>
+      <td>Slowest</td>
+      <td>You want compile-time safety in tests. Default for typed codebases.</td>
+    </tr>
+    <tr>
+      <td><code>babel-jest</code></td>
+      <td>No (strips types)</td>
+      <td>Fast</td>
+      <td>Jest's <em>default</em>. Fine if your editor/CI type-checks separately.</td>
+    </tr>
+    <tr>
+      <td><code>@swc/jest</code></td>
+      <td>No (strips via SWC)</td>
+      <td><b>Fastest</b></td>
+      <td>Large suites where test speed is the bottleneck; type-check elsewhere.</td>
+    </tr>
+  </table>
+
+  <aside class="note"><b>Senior tell:</b> the choice is not "which is best" — it's
+     "where does type-checking happen?" If <code>ts-jest</code> checks inside the
+     test run, you catch type errors in <code>jest</code> itself. If you use
+     <code>babel-jest</code> or <code>@swc/jest</code>, you need a separate
+     <code>tsc --noEmit</code> step in CI — because the test runner will happily
+     run type-broken code and report green.<sup><a href="#r2">2</a></sup></aside>
+
+  <h2>Set it up (ts-jest, the safe default)</h2>
+  <p>You need four things: Jest, TypeScript, a type provider for Jest's globals,
+     and the transformer. Versions verified 2026-08-06: Jest 30.4, ts-jest 29.4
+     (peers <code>jest ^29 || ^30</code> — compatible).<sup><a href="#r3">3</a></sup></p>
+  <pre>&lt;code&gt;<span class="tok-c"># install</span>
+npm install --save-dev jest ts-jest typescript @types/jest
+
+<span class="tok-c"># generate a Jest config with ts-jest preset</span>
+npx ts-jest config:init&lt;/code&gt;</pre>
+  <p>That init writes a <code>jest.config.js</code> with one load-bearing line:</p>
+  <pre>&lt;code&gt;<span class="tok-k">export default</span> {
+  preset: <span class="tok-s">'ts-jest'</span>,   <span class="tok-c">// ← the transformer. swap for '@swc/jest' or remove for babel-jest</span>
+  testEnvironment: <span class="tok-s">'node'</span>,
+};&lt;/code&gt;</pre>
+  <p>Under the hood, <code>preset: 'ts-jest'</code> expands to a <code>transform</code>
+     entry that maps <code>\\.[jt]sx?$</code> files through ts-jest's
+     transformer.<sup><a href="#r4">4</a></sup> That's the whole mechanism: a regex
+     picks files, a transformer compiles them. Everything else is configuration
+     <em>around</em> that one hook.</p>
+
+  <aside class="note"><b>Senior nuance (2026):</b> the <code>preset: 'ts-jest'</code>
+     string is the <em>legacy</em> form. The current ts-jest docs recommend
+     <strong>preset-creator functions</strong> — <code>createDefaultPreset()</code>,
+     <code>createDefaultEsmPreset()</code>, etc. — which return the transform
+     object directly so you can extend it.<sup><a href="#r5">5</a></sup> The string
+     preset still works (and <code>config:init</code> generates it), but if you
+     need custom transform config, ts-jest's own docs say to <em>remove</em>
+     <code>preset</code> and use the function form instead.<sup><a href="#r5">5</a></sup>
+     For now, the string form is fine — we'll switch to the function form when we
+     need ESM or custom options in Lesson 05.</aside>
+
+  <h2>Your first typed test</h2>
+  <p>Two files. Put them next to each other so imports are short:</p>
+  <pre>&lt;code&gt;<span class="tok-c">// sum.ts — the code under test</span>
+<span class="tok-k">export function</span> <span class="tok-f">sum</span>(a: <span class="tok-t">number</span>, b: <span class="tok-t">number</span>): <span class="tok-t">number</span> {
+  <span class="tok-k">return</span> a + b;
+}&lt;/code&gt;</pre>
+  <pre>&lt;code&gt;<span class="tok-c">// sum.test.ts</span>
+<span class="tok-k">import</span> { sum } <span class="tok-k">from</span> <span class="tok-s">'./sum'</span>;
+
+test(<span class="tok-s">'sum adds two numbers'</span>, () =&gt; {
+  expect(sum(<span class="tok-s">2</span>, <span class="tok-s">3</span>)).toBe(<span class="tok-s">5</span>);
+});&lt;/code&gt;</pre>
+  <p>Run it:</p>
+  <pre>&lt;code&gt;npx jest&lt;/code&gt;</pre>
+  <p>You should see <code>1 passed</code>. Now — and this is the point of using
+     <code>ts-jest</code> — break the types on purpose:</p>
+  <pre>&lt;code&gt;<span class="tok-c">// change the test to pass a string where a number is expected:</span>
+expect(sum(<span class="tok-s">"2"</span>, <span class="tok-s">3</span>)).toBe(<span class="tok-s">5</span>);  <span class="tok-c">// ← type error</span>&lt;/code&gt;</pre>
+  <p>Under <code>ts-jest</code>, Jest now <em>fails before running</em> with a
+     TypeScript diagnostic — not a runtime assertion failure, a compile error.
+     That's the difference: you found the bug at the type layer, not the test
+     layer. This is why <code>ts-jest</code> is the safe default for a typed
+     codebase.<sup><a href="#r2">2</a></sup></p>
+
+  <h2>Two ways to get the globals typed</h2>
+  <p><code>test</code>, <code>expect</code>, <code>jest</code> are global
+     functions. There are two ways TypeScript can know about them:<sup><a href="#r1">1</a></sup></p>
+  <ul>
+    <li><strong>Globals (default):</strong> install <code>@types/jest</code> and
+        the globals are typed everywhere. No import needed. This is what the
+        test above relies on.</li>
+    <li><strong>Explicit imports:</strong> use <code>@jest/globals</code> and
+        <code>import { test, expect } from '@jest/globals'</code>. More
+        verbose, but the types are versioned with Jest itself and there's no
+        global ambient pollution. Some teams prefer this for monorepos.</li>
+  </ul>
+  <p>Both work. The choice is style + tooling, not correctness. Pick one per
+     project and be consistent.</p>
+
+  <!-- ============ QUIZ ============ -->
+  <div class="quiz">
+    <p class="kicker">Retrieval practice</p>
+    <h2 style="margin-top:.3rem">Check yourself</h2>
+    <p style="color:var(--muted);font-size:.92rem">From memory. Q4 is the senior
+       trap — it reaches back to the opening example on purpose.</p>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">1.</span>Jest's <em>default</em> transformer (the one you get with zero config) is…</div>
+      <div class="opts">
+        <button class="opt">ts-jest always</button>
+        <button class="opt">babel-jest always</button>
+        <button class="opt">@swc/jest always</button>
+        <button class="opt">none — it ships without</button>
+      </div>
+      <div class="fb" data-why="Jest's default transform is babel-jest, which strips types without checking them. That's why a default setup runs TS but doesn't type-check it."></div>
+    </div>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">2.</span>The one load-bearing line a ts-jest config adds is…</div>
+      <div class="opts">
+        <button class="opt">preset: 'ts-jest'</button>
+        <button class="opt">types: ['jest']</button>
+        <button class="opt">module: 'commonjs'</button>
+        <button class="opt">strict: true</button>
+      </div>
+      <div class="fb" data-why="preset: 'ts-jest' expands to a transform entry mapping .ts/.tsx files through ts-jest. Everything else is config around that one hook."></div>
+    </div>
+
+    <div class="q" data-correct="2">
+      <div class="stem"><span class="n">3.</span>What does ts-jest do that babel-jest does NOT?</div>
+      <div class="opts">
+        <button class="opt">Runs the tests faster</button>
+        <button class="opt">Strips type annotations</button>
+        <button class="opt">Type-checks the test files</button>
+        <button class="opt">Provides the expect API</button>
+      </div>
+      <div class="fb" data-why="ts-jest runs tsc, so a type error fails the test before it runs. babel-jest strips types and runs — it never sees type errors."></div>
+    </div>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">4.</span>If you switch to @swc/jest for speed, what must you add elsewhere?</div>
+      <div class="opts">
+        <button class="opt">Nothing — it checks types</button>
+        <button class="opt">A tsc --noEmit step in CI</button>
+        <button class="opt">A babel config file</button>
+        <button class="opt">@types/jest is now required</button>
+      </div>
+      <div class="fb" data-why="@swc/jest strips types via SWC (fast, no checking). To keep type safety, add a separate tsc --noEmit in CI. The test runner won't catch type errors on its own."></div>
+    </div>
+
+    <div class="q" data-correct="3">
+      <div class="stem"><span class="n">5.</span>The two ways to get <code>test</code>/<code>expect</code> typed are…</div>
+      <div class="opts">
+        <button class="opt">tsconfig and jsconfig</button>
+        <button class="opt">globals and presets</button>
+        <button class="opt">imports and requires</button>
+        <button class="opt">globals and @jest/globals</button>
+      </div>
+      <div class="fb" data-why="@types/jest gives typed globals (no import); @jest/globals gives explicit imports versioned with Jest. Both work — it's a style/tooling choice, not correctness."></div>
+    </div>
+
+    <div id="score">Answer all five to see your score.</div>
+  </div>
+
+  <!-- ============ NEXT ============ -->
+  <div class="next">
+    <h2>Primary source (read this next)</h2>
+    <p><span class="pill">Most trusted</span>
+       <a href="https://jestjs.io/docs/getting-started#using-typescript" target="_blank">Jest — Getting Started (TypeScript section)</a>.
+       The official setup walkthrough covering babel-jest, ts-jest, and @swc/jest.
+       ~15 min.</p>
+    <p style="font-size:.9rem;color:var(--muted)">Deeper, when ready:
+       <a href="https://kulshekhar.github.io/ts-jest/docs/babel7-or-ts" target="_blank">ts-jest — Babel7 or TypeScript</a>
+       is the canonical trade-off page for the transformer decision.</p>
+
+    <h2>Where this goes</h2>
+    <p><span class="pill">Lesson 02</span> <strong>Matchers & the type system</strong> —
+       <code>toBe</code> vs <code>toEqual</code>, typed <code>expect</code>,
+       custom matchers, and how to write tests that a refactor can't silently break.
+       Builds on the "type-checking in tests" idea from this lesson.</p>
+    <p style="margin-top:1.4rem"><a href="../RESOURCES.md">→ All resources</a> &nbsp;·&nbsp;
+       <a href="../../typescript/lessons/0001-types-as-sets.html">← Type-level track: Lesson 01</a> &nbsp;·&nbsp;
+       <a href="../MISSION.md">Mission</a></p>
+  </div>
+
+  <div class="ask">
+    <b>I'm your teacher.</b> Run the setup above and paste me: (1) your
+    <code>jest.config.js</code>, (2) the output of <code>npx jest</code> on the
+    first test, and (3) the type error you get when you pass a string to
+    <code>sum</code>. If anything goes sideways — a "cannot find module" error,
+    a transform complaint, a "jest did not transform" message — paste that too.
+    That's the real exercise: not just the happy path, but diagnosing the
+    failure modes. That's what the next lessons are built on.
+  </div>
+
+  <footer>
+    <span id="r1">1.</span> <a href="https://jestjs.io/docs/getting-started#using-typescript">Jest — Getting Started (TypeScript)</a>. &nbsp;
+    <span id="r2">2.</span> <a href="https://kulshekhar.github.io/ts-jest/docs/babel7-or-ts">ts-jest — Babel7 or TypeScript (the trade-off)</a>. &nbsp;
+    <span id="r3">3.</span> <a href="https://kulshekhar.github.io/ts-jest/docs/">ts-jest — Installation (v29.4, peers jest ^29 || ^30)</a>. &nbsp;
+    <span id="r4">4.</span> <a href="https://jestjs.io/docs/configuration#transform-string">Jest — Configuration: <code>transform</code></a>. &nbsp;
+    <span id="r5">5.</span> <a href="https://kulshekhar.github.io/ts-jest/docs/getting-started/presets">ts-jest — Presets (preset-creator functions vs legacy string preset)</a>.
+  </footer>
+</div>
+
+<script>
+  const qs = [...document.querySelectorAll('.q')];
+  let answered = 0, correct = 0;
+  qs.forEach(q => {
+    const right = +q.dataset.correct;
+    const opts = [...q.querySelectorAll('.opt')];
+    const fb = q.querySelector('.fb');
+    opts.forEach((opt, i) => {
+      opt.addEventListener('click', () => {
+        opts.forEach(o => o.disabled = true);
+        const ok = i === right;
+        opts[right].classList.add('correct');
+        if (!ok) opt.classList.add('wrong');
+        fb.classList.add(ok ? 'correct' : 'wrong');
+        fb.innerHTML = (ok ? '<b>Correct.</b> ' : '<b>Not quite.</b> ') + fb.dataset.why;
+        answered++; if (ok) correct++;
+        if (answered === qs.length) {
+          const s = document.getElementById('score');
+          s.classList.add('done');
+          const msg = correct === qs.length ? 'Solid. The transformer choice is the foundation — matchers are next.' :
+                      correct >= 3 ? 'Good. Re-read the transformer table — the type-checking distinction is the load-bearing bit.' :
+                      'Re-read above and retake. The whole track rests on understanding which transformer type-checks and which does not.';
+          s.textContent = `Score: ${correct} / ${qs.length}. ${msg}`;
+        }
+      });
+    });
+  });
+</script>
+</body>
+</html>

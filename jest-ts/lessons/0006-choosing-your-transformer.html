@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 06 — Choosing Your Transformer</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">Lesson 06 · Jest + TypeScript</p>
+  <h1>Choosing Your Transformer</h1>
+  <p class="sub">ts-jest vs @swc/jest vs babel-jest — a decision framework, not
+     a ranking.</p>
+  <p class="mission">★ Mission link: closes the transformer thread opened in
+     <a href="0001-from-zero-to-a-test-that-runs.html">Lesson 01</a> and
+     configured in
+     <a href="0005-config-deep-dive.html">Lesson 05</a>. The mission says
+     "choose between ts-jest, @swc/jest, and babel-jest and justify the
+     trade-off" — this is that justification. The win today: when someone asks
+     "why did you pick that transformer?" you have an answer that isn't
+     "it was the first result."</p>
+
+  <h2>The axis that matters</h2>
+  <p>You learned in Lesson 01 that Jest's default transformer is babel-jest,
+     which strips types without checking them. The three options differ on
+     <em>one axis</em>: where does type-checking happen?<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+  <table class="cmp">
+    <tr><th>Transformer</th><th>Type-checks in tests?</th><th>Speed</th><th>Type-check must happen…</th></tr>
+    <tr><td><code>ts-jest</code></td><td>Yes (runs <code>tsc</code>)</td><td>Slowest</td><td>— (it's in the test run)</td></tr>
+    <tr><td><code>babel-jest</code></td><td>No (strips types)</td><td>Fast</td><td>Separately: <code>tsc --noEmit</code> in CI</td></tr>
+    <tr><td><code>@swc/jest</code></td><td>No (strips via SWC)</td><td>Fastest</td><td>Separately: <code>tsc --noEmit</code> in CI</td></tr>
+  </table>
+  <p>That's the whole decision. Everything else is secondary. The question is
+     not "which is best" — it's "where do I want type errors caught, and how
+     fast do my tests need to run?"</p>
+
+  <h2>ts-jest: the safe default</h2>
+  <p><strong>Choose ts-jest when</strong> you want type errors to fail the
+     <em>test run itself</em>.<sup><a href="#r2">2</a></sup> This is the
+     behavior you saw in Lesson 01: pass a <code>string</code> where a
+     <code>number</code> is expected, and Jest fails <em>before running</em>
+     with a TS diagnostic — not a runtime assertion failure.</p>
+  <ul>
+    <li><strong>Pro:</strong> one source of truth — <code>jest</code> catches
+        both type errors and test failures. No separate <code>tsc</code> step
+        needed in CI.</li>
+    <li><strong>Con:</strong> slowest. <code>tsc</code> runs per file. On
+        large suites (thousands of tests) this is felt. ts-jest 29.4 supports
+        Jest 30 via peer deps.<sup><a href="#r3">3</a></sup></li>
+    <li><strong>Use when:</strong> small-to-medium codebase, you value the
+        single-source-of-truth model, or CI doesn't already run
+        <code>tsc --noEmit</code>.</li>
+  </ul>
+
+  <h2>babel-jest: the default you already have</h2>
+  <p><strong>Choose babel-jest when</strong> you're fine type-checking
+     <em>elsewhere</em> and want Jest to just run code.<sup><a href="#r1">1</a></sup>
+     This is Jest's out-of-the-box transformer — zero config if you add
+     <code>@babel/preset-typescript</code>.</p>
+  <ul>
+    <li><strong>Pro:</strong> fast, zero-friction, ecosystem-standard. Babel
+        also injects the mock-hoisting plugin Jest
+        needs.<sup><a href="#r1">1</a></sup></li>
+    <li><strong>Con:</strong> no type-checking in tests. A type-broken test
+        runs and reports green. You <em>must</em> add <code>tsc --noEmit</code>
+        to CI — or accept that type errors show up in review/CI, not in
+        <code>jest</code>.</li>
+    <li><strong>Use when:</strong> your CI already runs <code>tsc</code>, you
+        have a fast suite that needs to stay fast, or you're in a Babel
+        ecosystem already.</li>
+  </ul>
+
+  <h2>@swc/jest: the speed option</h2>
+  <p><strong>Choose @swc/jest when</strong> test speed is the
+     bottleneck.<sup><a href="#r4">4</a></sup> SWC is a Rust-based compiler —
+     the fastest option. Same trade-off as babel-jest: no type-checking, so
+     run <code>tsc --noEmit</code> separately.</p>
+  <ul>
+    <li><strong>Pro:</strong> fastest. SWC's own docs call it a "drop-in Rust
+        replacement" for ts-jest.<sup><a href="#r4">4</a></sup></li>
+    <li><strong>Con:</strong> still pre-1.0 (<code>0.2.39</code> as of 2025).
+        No type-checking. Not mentioned in official Jest
+        docs.<sup><a href="#r1">1</a></sup></li>
+    <li><strong>Use when:</strong> large suite where seconds matter, you
+        type-check in CI already, and you're comfortable with a pre-1.0
+        dependency.</li>
+  </ul>
+
+  <aside class="note"><b>The "where does type-checking happen" test:</b> ask
+     yourself — if I delete <code>tsc --noEmit</code> from CI, do type errors
+     still get caught? With <strong>ts-jest</strong>: yes, in the test run.
+     With <strong>babel-jest</strong> or <strong>@swc/jest</strong>: no —
+     nothing checks types. That's the decision. If your CI already runs
+     <code>tsc</code>, the speed options lose their downside.</aside>
+
+  <h2>The hybrid: ts-jest with <code>isolatedModules</code></h2>
+  <p>There's a fourth path that's easy to miss: keep ts-jest, but set
+     <code>isolatedModules: true</code>.<sup><a href="#r5">5</a></sup> Now
+     ts-jest <em>transpiles</em> per-file without a project-wide type check —
+     you get ts-jest's ESM handling and config integration, but the speed of
+     transpile-only. Type-checking moves to your editor and CI
+     <code>tsc --noEmit</code>. This is the "I want ts-jest's ergonomics but
+     babel-jest's speed" option.</p>
+
+  <h2>The decision framework</h2>
+  <pre>&lt;code&gt;<span class="tok-c"># 1. Does your CI already run `tsc --noEmit`?</span>
+<span class="tok-c">#    YES → babel-jest or @swc/jest (speed wins, no lost safety)</span>
+<span class="tok-c">#    NO  → ts-jest (or add tsc --noEmit to CI, then reconsider)</span>
+
+<span class="tok-c"># 2. Is test speed a felt pain?</span>
+<span class="tok-c">#    YES & CI has tsc → @swc/jest</span>
+<span class="tok-c">#    NO  → babel-jest (or ts-jest if no CI tsc)</span>
+
+<span class="tok-c"># 3. Want ts-jest ergonomics but transpile-only speed?</span>
+<span class="tok-c">#    → ts-jest with isolatedModules: true</span>
+
+<span class="tok-c"># 4. Default when unsure?</span>
+<span class="tok-c">#    → ts-jest. It's the only one that type-checks in tests.</span>&lt;/code&gt;</pre>
+
+  <!-- ============ QUIZ ============ -->
+  <div class="quiz">
+    <p class="kicker">Retrieval practice</p>
+    <h2 style="margin-top:.3rem">Check yourself</h2>
+    <p style="color:var(--muted);font-size:.92rem">From memory. Q4 is the
+       decision framework in one question.</p>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">1.</span>Which transformer type-checks your tests during the test run?</div>
+      <div class="opts">
+        <button class="opt">ts-jest only</button>
+        <button class="opt">babel-jest only</button>
+        <button class="opt">@swc/jest only</button>
+        <button class="opt">all three</button>
+      </div>
+      <div class="fb" data-why="ts-jest runs tsc, so type errors fail the test before it runs. babel-jest and @swc/jest strip types without checking — they run type-broken code and report green."></div>
+    </div>
+
+    <div class="q" data-correct="2">
+      <div class="stem"><span class="n">2.</span>If you choose @swc/jest, what must you add to CI?</div>
+      <div class="opts">
+        <button class="opt">nothing — it checks</button>
+        <button class="opt">a babel config</button>
+        <button class="opt">tsc --noEmit</button>
+        <button class="opt">@types/swc</button>
+      </div>
+      <div class="fb" data-why="@swc/jest strips types via SWC (fast, no checking). Add tsc --noEmit to CI so type errors are caught somewhere — the test runner won't catch them on its own."></div>
+    </div>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">3.</span>You want ts-jest's config integration but transpile-only speed. You set…</div>
+      <div class="opts">
+        <button class="opt">isolatedModules: true</button>
+        <button class="opt">diagnostics: false only</button>
+        <button class="opt">useESM: true</button>
+        <button class="opt">preset: 'babel'</button>
+      </div>
+      <div class="fb" data-why="isolatedModules: true makes ts-jest transpile per-file without project-wide type-checking — ts-jest ergonomics, transpile-only speed. Type-checking moves to editor + CI tsc --noEmit."></div>
+    </div>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">4.</span>Your CI already runs <code>tsc --noEmit</code>. The best transformer choice is…</div>
+      <div class="opts">
+        <button class="opt">ts-jest for safety</button>
+        <button class="opt">babel-jest or @swc/jest</button>
+        <button class="opt">all three together</button>
+        <button class="opt">none — skip tests</button>
+      </div>
+      <div class="fb" data-why="If CI already runs tsc --noEmit, the speed options (babel-jest, @swc/jest) lose their downside — type errors are caught in CI regardless. Pick based on speed need: babel-jest (fast) or @swc/jest (fastest)."></div>
+    </div>
+
+    <div class="q" data-correct="2">
+      <div class="stem"><span class="n">5.</span>Which transformer is NOT mentioned in official Jest docs?</div>
+      <div class="opts">
+        <button class="opt">ts-jest</button>
+        <button class="opt">babel-jest</button>
+        <button class="opt">@swc/jest</button>
+        <button class="opt">all are mentioned</button>
+      </div>
+      <div class="fb" data-why="@swc/jest is a community fast path — not in official Jest docs. Jest documents babel-jest (default) and ts-jest (type-checking) side by side. @swc/jest is documented on SWC's own site."></div>
+    </div>
+
+    <div id="score">Answer all five to see your score.</div>
+  </div>
+
+  <!-- ============ NEXT ============ -->
+  <div class="next">
+    <h2>Primary source (read this next)</h2>
+    <p><span class="pill">Most trusted</span>
+       <a href="https://kulshekhar.github.io/ts-jest/docs/babel7-or-ts" target="_blank">ts-jest — Babel7 or TypeScript (the trade-off)</a>.
+       The canonical comparison: what ts-jest gives you (type-checking) that
+       Babel doesn't. ~10 min.</p>
+    <p style="font-size:.9rem;color:var(--muted)">Deeper, when ready:
+       <a href="https://swc.rs/docs/usage/jest" target="_blank">@swc/jest docs</a>
+       for the SWC path, and
+       <a href="https://jestjs.io/docs/getting-started#using-typescript" target="_blank">Jest — Getting Started (TypeScript)</a>
+       for how Jest itself frames the choice.</p>
+
+    <h2>Where this goes</h2>
+    <p><span class="pill">Lesson 07</span> <strong>Testing like a senior</strong> —
+       structure (arrange-act-assert), what <em>not</em> to test, the
+       implementation-detail trap, and refactor-resilient tests. This is the
+       capstone: the transformer and matchers and mocks are the tools; this is
+       the judgment.</p>
+    <p style="margin-top:1.4rem"><a href="../RESOURCES.md">→ All resources</a> &nbsp;·&nbsp;
+       <a href="0005-config-deep-dive.html">← Lesson 05</a> &nbsp;·&nbsp;
+       <a href="../reference/glossary.html">→ Glossary</a></p>
+  </div>
+
+  <div class="ask">
+    <b>I'm your teacher.</b> Look at a project you work on (or one you use).
+    Which transformer is it using, and why? If it's ts-jest, does CI also run
+    <code>tsc --noEmit</code> — and if so, is ts-jest's type-checking redundant
+    (could you switch to @swc/jest for speed)? If it's babel-jest or
+    @swc/jest, does CI run <code>tsc --noEmit</code> — and if not, where do type
+    errors get caught? Paste me the reasoning. The point isn't to arrive at a
+    "right" answer — it's to be able to justify the trade-off out loud.
+  </div>
+
+  <footer>
+    <span id="r1">1.</span> <a href="https://jestjs.io/docs/getting-started#using-typescript">Jest — Getting Started (TypeScript): babel-jest vs ts-jest</a>. &nbsp;
+    <span id="r2">2.</span> <a href="https://kulshekhar.github.io/ts-jest/docs/babel7-or-ts">ts-jest — Babel7 or TypeScript (the type-checking trade-off)</a>. &nbsp;
+    <span id="r3">3.</span> <a href="https://github.com/kulshekhar/ts-jest">ts-jest README (v29.4, peers jest ^29 || ^30)</a>. &nbsp;
+    <span id="r4">4.</span> <a href="https://swc.rs/docs/usage/jest">@swc/jest — Docs (drop-in Rust replacement)</a>. &nbsp;
+    <span id="r5">5.</span> <a href="https://kulshekhar.github.io/ts-jest/docs/getting-started/options">ts-jest — Options (<code>isolatedModules</code>)</a>.
+  </footer>
+</div>
+
+<script>
+  const qs = [...document.querySelectorAll('.q')];
+  let answered = 0, correct = 0;
+  qs.forEach(q => {
+    const right = +q.dataset.correct;
+    const opts = [...q.querySelectorAll('.opt')];
+    const fb = q.querySelector('.fb');
+    opts.forEach((opt, i) => {
+      opt.addEventListener('click', () => {
+        opts.forEach(o => o.disabled = true);
+        const ok = i === right;
+        opts[right].classList.add('correct');
+        if (!ok) opt.classList.add('wrong');
+        fb.classList.add(ok ? 'correct' : 'wrong');
+        fb.innerHTML = (ok ? '<b>Correct.</b> ' : '<b>Not quite.</b> ') + fb.dataset.why;
+        answered++; if (ok) correct++;
+        if (answered === qs.length) {
+          const s = document.getElementById('score');
+          s.classList.add('done');
+          const msg = correct === qs.length ? 'Transformer choice solid. You can justify it out loud — that\'s the senior bar. Testing judgment is next.' :
+                      correct >= 3 ? 'Good. Re-read the "where does type-checking happen" test — that\'s the one-question version of the whole decision.' :
+                      'Re-read above and retake. The axis is type-checking location; the rest is speed.';
+          s.textContent = `Score: ${correct} / ${qs.length}. ${msg}`;
+        }
+      });
+    });
+  });
+</script>
+</body>
+</html>

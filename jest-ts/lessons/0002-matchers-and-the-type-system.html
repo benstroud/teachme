@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 02 — Matchers & the Type System</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">Lesson 02 · Jest + TypeScript</p>
+  <h1>Matchers & the Type System</h1>
+  <p class="sub">The matcher vocabulary, what each one actually checks, and how to
+     write tests a refactor can't silently break.</p>
+  <p class="mission">★ Mission link: builds on
+     <a href="0001-from-zero-to-a-test-that-runs.html">Lesson 01</a> (ts-jest
+     type-checks tests). If the transformer is the bedrock, matchers are the
+     vocabulary — the words you reach for without docs. The win today: know which
+     matcher to grab for any assertion, and understand the one type-level trap
+     that catches seniors and juniors alike.</p>
+
+  <h2>The two matchers you must never confuse</h2>
+  <p><code>toBe</code> and <code>toEqual</code> look similar. They are not.</p>
+  <pre>&lt;code&gt;<span class="tok-k">const</span> a = { x: <span class="tok-s">1</span> };
+<span class="tok-k">const</span> b = { x: <span class="tok-s">1</span> };
+
+expect(a).toBe(b);     <span class="tok-c">// FAILS — different object references</span>
+expect(a).toEqual(b);  <span class="tok-c">// passes — same structure & values</span>&lt;/code&gt;</pre>
+  <p><code>toBe</code> uses <strong>Object.is</strong> — reference identity for
+     objects, value equality for primitives.<sup><a href="#r1">1</a></sup>
+     <code>toEqual</code> does a <strong>deep recursive equality</strong> check,
+     ignoring <code>undefined</code> properties and sparseness.<sup><a href="#r2">2</a></sup>
+     The rule: use <code>toBe</code> for primitives and "is this the same object,"
+     <code>toEqual</code> for "do these two objects have the same shape and
+     values." Getting this wrong produces tests that pass when they shouldn't,
+     or fail mysteriously on day two.</p>
+
+  <aside class="note"><b>Why <code>Object.is</code> not <code>===</code>?</b>
+     <code>Object.is(NaN, NaN)</code> is <code>true</code>; <code>NaN === NaN</code>
+     is <code>false</code>. So <code>expect(NaN).toBe(NaN)</code> passes —
+     <code>toBe</code> catches NaN where <code>===</code> would miss it. This is a
+     deliberate Jest improvement over raw JS equality.<sup><a href="#r1">1</a></sup></aside>
+
+  <h2>The matcher families</h2>
+  <p>You don't need to memorize all ~40 matchers. You need to know the
+     <em>families</em> — then the right one is obvious.<sup><a href="#r2">2</a></sup></p>
+  <table class="cmp">
+    <tr><th>Family</th><th>Matchers</th><th>Use for</th></tr>
+    <tr><td>Identity</td><td><code>toBe</code>, <code>toBeNull</code>, <code>toBeUndefined</code>, <code>toBeDefined</code></td><td>Exact value or null/undefined checks</td></tr>
+    <tr><td>Deep equality</td><td><code>toEqual</code>, <code>toStrictEqual</code></td><td>Object/array structure & values</td></tr>
+    <tr><td>Truthiness</td><td><code>toBeTruthy</code>, <code>toBeFalsy</code></td><td>"something is there" / "nothing there"</td></tr>
+    <tr><td>Numbers</td><td><code>toBeGreaterThan</code>, <code>toBeLessThan</code>, <code>toBeCloseTo</code></td><td>Comparisons; <code>toBeCloseTo</code> for floats</td></tr>
+    <tr><td>Strings</td><td><code>toMatch</code> (regex), <code>toContain</code> (substring)</td><td>Pattern / substring checks</td></tr>
+    <tr><td>Arrays/iterables</td><td><code>toContain</code>, <code>toContainEqual</code>, <code>toHaveLength</code></td><td>Membership; <code>toContainEqual</code> for deep</td></tr>
+    <tr><td>Exceptions</td><td><code>toThrow</code>, <code>toThrowError</code></td><td>Code that should throw</td></tr>
+    <tr><td>Negation</td><td><code>.not</code> prefix</td><td>Invert any matcher: <code>expect(x).not.toBe(y)</code></td></tr>
+  </table>
+
+  <h2><code>toEqual</code> vs <code>toStrictEqual</code> — the senior trap</h2>
+  <p>This is the one that catches people. <code>toEqual</code> ignores
+     <code>undefined</code> properties and sparseness.
+     <code>toStrictEqual</code> does not.<sup><a href="#r2">2</a></sup></p>
+  <pre>&lt;code&gt;expect({ x: <span class="tok-s">1</span>, y: <span class="tok-k">undefined</span> }).toEqual({ x: <span class="tok-s">1</span> });           <span class="tok-c">// passes</span>
+expect({ x: <span class="tok-s">1</span>, y: <span class="tok-k">undefined</span> }).toStrictEqual({ x: <span class="tok-s">1</span> });     <span class="tok-c">// FAILS — extra key</span>&lt;/code&gt;</pre>
+  <p>Use <code>toStrictEqual</code> when the <em>exact shape</em> matters — API
+     responses where an extra <code>undefined</code> field would break a consumer,
+     serialization, or a type guard. Use <code>toEqual</code> when you care about
+     the meaningful values and don't want spurious failures from
+     <code>undefined</code> drift.</p>
+
+  <h2>The type-level trap: <code>expect</code> is not type-safe by default</h2>
+  <p>Here's the thing that surprises seniors coming to Jest+TS: <code>expect</code>
+     accepts <code>any</code>. You can write nonsense that compiles and passes:</p>
+  <pre>&lt;code&gt;<span class="tok-k">const</span> getUser = (id: <span class="tok-t">number</span>): { name: <span class="tok-t">string</span> } =&gt; ({ name: <span class="tok-s">'Ada'</span> });
+
+<span class="tok-c">// this compiles — and tests a property that doesn't exist on the type</span>
+expect(getUser(<span class="tok-s">1</span>)).toEqual({ nmae: <span class="tok-s">'Ada'</span> });  <span class="tok-c">// typo! FAILS at runtime</span>&lt;/code&gt;</pre>
+  <p>The runtime catches the typo (good — that's <code>toEqual</code> doing its
+     job). But TypeScript didn't catch it <em>before</em> runtime, because
+     <code>expect(actual: any)</code> — the matcher chain is loosely typed.
+     This is why you pair Jest with TS discipline: the <em>code under test</em>
+     is type-checked (ts-jest from Lesson 01), so the function's return type is
+     enforced. The <em>assertion</em> itself is where you stay vigilant.</p>
+
+  <aside class="note"><b>Mitigation:</b> type the <em>actual</em> explicitly when
+     it matters — <code>const result: ReturnType&lt;typeof getUser&gt; = getUser(1);
+     expect(result).toEqual({ name: 'Ada' })</code>. Now a typo in the expected
+     object is a compile error against the real return type, not just a runtime
+     failure. This is the senior pattern: use the type system to guard the
+     <em>expected</em> side, since Jest doesn't guard it for you.</aside>
+
+  <h2>Custom matchers (when the built-ins aren't enough)</h2>
+  <p>You can extend <code>expect</code> with custom matchers. The TS pattern uses
+     <code>expect.extend</code> plus an interface
+     merge:<sup><a href="#r2">2</a></sup></p>
+  <pre>&lt;code&gt;<span class="tok-k">declare global</span> {
+  <span class="tok-k">namespace</span> <span class="tok-t">jest</span> {
+    <span class="tok-k">interface</span> <span class="tok-t">Matchers</span>&lt;<span class="tok-t">R</span>&gt; {
+      toBeWithinRange(floor: <span class="tok-t">number</span>, ceiling: <span class="tok-t">number</span>): <span class="tok-t">R</span>;
+    }
+  }
+}
+
+expect.extend({
+  toBeWithinRange(received, floor, ceiling) {
+    <span class="tok-k">const</span> pass = received &gt;= floor && received &lt;= ceiling;
+    <span class="tok-k">return</span> {
+      pass,
+      message: () =&gt; pass
+        ? <span class="tok-s">`expected ${received} not to be within range ${floor}–${ceiling}`</span>
+        : <span class="tok-s">`expected ${received} to be within range ${floor}–${ceiling}`</span>,
+    };
+  },
+});
+
+<span class="tok-c">// now typed: toBeWithinRange(n: number, m: number)</span>
+expect(<span class="tok-s">5</span>).toBeWithinRange(<span class="tok-s">1</span>, <span class="tok-s">10</span>);&lt;/code&gt;</pre>
+  <p>The <code>declare global</code> block is what makes the matcher type-safe —
+     without it, TS doesn't know <code>toBeWithinRange</code> exists on the
+     <code>Matchers</code> chain. Put this in a <code>.d.ts</code> or a setup
+     file that's in your <code>tsconfig</code>.</p>
+
+  <!-- ============ QUIZ ============ -->
+  <div class="quiz">
+    <p class="kicker">Retrieval practice</p>
+    <h2 style="margin-top:.3rem">Check yourself</h2>
+    <p style="color:var(--muted);font-size:.92rem">From memory. Q3 and Q5 are the
+       senior traps.</p>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">1.</span><code>toBe</code> checks equality using…</div>
+      <div class="opts">
+        <button class="opt">triple equals ===</button>
+        <button class="opt">Object.is</button>
+        <button class="opt">deep comparison</button>
+        <button class="opt">JSON.stringify</button>
+      </div>
+      <div class="fb" data-why="toBe uses Object.is — reference identity for objects, value equality for primitives. Unlike ===, Object.is(NaN, NaN) is true, so toBe catches NaN."></div>
+    </div>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">2.</span>For comparing two objects with the same shape and values, use…</div>
+      <div class="opts">
+        <button class="opt">toBe always</button>
+        <button class="opt">toEqual</button>
+        <button class="opt">toBeSameRef</button>
+        <button class="opt">toMatchObject only</button>
+      </div>
+      <div class="fb" data-why="toEqual does deep recursive equality — same structure and values, ignoring undefined properties. toBe would fail because they're different references."></div>
+    </div>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">3.</span>Which matcher rejects an extra <code>undefined</code> key that <code>toEqual</code> would ignore?</div>
+      <div class="opts">
+        <button class="opt">toBe</button>
+        <button class="opt">toStrictEqual</button>
+        <button class="opt">toMatchObject</button>
+        <button class="opt">toContain</button>
+      </div>
+      <div class="fb" data-why="toStrictEqual checks exact shape — no extra keys, no undefined properties, no sparseness. toEqual ignores those. Use toStrictEqual when the exact shape matters (API responses, serialization)."></div>
+    </div>
+
+    <div class="q" data-correct="3">
+      <div class="stem"><span class="n">4.</span>To test that a function throws, use…</div>
+      <div class="opts">
+        <button class="opt">expect(fn).toThrow</button>
+        <button class="opt">expect(fn()).toThrow</button>
+        <button class="opt">expect(() => fn()).toBeError</button>
+        <button class="opt">expect(() => fn()).toThrow</button>
+      </div>
+      <div class="fb" data-why="Pass a function (not its result) to expect, then call toThrow. expect(() => fn()).toThrow — the wrapper lets Jest catch the exception rather than letting it crash the test."></div>
+    </div>
+
+    <div class="q" data-correct="2">
+      <div class="stem"><span class="n">5.</span>Why does <code>expect(getUser(1)).toEqual({ nmae: 'Ada' })</code> (typo) compile under Jest+TS?</div>
+      <div class="opts">
+        <button class="opt">ts-jest is broken</button>
+        <button class="opt">toEqual accepts any</button>
+        <button class="opt">expect is typed as any</button>
+        <button class="opt">TS has no object keys</button>
+      </div>
+      <div class="fb" data-why="expect(actual: any) — the matcher chain is loosely typed. The function under test IS type-checked, but the expected side isn't guarded by Jest. Mitigate by typing the actual: const r: ReturnType<typeof fn> = fn(); expect(r).toEqual(...)."></div>
+    </div>
+
+    <div id="score">Answer all five to see your score.</div>
+  </div>
+
+  <!-- ============ NEXT ============ -->
+  <div class="next">
+    <h2>Primary source (read this next)</h2>
+    <p><span class="pill">Most trusted</span>
+       <a href="https://jestjs.io/docs/expect" target="_blank">Jest — <code>expect</code> (full matcher reference)</a>.
+       Every matcher, every modifier. Bookmark it. ~30 min to skim.</p>
+    <p style="font-size:.9rem;color:var(--muted)">Deeper, when ready:
+       <a href="https://jestjs.io/docs/expect#expectextendmatchers" target="_blank">Jest — <code>expect.extend</code></a>
+       for the custom-matcher API and TypeScript patterns.</p>
+
+    <h2>Where this goes</h2>
+    <p><span class="pill">Lesson 03</span> <strong>Mocks done right</strong> —
+       <code>jest.fn</code> typing, <code>jest.Mocked&lt;T&gt;</code>,
+       <code>jest.mocked()</code>, factory typing, and the contract-vs-implementation
+       distinction. The type-level trap from this lesson (expect is loosely typed)
+       becomes the whole story when mocks enter the picture.</p>
+    <p style="margin-top:1.4rem"><a href="../RESOURCES.md">→ All resources</a> &nbsp;·&nbsp;
+       <a href="0001-from-zero-to-a-test-that-runs.html">← Lesson 01</a> &nbsp;·&nbsp;
+       <a href="../reference/glossary.html">→ Glossary</a></p>
+  </div>
+
+  <div class="ask">
+    <b>I'm your teacher.</b> Take a function you wrote recently — something small,
+    returns an object. Write two tests: one with <code>toEqual</code>, one with
+    <code>toStrictEqual</code>. Make the function return an object with an
+    optional <code>undefined</code> field. Which matcher passes, which fails?
+    Paste both tests and the results. Then try the type-level trap: add a typo
+    to the <em>expected</em> object and confirm whether TS catches it before
+    runtime. (It won't — and that's the lesson.)
+  </div>
+
+  <footer>
+    <span id="r1">1.</span> <a href="https://jestjs.io/docs/expect#tobevalue">Jest — <code>expect</code>: <code>toBe</code> (uses <code>Object.is</code>)</a>. &nbsp;
+    <span id="r2">2.</span> <a href="https://jestjs.io/docs/expect">Jest — <code>expect</code> (full matcher reference, <code>toEqual</code>, <code>toStrictEqual</code>, custom matchers)</a>.
+  </footer>
+</div>
+
+<script>
+  const qs = [...document.querySelectorAll('.q')];
+  let answered = 0, correct = 0;
+  qs.forEach(q => {
+    const right = +q.dataset.correct;
+    const opts = [...q.querySelectorAll('.opt')];
+    const fb = q.querySelector('.fb');
+    opts.forEach((opt, i) => {
+      opt.addEventListener('click', () => {
+        opts.forEach(o => o.disabled = true);
+        const ok = i === right;
+        opts[right].classList.add('correct');
+        if (!ok) opt.classList.add('wrong');
+        fb.classList.add(ok ? 'correct' : 'wrong');
+        fb.innerHTML = (ok ? '<b>Correct.</b> ' : '<b>Not quite.</b> ') + fb.dataset.why;
+        answered++; if (ok) correct++;
+        if (answered === qs.length) {
+          const s = document.getElementById('score');
+          s.classList.add('done');
+          const msg = correct === qs.length ? 'Matchers solid. The expect-is-any trap is the one to carry forward — mocks amplify it.' :
+                      correct >= 3 ? 'Good. Re-read toStrictEqual vs toEqual — that distinction trips people in code review.' :
+                      'Re-read above and retake. The matcher families and the type-level trap are the load-bearing bits.';
+          s.textContent = `Score: ${correct} / ${qs.length}. ${msg}`;
+        }
+      });
+    });
+  });
+</script>
+</body>
+</html>

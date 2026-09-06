@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 07 — Testing Like a Senior</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">Lesson 07 · Jest + TypeScript · Capstone</p>
+  <h1>Testing Like a Senior</h1>
+  <p class="sub">Structure, what not to test, and the judgment that turns the
+     tools into a safety net instead of a tax.</p>
+  <p class="mission">★ Mission link: this is the capstone — the "testing like a
+     senior" success criterion. Every prior lesson was a tool: matchers
+     (<a href="0002-matchers-and-the-type-system.html">02</a>), mocks
+     (<a href="0003-mocks-done-right.html">03</a>), async
+     (<a href="0004-async-testing.html">04</a>), config
+     (<a href="0005-config-deep-dive.html">05</a>), transformer
+     (<a href="0006-choosing-your-transformer.html">06</a>). The tools don't
+     make you senior; the <em>judgment</em> does. The win today: know what to
+     test, what to skip, and how to write tests that survive a refactor without
+     being rewritten.</p>
+
+  <h2>Arrange-Act-Assert: the structure that ages well</h2>
+  <p>Every test has three phases. Seniors make them visible:<sup><a href="#r1">1</a></sup></p>
+  <pre>&lt;code&gt;test(<span class="tok-s">'total includes discount'</span>, () =&gt; {
+  <span class="tok-c">// Arrange — set up the world</span>
+  <span class="tok-k">const</span> cart = [{ price: <span class="tok-s">30</span> }, { price: <span class="tok-s">20</span> }];
+  <span class="tok-k">const</span> discount = <span class="tok-s">0.1</span>;
+
+  <span class="tok-c">// Act — the one thing under test</span>
+  <span class="tok-k">const</span> total = computeTotal(cart, discount);
+
+  <span class="tok-c">// Assert — the behavior you care about</span>
+  expect(total).toBe(<span class="tok-s">45</span>);
+});&lt;/code&gt;</pre>
+  <p>One <code>Act</code> line. One behavior per test. If you can't describe
+     the test in one sentence ("total includes discount"), it's testing too
+     much. The structure isn't dogma — it's a <em>smell detector</em>. When
+     your Arrange section is longer than the rest, your code has too many
+     dependencies. When your Act section has three calls, you're testing a
+     flow, not a unit.</p>
+
+  <h2>Test behavior, not implementation</h2>
+  <p>This is the single most-cited senior testing principle, and the one that
+     separates good test suites from ones everyone
+     hates.<sup><a href="#r2">2</a></sup></p>
+  <pre>&lt;code&gt;<span class="tok-c">// ❌ tests implementation — breaks on refactor</span>
+test(<span class="tok-s">'sorts by calling quickSort'</span>, () =&gt; {
+  <span class="tok-k">const</span> spy = jest.spyOn(utils, <span class="tok-s">'quickSort'</span>);
+  sortItems(items);
+  expect(spy).toHaveBeenCalled();   <span class="tok-c">// breaks if you switch to merge sort</span>
+});
+
+<span class="tok-c">// ✅ tests behavior — survives refactor</span>
+test(<span class="tok-s">'sorts items ascending'</span>, () =&gt; {
+  <span class="tok-k">const</span> result = sortItems([<span class="tok-s">3</span>, <span class="tok-s">1</span>, <span class="tok-s">2</span>]);
+  expect(result).toEqual([<span class="tok-s">1</span>, <span class="tok-s">2</span>, <span class="tok-s">3</span>]);   <span class="tok-c">// survives any algorithm change</span>
+});&lt;/code&gt;</pre>
+  <p>The first test breaks when you swap <code>quickSort</code> for
+     <code>mergeSort</code> — even though the behavior is identical. That's a
+     test that <em>resists</em> refactoring, which is the opposite of what you
+     want. The second test passes regardless of internal algorithm, because
+     it tests the <em>contract</em>: put in <code>[3,1,2]</code>, get out
+     <code>[1,2,3]</code>.<sup><a href="#r2">2</a></sup></p>
+  <aside class="note"><b>How to spot an implementation test:</b> it asserts
+     <em>that something was called</em> rather than <em>what the result is</em>.
+     <code>expect(spy).toHaveBeenCalled()</code> is the smell. Spy on the
+     <em>boundary</em> (a network call, a DB write) — not on your own code's
+     internal functions.</aside>
+
+  <h2>What not to test</h2>
+  <p>Seniors skip more tests than they write. Here's what doesn't
+     earn its keep:<sup><a href="#r2">2</a></sup></p>
+  <ul>
+    <li><strong>Getters/setters that just assign.</strong> If a property has
+        no logic, testing <code>obj.x = 5; expect(obj.x).toBe(5)</code> tests
+        JavaScript, not your code.</li>
+    <li><strong>Framework internals.</strong> Don't test that
+        <code>React.useState</code> re-renders, or that
+        <code>Array.map</code> iterates. Test <em>your</em> code's
+        behavior.</li>
+    <li><strong>Third-party libraries.</strong> If <code>lodash.sortBy</code>
+        breaks, that's lodash's problem. Test that <em>you called it
+        correctly</em>, not that it sorts.</li>
+    <li><strong>Constants and config.</strong> Testing that
+        <code>MAX_RETRIES = 3</code> is <code>3</code> locks in a number that
+        should be free to change.</li>
+    <li><strong>Implementation of private methods.</strong> If it's not
+        exported, it's not a contract. Test it through the public
+        interface.</li>
+  </ul>
+
+  <h2>One assertion per behavior (not per test)</h2>
+  <p>The old rule "one assertion per test" is too rigid. The real rule:
+     <strong>one behavior per test.</strong> A behavior might need several
+     assertions to verify:<sup><a href="#r1">1</a></sup></p>
+  <pre>&lt;code&gt;test(<span class="tok-s">'rejects invalid email and logs the attempt'</span>, () =&gt; {
+  <span class="tok-k">const</span> logger = jest.fn();
+  <span class="tok-k">const</span> result = validateEmail(<span class="tok-s">'not-an-email'</span>, logger);
+
+  expect(result.valid).toBe(<span class="tok-s">false</span>);          <span class="tok-c">// behavior: rejects</span>
+  expect(result.error).toMatch(<span class="tok-s">/email/i</span>);    <span class="tok-c">// behavior: right reason</span>
+  expect(logger).toHaveBeenCalledWith({ <span class="tok-s">invalid</span>: <span class="tok-s">'not-an-email'</span> });  <span class="tok-c">// behavior: logs</span>
+});&lt;/code&gt;</pre>
+  <p>These three assertions verify <em>one</em> behavior: "invalid input is
+     rejected and logged." That's fine. What you avoid is testing two
+     <em>different</em> behaviors in one test — "rejects invalid email AND
+     accepts valid email" — because when it fails, you don't know which
+     broke.</p>
+
+  <h2>Refactor-resilience: the test-suite quality bar</h2>
+  <p>The ultimate test of a test suite: <strong>can you refactor the code
+     without rewriting the tests?</strong><sup><a href="#r2">2</a></sup>
+     If every internal rename breaks a test, the suite is a chain around the
+     code's ankles. If tests focus on behavior and contracts (Lesson 03), they
+     survive refactors. The metrics that matter:</p>
+  <ul>
+    <li><strong>Coupling:</strong> how many tests break when you change an
+        internal detail that doesn't affect behavior? Target: zero.</li>
+    <li><strong>Signal:</strong> when a test fails, does it tell you what broke
+        and where? A test named "works" tells you nothing; one named
+        "rejects expired tokens with 401" tells you everything.</li>
+    <li><strong>Speed:</strong> slow suites get skipped. A suite that takes
+        30 seconds is one that nobody runs. This is where the transformer
+        choice (Lesson 06) bites.</li>
+  </ul>
+
+  <h2>The senior's testing loop</h2>
+  <pre>&lt;code&gt;<span class="tok-c"># 1. What's the behavior? (one sentence)</span>
+<span class="tok-c"># 2. What's the simplest arrange that exercises it?</span>
+<span class="tok-c"># 3. One act — the single call under test</span>
+<span class="tok-c"># 4. Assert the result, not the call (unless it's a boundary)</span>
+<span class="tok-c"># 5. Name the test for what it verifies, not what it does</span>
+<span class="tok-c"># 6. Ask: would this survive a refactor? If not, rewrite it.</span>&lt;/code&gt;</pre>
+
+  <!-- ============ QUIZ ============ -->
+  <div class="quiz">
+    <p class="kicker">Retrieval practice</p>
+    <h2 style="margin-top:.3rem">Check yourself</h2>
+    <p style="color:var(--muted);font-size:.92rem">From memory. Q2 and Q4 are
+       the judgment calls that define senior testing.</p>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">1.</span>The three phases of a well-structured test are…</div>
+      <div class="opts">
+        <button class="opt">setup, run, cleanup</button>
+        <button class="opt">arrange, act, assert</button>
+        <button class="opt">mock, call, verify</button>
+        <button class="opt">given, when, then</button>
+      </div>
+      <div class="fb" data-why="Arrange (set up), Act (the one call under test), Assert (the behavior). One Act line, one behavior per test. When Arrange is long, the code has too many deps; when Act has three calls, you're testing a flow."></div>
+    </div>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">2.</span><code>expect(spy).toHaveBeenCalled()</code> on your own internal function is a smell because…</div>
+      <div class="opts">
+        <button class="opt">it tests implementation</button>
+        <button class="opt">spies are too slow</button>
+        <button class="opt">it's a type error</button>
+        <button class="opt">jest disables it</button>
+      </div>
+      <div class="fb" data-why="It asserts that something was called, not what the result is — it breaks on refactor even when behavior is unchanged. Spy on boundaries (network, DB), not on your own code's internal functions."></div>
+    </div>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">3.</span>The "one assertion per test" rule is really…</div>
+      <div class="opts">
+        <button class="opt">a hard limit</button>
+        <button class="opt">one behavior per test</button>
+        <button class="opt">one expect per file</button>
+        <button class="opt">a jest default</button>
+      </div>
+      <div class="fb" data-why="The real rule is one behavior per test. A behavior may need several assertions to verify (reject + right error + logged). What you avoid is two different behaviors in one test — when it fails, you don't know which broke."></div>
+    </div>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">4.</span>Which test does NOT earn its keep?</div>
+      <div class="opts">
+        <button class="opt">boundary side-effects</button>
+        <button class="opt">a constant's value</button>
+        <button class="opt">error-path branches</button>
+        <button class="opt">public contract</button>
+      </div>
+      <div class="fb" data-why="Testing that MAX_RETRIES = 3 is 3 locks in a number that should be free to change. Skip: framework internals, third-party libs, constants, getters/setters with no logic, private methods. Test behavior and contracts."></div>
+    </div>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">5.</span>The ultimate test-suite quality bar is…</div>
+      <div class="opts">
+        <button class="opt">refactor-resilience</button>
+        <button class="opt">100% coverage</button>
+        <button class="opt">fastest possible</button>
+        <button class="opt">most assertions</button>
+      </div>
+      <div class="fb" data-why="Can you refactor the code without rewriting the tests? If every internal rename breaks a test, the suite is a chain around the code's ankles. Tests focused on behavior and contracts survive refactors. Coverage, speed, assertion count are secondary."></div>
+    </div>
+
+    <div id="score">Answer all five to see your score.</div>
+  </div>
+
+  <!-- ============ NEXT ============ -->
+  <div class="next">
+    <h2>Primary source (read this next)</h2>
+    <p><span class="pill">Most trusted</span>
+       <a href="https://kentcdodds.com/blog/avoid-the-test-library" target="_blank">Kent C. Dodds — "Avoid the Test Library"</a>.
+       The most-cited senior testing essay. The behavior-vs-implementation
+       distinction, argued from first principles. ~10 min.</p>
+    <p style="font-size:.9rem;color:var(--muted)">Deeper, when ready:
+       <a href="https://jestjs.io/docs/setup-teardown" target="_blank">Jest — Setup & Teardown</a>
+       for <code>beforeEach</code>/<code>afterEach</code> scoping — the
+       mechanical side of keeping Arrange sections short.</p>
+
+    <h2>You've finished the arc</h2>
+    <p>Lessons 01–07 cover the full Jest+TS senior track: setup, matchers,
+       typed mocks, async, config, transformer choice, and testing judgment.
+       The reference docs below are the compressed cheat-sheet — bookmark
+       them. The track is done, but the fluency is a muscle: keep writing
+       tests, and revisit the lessons when a concept gets fuzzy.</p>
+    <p style="margin-top:1.4rem"><a href="../RESOURCES.md">→ All resources</a> &nbsp;·&nbsp;
+       <a href="0006-choosing-your-transformer.html">← Lesson 06</a> &nbsp;·&nbsp;
+       <a href="../reference/glossary.html">→ Glossary & cheat-sheet</a></p>
+  </div>
+
+  <div class="ask">
+    <b>I'm your teacher.</b> This is the capstone exercise. Find a test in a
+    real codebase (yours or open source) that you suspect is an
+    <em>implementation</em> test — one that asserts a call was made rather than
+    a result. Paste it. Then rewrite it to test behavior instead. Tell me:
+    what would have broken the original test that <em>shouldn't</em> break it?
+    And what does the rewritten test verify that the original didn't? If you
+    can't find one, paste a test you're <em>unsure</em> about and we'll
+    diagnose it together. The point is the judgment, not the answer.
+  </div>
+
+  <footer>
+    <span id="r1">1.</span> <a href="https://jestjs.io/docs/setup-teardown">Jest — Setup & Teardown (test structure, scoping)</a>. &nbsp;
+    <span id="r2">2.</span> <a href="https://kentcdodds.com/blog/avoid-the-test-library">Kent C. Dodds — "Avoid the Test Library" (test behavior, not implementation)</a>.
+  </footer>
+</div>
+
+<script>
+  const qs = [...document.querySelectorAll('.q')];
+  let answered = 0, correct = 0;
+  qs.forEach(q => {
+    const right = +q.dataset.correct;
+    const opts = [...q.querySelectorAll('.opt')];
+    const fb = q.querySelector('.fb');
+    opts.forEach((opt, i) => {
+      opt.addEventListener('click', () => {
+        opts.forEach(o => o.disabled = true);
+        const ok = i === right;
+        opts[right].classList.add('correct');
+        if (!ok) opt.classList.add('wrong');
+        fb.classList.add(ok ? 'correct' : 'wrong');
+        fb.innerHTML = (ok ? '<b>Correct.</b> ' : '<b>Not quite.</b> ') + fb.dataset.why;
+        answered++; if (ok) correct++;
+        if (answered === qs.length) {
+          const s = document.getElementById('score');
+          s.classList.add('done');
+          const msg = correct === qs.length ? 'Track complete. The tools are yours; the judgment is what makes them a safety net. Keep writing tests.' :
+                      correct >= 3 ? 'Good. Re-read the behavior-vs-implementation distinction — that is the single idea that separates senior test suites from the rest.' :
+                      'Re-read above and retake. The judgment — what to test, what to skip, what survives a refactor — is the whole point of this capstone.';
+          s.textContent = `Score: ${correct} / ${qs.length}. ${msg}`;
+        }
+      });
+    });
+  });
+</script>
+</body>
+</html>

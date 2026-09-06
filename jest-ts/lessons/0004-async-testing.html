@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 04 — Async Testing</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">Lesson 04 · Jest + TypeScript</p>
+  <h1>Async Testing</h1>
+  <p class="sub">Four patterns for async code, the silent-pass trap, and why
+     <code>resolves</code>/<code>rejects</code> are safer than they look.</p>
+  <p class="mission">★ Mission link: builds on
+     <a href="0003-mocks-done-right.html">Lesson 03</a> (typed mocks are the
+     return values you control here). Async testing is where juniors write
+     tests that <em>silently pass</em> — green check, no assertion ever ran.
+     The win today: know all four async patterns, know which one is the trap,
+     and never write a test that passes because it didn't wait.</p>
+
+  <h2>The trap: a test that passes by not running</h2>
+  <p>This is the most important thing in this lesson. This test
+     <em>passes</em>, and it's wrong:</p>
+  <pre>&lt;code&gt;<span class="tok-c">// ❌ SILENT PASS — the assertion never runs</span>
+test(<span class="tok-s">'fetches a user'</span>, () =&gt; {
+  <span class="tok-k">const</span> promise = fetchUser(<span class="tok-s">1</span>);
+  promise.then(user =&gt; {
+    expect(user.name).toBe(<span class="tok-s">'Ada'</span>);   <span class="tok-c">// never reached before test ends</span>
+  });
+});&lt;/code&gt;</pre>
+  <p>The test function returns <code>undefined</code> (not the promise). Jest
+     sees the function complete, runs zero assertions, and reports
+     <em>pass</em>. The <code>.then</code> callback runs <em>after</em> the test
+     has already finished.<sup><a href="#r1">1</a></sup></p>
+  <p>The fix is one of four patterns — and the choice matters.</p>
+
+  <h2>The four patterns</h2>
+  <p>Jest supports four async patterns. All are legitimate; the last two are
+     the senior defaults.<sup><a href="#r1">1</a></sup></p>
+
+  <h3>1. Return the promise</h3>
+  <pre>&lt;code&gt;test(<span class="tok-s">'fetches a user'</span>, () =&gt; {
+  <span class="tok-k">return</span> fetchUser(<span class="tok-s">1</span>).then(user =&gt; {   <span class="tok-c">// ← return</span>
+    expect(user.name).toBe(<span class="tok-s">'Ada'</span>);
+  });
+});&lt;/code&gt;</pre>
+  <p>The <code>return</code> is the whole fix. Jest waits for the returned
+     promise. If it rejects, the test fails. Simple, but easy to forget —
+     which is why the next patterns exist.</p>
+
+  <h3>2. <code>.resolves</code> / <code>.rejects</code> matchers</h3>
+  <pre>&lt;code&gt;test(<span class="tok-s">'fetches a user'</span>, <span class="tok-k">async</span> () =&gt; {
+  <span class="tok-k">await</span> expect(fetchUser(<span class="tok-s">1</span>)).resolves.toMatchObject({ name: <span class="tok-s">'Ada'</span> });
+});
+
+test(<span class="tok-s">'rejects for missing id'</span>, <span class="tok-k">async</span> () =&gt; {
+  <span class="tok-k">await</span> expect(fetchUser(<span class="tok-s">0</span>)).rejects.toThrow(<span class="tok-s">'not found'</span>);
+});&lt;/code&gt;</pre>
+  <p><strong>You must <code>await</code> these.</strong> Without
+     <code>await</code>, the matcher returns a promise Jest never waits on —
+     and you're back to the silent-pass trap, but now with a deceptively
+     modern-looking API.<sup><a href="#r1">1</a></sup> The <code>await</code>
+     is not optional.</p>
+
+  <h3>3. <code>async</code>/<code>await</code> (the senior default)</h3>
+  <pre>&lt;code&gt;test(<span class="tok-s">'fetches a user'</span>, <span class="tok-k">async</span> () =&gt; {
+  <span class="tok-k">const</span> user = <span class="tok-k">await</span> fetchUser(<span class="tok-s">1</span>);
+  expect(user.name).toBe(<span class="tok-s">'Ada'</span>);
+});&lt;/code&gt;</pre>
+  <p>This is the cleanest pattern: the <code>async</code> function returns a
+     promise implicitly, Jest waits for it, and the assertion runs before the
+     test completes. If <code>fetchUser</code> rejects, the rejection fails the
+     test — no <code>.catch</code> needed. Make this your default.</p>
+
+  <h3>4. Callbacks with <code>done</code> (legacy)</h3>
+  <pre>&lt;code&gt;test(<span class="tok-s">'calls back with a user'</span>, done =&gt; {
+  fetchUserCb(<span class="tok-s">1</span>, user =&gt; {
+    expect(user.name).toBe(<span class="tok-s">'Ada'</span>);
+    done();   <span class="tok-c">// ← tells Jest to wait</span>
+  });
+});&lt;/code&gt;</pre>
+  <p>The <code>done</code> callback is the old callback-era pattern. Jest
+     waits until <code>done()</code> is called. If you forget it, silent pass.
+     Prefer promises/async — <code>done</code> exists for APIs that don't
+     return promises.<sup><a href="#r1">1</a></sup></p>
+
+  <aside class="note"><b>Order matters:</b> in the <code>done</code> pattern,
+     <code>expect</code> <em>before</em> <code>done()</code>. If the assertion
+     throws, <code>done</code> is never called and the test times out — which
+     is at least a failure, but a confusing one. For this reason, prefer
+     <code>async</code>/<code>await</code> wherever the API allows it.</aside>
+
+  <h2>Rejections: don't swallow them</h2>
+  <p>A subtle trap with <code>async</code>/<code>await</code>: a rejected
+     promise you don't await is an unhandled rejection, not a test failure.
+     Use <code>.rejects</code> to assert rejection <em>explicitly</em>:</p>
+  <pre>&lt;code&gt;<span class="tok-c">// ❌ doesn't assert rejection — might not reject at all</span>
+test(<span class="tok-s">'rejects for bad id'</span>, <span class="tok-k">async</span> () =&gt; {
+  <span class="tok-k">await</span> fetchUser(<span class="tok-s">0</span>).catch(e =&gt; expect(e).toBeDefined());
+});  <span class="tok-c">// if it DOESN'T throw, the catch never runs — silent pass</span>
+
+<span class="tok-c">// ✅ asserts rejection explicitly</span>
+test(<span class="tok-s">'rejects for bad id'</span>, <span class="tok-k">async</span> () =&gt; {
+  <span class="tok-k">await</span> expect(fetchUser(<span class="tok-s">0</span>)).rejects.toThrow(<span class="tok-s">'not found'</span>);
+});  <span class="tok-c">// if it resolves, the test fails — no silent pass</span>&lt;/code&gt;</pre>
+
+  <h2>Fake timers: control the clock</h2>
+  <p>For code using <code>setTimeout</code>, <code>setInterval</code>,
+     <code>Date</code>, or <code>requestAnimationFrame</code>, use fake
+     timers:<sup><a href="#r2">2</a></sup></p>
+  <pre>&lt;code&gt;<span class="tok-k">import</span> { setTimeout <span class="tok-k">as</span> setTimeoutReal } <span class="tok-k">from</span> <span class="tok-s">'timers/promises'</span>;
+
+test(<span class="tok-s">'runs after delay'</span>, <span class="tok-k">async</span> () =&gt; {
+  jest.useFakeTimers();
+  <span class="tok-k">const</span> spy = jest.fn();
+  setTimeout(spy, <span class="tok-s">1000</span>);
+
+  jest.advanceTimersByTime(<span class="tok-s">1000</span>);   <span class="tok-c">// ← jump forward</span>
+  expect(spy).toHaveBeenCalled();
+
+  jest.useRealTimers();             <span class="tok-c">// ← always restore</span>
+});&lt;/code&gt;</pre>
+  <p>Pair fake timers with <code>beforeEach(() =&gt; jest.useFakeTimers())</code>
+     and <code>afterEach(() =&gt; jest.useRealTimers())</code> so a timer leak in
+     one test can't poison the next. For <code>async</code> functions that
+     <em>await</em> a timer, use <code>jest.advanceTimersByTimeAsync</code>
+     (Jest 29+) — the plain version doesn't flush microtasks.</p>
+
+  <!-- ============ QUIZ ============ -->
+  <div class="quiz">
+    <p class="kicker">Retrieval practice</p>
+    <h2 style="margin-top:.3rem">Check yourself</h2>
+    <p style="color:var(--muted);font-size:.92rem">From memory. Q1 is the trap
+       the whole lesson is built around.</p>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">1.</span>A test that calls <code>promise.then(...)</code> without returning the promise will…</div>
+      <div class="opts">
+        <button class="opt">fail immediately</button>
+        <button class="opt">silently pass</button>
+        <button class="opt">timeout after 5s</button>
+        <button class="opt">warn but pass</button>
+      </div>
+      <div class="fb" data-why="Without returning the promise, Jest sees the test function complete (returns undefined), runs zero assertions, and reports pass. The .then callback runs after the test already finished — silent pass."></div>
+    </div>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">2.</span><code>await expect(fn()).resolves.toBe(x)</code> — the <code>await</code> is…</div>
+      <div class="opts">
+        <button class="opt">required</button>
+        <button class="opt">optional sugar</button>
+        <button class="opt">a type error</button>
+        <button class="opt">only for rejects</button>
+      </div>
+      <div class="fb" data-why="You MUST await .resolves/.rejects. Without await, the matcher returns a promise Jest never waits on — silent pass with a modern-looking API. The await is not optional."></div>
+    </div>
+
+    <div class="q" data-correct="2">
+      <div class="stem"><span class="n">3.</span>The senior-default async pattern is…</div>
+      <div class="opts">
+        <button class="opt">callbacks with done</button>
+        <button class="opt">return the promise</button>
+        <button class="opt">async/await</button>
+        <button class="opt">.resolves always</button>
+      </div>
+      <div class="fb" data-why="async/await is the cleanest: the async function returns a promise implicitly, Jest waits for it, assertions run before completion, and rejections fail the test without .catch. Make it your default."></div>
+    </div>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">4.</span>Why is <code>await fn().catch(e =&gt; expect(e).toBeDefined())</code> a trap?</div>
+      <div class="opts">
+        <button class="opt">catch is too slow</button>
+        <button class="opt">silent pass if it resolves</button>
+        <button class="opt">it swallows types</button>
+        <button class="opt">jest disables it</button>
+      </div>
+      <div class="fb" data-why="If fn() resolves instead of rejecting, the catch never runs — the assertion never fires — silent pass. Use await expect(fn()).rejects.toThrow(...) so a resolution fails the test instead."></div>
+    </div>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">5.</span>After <code>jest.useFakeTimers()</code> in a test, you must…</div>
+      <div class="opts">
+        <button class="opt">restore with useRealTimers</button>
+        <button class="opt">call jest.runAllTicks</button>
+        <button class="opt">disable ts-jest</button>
+        <button class="opt">wrap in beforeEach</button>
+      </div>
+      <div class="fb" data-why="Always restore with jest.useRealTimers() (or use beforeEach/afterEach) so a fake-timer leak in one test doesn't poison the next. For awaiting timers in async code, use jest.advanceTimersByTimeAsync."></div>
+    </div>
+
+    <div id="score">Answer all five to see your score.</div>
+  </div>
+
+  <!-- ============ NEXT ============ -->
+  <div class="next">
+    <h2>Primary source (read this next)</h2>
+    <p><span class="pill">Most trusted</span>
+       <a href="https://jestjs.io/docs/asynchronous" target="_blank">Jest — Testing Asynchronous Code</a>.
+       The four patterns with runnable examples. ~15 min.</p>
+    <p style="font-size:.9rem;color:var(--muted)">Deeper, when ready:
+       <a href="https://jestjs.io/docs/timer-mocks" target="_blank">Jest — Timer Mocks</a>
+       for fake-timer patterns and <code>advanceTimersByTimeAsync</code>.</p>
+
+    <h2>Where this goes</h2>
+    <p><span class="pill">Lesson 05</span> <strong>Config deep-dive</strong> —
+       tsconfig vs Jest config, <code>moduleNameMapper</code> for path aliases,
+       ESM mode with <code>--experimental-vm-modules</code>, and the
+       preset-creator function form we deferred from Lesson 01. This is where
+       the transformer choice meets the real world.</p>
+    <p style="margin-top:1.4rem"><a href="../RESOURCES.md">→ All resources</a> &nbsp;·&nbsp;
+       <a href="0003-mocks-done-right.html">← Lesson 03</a> &nbsp;·&nbsp;
+       <a href="../reference/glossary.html">→ Glossary</a></p>
+  </div>
+
+  <div class="ask">
+    <b>I'm your teacher.</b> Write a function that fetches data with a
+    <code>setTimeout</code> retry — <code>async function fetchWithRetry()</code>
+    that waits 100ms and retries once on failure. Then write four tests: (1)
+    the silent-pass trap version (no return/await), (2) the
+    <code>.resolves</code> version with the <code>await</code>, (3) the
+    <code>async</code>/<code>await</code> version, and (4) a fake-timer test
+    that advances the clock instead of waiting 100ms. Run all four and paste
+    me the results — especially what happens with #1.
+  </div>
+
+  <footer>
+    <span id="r1">1.</span> <a href="https://jestjs.io/docs/asynchronous">Jest — Testing Asynchronous Code (Promises, Async/Await, Callbacks, .resolves/.rejects)</a>. &nbsp;
+    <span id="r2">2.</span> <a href="https://jestjs.io/docs/timer-mocks">Jest — Timer Mocks (<code>useFakeTimers</code>, <code>advanceTimersByTime</code>)</a>.
+  </footer>
+</div>
+
+<script>
+  const qs = [...document.querySelectorAll('.q')];
+  let answered = 0, correct = 0;
+  qs.forEach(q => {
+    const right = +q.dataset.correct;
+    const opts = [...q.querySelectorAll('.opt')];
+    const fb = q.querySelector('.fb');
+    opts.forEach((opt, i) => {
+      opt.addEventListener('click', () => {
+        opts.forEach(o => o.disabled = true);
+        const ok = i === right;
+        opts[right].classList.add('correct');
+        if (!ok) opt.classList.add('wrong');
+        fb.classList.add(ok ? 'correct' : 'wrong');
+        fb.innerHTML = (ok ? '<b>Correct.</b> ' : '<b>Not quite.</b> ') + fb.dataset.why;
+        answered++; if (ok) correct++;
+        if (answered === qs.length) {
+          const s = document.getElementById('score');
+          s.classList.add('done');
+          const msg = correct === qs.length ? 'Async solid. The silent-pass trap is the one to carry into every async test — if you remember nothing else, remember to return or await.' :
+                      correct >= 3 ? 'Good. Re-read the .resolves/.rejects await rule and the catch trap — those are the two ways async tests silently pass.' :
+                      'Re-read above and retake. The silent-pass trap and the four patterns are the load-bearing bits.';
+          s.textContent = `Score: ${correct} / ${qs.length}. ${msg}`;
+        }
+      });
+    });
+  });
+</script>
+</body>
+</html>

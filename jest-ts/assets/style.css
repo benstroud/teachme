@@ -1,0 +1,166 @@
+/* Jest + TypeScript Lessons — Shared Stylesheet (Dark Mode)
+   Matches the typescript/ workspace lesson look (serif body, Tufte-inspired).
+   Lessons link this; per-lesson inline styles override where needed. */
+
+:root {
+  --ink: #e8e6e3;
+  --paper: #1a1a18;
+  --accent: #d4886a;
+  --muted: #999591;
+  --rule: #3a3a36;
+  --good: #6bcb9a;
+  --bad: #e87171;
+  --code: #252522;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  line-height: 1.55;
+  margin: 0;
+  padding: 3.5rem 1.5rem 6rem;
+  font-size: 19px;
+}
+
+.wrap { max-width: 720px; margin: 0 auto; }
+
+.kicker {
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  font-size: .72rem;
+  color: var(--accent);
+  margin: 0 0 .4rem;
+  font-family: sans-serif;
+}
+
+h1 { font-size: 2.3rem; font-weight: 600; line-height: 1.08; margin: 0 0 .3rem; }
+.sub { color: var(--muted); font-style: italic; margin: 0 0 .6rem; }
+
+.mission {
+  font-size: .82rem;
+  color: var(--muted);
+  font-family: sans-serif;
+  border-left: 3px solid var(--rule);
+  padding: .3rem 0 .3rem .8rem;
+  margin: 0 0 2.4rem;
+}
+
+h2 { font-size: 1.3rem; font-weight: 600; margin: 2.6rem 0 .6rem; }
+p { margin: 0 0 1rem; }
+ul, ol { margin: 0 0 1rem; }
+li { margin: .25rem 0; }
+
+code {
+  font-family: "SF Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace;
+  font-size: .82em;
+  background: var(--code);
+  padding: .08em .35em;
+  border-radius: 3px;
+}
+
+pre {
+  background: #1e1e1c;
+  color: #e8e6e3;
+  padding: 1rem 1.1rem;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: .8rem;
+  line-height: 1.5;
+  margin: 1rem 0;
+  border: 1px solid var(--rule);
+}
+pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+
+/* token colors for hand-highlighted code */
+.tok-c { color: #8f9183; }  /* comment */
+.tok-k { color: #e0a36b; }  /* keyword */
+.tok-t { color: #8fbcd4; }  /* type */
+.tok-s { color: #c3d39a; }  /* string */
+.tok-f { color: #d9b3e0; }  /* fn/call */
+
+a { color: var(--accent); }
+sup a { text-decoration: none; font-size: .7em; }
+
+aside.note {
+  background: #222220;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: .9rem 1.1rem;
+  font-size: .92rem;
+  margin: 1.4rem 0;
+}
+aside.note b { color: var(--accent); }
+
+/* Quiz — self-contained, matches typescript/ lessons 0001-0005 */
+.quiz { border-top: 2px solid var(--ink); margin-top: 3rem; padding-top: 1.4rem; }
+.q { margin: 1.8rem 0; }
+.q .stem { font-weight: 600; margin-bottom: .7rem; }
+.q .stem .n { color: var(--accent); margin-right: .4rem; }
+.opts { display: grid; gap: .5rem; }
+.opt {
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  background: #222220;
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: .6rem .85rem;
+  transition: background .12s, border-color .12s;
+}
+.opt:hover:not(:disabled) { border-color: var(--accent); }
+.opt:disabled { cursor: default; }
+.opt.correct { border-color: var(--good); background: #1e3a2e; }
+.opt.wrong { border-color: var(--bad); background: #3a2222; }
+.fb { font-size: .9rem; margin-top: .55rem; min-height: 1.2em; }
+.fb.correct { color: var(--good); }
+.fb.wrong { color: var(--bad); }
+.fb b { font-weight: 600; }
+#score {
+  font-family: sans-serif;
+  font-size: 1rem;
+  margin-top: 2rem;
+  padding: 1rem;
+  border: 1px dashed var(--rule);
+  border-radius: 6px;
+  text-align: center;
+  color: var(--muted);
+}
+#score.done { color: var(--ink); border-style: solid; }
+
+/* Next / footer */
+.next { border-top: 1px solid var(--rule); margin-top: 3rem; padding-top: 1.4rem; }
+.pill {
+  display: inline-block;
+  font-family: sans-serif;
+  font-size: .72rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  background: var(--code);
+  color: var(--muted);
+  padding: .2rem .55rem;
+  border-radius: 99px;
+  margin-right: .4rem;
+}
+footer { color: var(--muted); font-size: .85rem; margin-top: 2rem; }
+.ask {
+  background: #2a2820;
+  border: 1px solid #4a4438;
+  border-radius: 6px;
+  padding: .9rem 1.1rem;
+  font-size: .92rem;
+  margin-top: 2rem;
+}
+
+@media print {
+  body { font-size: 12pt; padding: 1rem; background: #fff; color: #000; }
+  pre { background: #eee; color: #000; }
+  .opt { background: #fff; color: #000; }
+  a { color: #000; }
+  aside.note, .ask { background: #f6f5ea; color: #000; }
+  .quiz .fb { display: block; }
+}
