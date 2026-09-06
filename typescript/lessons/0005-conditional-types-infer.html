@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 05 — Conditional Types &amp; infer</title>
+<style>
+  :root { --ink:#1a1a1a; --paper:#fffff8; --accent:#7b1e1e; --muted:#6b6b63;
+          --rule:#d8d8cf; --good:#1b6b3a; --bad:#9a1f1f; --code:#f1f0e6; }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    line-height: 1.55; margin: 0; padding: 3.5rem 1.5rem 6rem; font-size: 19px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  .kicker { letter-spacing: .18em; text-transform: uppercase; font-size: .72rem;
+            color: var(--accent); margin: 0 0 .4rem; font-family: sans-serif; }
+  h1 { font-size: 2.3rem; font-weight: 600; line-height: 1.08; margin: 0 0 .3rem; }
+  .sub { color: var(--muted); font-style: italic; margin: 0 0 .6rem; }
+  .mission { font-size: .82rem; color: var(--muted); font-family: sans-serif;
+             border-left: 3px solid var(--rule); padding: .3rem 0 .3rem .8rem; margin: 0 0 2.4rem; }
+  h2 { font-size: 1.3rem; font-weight: 600; margin: 2.6rem 0 .6rem; }
+  p { margin: 0 0 1rem; }
+  ul { margin: 0 0 1rem; } li { margin: .25rem 0; }
+  code { font-family: "SF Mono","DejaVu Sans Mono",Menlo,Consolas,monospace;
+         font-size: .82em; background: var(--code); padding: .08em .35em; border-radius: 3px; }
+  pre { background: #2b2b28; color: #f4f3ea; padding: 1rem 1.1rem; border-radius: 6px;
+        overflow-x: auto; font-size: .8rem; line-height: 1.5; margin: 1rem 0; }
+  pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+  .tok-c { color: #8f9183; } .tok-k { color: #e0a36b; } .tok-t { color: #8fbcd4; }
+  .tok-s { color: #c3d39a; } .tok-f { color: #d9b3e0; }
+  a { color: var(--accent); }
+  sup a { text-decoration: none; font-size: .7em; }
+  aside.note { background:#f6f5ea; border:1px solid var(--rule); border-radius:6px;
+        padding:.9rem 1.1rem; font-size:.92rem; margin:1.4rem 0; }
+  aside.note b { color: var(--accent); }
+
+  .quiz { border-top: 2px solid var(--ink); margin-top: 3rem; padding-top: 1.4rem; }
+  .q { margin: 1.8rem 0; }
+  .q .stem { font-weight: 600; margin-bottom: .7rem; }
+  .q .stem .n { color: var(--accent); margin-right:.4rem; }
+  .opts { display: grid; gap: .5rem; }
+  .opt { text-align:left; font: inherit; cursor: pointer; background: #fff;
+         border: 1px solid var(--rule); border-radius: 6px; padding: .6rem .85rem;
+         transition: background .12s, border-color .12s; }
+  .opt:hover:not(:disabled) { border-color: var(--accent); }
+  .opt:disabled { cursor: default; }
+  .opt.correct { border-color: var(--good); background: #eaf5ee; }
+  .opt.wrong { border-color: var(--bad); background: #f7ebeb; }
+  .fb { font-size: .9rem; margin-top: .55rem; min-height: 1.2em; }
+  .fb.correct { color: var(--good); } .fb.wrong { color: var(--bad); }
+  .fb b { font-weight: 600; }
+  #score { font-family: sans-serif; font-size: 1rem; margin-top: 2rem;
+           padding: 1rem; border: 1px dashed var(--rule); border-radius: 6px;
+           text-align: center; color: var(--muted); }
+  #score.done { color: var(--ink); border-style: solid; }
+
+  .next { border-top: 1px solid var(--rule); margin-top: 3rem; padding-top: 1.4rem; }
+  .pill { display:inline-block; font-family:sans-serif; font-size:.72rem; letter-spacing:.08em;
+          text-transform:uppercase; background:var(--code); color:var(--muted);
+          padding:.2rem .55rem; border-radius:99px; margin-right:.4rem; }
+  footer { color: var(--muted); font-size: .85rem; margin-top: 2rem; }
+  .ask { background:#fdf6e3; border:1px solid #e4d9a8; border-radius:6px;
+         padding:.9rem 1.1rem; font-size:.92rem; margin-top:2rem; }
+  @media print { body{font-size:12pt;padding:1rem;} pre{background:#eee;color:#000;}
+    .opt{background:#fff;} a{color:var(--ink);} .quiz .fb{display:block;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">Lesson 05 · Type-level programming</p>
+  <h1>Conditional Types &amp; <code>infer</code></h1>
+  <p class="sub">A type that decides — and a way to reach inside another type and pull a piece out.</p>
+  <p class="mission">★ Mission link: this is where you cross from <em>using</em> types to <em>computing</em>
+     with them. Every reusable utility worth its name (<code>ReturnType</code>, <code>Awaited</code>, your own)
+     is a conditional type with an <code>infer</code>. Builds on <a href="0003-generics.html">Lesson 03</a>
+     (<code>extends</code> = ⊆), <a href="0001-types-as-sets.html">Lesson 01</a> (<code>never</code> = ∅), and
+     <a href="0004-variance.html">Lesson 04</a> (param vs. return positions).</p>
+
+  <h2>The ternary, lifted to types</h2>
+  <p>You know the value-level ternary. A <strong>conditional type</strong> is the same shape, one level up —
+     and the test <code>extends</code> is the exact <em>⊆ (subset)</em> reading from Lesson 03, not class
+     inheritance:<sup><a href="#r1">1</a></sup></p>
+  <pre><code><span class="tok-k">type</span> <span class="tok-t">IsString</span>&lt;<span class="tok-t">T</span>&gt; = <span class="tok-t">T</span> <span class="tok-k">extends</span> <span class="tok-t">string</span> ? <span class="tok-s">"yes"</span> : <span class="tok-s">"no"</span>;
+
+<span class="tok-k">type</span> <span class="tok-t">A</span> = <span class="tok-t">IsString</span>&lt;<span class="tok-s">"hi"</span>&gt;;   <span class="tok-c">// "yes"  — "hi" ⊆ string</span>
+<span class="tok-k">type</span> <span class="tok-t">B</span> = <span class="tok-t">IsString</span>&lt;<span class="tok-t">number</span>&gt;; <span class="tok-c">// "no"   — number ⊄ string</span></code></pre>
+  <p>Read it aloud: "if <code>T</code>'s set fits inside <code>string</code>'s set, then …, else …." That's all
+     a conditional type is.</p>
+
+  <h2>Distribution: it loops over unions for free</h2>
+  <p>The one rule that surprises everyone: when the checked type is a <em>bare</em> type parameter and you hand
+     it a <strong>union</strong>, the conditional <em>distributes</em> — it runs once per member and unions the
+     results.<sup><a href="#r2">2</a></sup></p>
+  <pre><code><span class="tok-k">type</span> <span class="tok-t">ToArray</span>&lt;<span class="tok-t">T</span>&gt; = <span class="tok-t">T</span> <span class="tok-k">extends</span> <span class="tok-t">any</span> ? <span class="tok-t">T</span>[] : <span class="tok-k">never</span>;
+
+<span class="tok-k">type</span> <span class="tok-t">R</span> = <span class="tok-t">ToArray</span>&lt;<span class="tok-t">string</span> | <span class="tok-t">number</span>&gt;;
+<span class="tok-c">// NOT (string | number)[] — it distributes:</span>
+<span class="tok-c">// = ToArray&lt;string&gt; | ToArray&lt;number&gt; = string[] | number[]</span></code></pre>
+  <p>To <strong>stop</strong> distribution, wrap both sides in a one-tuple <code>[T] extends [U]</code> — now
+     the union is tested as a single whole:<sup><a href="#r2">2</a></sup></p>
+  <pre><code><span class="tok-k">type</span> <span class="tok-t">ToArray</span>&lt;<span class="tok-t">T</span>&gt; = [<span class="tok-t">T</span>] <span class="tok-k">extends</span> [<span class="tok-t">any</span>] ? <span class="tok-t">T</span>[] : <span class="tok-k">never</span>;
+<span class="tok-k">type</span> <span class="tok-t">R</span> = <span class="tok-t">ToArray</span>&lt;<span class="tok-t">string</span> | <span class="tok-t">number</span>&gt;;  <span class="tok-c">// (string | number)[]</span></code></pre>
+  <aside class="note"><b>Why this matters:</b> distribution is how a single conditional transforms every member
+     of a union at once — the workhorse of type utilities. But it's also a silent footgun: forget the brackets
+     and your "whole-union" test secretly runs per-member. Knowing when to add <code>[ ]</code> is a senior tell.</aside>
+
+  <h2><code>infer</code>: pattern-match and capture</h2>
+  <p>Inside the <code>extends</code> clause you can declare a placeholder with <code>infer</code> — "match this
+     shape, and bind <em>this part</em> to a name I can use in the <em>true</em> branch."<sup><a href="#r3">3</a></sup>
+     This is how you reach <em>into</em> a type:</p>
+  <pre><code><span class="tok-c">// Pull the element type out of an array</span>
+<span class="tok-k">type</span> <span class="tok-t">ElementOf</span>&lt;<span class="tok-t">T</span>&gt; = <span class="tok-t">T</span> <span class="tok-k">extends</span> (<span class="tok-k">infer</span> <span class="tok-t">U</span>)[] ? <span class="tok-t">U</span> : <span class="tok-k">never</span>;
+<span class="tok-k">type</span> <span class="tok-t">E</span> = <span class="tok-t">ElementOf</span>&lt;<span class="tok-t">boolean</span>[]&gt;;   <span class="tok-c">// boolean</span>
+
+<span class="tok-c">// The real ReturnType — capture the return position</span>
+<span class="tok-k">type</span> <span class="tok-t">MyReturn</span>&lt;<span class="tok-t">T</span>&gt; = <span class="tok-t">T</span> <span class="tok-k">extends</span> (...a: <span class="tok-t">any</span>[]) =&gt; <span class="tok-k">infer</span> <span class="tok-t">R</span> ? <span class="tok-t">R</span> : <span class="tok-k">never</span>;
+<span class="tok-k">type</span> <span class="tok-t">N</span> = <span class="tok-t">MyReturn</span>&lt;() =&gt; <span class="tok-t">number</span>&gt;;  <span class="tok-c">// number</span></code></pre>
+  <p>Notice the fallback is <code>never</code> — the empty set from
+     <a href="0001-types-as-sets.html">Lesson 01</a>. "No match" should produce "no values," and
+     <code>T | never</code> collapses to <code>T</code>, so a <code>never</code> branch vanishes cleanly under
+     distribution. That's why it's the idiomatic else-branch, not <code>any</code> or <code>unknown</code>.</p>
+
+  <aside class="note"><b>Variance, made concrete:</b> swap the return for a parameter —
+     <code>T extends (a: infer P) =&gt; any ? P : never</code> — and you've built <code>Parameters</code>. The two
+     <code>infer</code> positions are exactly the covariant (return) and contravariant (parameter) slots from
+     <a href="0004-variance.html">Lesson 04</a>. Same machine, opposite variance.</aside>
+
+  <!-- ============ QUIZ ============ -->
+  <div class="quiz">
+    <p class="kicker">Retrieval practice</p>
+    <h2 style="margin-top:.3rem">Check yourself</h2>
+    <p style="color:var(--muted);font-size:.92rem">From memory. Q1 and Q5 reach back to Lessons 01 &amp; 03 — on purpose.</p>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">1.</span>In <code>T extends U ? X : Y</code>, the test <code>extends</code> asks whether <code>T</code>…</div>
+      <div class="opts">
+        <button class="opt">is a subset</button>
+        <button class="opt">is a superset</button>
+        <button class="opt">equals exactly U</button>
+        <button class="opt">is unrelated entirely</button>
+      </div>
+      <div class="fb" data-why="Same ⊆ reading as a generic constraint: the true branch is taken when T's set fits inside U's set."></div>
+    </div>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">2.</span>Given a union and a <em>bare</em> type-parameter check, the conditional is…</div>
+      <div class="opts">
+        <button class="opt">combined</button>
+        <button class="opt">distributed</button>
+        <button class="opt">rejected</button>
+        <button class="opt">skipped</button>
+      </div>
+      <div class="fb" data-why="It distributes: runs once per union member and unions the results. ToArray&lt;A|B&gt; = ToArray&lt;A&gt; | ToArray&lt;B&gt;."></div>
+    </div>
+
+    <div class="q" data-correct="3">
+      <div class="stem"><span class="n">3.</span>To switch distribution <em>off</em>, wrap both sides in…</div>
+      <div class="opts">
+        <button class="opt">angle generic brackets</button>
+        <button class="opt">round function parentheses</button>
+        <button class="opt">curly object braces</button>
+        <button class="opt">tuple square brackets</button>
+      </div>
+      <div class="fb" data-why="[T] extends [U] tests the union as one whole — the one-element tuple defeats distribution."></div>
+    </div>
+
+    <div class="q" data-correct="2">
+      <div class="stem"><span class="n">4.</span>In <code>T extends (...a:any[]) =&gt; infer R ? R : never</code>, <code>infer R</code> captures the…</div>
+      <div class="opts">
+        <button class="opt">first parameter type</button>
+        <button class="opt">full argument tuple</button>
+        <button class="opt">function return type</button>
+        <button class="opt">the instance type</button>
+      </div>
+      <div class="fb" data-why="infer R sits in the return position, so it binds the return type — this is exactly how ReturnType works."></div>
+    </div>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">5.</span>The idiomatic "no match" branch of an extracting conditional yields…</div>
+      <div class="opts">
+        <button class="opt">unknown</button>
+        <button class="opt">never</button>
+        <button class="opt">any</button>
+        <button class="opt">void</button>
+      </div>
+      <div class="fb" data-why="never = ∅: 'no match → no values'. It also absorbs cleanly under distribution (T | never = T)."></div>
+    </div>
+
+    <div id="score">Answer all five to see your score.</div>
+  </div>
+
+  <!-- ============ NEXT ============ -->
+  <div class="next">
+    <h2>Primary source (read this next)</h2>
+    <p><span class="pill">Most trusted</span>
+       <a href="https://www.typescriptlang.org/docs/handbook/2/conditional-types.html" target="_blank">TS Handbook — Conditional Types</a>.
+       Conditional types, distributivity, and <code>infer</code> with runnable examples. ~20 min.</p>
+    <p style="font-size:.9rem;color:var(--muted)">Deeper, when ready:
+       <a href="https://type-level-typescript.com/" target="_blank">Type-Level TypeScript</a> treats conditionals
+       and <code>infer</code> as the branching + destructuring primitives of a real type-level language.</p>
+
+    <h2>Where this goes</h2>
+    <p><span class="pill">Lesson 06</span> <strong>Mapped types &amp; key remapping</strong> — iterate over
+       <code>keyof T</code> to rebuild an object type (<code>Partial</code>, <code>Readonly</code>, and your own),
+       and rename keys with <code>as</code>. Conditionals inside a mapped type are where utilities get powerful.</p>
+    <p style="margin-top:1.4rem"><a href="../reference/glossary.html#conditional">→ Glossary</a> &nbsp;·&nbsp;
+       <a href="0004-variance.html">← Lesson 04</a> &nbsp;·&nbsp;
+       <a href="../RESOURCES.md">All resources</a></p>
+  </div>
+
+  <div class="ask">
+    <b>I'm your teacher.</b> Build one from scratch: write <code>Awaited&lt;T&gt;</code> — unwrap a
+    <code>Promise&lt;X&gt;</code> to <code>X</code> (bonus: handle a non-promise, and a nested
+    <code>Promise&lt;Promise&lt;X&gt;&gt;</code> recursively). Paste your attempt and I'll review it like a senior
+    reviewer — recursion in conditionals is the on-ramp to Lesson 07.
+  </div>
+
+  <footer>
+    <span id="r1">1.</span> <a href="https://www.typescriptlang.org/docs/handbook/2/conditional-types.html">TS Handbook — Conditional Types</a>. &nbsp;
+    <span id="r2">2.</span> <a href="https://www.typescriptlang.org/docs/handbook/2/conditional-types.html#distributive-conditional-types">TS Handbook — Distributive conditional types</a>. &nbsp;
+    <span id="r3">3.</span> <a href="https://www.typescriptlang.org/docs/handbook/2/conditional-types.html#inferring-within-conditional-types">TS Handbook — Inferring with <code>infer</code></a>.
+  </footer>
+</div>
+
+<script>
+  const qs = [...document.querySelectorAll('.q')];
+  let answered = 0, correct = 0;
+  qs.forEach(q => {
+    const right = +q.dataset.correct;
+    const opts = [...q.querySelectorAll('.opt')];
+    const fb = q.querySelector('.fb');
+    opts.forEach((opt, i) => {
+      opt.addEventListener('click', () => {
+        opts.forEach(o => o.disabled = true);
+        const ok = i === right;
+        opts[right].classList.add('correct');
+        if (!ok) opt.classList.add('wrong');
+        fb.classList.add(ok ? 'correct' : 'wrong');
+        fb.innerHTML = (ok ? '<b>Correct.</b> ' : '<b>Not quite.</b> ') + fb.dataset.why;
+        answered++; if (ok) correct++;
+        if (answered === qs.length) {
+          const s = document.getElementById('score');
+          s.classList.add('done');
+          const msg = correct === qs.length ? 'Conditionals solid. Mapped types are next.' :
+                      correct >= 3 ? 'Good. Re-read the misses — distribution and infer are the load-bearing bits.' :
+                      'Re-read above and retake — every type utility you build sits on these two ideas.';
+          s.textContent = `Score: ${correct} / ${qs.length}. ${msg}`;
+        }
+      });
+    });
+  });
+</script>
+</body>
+</html>
