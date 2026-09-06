@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — Streams, Buffers &amp; Binary Data</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 6</span><span>JS &amp; Node for TypeScript Devs</span></div>
+  <h1>Streams, Buffers &amp; Binary Data</h1>
+  <p class="subtitle">Process large data in chunks with <code>node:stream</code> and handle raw bytes with <code>node:buffer</code>.</p>
+</header>
+
+<section>
+<h2>Don't load everything into RAM</h2>
+<p>Loading a large file entirely into memory exhausts RAM and pressures the garbage collector. Node <strong>streams</strong>
+process data <em>chunk by chunk</em>, keeping memory use low and constant. For a TypeScript developer, typing stream
+events and pipelines makes data transformations safe.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Buffers: raw bytes outside the heap</h2>
+<p>A <code>Buffer</code> is a fixed-size chunk of memory allocated <em>outside</em> the V8 heap, used for binary data
+(file I/O, network packets, cryptography). It is bytes, not text — don't treat it as a UTF-8 string:</p>
+<pre><code>import { Buffer } from "node:buffer";
+
+const buf = Buffer.from("Hello Node.js Streams", "utf-8");
+console.log(buf.length);        // byte length (not character count)
+console.log(buf.toString("hex")); // hex representation of the bytes</code></pre>
+
+<h2>Compose pipelines instead of listener soup</h2>
+<p>Manual <code>.on("data")</code>/<code>.on("error")</code> wiring is leak-prone and hard to read.
+<code>node:stream/promises</code> exports <code>pipeline</code>, which composes a read→transform→write chain with
+automatic cleanup and error propagation:</p>
+<pre><code>import fs from "node:fs";
+import zlib from "node:zlib";
+import { pipeline } from "node:stream/promises";
+
+async function compressFile(inputPath: string, outputPath: string): Promise&lt;void&gt; {
+  try {
+    await pipeline(
+      fs.createReadStream(inputPath),
+      zlib.createGzip(),
+      fs.createWriteStream(outputPath)
+    );
+    console.log("File compression completed successfully.");
+  } catch (error) {
+    console.error("Pipeline compression failed:", error);
+    throw error;
+  }
+}</code></pre>
+
+<aside class="note"><strong>Key idea</strong> <em>Why</em> streams? Constant, low memory usage for arbitrarily large
+data — the whole point of a streaming pipeline is that you never hold more than a chunk at a time.</aside>
+</section>
+
+<section class="quiz-section">
+<h2>Check yourself</h2>
+
+<div class="q" data-correct="1">
+  <h4>1. Why use <code>pipeline</code> from <code>node:stream/promises</code> instead of loading a large file entirely into memory?</h4>
+  <button class="opt" data-fb="Compilation is unrelated to how you read files at runtime.">It compiles TypeScript code faster at runtime</button>
+  <button class="opt" data-fb="Correct — chunk-by-chunk processing keeps memory low and constant.">It processes data in chunks, maintaining constant low memory usage</button>
+  <button class="opt" data-fb="GC is still involved; streams just avoid holding everything at once.">It bypasses the V8 garbage collector entirely</button>
+  <button class="opt" data-fb="Streams are memory-optimized, not necessarily faster wall-clock.">It makes the disk faster</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="0">
+  <h4>2. What is a <code>Buffer</code>?</h4>
+  <button class="opt" data-fb="Correct — a fixed-size byte chunk outside the V8 heap.">A fixed-size chunk of memory allocated outside the V8 heap, holding raw bytes</button>
+  <button class="opt" data-fb="It's bytes; not a string type.">A UTF-8 string type</button>
+  <button class="opt" data-fb="Buffers are not a queue; streams are the chunking mechanism.">A queue that grows one character at a time</button>
+  <button class="opt" data-fb="Buffers exist inside the V8 heap, not outside it.">Memory allocated inside the V8 heap automatically</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="3">
+  <h4>3. What does <code>buf.length</code> report for a UTF-8 multi-byte string?</h4>
+  <button class="opt" data-fb="length is the byte count, which differs from char count for multi-byte.">The number of Unicode characters</button>
+  <button class="opt" data-fb="There is no such property; buffered data is lengthless.">An error — buffers have no length</button>
+  <button class="opt" data-fb="length reports the hexadecimal byte count; toString('hex') shows values.">The hex representation</button>
+  <button class="opt" data-fb="Correct — buf.length is the byte length, generally larger than the character count.">The byte length, not the character count</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="1">
+  <h4>4. The win of <code>pipeline</code> over manual <code>.on("data")</code> listeners is…</h4>
+  <button class="opt" data-fb="The opposite — pipeline is the leak-free composition.">more memory leaks per connection</button>
+  <button class="opt" data-fb="Correct — you get automatic resource cleanup and error propagation.">automatic resource cleanup and error propagation</button>
+  <button class="opt" data-fb="pipeline does not add parallel workers.">extra threads for parallel reads</button>
+  <button class="opt" data-fb="pipeline is available in the base stream module too, but promises/pipeline is the clean form.">it requires no <code>await</code></button>
+  <div class="fb"></div>
+</div>
+
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Node's official streams reference, including the modern <code>stream/promises</code> <code>pipeline</code>:
+<a href="https://nodejs.org/docs/latest-v22.x/api/stream.html" target="_blank">Node.js — Streams</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Finished here? Sketch a <code>pipeline</code> that reads a CSV from a
+file, zlib-buffers it, and writes it out — then explain why the memory footprint stays flat even for a 4&nbsp;GB source.
+Bring the sketch back for review.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://nodejs.org/docs/latest-v22.x/api/stream.html">Node.js — Streams</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-fs-path-and-os-standard-modules.html">← Lesson 3: fs, path &amp; os</a></span>
+  <span class="nav-next"><a href="0005-http-net-and-network-services.html">Lesson 5: HTTP &amp; networking →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  JS &amp; Node for TS Devs · <a href="../reference/glossary.html">Glossary</a> · <a href="../MISSION.md">Mission</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() {
+    if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; }
+  }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

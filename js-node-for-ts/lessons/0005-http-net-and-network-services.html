@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — HTTP Servers, Sockets &amp; Fetch</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 6</span><span>JS &amp; Node for TypeScript Devs</span></div>
+  <h1>HTTP Servers, Sockets &amp; Fetch</h1>
+  <p class="subtitle">Native servers with <code>node:http</code>, TCP with <code>node:net</code>, and the global <code>fetch</code> client.</p>
+</header>
+
+<section>
+<h2>A server without a framework</h2>
+<p>You do not need Express to serve HTTP in Node.js. The standard <code>node:http</code> module builds
+high-performance servers with explicit request/response handling — full control, no framework opaqueness:<sup><a href="#r1">1</a></sup></p>
+<pre><code>import http from "node:http";
+
+interface HealthResponse { status: string; uptime: number; }
+
+const server = http.createServer((req, res) =&gt; {
+  if (req.method === "GET" &amp;&amp; req.url === "/health") {
+    const payload: HealthResponse = { status: "healthy", uptime: process.uptime() };
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(payload));
+  } else {
+    res.writeHead(404, { "Content-Type": "text/plain" });
+    res.end("Not Found");
+  }
+});
+
+server.listen(8080, "127.0.0.1", () =&gt; {
+  console.log("Server listening on http://127.0.0.1:8080");
+});</code></pre>
+<p>The request <code>req</code> and response <code>res</code> are streams — that's why they compose with the
+pipeline lesson you just finished.</p>
+
+<h2>Outbound requests with the global <code>fetch</code></h2>
+<p>Modern Node.js ships the standard global <code>fetch</code> API, so HTTP clients need no third-party dependency.
+Typed and native:</p>
+<pre><code>async function fetchGitHubUser(username: string): Promise&lt;{ login: string; public_repos: number }&gt; {
+  const response = await fetch(`https://api.github.com/users/${username}`, {
+    headers: { "User-Agent": "NodeJS-Client" }
+  });
+  if (!response.ok) {
+    throw new Error(`GitHub API error: ${response.statusText}`);
+  }
+  return response.json() as Promise&lt;{ login: string; public_repos: number }&gt;;
+}</code></pre>
+
+<aside class="note"><strong>Key idea</strong> <code>node:http</code> builds servers; global <code>fetch</code> builds
+clients; <code>node:net</code> gives raw TCP when you need a protocol below HTTP. All native, all typed.</aside>
+</section>
+
+<section class="quiz-section">
+<h2>Check yourself</h2>
+
+<div class="q" data-correct="1">
+  <h4>1. What API does modern Node.js provide globally for HTTP client requests without third-party packages?</h4>
+  <button class="opt" data-fb="axios is a third-party package; global fetch is the native answer."><code>axios.get()</code></button>
+  <button class="opt" data-fb="Correct — global fetch is built-in.">Global <code>fetch()</code> function</button>
+  <button class="opt" data-fb="There is no such method in node:http."><code>http.requestClient()</code></button>
+  <button class="opt" data-fb="superagent is also third-party; fetch is standard."><code>superagent</code></button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="2">
+  <h4>2. Why do request <code>req</code> and response <code>res</code> objects in <code>node:http</code> compose with streams?</h4>
+  <button class="opt" data-fb="They are stream instances, not pre-buffered objects.">They are plain JSON objects</button>
+  <button class="opt" data-fb="They aren't disconnected; streaming is exactly how they work.">They are disconnected from I/O by design</button>
+  <button class="opt" data-fb="Correct — both are streams, so they interoperate with pipeline and chunked processing.">Both are streams, so data flows chunk by chunk</button>
+  <button class="opt" data-fb="No framework is involved here; that's about the handler shape.">Because they extend Express</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="0">
+  <h4>3. Which module gives raw TCP when you need a protocol below HTTP?</h4>
+  <button class="opt" data-fb="Correct — node:net is the raw networking module."><code>node:net</code></button>
+  <button class="opt" data-fb="http is for HTTP, not raw TCP."><code>node:http</code></button>
+  <button class="opt" data-fb="buffer is bytes, not socket logic."><code>node:buffer</code></button>
+  <button class="opt" data-fb="os is system info, not networking."><code>node:os</code></button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="3">
+  <h4>4. When is building on <code>node:http</code> preferable to pulling in a framework?</h4>
+  <button class="opt" data-fb="That's the opposite — node:http is the no-framework option.">When you want heavy routing middleware by default</button>
+  <button class="opt" data-fb="Native code is not automatically unsafe; frameworks add surface, not safety.">When you need automatic vulnerability shielding</button>
+  <button class="opt" data-fb="node:http needs no compilation step.">When you want a mandatory build step</button>
+  <button class="opt" data-fb="Correct — for small, explicit endpoints, the native module gives full control with zero dependencies.">For small, explicit endpoints where you want zero dependencies and full control</button>
+  <div class="fb"></div>
+</div>
+
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Node's official HTTP module reference — server and request/response shape:
+<a href="https://nodejs.org/docs/latest-v22.x/api/http.html" target="_blank">Node.js — HTTP</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Finished here? Build a tiny typed <code>node:http</code> server with
+three routes (<code>/</code>, <code>/health</code>, <code>404</code>) and give the JSON bodies a shared interface.
+Bring it back and I'll review the shape and typing.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://nodejs.org/docs/latest-v22.x/api/http.html">Node.js — HTTP</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-streams-buffers-and-binary-data.html">← Lesson 4: Streams &amp; buffers</a></span>
+  <span class="nav-next"><a href="0006-events-worker-threads-and-concurrency.html">Lesson 6: Events &amp; concurrency →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  JS &amp; Node for TS Devs · <a href="../reference/glossary.html">Glossary</a> · <a href="../MISSION.md">Mission</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() {
+    if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; }
+  }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

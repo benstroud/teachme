@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — File System, Path &amp; OS Modules</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 6</span><span>JS &amp; Node for TypeScript Devs</span></div>
+  <h1>File System, Path &amp; OS Modules</h1>
+  <p class="subtitle">Reading, writing, and resolving paths on the OS — <code>node:fs</code>, <code>node:path</code>, <code>node:os</code>.</p>
+</header>
+
+<section>
+<h2>Prefer the promise API</h2>
+<p>Node's <code>node:fs</code> offers three styles. Modern code reaches for the <strong>promise-based</strong>
+variant, <code>node:fs/promises</code>, which composes cleanly with <code>async/await</code> and avoids both
+blocking calls and manual error-first callbacks:<sup><a href="#r1">1</a></sup></p>
+<pre><code>import fs from "node:fs/promises";
+import path from "node:path";
+import os from "node:os";
+
+async function readConfigFile(filePath: string) {
+  try {
+    const resolvedPath = path.resolve(filePath);   // absolute, platform-safe
+    const content = await fs.readFile(resolvedPath, { encoding: "utf-8" });
+    return JSON.parse(content);
+  } catch (error) {
+    console.error(`Failed to read config from OS (${os.platform()})`, error);
+    throw error;
+  }
+}</code></pre>
+
+<h2>Never concatenate paths with <code>+</code></h2>
+<p>Path separators differ (<code>/</code> on POSIX, <code>\</code> on Windows). Joining manually with string
+concatenation is a cross-platform bug waiting to happen. Use <code>path.join</code> or <code>path.resolve</code>
+so separators are chosen for you:</p>
+<pre><code>import path from "node:path";
+
+const configFilePath = path.join(import.meta.dirname, "config", "settings.json");
+// => works on Windows and POSIX</code></pre>
+
+<aside class="note"><strong>Key idea</strong> <code>path.resolve</code> returns an absolute, normalized path;
+<code>path.join</code> just concatenates segments with the correct separator. TypeScript's <code>import.meta.dirname</code>
+gives you the current module's directory — the modern replacement for the old <code>__dirname</code>.</aside>
+</section>
+
+<section class="quiz-section">
+<h2>Check yourself</h2>
+
+<div class="q" data-correct="1">
+  <h4>1. Which module and API style should be preferred for reading files asynchronously in modern Node.js?</h4>
+  <button class="opt" data-fb="Blocking calls freeze the whole process; not the default for modern code.">Synchronous methods (<code>fs.readFileSync</code>) for speed</button>
+  <button class="opt" data-fb="Correct — promise-based is the modern, clean, non-blocking default.">Promise-based methods (<code>node:fs/promises</code>) with async/await</button>
+  <button class="opt" data-fb="Callback style predates promises and is more error-prone.">Callback-based methods with manual error-first handling</button>
+  <button class="opt" data-fb="Buffer is for binary data; not the file-read workhorse.">The <code>node:buffer</code> module only</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="3">
+  <h4>2. Why is building a path with string concatenation (<code>"a" + "/" + b</code>) a bug source?</h4>
+  <button class="opt" data-fb="The opposite — path.join picks the platform's separator correctly.">It always produces the correct separator on every OS</button>
+  <button class="opt" data-fb="Encoding is not the failure — separator differences are.">It corrupts the file encoding</button>
+  <button class="opt" data-fb="It doesn't make paths absolute; that's not the join problem.">It incorrectly makes paths absolute</button>
+  <button class="opt" data-fb="Correct — the separator differs by platform, so manual concatenation breaks cross-platform code.">The path separator differs by platform, so manual concatenation can break</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="0">
+  <h4>3. <code>path.resolve(p)</code> returns…</h4>
+  <button class="opt" data-fb="Correct — absolute and normalized.">an absolute, normalized path</button>
+  <button class="opt" data-fb="resolve normalizes; it does not read the file.">the contents of the file at p</button>
+  <button class="opt" data-fb="It does not touch the filesystem — it's pure string/path logic.">a filesystem handle you must close</button>
+  <button class="opt" data-fb="That's os.platform's job.">the operating system's name</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="2">
+  <h4>4. Which gives you the directory of the currently executing module?</h4>
+  <button class="opt" data-fb="That's the old pre-ESM global, not your friend here."><code>__dirname</code></button>
+  <button class="opt" data-fb="os gives system info, not the module directory."><code>os.cwd()</code></button>
+  <button class="opt" data-fb="Correct — import.meta.dirname is the modern ESM way."><code>import.meta.dirname</code></button>
+  <button class="opt" data-fb="path.resolve needs an argument; this is not a path."><code>path.dirname</code></button>
+  <div class="fb"></div>
+</div>
+
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Node's official <code>fs</code> reference, covering all three API styles and the promise variant:
+<a href="https://nodejs.org/docs/latest-v22.x/api/fs.html" target="_blank">Node.js — File System (fs)</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Finished here? Write a small function that lists every
+<code>.json</code> file in a directory tree using <code>node:fs/promises</code> + <code>node:path</code>, then
+bring it back — I'll review it for both correctness and the async style you chose.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://nodejs.org/docs/latest-v22.x/api/fs.html">Node.js — File System (fs)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-async-event-loop-and-promises.html">← Lesson 2: Event loop</a></span>
+  <span class="nav-next"><a href="0004-streams-buffers-and-binary-data.html">Lesson 4: Streams &amp; buffers →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  JS &amp; Node for TS Devs · <a href="../reference/glossary.html">Glossary</a> · <a href="../MISSION.md">Mission</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() {
+    if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; }
+  }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

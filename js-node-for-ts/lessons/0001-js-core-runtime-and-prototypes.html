@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — JS Core, Prototypes &amp; Object Model</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 6</span><span>JS &amp; Node for TypeScript Devs</span></div>
+  <h1>JS Core, Prototypes &amp; Object Model</h1>
+  <p class="subtitle">The runtime TypeScript erases: prototypal inheritance, closures, and dynamic objects.</p>
+</header>
+
+<section>
+<h2>TypeScript is erased; JavaScript runs objects</h2>
+<p>You use types, classes, interfaces, and generics every day. At runtime, though, TypeScript is compiled away.
+JavaScript executes entirely through <strong>prototypal inheritance</strong> and a <strong>dynamic object model</strong>.
+Mastering that runtime foundation is what makes your Node.js backend behavior predictable.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Prototypal inheritance vs. class sugar</h2>
+<p>ES6 <code>class</code> is syntactic sugar over <strong>prototype chains</strong>. Every object has an internal
+link (<code>[[Prototype]]</code>, read via <code>Object.getPrototypeOf()</code> or <code>__proto__</code>) pointing at
+another object. Looking up a property walks the chain until found or until <code>null</code>:</p>
+<pre><code>// Base prototype object
+const loggerPrototype = {
+  log(message) {
+    console.log(`[LOG]: ${message}`);
+  }
+};
+
+// Create an object LINKED to that prototype
+const service = Object.create(loggerPrototype);
+service.name = "AuthService";
+
+service.name;        // "AuthService"  (own property)
+service.log("Active"); // "[LOG]: Active" (inherited up the chain)</code></pre>
+<p>A <code>class</code> compiles down to a constructor function whose instances link to the class's prototype —
+the same mechanism, nicer syntax. Structural typing at compile time; prototypes at runtime.</p>
+
+<h2>Closures and scope</h2>
+<p>Functions capture their <strong>lexical scope</strong> even after the outer function returns. This is the backbone
+of data encapsulation and factory functions in Node.js:</p>
+<pre><code>function createCounter(initial = 0) {
+  let count = initial;             // private via closure — no object needed
+  return {
+    increment() { return ++count; }
+  };
+}
+
+const counter = createCounter(10);
+counter.increment(); // 11
+counter.increment(); // 12  — count persists inside the closure</code></pre>
+
+<aside class="note"><strong>Key idea</strong> Types check <em>which values</em> can flow where, at compile time.
+Prototypes and closures determine <em>how objects and state actually behave</em>, at runtime. Both matter; never confuse
+them.</aside>
+</section>
+
+<section class="quiz-section">
+<h2>Check yourself</h2>
+
+<div class="q" data-correct="1">
+  <h4>1. How does JavaScript implement object inheritance under the hood at runtime?</h4>
+  <button class="opt" data-fb="Class syntax is sugar over the prototype chain — this is exactly right.">Objects link to parent prototypes; lookups walk the chain</button>
+  <button class="opt" data-fb="Compile-time vtables are not a JS thing — inheritance is runtime via prototypes.">Via compile-time vtables compiled to machine code</button>
+  <button class="opt" data-fb="JS objects are dynamic; the runtime does not enforce class interfaces.">Via strict class interfaces enforced by the V8 memory manager</button>
+  <button class="opt" data-fb="There is no method table — lookups walk the prototype chain.">Via a hidden method table on every instance</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="3">
+  <h4>2. What does the ES6 <code>class</code> keyword actually compile to at runtime?</h4>
+  <button class="opt" data-fb="Classes do not map to separate runtime objects like this; it's a prototype mechanism.">A special class object the VM checks directly</button>
+  <button class="opt" data-fb="JIT is orthogonal — the model is still prototypal.">A compiled native structure for JIT</button>
+  <button class="opt" data-fb="Interfaces exist only at compile time in TypeScript.">A runtime interface that enforces members</button>
+  <button class="opt" data-fb="Correct — the constructor function + its prototype chain is all a class is.">A constructor function plus a prototype chain</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="0">
+  <h4>3. After <code>createCounter(10)</code> returns, how does <code>counter.increment()</code> still see <code>count</code>?</h4>
+  <button class="opt" data-fb="Correct — the closure retains its lexical scope even after the function returns.">The returned object's method closes over the outer function's <code>count</code></button>
+  <button class="opt" data-fb="Global scope would leak it to everyone; the point is it's private.">count is stored on the global scope</button>
+  <button class="opt" data-fb="Prototypes are about inheritance, not private state here.">count lives on a shared prototype object</button>
+  <button class="opt" data-fb="There is no object to own it — the closure is what holds it.">count is stored as an instance property on the object</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="2">
+  <h4>4. Which statement best separates TypeScript's job from JavaScript's job?</h4>
+  <button class="opt" data-fb="Reverse — TS types check values at compile time; JS runs them at runtime.">TypeScript runs the code; JavaScript checks the types</button>
+  <button class="opt" data-fb="No — prototypes and closures are runtime JS semantics, not TS.">TypeScript prototypes replace JavaScript inheritance</button>
+  <button class="opt" data-fb="Correct. TS narrows which values flow (compile time); JS dictates how objects and state behave (runtime).">TypeScript checks <em>which values</em> flow; JavaScript decides <em>how objects behave</em></button>
+  <button class="opt" data-fb="The runtime model matters greatly for predictable backend behavior.">The runtime object model is irrelevant to backend code</button>
+  <div class="fb"></div>
+</div>
+
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>MDN's authoritative walk through inheritance and the prototype chain, written for exactly this mental model:
+<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Inheritance_and_the_prototype_chain" target="_blank">MDN — Inheritance and the prototype chain</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Finished here? Walk through a real TypeScript <code>class</code> you've written and explain, in your own words, what its <code>super</code> and inherited methods compile to at the prototype level. Bring it back for feedback.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Inheritance_and_the_prototype_chain">MDN — Inheritance and the prototype chain</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Glossary &amp; notes</span>
+  <span class="nav-next"><a href="0002-async-event-loop-and-promises.html">Lesson 2: The event loop →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  JS &amp; Node for TS Devs · <a href="../reference/glossary.html">Glossary</a> · <a href="../MISSION.md">Mission</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() {
+    if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; }
+  }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

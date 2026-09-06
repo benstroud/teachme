@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — Events, Worker Threads &amp; Concurrency</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 6</span><span>JS &amp; Node for TypeScript Devs</span></div>
+  <h1>Events, Worker Threads &amp; Concurrency</h1>
+  <p class="subtitle">Decouple with <code>node:events</code> and offload CPU work with <code>node:worker_threads</code>.</p>
+</header>
+
+<section>
+<h2>Why you need a third way</h2>
+<p>Node's event loop is excellent at I/O concurrency, but CPU-heavy tasks (crypto, image processing, heavy math) will
+<em>block the loop</em>. Two native modules cover the gaps: <code>node:events</code> for decoupled in-app messaging,
+and <code>node:worker_threads</code> for true multi-threaded CPU work.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Type-safe event emitters</h2>
+<p>The <code>EventEmitter</code> pattern is everywhere in Node. In TypeScript you can bind the event names to their
+payload types with a generic map, so emitting the wrong shape is a compile error:</p>
+<pre><code>import { EventEmitter } from "node:events";
+
+interface AppEvents {
+  userLogin: (username: string, timestamp: number) =&gt; void;
+  error: (err: Error) =&gt; void;
+}
+
+class TypedEmitter extends EventEmitter {
+  on&lt;K extends keyof AppEvents&gt;(eventName: K, listener: AppEvents[K]): this {
+    return super.on(eventName, listener);
+  }
+  emit&lt;K extends keyof AppEvents&gt;(eventName: K, ...args: Parameters&lt;AppEvents[K]&gt;): boolean {
+    return super.emit(eventName, ...args);
+  }
+}
+
+const bus = new TypedEmitter();
+bus.on("userLogin", (user, time) =&gt; {
+  console.log(`User ${user} logged in at ${time}`);
+});
+bus.emit("userLogin", "alice", Date.now());</code></pre>
+<p>This reuses the <code>&lt;K extends keyof AppEvents&gt;</code> generic trick from the TypeScript course: the emitter
+enforces exactly the events you declared, with exactly the payload type each expects.</p>
+
+<h2>Offloading CPU work to worker threads</h2>
+<p>When a computation risks blocking the loop, move it to a separate thread with <code>worker_threads</code>.
+The main thread spawns a <code>Worker</code>; the worker posts results back over <code>parentPort</code>:</p>
+<pre><code>import { Worker, isMainThread, parentPort, workerData } from "node:worker_threads";
+
+if (isMainThread) {
+  function runComputeTask(data: number): Promise&lt;number&gt; {
+    return new Promise((resolve, reject) =&gt; {
+      const worker = new Worker(import.meta.filename, { workerData: data });
+      worker.on("message", resolve);
+      worker.on("error", reject);
+    });
+  }
+  runComputeTask(100).then((res) =&gt; console.log("Computation result:", res));
+} else {
+  // Worker thread execution
+  const result = (workerData as number) * 2;
+  parentPort?.postMessage(result);
+}</code></pre>
+
+<aside class="note"><strong>Key idea</strong> The event loop runs I/O concurrently on <em>one</em> thread; worker
+threads give you <em>real parallel CPU execution</em> on additional OS threads. Reach for them when the loop is the
+bottleneck, not for regular I/O (which the loop already handles well).</aside>
+</section>
+
+<section class="quiz-section">
+<h2>Check yourself</h2>
+
+<div class="q" data-correct="1">
+  <h4>1. When should you use <code>node:worker_threads</code> in a Node.js application?</h4>
+  <button class="opt" data-fb="HTTP routing is I/O and belongs on the event loop, not worker threads.">For every incoming HTTP request to handle routing</button>
+  <button class="opt" data-fb="Correct — CPU-intensive work must be offloaded to avoid blocking the loop.">For CPU-intensive computations to prevent blocking the event loop</button>
+  <button class="opt" data-fb="Async file reads are I/O on the loop; no thread needed.">For standard asynchronous file-reading operations</button>
+  <button class="opt" data-fb="Microtask scheduling is the event loop's job, not threads.">For scheduling microtasks</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="3">
+  <h4>2. The typed emitter pattern enforces what at compile time?</h4>
+  <button class="opt" data-fb="It's not about which module emits; it's payload and event-name typing.">Which module owns the event bus</button>
+  <button class="opt" data-fb="The listener signature, not the runtime speed.">Faster emits at runtime</button>
+  <button class="opt" data-fb="It doesn't add memory pools.">Fixed memory allocation</button>
+  <button class="opt" data-fb="Correct — only declared event names, with the exact payload type each expects.">Only the declared event names, each bound to its expected payload type</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="0">
+  <h4>3. Over what channel does a worker thread send its result back to the main thread?</h4>
+  <button class="opt" data-fb="Correct — parentPort.postMessage is the return channel."><code>parentPort.postMessage(...)</code></button>
+  <button class="opt" data-fb="Buffers hold bytes; they aren't the worker message channel."><code>Buffer.from(...)</code></button>
+  <button class="opt" data-fb="fetch is outbound HTTP, not worker messaging."><code>fetch(...)</code></button>
+  <button class="opt" data-fb="EventEmitter is for in-app events; workers use the message channel."><code>EventEmitter.emit(...)</code></button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="2">
+  <h4>4. What's the key difference between the event loop's concurrency and worker threads?</h4>
+  <button class="opt" data-fb="The loop also handles I/O; threads aren't better at everything.">Worker threads replace the event loop for all I/O</button>
+  <button class="opt" data-fb="Every app gets the same number of threads by default.">Node spawns one thread per request automatically</button>
+  <button class="opt" data-fb="Correct — I/O concurrency is one loop; worker threads are parallel CPU on extra OS threads.">I/O concurrency happens on one loop; worker threads give parallel CPU on extra OS threads</button>
+  <button class="opt" data-fb="Promises and threads are separate mechanisms.">Worker threads run promises for you</button>
+  <div class="fb"></div>
+</div>
+
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Where this course leaves you</h2>
+<p>That's the full arc: runtime &amp; prototypes → the event loop → the standard library → streams &amp; buffers →
+networking → events &amp; concurrency. You can now build high-performance, resilient backends using only the native
+Node.js standard library, with TypeScript giving you the contract. Combined with a type-first mindset, that is the
+architectural clarity the MISSION called for.</p>
+
+<h2>Primary sources (deeper, when you're ready)</h2>
+<p>Node's official references for both modules:
+<a href="https://nodejs.org/docs/latest-v22.x/api/events.html" target="_blank">Events</a> ·
+<a href="https://nodejs.org/docs/latest-v22.x/api/worker_threads.html" target="_blank">Worker Threads</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Capstone check: build a small typed event emitter and a worker that
+hashes a password (via <code>node:crypto</code>, CPU-heavy) off the main thread. Bring both back and I'll review them
+like a senior — the combination is exactly what real backend teams ship.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://nodejs.org/docs/latest-v22.x/api/worker_threads.html">Node.js — Worker Threads</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-http-net-and-network-services.html">← Lesson 5: HTTP &amp; networking</a></span>
+  <span class="nav-next"><a href="../reference/glossary.html">Glossary →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  JS &amp; Node for TS Devs · <a href="../reference/glossary.html">Glossary</a> · <a href="../MISSION.md">Mission</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() {
+    if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; }
+  }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

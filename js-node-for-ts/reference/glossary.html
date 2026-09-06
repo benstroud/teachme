@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JS &amp; Node Standard Library — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>JS &amp; Node for TypeScript Devs</span></div>
+  <h1>Glossary</h1>
+  <p class="subtitle">Canonical terms for bridging TypeScript developer mental models to JavaScript runtime &amp; Node.js standard-library behavior.</p>
+</header>
+
+<section>
+<h2>Runtime &amp; Prototype Model</h2>
+<dl>
+  <dt><strong>Prototype chain</strong></dt>
+  <dd>The mechanism by which JavaScript objects inherit properties and methods from other objects, underpinning
+      JavaScript's prototypal inheritance model.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>Closure</strong></dt>
+  <dd>A function bundled together with references to its lexical scope, enabling state persistence and data
+      encapsulation without objects.</dd>
+
+  <dt><strong>Lexical scope</strong></dt>
+  <dd>The scope determined by where code is <em>written</em>, not where it runs. Closures capture it.</dd>
+
+  <dt><strong>Prototype-based inheritance</strong></dt>
+  <dd>Inheritance via object links rather than class hierarchies. ES6 <code>class</code> is syntactic sugar over it.</dd>
+</dl>
+</section>
+
+<section>
+<h2>Asynchronous Execution &amp; Event Loop</h2>
+<dl>
+  <dt><strong>Event loop</strong></dt>
+  <dd>The single-threaded coordination mechanism in Node.js that dispatches asynchronous callbacks, timers, and I/O
+      via microtask and macrotask queues.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>Microtask</strong></dt>
+  <dd>A high-priority queue item (<code>Promise</code> callbacks, <code>process.nextTick</code>) that runs immediately
+      after the current stack empties, <em>before</em> the timer/I-O phase.</dd>
+
+  <dt><strong>Macrotask</strong></dt>
+  <dd>A lower-priority queue item (<code>setTimeout</code>, <code>setInterval</code>, I/O callbacks) that runs in a
+      later phase of the event-loop pass.</dd>
+
+  <dt><strong><code>process.nextTick</code></strong></dt>
+  <dd>Runs a callback in the highest-priority micro phase, ahead of normal promise resolution.</dd>
+</dl>
+</section>
+
+<section>
+<h2>Node.js Standard Library &amp; I/O</h2>
+<dl>
+  <dt><strong>Buffer</strong></dt>
+  <dd>A fixed-size chunk of memory allocated <em>outside</em> the V8 heap, used to handle raw binary data streams in
+      Node.js.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>Stream</strong></dt>
+  <dd>A chunk-by-chunk data-processing mechanism that keeps memory usage low and constant for arbitrarily large data.</dd>
+
+  <dt><strong>Stream pipeline</strong></dt>
+  <dd>A memory-efficient mechanism (<code>pipeline</code> from <code>node:stream/promises</code>) that composes
+      readable, transform, and writable streams with automatic resource cleanup and error propagation.</dd>
+
+  <dt><strong><code>node:fs/promises</code></strong></dt>
+  <dd>The promise-based file-system API, preferred over synchronous or callback-based variants in modern Node.js.</dd>
+</dl>
+</section>
+
+<section>
+<h2>Networking &amp; Concurrency</h2>
+<dl>
+  <dt><strong><code>node:http</code></strong></dt>
+  <dd>The module for building native HTTP servers with explicit request/response handling.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>Global <code>fetch</code></strong></dt>
+  <dd>The built-in HTTP client API available globally in modern Node.js, needing no third-party package.</dd>
+
+  <dt><strong>EventEmitter</strong></dt>
+  <dd>The observer pattern in Node.js; can be strongly typed in TypeScript via a generic event map.</dd>
+
+  <dt><strong>Worker thread</strong></dt>
+  <dd>A separate OS thread from <code>node:worker_threads</code> used to offload CPU-heavy computation so it does not
+      block the main event loop.</dd>
+</dl>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Inheritance_and_the_prototype_chain">MDN — Inheritance and the prototype chain</a></li>
+    <li id="r2"><a href="https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick">Node.js — Event loop, timers, and nextTick</a></li>
+    <li id="r3"><a href="https://nodejs.org/docs/latest-v22.x/api/stream.html">Node.js — Streams</a></li>
+    <li id="r4"><a href="https://nodejs.org/docs/latest-v22.x/api/http.html">Node.js — HTTP</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../lessons/0006-events-worker-threads-and-concurrency.html">← Lesson 6</a></span>
+  <span class="nav-next"><a href="../lessons/0001-js-core-runtime-and-prototypes.html">Start course →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  JS &amp; Node for TS Devs · <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a>
+</footer>
+</body>
+</html>

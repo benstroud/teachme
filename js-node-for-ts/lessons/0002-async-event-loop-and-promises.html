@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — The Event Loop, Callbacks &amp; Promises</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 6</span><span>JS &amp; Node for TypeScript Devs</span></div>
+  <h1>The Event Loop, Callbacks &amp; Promises</h1>
+  <p class="subtitle">Microtasks vs. macrotasks — how Node.js stays single-threaded yet concurrent.</p>
+</header>
+
+<section>
+<h2>A single thread that never blocks</h2>
+<p>Node.js runs your code on one thread and uses an <strong>event loop</strong> to dispatch asynchronous work.
+As I/O operations complete, their callbacks queue up in order. TypeScript can't fix timing bugs — only understanding
+the loop can. The two queue kinds behave very differently:<sup><a href="#r1">1</a></sup></p>
+<ul>
+  <li><strong>Microtasks</strong> (<code>Promise</code> callbacks, <code>process.nextTick</code>) — run immediately
+      after the current stack empties, <em>before</em> the timers/I-O phases.</li>
+  <li><strong>Macrotasks</strong> (<code>setTimeout</code>, I/O callbacks, <code>setInterval</code>) — run in a later
+      phase of the same pass.</li>
+</ul>
+
+<pre><code>console.log("1: Synchronous start");
+
+setTimeout(() => {
+  console.log("4: Macrotask (setTimeout)");
+}, 0);
+
+Promise.resolve().then(() => {
+  console.log("3: Microtask (Promise)");
+});
+
+console.log("2: Synchronous end");
+
+// Output order: 1, 2, 3, 4</code></pre>
+<p>Even with a <code>0</code>-ms timer, the <code>Promise</code> microtask runs first. The timer is queued to the
+macro phase; the promise lands in the micro phase, which the loop drains before moving on.</p>
+
+<h2>Async/await with type safety</h2>
+<p>TypeScript requires that async functions return <code>Promise&lt;T&gt;</code> wrapped types, keeping the
+asynchronous contract explicit:</p>
+<pre><code>async function fetchUserStatus(userId: number): Promise&lt;{ id: number; active: boolean }&gt; {
+  return { id: userId, active: true };  // promised shape, checked by TS
+}
+
+async function main(): Promise&lt;void&gt; {
+  const status = await fetchUserStatus(42);
+  console.log(`User ${status.id} active: ${status.active}`);
+}
+
+main();</code></pre>
+
+<aside class="note"><strong>Key idea</strong> Microtasks beat macrotasks. When you see code "run out of order,"
+the reason is almost always that a <code>Promise</code> resolution was reordered past a timer you assumed would fire
+first.</aside>
+</section>
+
+<section class="quiz-section">
+<h2>Check yourself</h2>
+
+<div class="q" data-correct="1">
+  <h4>1. When do Promise microtasks execute relative to <code>setTimeout</code> macrotasks in Node.js?</h4>
+  <button class="opt" data-fb="They run early, not after all timers/I-O finish.">After all timers and I/O callbacks have finished</button>
+  <button class="opt" data-fb="Correct — microtasks drain right after the stack empties, before the macro phase.">Immediately after the current call stack clears, before timers</button>
+  <button class="opt" data-fb="There is no separate thread for promise callbacks.">Concurrently, on a separate thread-pool worker</button>
+  <button class="opt" data-fb="They are scheduled in the macro phase, not before it.">After every I/O operation has been flushed</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="0">
+  <h4>2. In the lesson's example, why does <code>3</code> print before <code>4</code> despite the timer being <code>0</code>ms?</h4>
+  <button class="opt" data-fb="Correct — the promise is a microtask (higher priority phase) than the timer's macrotask.">Promise callbacks are microtasks and drain before the timer's macrotask phase</button>
+  <button class="opt" data-fb="The timer isn't skipped; promise callbacks just have higher phase priority.">The timer is cancelled by default</button>
+  <button class="opt" data-fb="Node internals don't reorder like this for native timers.">Node schedules native timers last on purpose</button>
+  <button class="opt" data-fb="0ms still exceeds the promise's queue resolution time.">The 0ms delay is actually longer than the promise resolution</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="2">
+  <h4>3. Which queue would <code>process.nextTick()</code> callbacks join?</h4>
+  <button class="opt" data-fb="Macrotasks are the timers/I-O phase — nextTick is above them.">The macrotask (timer) queue</button>
+  <button class="opt" data-fb="nextTick is not I/O; it's a microtask-ish high-priority run.">The I/O completion queue</button>
+  <button class="opt" data-fb="Correct — nextTick runs in the highest-priority micro phase, even ahead of normal promises.">The microtask queue, ahead of normal promise resolution</button>
+  <button class="opt" data-fb="nextTick runs inline, but only after the whole loop empties.">It runs only when the process exits</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="1">
+  <h4>4. A TypeScript async function's return type must be…</h4>
+  <button class="opt" data-fb="TS requires the Promise wrapper, not a bare object type.">the plain resolved object type, e.g. <code>{ id: number }</code></button>
+  <button class="opt" data-fb="Correct — async functions promise a wrapped value, so TS types it <code>Promise&lt;T&gt;</code>.">wrapped in <code>Promise&lt;T&gt;</code>, e.g. <code>Promise&lt;{ id: number }&gt;</code></button>
+  <button class="opt" data-fb="void wouldn't let you await a real value.">always <code>void</code></button>
+  <button class="opt" data-fb="Async functions always return a promise; any is unsafe and avoidable."><code>any</code>, since the timing is unpredictable</button>
+  <div class="fb"></div>
+</div>
+
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Node's own guide to the event loop, timers, and <code>nextTick</code>, exactly the phases this lesson sketches:
+<a href="https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick" target="_blank">Node.js — The Node.js Event Loop, Timers, and process.nextTick()</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Finished here? Predict the console order for a small snippet that
+mixes two timers, two promises, and a <code>nextTick</code>, then run it to check. Bring the prediction — right or
+wrong — back for a one-line verdict.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick">Node.js — The Node.js Event Loop, Timers, and process.nextTick()</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-js-core-runtime-and-prototypes.html">← Lesson 1: Prototypes</a></span>
+  <span class="nav-next"><a href="0003-fs-path-and-os-standard-modules.html">Lesson 3: fs, path &amp; os →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  JS &amp; Node for TS Devs · <a href="../reference/glossary.html">Glossary</a> · <a href="../MISSION.md">Mission</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() {
+    if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; }
+  }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
