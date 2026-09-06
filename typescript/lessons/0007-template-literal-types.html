@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 07 — Template Literal Types</title>
+<style>
+  :root { --ink:#1a1a1a; --paper:#fffff8; --accent:#7b1e1e; --muted:#6b6b63;
+          --rule:#d8d8cf; --good:#1b6b3a; --bad:#9a1f1f; --code:#f1f0e6; }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    line-height: 1.55; margin: 0; padding: 3.5rem 1.5rem 6rem; font-size: 19px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  .kicker { letter-spacing: .18em; text-transform: uppercase; font-size: .72rem;
+            color: var(--accent); margin: 0 0 .4rem; font-family: sans-serif; }
+  h1 { font-size: 2.3rem; font-weight: 600; line-height: 1.08; margin: 0 0 .3rem; }
+  .sub { color: var(--muted); font-style: italic; margin: 0 0 .6rem; }
+  .mission { font-size: .82rem; color: var(--muted); font-family: sans-serif;
+             border-left: 3px solid var(--rule); padding: .3rem 0 .3rem .8rem; margin: 0 0 2.4rem; }
+  h2 { font-size: 1.3rem; font-weight: 600; margin: 2.6rem 0 .6rem; }
+  p { margin: 0 0 1rem; }
+  ul { margin: 0 0 1rem; } li { margin: .25rem 0; }
+  code { font-family: "SF Mono","DejaVu Sans Mono",Menlo,Consolas,monospace;
+         font-size: .82em; background: var(--code); padding: .08em .35em; border-radius: 3px; }
+  pre { background: #2b2b28; color: #f4f3ea; padding: 1rem 1.1rem; border-radius: 6px;
+        overflow-x: auto; font-size: .8rem; line-height: 1.5; margin: 1rem 0; }
+  pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+  .tok-c { color: #8f9183; } .tok-k { color: #e0a36b; } .tok-t { color: #8fbcd4; }
+  .tok-s { color: #c3d39a; } .tok-f { color: #d9b3e0; } .tok-p { color: #7fb0d9; }
+  a { color: var(--accent); }
+  sup a { text-decoration: none; font-size: .7em; }
+  aside.note { background:#f6f5ea; border:1px solid var(--rule); border-radius:6px;
+        padding:.9rem 1.1rem; font-size:.92rem; margin:1.4rem 0; }
+  aside.note b { color: var(--accent); }
+
+  .quiz { border-top: 2px solid var(--ink); margin-top: 3rem; padding-top: 1.4rem; }
+  .q { margin: 1.8rem 0; }
+  .q .stem { font-weight: 600; margin-bottom: .7rem; }
+  .q .stem .n { color: var(--accent); margin-right:.4rem; }
+  .opts { display: grid; gap: .5rem; }
+  .opt { text-align:left; font: inherit; cursor: pointer; background: #fff;
+         border: 1px solid var(--rule); border-radius: 6px; padding: .6rem .85rem;
+         transition: background .12s, border-color .12s; }
+  .opt:hover:not(:disabled) { border-color: var(--accent); }
+  .opt:disabled { cursor: default; }
+  .opt.correct { border-color: var(--good); background: #eaf5ee; }
+  .opt.wrong { border-color: var(--bad); background: #f7ebeb; }
+  .fb { font-size: .9rem; margin-top: .55rem; min-height: 1.2em; }
+  .fb.correct { color: var(--good); } .fb.wrong { color: var(--bad); }
+  .fb b { font-weight: 600; }
+  #score { font-family: sans-serif; font-size: 1rem; margin-top: 2rem;
+           padding: 1rem; border: 1px dashed var(--rule); border-radius: 6px;
+           text-align: center; color: var(--muted); }
+  #score.done { color: var(--ink); border-style: solid; }
+
+  .next { border-top: 1px solid var(--rule); margin-top: 3rem; padding-top: 1.4rem; }
+  .pill { display:inline-block; font-family:sans-serif; font-size:.72rem; letter-spacing:.08em;
+          text-transform:uppercase; background:var(--code); color:var(--muted);
+          padding:.2rem .55rem; border-radius:99px; margin-right:.4rem; }
+  footer { color: var(--muted); font-size: .85rem; margin-top: 2rem; }
+  .ask { background:#fdf6e3; border:1px solid #e4d9a8; border-radius:6px;
+         padding:.9rem 1.1rem; font-size:.92rem; margin-top:2rem; }
+  @media print { body{font-size:12pt;padding:1rem;} pre{background:#eee;color:#000;}
+    .opt{background:#fff;} a{color:var(--ink);} .quiz .fb{display:block;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">Lesson 07 · Type-level programming</p>
+  <h1>Template Literal Types</h1>
+  <p class="sub">A string's shape at the type level — combine them with <code>infer</code> and mapped types to parse and rewrite strings.</p>
+  <p class="mission">★ Mission link: template literals turn string values into a <em>set of strings</em> the compiler
+    understands. With them you can type route paths, event names, ids, and API keys such that only well-formed strings
+    compile — and, combined with <code>as</code> key remapping, rewrite object types by their <em>keys</em>. Builds on
+    <a href="0005-conditional-types-infer.html">Lesson 05</a> (<code>infer</code> for pattern capture) and
+    <a href="0006-mapped-types-and-key-remapping.html">Lesson 06</a> (<code>as</code> key remapping).</p>
+
+  <h2>Backtick syntax, set-of-strings semantics</h2>
+  <p>A template literal type writes <code>${…}</code> placeholders. The result is the <em>set of every string</em>
+    you could form — the cross product of each placeholder's literal values.<sup><a href="#r1">1</a></sup></p>
+  <pre><code><span class="tok-k">type</span> <span class="tok-t">Level</span> = <span class="tok-s">"info"</span> | <span class="tok-s">"warn"</span> | <span class="tok-s">"error"</span>;
+<span class="tok-k">type</span> <span class="tok-t">LogKey</span> = <span class="tok-t">`event.</span>&#36;{<span class="tok-t">Level</span>}<span class="tok-t">`</span>;
+<span class="tok-c">// "event.info" | "event.warn" | "event.error"</span>
+
+<span class="tok-k">const</span> <span class="tok-t">k</span>: <span class="tok-t">LogKey</span> = <span class="tok-s">"event.warn"</span>;   <span class="tok-c">// ok</span>
+<span class="tok-k">const</span> <span class="tok-t">bad</span>: <span class="tok-t">LogKey</span> = <span class="tok-s">"event.trace"</span>; <span class="tok-c">// error: "trace" is not in Level</span></code></pre>
+  <p>Read it as: <em>"a <code>LogKey</code> is the string <code>"event."</code> followed by one of the level
+    strings."</em>The set grows as a cross product — two placeholders with 3 and 4 values each give
+    3 × 4 = 12 possible strings.</p>
+
+  <h2>Wide types stay wide</h2>
+  <p>If a placeholder is a <em>wide</em> type like <code>number</code> or <code>string</code>, the result is not a
+    finite literal union — it's a distinct, precise type that describes the shape. You can't enumerate a
+    <code>number</code>, so <code>`img-&#36;{number}`</code> is its own type, assignable to <code>string</code>
+    but narrower than it:<sup><a href="#r2">2</a></sup></p>
+  <pre><code><span class="tok-k">type</span> <span class="tok-t">AssetId</span> = <span class="tok-t">`img-</span>&#36;{<span class="tok-t">number</span>}<span class="tok-t">`</span>;
+<span class="tok-k">let</span> <span class="tok-t">a</span>: <span class="tok-t">AssetId</span>;
+<span class="tok-t">a</span> = <span class="tok-s">"img-42"</span>;     <span class="tok-c">// ok</span>
+<span class="tok-t">a</span> = <span class="tok-s">"img-x"</span>;     <span class="tok-c">// error</span>
+<span class="tok-c">const s: string = a;  // ok — every AssetId is a string</span></code></pre>
+
+  <h2>Pattern matching: <code>infer</code> inside the literal</h2>
+  <p>The real power pairs a template literal with <code>infer</code> in an <code>extends</code> clause. This
+    <em>parses</em> a string's shape at the type level — the type-level equivalent of a regex capture
+    group.<sup><a href="#r3">3</a></sup></p>
+  <pre><code><span class="tok-c">// strip a "get" prefix, capture the rest</span>
+<span class="tok-k">type</span> <span class="tok-t">StripGet</span>&lt;<span class="tok-t">T</span>&gt; = <span class="tok-t">T</span> <span class="tok-k">extends</span> <span class="tok-t">`get</span>&#36;{<span class="tok-k">infer</span> <span class="tok-t">R</span>}<span class="tok-t">`</span> ? <span class="tok-t">R</span> : <span class="tok-k">never</span>;
+<span class="tok-k">type</span> <span class="tok-t">A</span> = <span class="tok-t">StripGet</span>&lt;<span class="tok-s">"getUser"</span>&gt;;  <span class="tok-c">// "User"</span>
+<span class="tok-k">type</span> <span class="tok-t">B</span> = <span class="tok-t">StripGet</span>&lt;<span class="tok-s">"nope"</span>&gt;;    <span class="tok-c">// never — didn't match</span>
+
+<span class="tok-c">// decompose a dotted path "orders.eu.placed" into its parts via recursion (Lesson 08)</span>
+<span class="tok-k">type</span> <span class="tok-t">Head</span>&lt;<span class="tok-t">T</span>&gt; = <span class="tok-t">T</span> <span class="tok-k">extends</span> <span class="tok-t">`&#36;{infer H}.&#36;{infer _}`</span> ? <span class="tok-t">H</span> : <span class="tok-t">T</span>;
+<span class="tok-k">type</span> <span class="tok-t">H</span> = <span class="tok-t">Head</span>&lt;<span class="tok-s">"orders.eu"</span>&gt;; <span class="tok-c">// "orders"</span></code></pre>
+  <aside class="note"><b>Why this matters:</b> the <code>`&#36;{infer H}.&#36;{infer _}`</code> pattern —
+    <em>capture some, skip a separator, capture the rest</em> — is the basis of parsing delimited strings,
+    and it recurses (Lesson 08) to walk a full path. This is how you type data-driven, string-shaped domain
+    values without casting.</aside>
+
+  <h2>Capitalization helpers</h2>
+  <p>Four built-in transformation utilities give you string casing:<sup><a href="#r4">4</a></sup></p>
+  <pre><code><span class="tok-k">type</span> <span class="tok-t">Cap</span> = <span class="tok-t">Capitalize</span>&lt;<span class="tok-s">"name"</span>&gt;;     <span class="tok-c">// "Name"</span>
+<span class="tok-k">type</span> <span class="tok-t">Up</span>   = <span class="tok-t">Uppercase</span>&lt;<span class="tok-s">"name"</span>&gt;;  <span class="tok-c">// "NAME"</span>
+<span class="tok-k">type</span> <span class="tok-t">Lo</span>   = <span class="tok-t">Lowercase</span>&lt;<span class="tok-s">"NAME"</span>&gt;;  <span class="tok-c">// "name"</span>
+<span class="tok-k">type</span> <span class="tok-t">Unc</span>  = <span class="tok-t">Uncapitalize</span>&lt;<span class="tok-s">"Name"</span>&gt;; <span class="tok-c">// "name"</span></code></pre>
+
+  <h2>Putting it together with mapped types</h2>
+  <p>Now the payoff from Lesson 06: use a template literal <em>inside</em> the <code>as</code> clause to rename
+    every key. This is the "getter factory" — derive an API from a data shape:</p>
+  <pre><code><span class="tok-k">type</span> <span class="tok-t">User</span> = { <span class="tok-t">name</span>: <span class="tok-t">string</span>; <span class="tok-t">age</span>: <span class="tok-t">number</span> };
+
+<span class="tok-k">type</span> <span class="tok-t">Getters</span>&lt;<span class="tok-t">T</span>&gt; = {
+  [<span class="tok-t">K</span> <span class="tok-k">in</span> <span class="tok-k">keyof</span> <span class="tok-t">T</span> <span class="tok-k">as</span> <span class="tok-t">`get</span>&#36;{<span class="tok-t">Capitalize</span>&lt;<span class="tok-t">K</span>&gt;}<span class="tok-t">`</span>]: () =&gt; <span class="tok-t">T</span>[<span class="tok-t">K</span>]
+};
+
+<span class="tok-k">type</span> <span class="tok-t">G</span> = <span class="tok-t">Getters</span>&lt;<span class="tok-t">User</span>&gt;;
+<span class="tok-c">// { getName(): string; getAge(): number }</span></code></pre>
+  <p>The mapped type drives the keys <em>and</em> the value types; the template literal + <code>Capitalize</code>
+    rename them; <code>T[K]</code> keeps the value type honest. One data shape, one derived API type, zero
+    duplicated declarations.</p>
+
+  <aside class="note"><b>The mental stack:</b> a template literal is strings; a mapped type is objects;
+    <code>infer</code> is pattern capture. Combine them the way this lesson did and you can rewrite keys,
+    parse IDs, and type event names — the building blocks of a self-consistent, string-driven type API.</aside>
+
+  <!-- ============ QUIZ ============ -->
+  <div class="quiz">
+    <p class="kicker">Retrieval practice</p>
+    <h2 style="margin-top:.3rem">Check yourself</h2>
+    <p style="color:var(--muted);font-size:.92rem">From memory. Q3 reaches back to Lesson 06.</p>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">1.</span><code>type K = `a-&#36;{X}`</code> where <code>X = "1" | "2"</code>. <code>K</code> is…</div>
+      <div class="opts">
+        <button class="opt">`a-&#36;{X}` — stays abstract</button>
+        <button class="opt">"a-1" | "a-2" — one string per placeholder value</button>
+        <button class="opt">"a-1" | "a-2" is invalid; only one literal is allowed</button>
+        <button class="opt">string</button>
+      </div>
+      <div class="fb" data-why="The result is the cross product: one full string per value of the placeholder → 'a-1' | 'a-2'."></div>
+    </div>
+
+    <div class="q" data-correct="3">
+      <div class="stem"><span class="n">2.</span>You want <code>type Id = `u-&#36;{number}`</code>. Which is the correct claim?</div>
+      <div class="opts">
+        <button class="opt">Id is the union "u-0" | "u-1" | "u-2" …</button>
+        <button class="opt">Id is equal to string</button>
+        <button class="opt">Id is invalid — number can't be a placeholder</button>
+        <button class="opt">Id is its own distinct type narrower than string, assignable to string</button>
+      </div>
+      <div class="fb" data-why="A wide placeholder (number/string) yields a distinct non-literal type — not enumerable, narrower than string, assignable to string."></div>
+    </div>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">3.</span>Combined with Lesson 06's mapped types, <code>as `get&#36;{...}`</code> in the key position is used to…</div>
+      <div class="opts">
+        <button class="opt">rename each key of a type</button>
+        <button class="opt">drop keys entirely</button>
+        <button class="opt">add new methods to the value type</button>
+        <button class="opt">pacify the compiler so no error is thrown</button>
+      </div>
+      <div class="fb" data-why="Template literal + as renames keys (e.g. name → getName); dropping uses never; adding methods happens in the value position, not keys."></div>
+    </div>
+
+    <div class="q" data-correct="2">
+      <div class="stem"><span class="n">4.</span><code>type H&lt;T&gt; = T extends `&#36;{infer A}-&#36;{infer _}` ? A : T</code>. <code>H&lt;"x-y"&gt;</code> is…</div>
+      <div class="opts">
+        <button class="opt">"y"</button>
+        <button class="opt">never</button>
+        <button class="opt">"x"</button>
+        <button class="opt">"x-y"</button>
+      </div>
+      <div class="fb" data-why="The infer placeholders capture the parts: A = 'x', the underscore = 'y'. So H<'x-y'> = 'x' — the head before the separator."></div>
+    </div>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">5.</span>Why is <code>`img-&#36;{number}`</code> assignable to <code>string</code>?</div>
+      <div class="opts">
+        <button class="opt">it isn't — the types are unrelated</button>
+        <button class="opt">every <code>img-&#36;{number}</code> value is a string, so the set is a subset of string</button>
+        <button class="opt">because number is assignable to string</button>
+        <button class="opt">template literals are always widened to string</button>
+      </div>
+      <div class="fb" data-why="It's the subset rule from Lesson 01: the set of all 'img-N' strings is a subset of the set of all strings → assignable."></div>
+    </div>
+
+    <div id="score">Answer all five to see your score.</div>
+  </div>
+
+  <!-- ============ NEXT ============ -->
+  <div class="next">
+    <h2>Primary source (read this next)</h2>
+    <p><span class="pill">Most trusted</span>
+       <a href="https://www.typescriptlang.org/docs/handbook/2/template-literal-types.html" target="_blank">TS Handbook — Template literal types</a>.
+       Official syntax, cross-product semantics, and the <code>infer</code>-in-pattern cases. ~20 min.</p>
+    <p style="font-size:.9rem;color:var(--muted)">Deeper, when ready:
+       <a href="https://type-level-typescript.com/parser-types" target="_blank">Type-Level TypeScript — Parser types</a>
+       turns template-literal + infer into a mini parsing language.</p>
+
+    <h2>Where this goes</h2>
+    <p><span class="pill">Lesson 08</span> <strong>Recursive type-level programming</strong> — the
+       <code>Head&lt;T&gt;</code> pattern above is one step; add recursion and you can <em>walk</em> a whole
+       dotted path, unwrap nested promises, and build <code>Awaited</code> from scratch.</p>
+    <p style="margin-top:1.4rem"><a href="../reference/glossary.html#template-literal">→ Glossary (Template literals)</a> &nbsp;·&nbsp;
+       <a href="0006-mapped-types-and-key-remapping.html">← Lesson 06</a> &nbsp;·&nbsp;
+       <a href="../RESOURCES.md">All resources</a></p>
+  </div>
+
+  <div class="ask">
+    <b>I'm your teacher.</b> Write <code>Getters&lt;T&gt;</code> from the lesson yourself (no peeking), then a
+    bonus: a type <code>Kebab&lt;T&gt;</code> that turns <code>"getUserByEmail"</code> into
+    <code>"get-user-by-email"</code>. Paste your attempt and I'll review it like a senior reviewer — this is
+    the exact class of type API people ship in real libraries.
+  </div>
+
+  <footer>
+    <span id="r1">1.</span> <a href="https://www.typescriptlang.org/docs/handbook/2/template-literal-types.html">TS Handbook — Template literal types</a>. &nbsp;
+    <span id="r2">2.</span> <a href="https://www.typescriptlang.org/docs/handbook/2/template-literal-types.html#template-literal-types" target="_blank">TS Handbook — wide type behavior</a>. &nbsp;
+    <span id="r3">3.</span> <a href="https://www.typescriptlang.org/docs/handbook/2/template-literal-types.html#pattern-matching-with-infer" target="_blank">TS Handbook — Pattern matching with <code>infer</code></a>. &nbsp;
+    <span id="r4">4.</span> <a href="https://www.typescriptlang.org/docs/handbook/2/template-literal-types.html#uppercase-lowercase-capitalize-uncapitalize" target="_blank">TS Handbook — Capitalization helpers</a>.
+  </footer>
+</div>
+
+<script>
+  const qs = [...document.querySelectorAll('.q')];
+  let answered = 0, correct = 0;
+  qs.forEach(q => {
+    const right = +q.dataset.correct;
+    const opts = [...q.querySelectorAll('.opt')];
+    const fb = q.querySelector('.fb');
+    opts.forEach((opt, i) => {
+      opt.addEventListener('click', () => {
+        opts.forEach(o => o.disabled = true);
+        const ok = i === right;
+        opts[right].classList.add('correct');
+        if (!ok) opt.classList.add('wrong');
+        fb.classList.add(ok ? 'correct' : 'wrong');
+        fb.innerHTML = (ok ? '<b>Correct.</b> ' : '<b>Not quite.</b> ') + fb.dataset.why;
+        answered++; if (ok) correct++;
+        if (answered === qs.length) {
+          const s = document.getElementById('score');
+          s.classList.add('done');
+          const msg = correct === qs.length ? 'Template literals solid. Recursion is next.' :
+                      correct >= 3 ? 'Good. Re-read the misses — cross-product semantics and infer-capture are the load-bearing bits.' :
+                      'Re-read above and retake — string parsing at the type level is the on-ramp to recursion.';
+          s.textContent = `Score: ${correct} / ${qs.length}. ${msg}`;
+        }
+      });
+    });
+  });
+</script>
+</body>
+</html>

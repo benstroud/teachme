@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 06 — Mapped Types &amp; Key Remapping</title>
+<style>
+  :root { --ink:#1a1a1a; --paper:#fffff8; --accent:#7b1e1e; --muted:#6b6b63;
+          --rule:#d8d8cf; --good:#1b6b3a; --bad:#9a1f1f; --code:#f1f0e6; }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    line-height: 1.55; margin: 0; padding: 3.5rem 1.5rem 6rem; font-size: 19px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  .kicker { letter-spacing: .18em; text-transform: uppercase; font-size: .72rem;
+            color: var(--accent); margin: 0 0 .4rem; font-family: sans-serif; }
+  h1 { font-size: 2.3rem; font-weight: 600; line-height: 1.08; margin: 0 0 .3rem; }
+  .sub { color: var(--muted); font-style: italic; margin: 0 0 .6rem; }
+  .mission { font-size: .82rem; color: var(--muted); font-family: sans-serif;
+             border-left: 3px solid var(--rule); padding: .3rem 0 .3rem .8rem; margin: 0 0 2.4rem; }
+  h2 { font-size: 1.3rem; font-weight: 600; margin: 2.6rem 0 .6rem; }
+  p { margin: 0 0 1rem; }
+  ul { margin: 0 0 1rem; } li { margin: .25rem 0; }
+  code { font-family: "SF Mono","DejaVu Sans Mono",Menlo,Consolas,monospace;
+         font-size: .82em; background: var(--code); padding: .08em .35em; border-radius: 3px; }
+  pre { background: #2b2b28; color: #f4f3ea; padding: 1rem 1.1rem; border-radius: 6px;
+        overflow-x: auto; font-size: .8rem; line-height: 1.5; margin: 1rem 0; }
+  pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+  .tok-c { color: #8f9183; } .tok-k { color: #e0a36b; } .tok-t { color: #8fbcd4; }
+  .tok-s { color: #c3d39a; } .tok-f { color: #d9b3e0; } .tok-p { color: #7fb0d9; }
+  .tok-n { color: #d9a1c3; }
+  a { color: var(--accent); }
+  sup a { text-decoration: none; font-size: .7em; }
+  aside.note { background:#f6f5ea; border:1px solid var(--rule); border-radius:6px;
+        padding:.9rem 1.1rem; font-size:.92rem; margin:1.4rem 0; }
+  aside.note b { color: var(--accent); }
+
+  .quiz { border-top: 2px solid var(--ink); margin-top: 3rem; padding-top: 1.4rem; }
+  .q { margin: 1.8rem 0; }
+  .q .stem { font-weight: 600; margin-bottom: .7rem; }
+  .q .stem .n { color: var(--accent); margin-right:.4rem; }
+  .opts { display: grid; gap: .5rem; }
+  .opt { text-align:left; font: inherit; cursor: pointer; background: #fff;
+         border: 1px solid var(--rule); border-radius: 6px; padding: .6rem .85rem;
+         transition: background .12s, border-color .12s; }
+  .opt:hover:not(:disabled) { border-color: var(--accent); }
+  .opt:disabled { cursor: default; }
+  .opt.correct { border-color: var(--good); background: #eaf5ee; }
+  .opt.wrong { border-color: var(--bad); background: #f7ebeb; }
+  .fb { font-size: .9rem; margin-top: .55rem; min-height: 1.2em; }
+  .fb.correct { color: var(--good); } .fb.wrong { color: var(--bad); }
+  .fb b { font-weight: 600; }
+  #score { font-family: sans-serif; font-size: 1rem; margin-top: 2rem;
+           padding: 1rem; border: 1px dashed var(--rule); border-radius: 6px;
+           text-align: center; color: var(--muted); }
+  #score.done { color: var(--ink); border-style: solid; }
+
+  .next { border-top: 1px solid var(--rule); margin-top: 3rem; padding-top: 1.4rem; }
+  .pill { display:inline-block; font-family:sans-serif; font-size:.72rem; letter-spacing:.08em;
+          text-transform:uppercase; background:var(--code); color:var(--muted);
+          padding:.2rem .55rem; border-radius:99px; margin-right:.4rem; }
+  footer { color: var(--muted); font-size: .85rem; margin-top: 2rem; }
+  .ask { background:#fdf6e3; border:1px solid #e4d9a8; border-radius:6px;
+         padding:.9rem 1.1rem; font-size:.92rem; margin-top:2rem; }
+  @media print { body{font-size:12pt;padding:1rem;} pre{background:#eee;color:#000;}
+    .opt{background:#fff;} a{color:var(--ink);} .quiz .fb{display:block;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">Lesson 06 · Type-level programming</p>
+  <h1>Mapped Types &amp; Key Remapping</h1>
+  <p class="sub">Iterate over <code>keyof T</code> to rebuild an object type — and rename or drop keys with <code>as</code>.</p>
+  <p class="mission">★ Mission link: mapped types are how you <em>transform</em> a shape instead of redeclaring it.
+    <code>Partial</code>, <code>Readonly</code>, <code>Pick</code>, <code>Omit</code> are all mapped types —
+    and so are the getter/mutable variants you'll write for others. Builds on
+    <a href="0003-generics.html">Lesson 03</a> (<code>keyof</code> and indexed access) and
+    <a href="0005-conditional-types-infer.html">Lesson 05</a> (conditionals inside a map).</p>
+
+  <h2>The shape: <code>{ [K in keyof T]: … }</code></h2>
+  <p>A mapped type is a <em>block transform</em>. It says: "for every key <code>K</code> in <code>T</code>'s keys,
+    produce a property, and here's its type." Same keys, new values.<sup><a href="#r1">1</a></sup></p>
+  <pre><code><span class="tok-k">type</span> <span class="tok-t">Config</span> = { <span class="tok-t">host</span>: <span class="tok-t">string</span>; <span class="tok-t">port</span>: <span class="tok-t">number</span> };</code>
+<code><span class="tok-c">// make a copy</span>
+<span class="tok-k">type</span> <span class="tok-t">Copy</span>&lt;<span class="tok-t">T</span>&gt; = { [<span class="tok-t">K</span> <span class="tok-k">in</span> <span class="tok-k">keyof</span> <span class="tok-t">T</span>]: <span class="tok-t">T</span>[<span class="tok-t">K</span>] };
+<span class="tok-k">type</span> <span class="tok-t">C</span> = <span class="tok-t">Copy</span>&lt;<span class="tok-t">Config</span>&gt;;  <span class="tok-c">// { host: string; port: number }</span>
+
+<span class="tok-c">// the real Partial: every key optional</span>
+<span class="tok-k">type</span> <span class="tok-t">Partial</span>&lt;<span class="tok-t">T</span>&gt; = { [<span class="tok-t">K</span> <span class="tok-k">in</span> <span class="tok-k">keyof</span> <span class="tok-t">T</span>]<span class="tok-p">?</span>: <span class="tok-t">T</span>[<span class="tok-t">K</span>] };
+
+<span class="tok-c">// the real Readonly: every property readonly</span>
+<span class="tok-k">type</span> <span class="tok-t">Readonly</span>&lt;<span class="tok-t">T</span>&gt; = { <span class="tok-k">readonly</span> [<span class="tok-t">K</span> <span class="tok-k">in</span> <span class="tok-k">keyof</span> <span class="tok-t">T</span>]: <span class="tok-t">T</span>[<span class="tok-t">K</span>] };</code></pre>
+  <p>Read aloud: <em>"iterate <code>K</code> over <code>keyof T</code>; the value at <code>K</code> is
+    <code>T[K]</code>, marked optional / readonly / etc."</em>The <code>?</code> and <code>readonly</code> are
+    modifiers you place in the key position — the same key spelling, a different shape.</p>
+
+  <h2>When a mapped type is homomorphic</h2>
+  <p>If the mapped type writes <code>keyof T</code> where <code>T</code> is an <em>original type variable</em>
+    (like <code>Partial&lt;T&gt;</code> and <code>Readonly&lt;T&gt;</code> above), it's
+    <strong>homomorphic</strong>: it automatically preserves any <code>readonly</code> or <code>?</code> modifiers
+    on the source, so the transform is additive rather than destructive.<sup><a href="#r2">2</a></sup></p>
+  <pre><code><span class="tok-k">type</span> <span class="tok-t">Node</span> = { <span class="tok-k">readonly</span> <span class="tok-t">id</span>: <span class="tok-t">string</span>; <span class="tok-t">label?</span>: <span class="tok-t">string</span> };
+<span class="tok-c">// homomorphic: Partial keeps the readonly on id, makes the rest optional</span>
+<span class="tok-k">type</span> <span class="tok-t">P</span> = <span class="tok-t">Partial</span>&lt;<span class="tok-t">Node</span>&gt;;  <span class="tok-c">// { readonly id?: string; label?: string }</span>
+
+<span class="tok-c">// to STRIP modifiers, add a - prefix: -readonly, and -?</span>
+<span class="tok-k">type</span> <span class="tok-t">Mutable</span>&lt;<span class="tok-t">T</span>&gt; = { -<span class="tok-k">readonly</span> [<span class="tok-t">K</span> <span class="tok-k">in</span> <span class="tok-k">keyof</span> <span class="tok-t">T</span>]: <span class="tok-t">T</span>[<span class="tok-t">K</span>] };
+<span class="tok-k">type</span> <span class="tok-t">M</span> = <span class="tok-t">Mutable</span>&lt;<span class="tok-t">Node</span>&gt;;  <span class="tok-c">// { id: string; label?: string } — readonly gone</span></code></pre>
+
+  <h2>Two type variables: <code>K</code> for the key, <code>T[K]</code> for the value</h2>
+  <p>Inside the map you have <em>both</em> the key and the value at your fingertips. This is where utilities get
+    interesting — transform a value type without touching the keys:</p>
+  <pre><code><span class="tok-c">// wrap every value in an array</span>
+<span class="tok-k">type</span> <span class="tok-t">ToArrays</span>&lt;<span class="tok-t">T</span>&gt; = { [<span class="tok-t">K</span> <span class="tok-k">in</span> <span class="tok-k">keyof</span> <span class="tok-t">T</span>]: <span class="tok-t">T</span>[<span class="tok-t">K</span>][] };
+<span class="tok-k">type</span> <span class="tok-t">A</span> = <span class="tok-t">ToArrays</span>&lt;{ <span class="tok-t">x</span>: <span class="tok-t">number</span>; <span class="tok-t">y</span>: <span class="tok-t">string</span> }&gt;; <span class="tok-c">// { x: number[]; y: string[] }</span>
+
+<span class="tok-c">// the real Record: map a fixed set of keys to a uniform value type</span>
+<span class="tok-k">type</span> <span class="tok-t">Record</span>&lt;<span class="tok-t">K</span> <span class="tok-k">extends</span> <span class="tok-t">string</span>, <span class="tok-t">V</span>&gt; = { [<span class="tok-t">P</span> <span class="tok-k">in</span> <span class="tok-t">K</span>]: <span class="tok-t">V</span> };
+<span class="tok-k">type</span> <span class="tok-t">Routes</span> = <span class="tok-t">Record</span>&lt;<span class="tok-t">"home"</span> | <span class="tok-t">"login"</span> | <span class="tok-t">"admin"</span>, <span class="tok-t">string</span>&gt;;
+<span class="tok-c">// { home: string; login: string; admin: string }</span></code></pre>
+
+  <h2>Key remapping with <code>as</code> (TS ≥ 4.1)</h2>
+  <p>Add <code>as NewKey</code> after <code>keyof T</code> to <em>rename</em> keys. Combine with a conditional to
+    <em>drop</em> keys (return <code>never</code> in the key position).<sup><a href="#r3">3</a></sup> This is the
+    piece that, with template-literal types (Lesson 07), turns one object type into a whole new one:</p>
+  <pre><code><span class="tok-c">// drop any key whose value is a function — keep only data keys</span>
+<span class="tok-k">type</span> <span class="tok-t">DataKeysOnly</span>&lt;<span class="tok-t">T</span>&gt; = {
+  [<span class="tok-t">K</span> <span class="tok-k">in</span> <span class="tok-k">keyof</span> <span class="tok-t">T</span> <span class="tok-k">as</span> <span class="tok-t">T</span>[<span class="tok-t">K</span>] <span class="tok-k">extends</span> <span class="tok-k">(...args</span>: <span class="tok-t">any</span>[]) =&gt; <span class="tok-t">any</span> ? <span class="tok-k">never</span> : <span class="tok-t">K</span>]: <span class="tok-t">T</span>[<span class="tok-t">K</span>]
+};
+
+<span class="tok-c">// rename: prefix every key with "get" — full form in Lesson 07</span>
+<span class="tok-k">type</span> <span class="tok-t">Rename</span>&lt;<span class="tok-t">T</span>&gt; = { [<span class="tok-t">K</span> <span class="tok-k">in</span> <span class="tok-k">keyof</span> <span class="tok-t">T</span> <span class="tok-k">as</span> <span class="tok-t">K</span>]: <span class="tok-t">T</span>[<span class="tok-t">K</span>] }; <span class="tok-c">// identity — placeholder</span></code></pre>
+  <aside class="note"><b>Why this matters:</b> the <code>as</code> clause is the tipping point between "reproduce the
+    shape" and "derive a new shape." Dropping keys via <code>never</code> is how <code>Omit&lt;T, K&gt;</code> and
+    <code>Exclude</code> work. It's the construct that makes "one source of truth for a type, many derived views"
+    possible.</aside>
+
+  <h2>Pick, Omit, Exclude — the ones you'll actually use</h2>
+  <table style="border-collapse:collapse;width:100%;margin:1rem 0;font-size:.9rem">
+    <tr style="border-bottom:1px solid var(--rule);text-align:left"><th style="padding:.35rem .6rem">Utility</th><th>What it keeps</th><th style="border:none"></th></tr>
+    <tr><td style="padding:.35rem .6rem;border-bottom:1px solid var(--rule)"><code>Pick&lt;T, K&gt;</code></td><td>only keys <code>K</code></td></tr>
+    <tr><td style="padding:.35rem .6rem;border-bottom:1px solid var(--rule)"><code>Omit&lt;T, K&gt;</code></td><td>all keys <em>except</em> <code>K</code></td></tr>
+    <tr><td style="padding:.35rem .6rem;border-bottom:1px solid var(--rule)"><code>Exclude&lt;T, K&gt;</code></td><td>union members not in <code>K</code></td></tr>
+  </table>
+  <p>All three are implemented as <em>conditional + mapped</em> types. Once you can write
+    <code>{ [K in keyof T]: T[K] }</code>, you own the family — they stop being magic and start being five lines
+    you could reconstruct from memory in an interview.</p>
+
+  <!-- ============ QUIZ ============ -->
+  <div class="quiz">
+    <p class="kicker">Retrieval practice</p>
+    <h2 style="margin-top:.3rem">Check yourself</h2>
+    <p style="color:var(--muted);font-size:.92rem">From memory. Q4 reaches back to Lesson 05 — on purpose.</p>
+
+    <div class="q" data-correct="2">
+      <div class="stem"><span class="n">1.</span><code>{ [K in keyof T]: T[K] }</code> produces…</div>
+      <div class="opts">
+        <button class="opt">an array of T's members</button>
+        <button class="opt">a tuple of T's keys</button>
+        <button class="opt">an object type with the same keys and the same value types</button>
+        <button class="opt">a union of T's value types</button>
+      </div>
+      <div class="fb" data-why="It iterates over each key K, uses T[K] (indexed access) as the value type — a faithful copy. Add ? or readonly to transform, not to change the keys."></div>
+    </div>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">2.</span>When no modifier is shown, the <code>?</code> and <code>readonly</code> markers <em>carry over</em> from the source. This property is called…</div>
+      <div class="opts">
+        <button class="opt">homomorphic</button>
+        <button class="opt">covariant</button>
+        <button class="opt">distributive</button>
+        <button class="opt">structural</button>
+      </div>
+      <div class="fb" data-why="Homomorphic mapped types (keyof over an original type variable) preserve modifiers. Use -? and -readonly to strip them."></div>
+    </div>
+
+    <div class="q" data-correct="3">
+      <div class="stem"><span class="n">3.</span>To <em>drop</em> a key inside <code>[K in keyof T as …]</code>, the <code>as</code> expression should yield…</div>
+      <div class="opts">
+        <button class="opt">void</button>
+        <button class="opt">unknown</button>
+        <button class="opt">the original key K</button>
+        <button class="opt">never</button>
+      </div>
+      <div class="fb" data-why="Returning never in the key position removes that key from the mapped object — the mechanism behind Omit and Exclude."></div>
+    </div>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">4.</span><code>type Partial&lt;T&gt; = { [K in keyof T]?: T[K] }</code>  — where does the <code>?</code> sit?</div>
+      <div class="opts">
+        <button class="opt">on the value type T[K]</button>
+        <button class="opt">in the key position, marking each property optional</button>
+        <button class="opt">before keyof T</button>
+        <button class="opt">it isn't valid — Partial uses Infer</button>
+      </div>
+      <div class="fb" data-why="The ? modifier lives in the key position (right after the closing square bracket), making every property optional. Same idea applies to readonly."></div>
+    </div>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">5.</span>Which is the real <code>Record&lt;K, V&gt;</code> definition?</div>
+      <div class="opts">
+        <button class="opt">type Record&lt;K, V&gt; = { [K in V]: K }</button>
+        <button class="opt">type Record&lt;K extends string, V&gt; = { [P in K]: V }</button>
+        <button class="opt">type Record&lt;K, V&gt; = K extends V ? K : never</button>
+        <button class="opt">type Record&lt;K, V&gt; = { readonly [P in K]?: V }</button>
+      </div>
+      <div class="fb" data-why="Record constrains K to string (or number/symbol) and maps each key to the uniform value V: { [P in K]: V }, used to build all-keys-same-shape objects like route maps."></div>
+    </div>
+
+    <div id="score">Answer all five to see your score.</div>
+  </div>
+
+  <!-- ============ NEXT ============ -->
+  <div class="next">
+    <h2>Primary source (read this next)</h2>
+    <p><span class="pill">Most trusted</span>
+       <a href="https://www.typescriptlang.org/docs/handbook/2/mapped-types.html" target="_blank">TS Handbook — Mapped types</a>.
+       The official treatment, with homomorphic and key-remapping examples. ~20 min.</p>
+    <p style="font-size:.9rem;color:var(--muted)">Deeper, when ready:
+       <a href="https://type-level-typescript.com/advanced-type-analysis" target="_blank">Type-Level TypeScript</a>
+       exercises mapped types as a core transform in its type-level language.</p>
+
+    <h2>Where this goes</h2>
+    <p><span class="pill">Lesson 07</span> <strong>Template literal types</strong> — <code>`get${Capitalize&lt;K&gt;}`</code>
+       in the <code>as</code> clause is how you <em>rename</em> keys. Template literals give you string transform,
+       and the two together become a full shape-rewriting toolkit.</p>
+    <p style="margin-top:1.4rem"><a href="../reference/glossary.html#mapped">→ Glossary (Mapped types)</a> &nbsp;·&nbsp;
+       <a href="0005-conditional-types-infer.html">← Lesson 05</a> &nbsp;·&nbsp;
+       <a href="../RESOURCES.md">All resources</a></p>
+  </div>
+
+  <div class="ask">
+    <b>I'm your teacher.</b> Write a type <code>Getters&lt;T&gt;</code> that turns every key
+    <code>k</code> of <code>T</code> into a method <code>getK()</code> returning <code>T[K]</code> —
+    using <code>as</code> plus a template literal and <code>Capitalize</code> (peek at Lesson 07's syntax if
+    you need to). Patch the attempt in and I'll review it like a senior reviewer.
+  </div>
+
+  <footer>
+    <span id="r1">1.</span> <a href="https://www.typescriptlang.org/docs/handbook/2/mapped-types.html">TS Handbook — Mapped types</a>. &nbsp;
+    <span id="r2">2.</span> <a href="https://devblogs.microsoft.com/typescript/announcing-typescript-4-1/">TS 4.1 release notes — mapped type modifiers &amp; <code>as</code> remapping</a>. &nbsp;
+    <span id="r3">3.</span> <a href="https://www.typescriptlang.org/docs/handbook/release-notes-4-1.html">TS Handbook — 4.1 changes (key remapping)</a>.
+  </footer>
+</div>
+
+<script>
+  const qs = [...document.querySelectorAll('.q')];
+  let answered = 0, correct = 0;
+  qs.forEach(q => {
+    const right = +q.dataset.correct;
+    const opts = [...q.querySelectorAll('.opt')];
+    const fb = q.querySelector('.fb');
+    opts.forEach((opt, i) => {
+      opt.addEventListener('click', () => {
+        opts.forEach(o => o.disabled = true);
+        const ok = i === right;
+        opts[right].classList.add('correct');
+        if (!ok) opt.classList.add('wrong');
+        fb.classList.add(ok ? 'correct' : 'wrong');
+        fb.innerHTML = (ok ? '<b>Correct.</b> ' : '<b>Not quite.</b> ') + fb.dataset.why;
+        answered++; if (ok) correct++;
+        if (answered === qs.length) {
+          const s = document.getElementById('score');
+          s.classList.add('done');
+          const msg = correct === qs.length ? 'Mapped types solid. Template literals are next.' :
+                      correct >= 3 ? 'Good. Re-read the misses — homomorphism and the as clause are the load-bearing bits.' :
+                      'Re-read above and retake — mapped types are the transform engine of every type utility.';
+          s.textContent = `Score: ${correct} / ${qs.length}. ${msg}`;
+        }
+      });
+    });
+  });
+</script>
+</body>
+</html>

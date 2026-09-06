@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 09 — Designing Type-Safe APIs</title>
+<style>
+  :root { --ink:#1a1a1a; --paper:#fffff8; --accent:#7b1e1e; --muted:#6b6b63;
+          --rule:#d8d8cf; --good:#1b6b3a; --bad:#9a1f1f; --code:#f1f0e6; }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    line-height: 1.55; margin: 0; padding: 3.5rem 1.5rem 6rem; font-size: 19px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  .kicker { letter-spacing: .18em; text-transform: uppercase; font-size: .72rem;
+            color: var(--accent); margin: 0 0 .4rem; font-family: sans-serif; }
+  h1 { font-size: 2.3rem; font-weight: 600; line-height: 1.08; margin: 0 0 .3rem; }
+  .sub { color: var(--muted); font-style: italic; margin: 0 0 .6rem; }
+  .mission { font-size: .82rem; color: var(--muted); font-family: sans-serif;
+             border-left: 3px solid var(--rule); padding: .3rem 0 .3rem .8rem; margin: 0 0 2.4rem; }
+  h2 { font-size: 1.3rem; font-weight: 600; margin: 2.6rem 0 .6rem; }
+  p { margin: 0 0 1rem; }
+  ul { margin: 0 0 1rem; } li { margin: .25rem 0; }
+  code { font-family: "SF Mono","DejaVu Sans Mono",Menlo,Consolas,monospace;
+         font-size: .82em; background: var(--code); padding: .08em .35em; border-radius: 3px; }
+  pre { background: #2b2b28; color: #f4f3ea; padding: 1rem 1.1rem; border-radius: 6px;
+        overflow-x: auto; font-size: .8rem; line-height: 1.5; margin: 1rem 0; }
+  pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+  .tok-c { color: #8f9183; } .tok-k { color: #e0a36b; } .tok-t { color: #8fbcd4; }
+  .tok-s { color: #c3d39a; } .tok-f { color: #d9b3e0; } .tok-p { color: #7fb0d9; }
+  a { color: var(--accent); }
+  sup a { text-decoration: none; font-size: .7em; }
+  aside.note { background:#f6f5ea; border:1px solid var(--rule); border-radius:6px;
+        padding:.9rem 1.1rem; font-size:.92rem; margin:1.4rem 0; }
+  aside.note b { color: var(--accent); }
+
+  .quiz { border-top: 2px solid var(--ink); margin-top: 3rem; padding-top: 1.4rem; }
+  .q { margin: 1.8rem 0; }
+  .q .stem { font-weight: 600; margin-bottom: .7rem; }
+  .q .stem .n { color: var(--accent); margin-right:.4rem; }
+  .opts { display: grid; gap: .5rem; }
+  .opt { text-align:left; font: inherit; cursor: pointer; background: #fff;
+         border: 1px solid var(--rule); border-radius: 6px; padding: .6rem .85rem;
+         transition: background .12s, border-color .12s; }
+  .opt:hover:not(:disabled) { border-color: var(--accent); }
+  .opt:disabled { cursor: default; }
+  .opt.correct { border-color: var(--good); background: #eaf5ee; }
+  .opt.wrong { border-color: var(--bad); background: #f7ebeb; }
+  .fb { font-size: .9rem; margin-top: .55rem; min-height: 1.2em; }
+  .fb.correct { color: var(--good); } .fb.wrong { color: var(--bad); }
+  .fb b { font-weight: 600; }
+  #score { font-family: sans-serif; font-size: 1rem; margin-top: 2rem;
+           padding: 1rem; border: 1px dashed var(--rule); border-radius: 6px;
+           text-align: center; color: var(--muted); }
+  #score.done { color: var(--ink); border-style: solid; }
+
+  .next { border-top: 1px solid var(--rule); margin-top: 3rem; padding-top: 1.4rem; }
+  .pill { display:inline-block; font-family:sans-serif; font-size:.72rem; letter-spacing:.08em;
+          text-transform:uppercase; background:var(--code); color:var(--muted);
+          padding:.2rem .55rem; border-radius:99px; margin-right:.4rem; }
+  footer { color: var(--muted); font-size: .85rem; margin-top: 2rem; }
+  .ask { background:#fdf6e3; border:1px solid #e4d9a8; border-radius:6px;
+         padding:.9rem 1.1rem; font-size:.92rem; margin-top:2rem; }
+  @media print { body{font-size:12pt;padding:1rem;} pre{background:#eee;color:#000;}
+    .opt{background:#fff;} a{color:var(--ink);} .quiz .fb{display:block;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">Lesson 09 · Designing for teams</p>
+  <h1>Designing Type-Safe APIs</h1>
+  <p class="sub">Make misuse a compile error, not a runtime surprise — branded types, builders, and overloads.</p>
+  <p class="mission">★ Mission link: this is the senior finish. Everything so far (sets, variance, conditionals,
+    mapped types, recursion) is <em>plumbing</em>; this lesson is <em>product</em>. You'll design signatures where
+    the compiler prevents the mistakes that normally cost a deployment. Grounded purely in the type
+    machinery you've already built — no new syntax, just new judgment.</p>
+
+  <h2>The goal: "can't be wrong" over "isn't wrong"</h2>
+  <p>A value-level API can be used correctly or incorrectly — only a test catches the latter. A <em>type-safe</em>
+    API makes the incorrect call a <strong>compile error</strong>, so misuse never ships. The techniques here are
+    the difference between a function that happens to have types and a function that is <em>designed</em> by its
+    types.<sup><a href="#r1">1</a></sup></p>
+
+  <h2>Branded types: make two strings <em>not</em> interchangeable</h2>
+  <p>Structurally, a <code>userId</code> and an <code>email</code> are both <code>string</code> — so a function
+    that expects <code>email</code> will happily take a <code>userId</code>. A <strong>branded type</strong>
+    (a.k.a. nominal fake) adds a marker that only <em>you</em> can produce, so the two stop being assignable to
+    each other.<sup><a href="#r2">2</a></sup></p>
+  <pre><code><span class="tok-k">type</span> <span class="tok-t">UserId</span> = <span class="tok-t">string</span> &amp; { <span class="tok-k">readonly</span> <span class="tok-t">brand</span>: <span class="tok-s">"UserId"</span> };
+<span class="tok-k">type</span> <span class="tok-t">Email</span>   = <span class="tok-t">string</span> &amp; { <span class="tok-k">readonly</span> <span class="tok-t">brand</span>: <span class="tok-s">"Email"</span> };
+
+<span class="tok-c">// the ONLY way to make one — a narrowing constructor</span>
+<span class="tok-k">function</span> <span class="tok-t">userId</span>(<span class="tok-t">s</span>: <span class="tok-t">string</span>): <span class="tok-t">UserId</span> { <span class="tok-k">return</span> <span class="tok-t">s</span> <span class="tok-k">as</span> <span class="tok-t">UserId</span>; }
+<span class="tok-k">function</span> <span class="tok-t">email</span>(<span class="tok-t">s</span>: <span class="tok-t">string</span>): <span class="tok-t">Email</span> { <span class="tok-k">return</span> <span class="tok-t">s</span> <span class="tok-k">as</span> <span class="tok-t">Email</span>; }
+
+<span class="tok-k">function</span> <span class="tok-t">prefs</span>(<span class="tok-t">u</span>: <span class="tok-t">UserId</span>) {}
+<span class="tok-t">prefs</span>(<span class="tok-t">userId</span>(<span class="tok-s">"abc"</span>));  <span class="tok-c">// ok</span>
+<span class="tok-t">prefs</span>(<span class="tok-s">"abc"</span>);           <span class="tok-c">// error — string isn't UserId</span>
+<span class="tok-t">prefs</span>(<span class="tok-t">email</span>(<span class="tok-s">"a@b.com"</span>)); <span class="tok-c">// error — Email isn't UserId</span></code></pre>
+  <p>The <code>&amp;</code> intersection + marker makes the set <em>smaller</em> than <code>string</code> — a
+    <code>UserId</code> is a string that additionally claims "I am a UserId," and only <code>userId()</code>
+    can mint that claim. Every other string, including an <code>Email</code>, fails the subset check.</p>
+
+  <h2>The builder pattern: sequence as a type</h2>
+  <p>State-machine-style: make each method return a type that exposes only the <em>next valid</em> moves.
+    A call in the wrong order becomes a compile error, because the method simply isn't there on the current
+    type.<sup><a href="#r3">3</a></sup></p>
+  <pre><code><span class="tok-c">// HTTP request builder: <code>method()</code> then <code>path()</code> then <code>send()</code></span>
+<span class="tok-k">class</span> <span class="tok-t">ReqB</span>&lt;<span class="tok-t">S</span>&gt; {
+  <span class="tok-k">private</span> <span class="tok-t">_method</span>?: <span class="tok-t">string</span>; <span class="tok-k">private</span> <span class="tok-t">_path</span>?: <span class="tok-t">string</span>;
+  <span class="tok-t">method</span>(<span class="tok-t">m</span>: <span class="tok-s">"GET"</span> | <span class="tok-s">"POST"</span>): <span class="tok-t">ReqB</span>&lt;<span class="tok-s">"ready-method"</span>&gt; { <span class="tok-k">return</span> <span class="tok-k">this</span>; }
+  <span class="tok-t">path</span>(<span class="tok-t">p</span>: <span class="tok-t">string</span>): <span class="tok-t">ReqB</span>&lt;<span class="tok-s">"ready-path"</span>&gt; { <span class="tok-k">return</span> <span class="tok-k">this</span>; }
+  <span class="tok-t">send</span>(): <span class="tok-k">Promise</span>&lt;<span class="tok-t">Response</span>&gt; {
+    <span class="tok-t">if</span> (<span class="tok-k">this</span>._method &amp;&amp; <span class="tok-k">this</span>._path) { <span class="tok-k">return</span> <span class="tok-k">fetch</span>(<span class="tok-k">this</span>._path, { <span class="tok-t">method</span>: <span class="tok-k">this</span>._method }); }
+    <span class="tok-k">throw</span> <span class="tok-k">new</span> <span class="tok-t">Error</span>(<span class="tok-s">"must set method + path"</span>);
+  }
+}
+<span class="tok-c">// usage:</span>
+<span class="tok-k">new</span> <span class="tok-t">ReqB</span>().<span class="tok-t">method</span>(<span class="tok-s">"GET"</span>).<span class="tok-t">path</span>(<span class="tok-s">"/users"</span>).<span class="tok-t">send</span>(); <span class="tok-c">// ok</span></code></pre>
+  <aside class="note"><b>Why this matters:</b> the builder's generic <code>S</code> tracks progression. If shipped
+    naively — returning the same type every step — <code>send()</code> before <code>method()</code> would only
+    fail at <em>runtime</em>. Encoding the state in the type moves that failure to <em>compile time</em>.</aside>
+
+  <h2>Overloads: return a type that depends on the argument</h2>
+  <p>Overloads let one function produce a <em>precisely-typed</em> result per input. TypeScript picks the
+    <strong>first</strong> matching overload, so order specific overloads before wide ones.<sup><a href="#r4">4</a></sup></p>
+  <pre><code><span class="tok-k">function</span> <span class="tok-t">parseId</span>(<span class="tok-t">s</span>: <span class="tok-s">"new"</span>): <span class="tok-s">"new"</span>;                  <span class="tok-c">// specific first</span>
+<span class="tok-k">function</span> <span class="tok-t">parseId</span>(<span class="tok-t">s</span>: <span class="tok-t">string</span>): <span class="tok-t">number</span>;            <span class="tok-c">// wide fallback</span>
+<span class="tok-k">function</span> <span class="tok-t">parseId</span>(<span class="tok-t">s</span>: <span class="tok-t">string</span>) { <span class="tok-k">return</span> <span class="tok-t">s</span> === <span class="tok-s">"new"</span> ? <span class="tok-s">"new"</span> : <span class="tok-t">Number</span>(<span class="tok-t">s</span>); }
+
+<span class="tok-k">const</span> <span class="tok-t">a</span> = <span class="tok-t">parseId</span>(<span class="tok-s">"new"</span>);  <span class="tok-c">// "new" (literal)</span>
+<span class="tok-k">const</span> <span class="tok-t">b</span> = <span class="tok-t">parseId</span>(<span class="tok-s">"123"</span>); <span class="tok-c">// number</span></code></pre>
+  <p>Overloads work because a literal <code>"new"</code> matches the first signature, while a general
+    <code>string</code> falls through to the second. Consumers get a result typed to their exact input — without
+    <code>any</code> or a lost type.</p>
+
+  <h2>Literal unions over <code>string</code></h2>
+  <p>The cheapest win: accept a union of allowed literals instead of <code>string</code>. Autocomplete offers the
+    valid values, and a typo is a compile error instead of a silent <code>undefined</code>-shaped bug:</p>
+  <pre><code><span class="tok-k">type</span> <span class="tok-t">Size</span> = <span class="tok-s">"small"</span> | <span class="tok-s">"medium"</span> | <span class="tok-t">"large"</span>;
+<span class="tok-k">function</span> <span class="tok-t">orderCoffee</span>(<span class="tok-t">size</span>: <span class="tok-t">Size</span>) {}
+
+<span class="tok-t">orderCoffee</span>(<span class="tok-s">"medium"</span>);  <span class="tok-c">// ok — autocomplete offers these</span>
+<span class="tok-t">orderCoffee</span>(<span class="tok-s">"grande"</span>); <span class="tok-c">// error — "grande" not in Size</span></code></pre>
+
+  <h2>The discipline: emit <code>never</code>, not <code>any</code></h2>
+  <p>Good API types make the compiler do the work. When you design, prefer each of these over its easy
+    alternative:</p>
+  <ul>
+    <li>a branded type over a raw <code>string</code></li>
+    <li>a builder's encoded state over an unchecked <code>send()</code></li>
+    <li>an overload's precise return over a wide fallback</li>
+    <li>a literal union over <code>string</code></li>
+  </ul>
+  <p>Each one moves a class of mistakes from "the test suite should have caught this" to "the compiler would not
+    let it exist." That is the senior bar for API design.</p>
+
+  <!-- ============ QUIZ ============ -->
+  <div class="quiz">
+    <p class="kicker">Retrieval practice</p>
+    <h2 style="margin-top:.3rem">Check yourself</h2>
+    <p style="color:var(--muted);font-size:.92rem">From memory. Q5 reaches back to Lesson 01 on purpose.</p>
+
+    <div class="q" data-correct="2">
+      <div class="stem"><span class="n">1.</span>The core benefit of a <em>branded type</em> is that…</div>
+      <div class="opts">
+        <button class="opt">it converts strings to numbers at runtime</button>
+        <button class="opt">it stops the compiler from checking anything</button>
+        <button class="opt">two otherwise-identical structural types stop being assignable to each other</button>
+        <button class="opt">it adds instanceof checks</button>
+      </div>
+      <div class="fb" data-why="A marker only your constructor can set shrinks the set, so a UserId is no longer assignable where an Email is expected."></div>
+    </div>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">2.</span>A builder that returns a progressively <em>narrower</em> type at each step works because…</div>
+      <div class="opts">
+        <button class="opt">methods not yet valid simply don't exist on the current type</button>
+        <button class="opt">it uses private fields to hide the methods</button>
+        <button class="opt">it relies on runtime checks instead of types</button>
+        <button class="opt">it returns void after the first call</button>
+      </div>
+      <div class="fb" data-why="By returning a narrower type, only the next-valid methods are present, so an out-of-order call fails to compile."></div>
+    </div>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">3.</span>When writing overloads, the <em>most specific</em> signature must come…</div>
+      <div class="opts">
+        <button class="opt">last, after the wide one</button>
+        <button class="opt">first, before the wide one</button>
+        <button class="opt">in a separate file</button>
+        <button class="opt">never — order doesn't matter</button>
+      </div>
+      <div class="fb" data-why="TS picks the first matching overload, so the specific (literal-matching) one must come first, the wide fallback after."></div>
+    </div>
+
+    <div class="q" data-correct="3">
+      <div class="stem"><span class="n">4.</span>A function parameter typed <code>"small" | "medium" | "large"</code> instead of <code>string</code> gives you…</div>
+      <div class="opts">
+        <button class="opt">faster compiles</button>
+        <button class="opt">smaller binary size</button>
+        <button class="opt">the ability to pass any number</button>
+        <button class="opt">autocomplete of valid values and compile-error on typos</button>
+      </div>
+      <div class="fb" data-why="The literal union is a precise set; invalid values fail the subset check, and the editor lists the allowed ones."></div>
+    </div>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">5.</span>Why does a construction function need the <code>as</code> cast to mint a branded <code>UserId</code>?</div>
+      <div class="opts">
+        <button class="opt">because string is a subtype of UserId, no cast is needed</button>
+        <button class="opt">because UserId (string &amp; marker) is narrower than string, so only an explicit mint can produce one</button>
+        <button class="opt">because branding adds a runtime object to each string</button>
+        <button class="opt">because it enforces lazy evaluation</button>
+      </div>
+      <div class="fb" data-why="UserId is a strict subset of string (Lesson 01). A raw string does not have the marker, so only the constructor's explicit cast can produce the narrower type."></div>
+    </div>
+
+    <div id="score">Answer all five to see your score.</div>
+  </div>
+
+  <!-- ============ NEXT ============ -->
+  <div class="next">
+    <h2>Primary source (read this next)</h2>
+    <p><span class="pill">Most trusted</span>
+       <a href="https://www.typescriptlang.org/docs/handbook/2/functions.html" target="_blank">TS Handbook — Functions (overloads, narrowing)</a>.
+       The official treatment of overload ordering and parameter narrowing. ~15 min.</p>
+    <p style="font-size:.9rem;color:var(--muted)">Deeper, when ready:
+       <a href="https://www.totaltypescript.com/" target="_blank">Total TypeScript</a> exercises branded types
+       and builders with real senior-pattern designs.</p>
+
+    <h2>Where this goes</h2>
+    <p><span class="pill">Lesson 10</span> <strong>Reading &amp; decoding any type error</strong> — you'll spend
+       your career on the other side of the API you write: someone hits an error in <em>your</em> type or a
+       library's, and must read it. The final lesson turns every cryptic message into a plan.</p>
+    <p style="margin-top:1.4rem"><a href="../reference/glossary.html#api-design">→ Glossary (API design)</a> &nbsp;·&nbsp;
+       <a href="0008-recursive-type-level-programming.html">← Lesson 08</a> &nbsp;·&nbsp;
+       <a href="../RESOURCES.md">All resources</a></p>
+  </div>
+
+  <div class="ask">
+    <b>I'm your teacher.</b> Rebuild one from memory: a branded <code>Email</code> type with its constructor and a
+    function that only accepts it. Then, harder: a small builder that makes calling <code>.send()</code> before
+    <code>.method()</code> a <em>compile error</em>. Paste both and I'll review them like a senior reviewer.
+  </div>
+
+  <footer>
+    <span id="r1">1.</span> <a href="https://www.typescriptlang.org/docs/handbook/type-compatibility.html">TS Handbook — Type compatibility</a>. &nbsp;
+    <span id="r2">2.</span> <a href="https://www.totaltypescript.com/branded-types">Total TypeScript — Branded types</a>. &nbsp;
+    <span id="r3">3.</span> <a href="https://www.totaltypescript.com/builder-pattern">Total TypeScript — Builder pattern</a>. &nbsp;
+    <span id="r4">4.</span> <a href="https://www.typescriptlang.org/docs/handbook/2/functions.html">TS Handbook — Overloads</a>.
+  </footer>
+</div>
+
+<script>
+  const qs = [...document.querySelectorAll('.q')];
+  let answered = 0, correct = 0;
+  qs.forEach(q => {
+    const right = +q.dataset.correct;
+    const opts = [...q.querySelectorAll('.opt')];
+    const fb = q.querySelector('.fb');
+    opts.forEach((opt, i) => {
+      opt.addEventListener('click', () => {
+        opts.forEach(o => o.disabled = true);
+        const ok = i === right;
+        opts[right].classList.add('correct');
+        if (!ok) opt.classList.add('wrong');
+        fb.classList.add(ok ? 'correct' : 'wrong');
+        fb.innerHTML = (ok ? '<b>Correct.</b> ' : '<b>Not quite.</b> ') + fb.dataset.why;
+        answered++; if (ok) correct++;
+        if (answered === qs.length) {
+          const s = document.getElementById('score');
+          s.classList.add('done');
+          const msg = correct === qs.length ? 'API design solid. Reading any type error is next.' :
+                      correct >= 3 ? 'Good. Re-read the misses — branding and overload ordering are the load-bearing bits.' :
+                      'Re-read above and retake — these patterns are the difference between types and design.';
+          s.textContent = `Score: ${correct} / ${qs.length}. ${msg}`;
+        }
+      });
+    });
+  });
+</script>
+</body>
+</html>

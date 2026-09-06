@@ -201,6 +201,121 @@
         (<code>T | never</code> = <code>T</code>). Prefer it over <code>any</code>/<code>unknown</code>.</dd>
   </dl>
 
+  <h2 id="mapped">Mapped Types &amp; Key Remapping</h2>
+  <dl>
+    <dt>Mapped type</dt>
+    <dd>A type that <em>iterates</em> over the keys of another type (<code>keyof T</code>) and rebuilds an
+        object, transforming each property. Shape:
+        <code>{ [K in keyof T]: … }</code>.</dd>
+    <dd class="eg"><code>{ [K in keyof T]: T[K] }</code> reproduces <code>T</code>; add <code>?</code>,
+        <code>readonly</code>, or a new value type to transform it.</dd>
+
+    <dt>The two type variables in a mapped type</dt>
+    <dd>Inside <code>{ [K in keyof T]: V }</code>, <code>K</code> is the <em>key</em> (a literal type),
+        and you can also capture the <em>value</em> with <code>[P in keyof T]</code> then use
+        <code>T[P]</code> (indexed access). A mapped type is a <em>block transform</em>: same keys, new values.</dd>
+
+    <dt>Homomorphic</dt>
+    <dd>A mapped type that writes <code>keyof T</code> directly over an <em>original type</em> — it preserves
+        its modifiers (<code>readonly</code>, optional <code>?</code>) unless you strip them. That's why
+        <code>Partial&lt;T&gt;</code> and <code>Readonly&lt;T&gt;</code> keep the shape of <code>T</code>.</dd>
+
+    <dt>Key remapping (<code>as</code>)</dt>
+    <dd>Rename keys with <code>[K in keyof T as NewKey]: …</code>. Since TS 4.1; combined with
+        <code>never</code> in the key position to <em>drop</em> keys, or with template literals to <em>rename</em>.</dd>
+    <dd class="eg"><code>{ [K in keyof T as `get&#36;{Capitalize&lt;K&gt;}`]: () =&gt; T[K] }</code> turns
+        <code>name</code> into <code>getName(): string</code>.</dd>
+
+    <dt>Utility functions built from mapped types</dt>
+    <dd><code>Partial</code> (all keys optional), <code>Required</code> (all required),
+        <code>Readonly</code> (all readonly), <code>Pick</code> / <code>Omit</code> (subset of keys),
+        <code>Record</code> (uniform keys→value).</dd>
+  </dl>
+
+  <h2 id="template-literal">Template Literal Types</h2>
+  <dl>
+    <dt>Template literal type</dt>
+    <dd>A string-literal type built with backtick syntax and <code>${…}</code> substitutions whose result is
+        a <em>set of strings</em> — the cross product of each placeholder's literal values.
+        <code>`img-${number}`</code> = the type of every <code>"img-&lt;N&gt;"</code> string.</dd>
+
+    <dt>Type of the result</dt>
+    <dd>If all placeholders are literal (or already narrowed by <code>infer</code> / never), the result is a
+        finite literal type. If a placeholder is a wide type like <code>number</code> or <code>string</code>,
+        the result is a <em>wider</em> inferred type (e.g. <code>`&#36;{number}`</code> is
+        <code>`&#36;{number}`</code>, a distinct non-literal type).</dd>
+
+    <dt>Pattern matching with <code>infer</code> + template literals</dt>
+    <dd>Use a template literal in the <code>extends</code> clause with <code>infer</code> placeholders to
+        describe a string's shape:
+        <code>T extends `get&#36;{infer R}` ? R : never</code>. This is how you parse URLs, ids, and paths
+        at the type level.</dd>
+
+    <dt>Capitalization helpers</dt>
+    <dd>Built-in string-transformation utilities:
+        <code>Uppercase</code>, <code>Lowercase</code>, <code>Capitalize</code>, <code>Uncapitalize</code>.</dd>
+
+    <dt>Key relationship to mapped types</dt>
+    <dd>Template literals + <code>as</code> key remapping rename properties; template literals + <code>infer</code>
+        pattern-match on string content. Together: transform <em>keys</em> or <em>values</em>, or both.</dd>
+  </dl>
+
+  <h2 id="recursion">Recursive Type-Level Programming</h2>
+  <dl>
+    <dt>Recursive type</dt>
+    <dd>A type (often a conditional or mapped type) that references <em>itself</em> to process a structure
+        step by step — unwrapping <code>Promise&lt;Promise&lt;…&gt;&gt;</code>, or a tuple type down to its base
+        case. The machine at work: <code>extends</code> as a test, <code>infer</code> as destructuring, and the
+        type name as the recursive call.</dd>
+
+    <dt>Base case</dt>
+    <dd>The terminating branch that does <em>not</em> recurse (empty tuple, non-promise, <code>[]</code>). Every
+        recursive type needs one, mirroring value-level recursion. It usually resolves to <code>never</code>,
+        <code>[]</code>, or the unchanged type.</dd>
+
+    <dt>Tail recursion optimization (TS ≥ 4.5)</dt>
+    <dd>When the recursive call is in <em>tail position</em> (the last operation, usually the true branch of a
+        conditional), TypeScript can reuse the stack — letting you recurse over arbitrarily long unions/tuples
+        without hitting the depth limit. Put the recursion last.</dd>
+
+    <dt>Depth limit</dt>
+    <dd>TS enforces a recursion-depth cap (default roughly 50 levels before 4.5, up to ~10000 with
+        tail-call optimization). Hit it and you get a "type instantiation depth exceeded" error — the
+        type-level stack overflow.</dd>
+
+    <dt><code>type</code> recursion vs. interface recursion</dt>
+    <dd><code>interface Node { children: Node[] }</code> is <em>recursive data</em> — fine.<br>
+        Recursive <em>type-conditional computation</em> (like <code>Awaited</code>) is type-level programming,
+        the thing this course means by "recursion."</dd>
+  </dl>
+
+  <h2 id="api-design">Type-Safe API Design</h2>
+  <dl>
+    <dt>Branded type / nominal fake</dt>
+    <dd>A structural type plus a unique marker that <em>only you</em> can produce, so two otherwise-identical
+        shapes (e.g. two <code>string</code>s, a userId vs an email) are not interchangeable.
+        <code>type UserId = string &amp; { __brand: "UserId" }</code> — a nominal-style type you shape via a
+        constructor function.</dd>
+
+    <dt>Builder pattern</dt>
+    <dd>A fluent API where each method call returns a new type that exposes only the <em>next valid</em> methods.
+        By returning progressively narrower types, TypeScript makes state-machine violations a <em>compile error</em>.</dd>
+
+    <dt>Overloads (and their ordering)</dt>
+    <dd>Multiple signatures for one function name. TS picks the <em>first</em> matching overload, so order the
+        <em>most specific</em> first. A <code>string | number</code> overload after a
+        <code>"exact"</code>-literal overload lets a literal get the strict path.</dd>
+
+    <dt>Literal types in parameters</dt>
+    <dd>Accepting a union of literals (<code>"small" | "large"</code>) instead of <code>string</code> forces the
+        caller to pick an allowed value — autocomplete offers them, and typos become errors.</dd>
+
+    <dt>Function overloading as a narrowing tool</dt>
+    <dd>Overloads let you express <em>return type depends on input argument</em>: a
+        <code>(x: number) =&gt; number</code> and <code>(x: string) =&gt; string</code> pair give the caller a
+        precisely-typed result per input, without losing the wide fallback.</dd>
+  </dl>
+
   <hr>
   <p><a class="top" href="#">↑ top</a></p>
   <footer>

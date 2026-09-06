@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 08 — Recursive Type-Level Programming</title>
+<style>
+  :root { --ink:#1a1a1a; --paper:#fffff8; --accent:#7b1e1e; --muted:#6b6b63;
+          --rule:#d8d8cf; --good:#1b6b3a; --bad:#9a1f1f; --code:#f1f0e6; }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    line-height: 1.55; margin: 0; padding: 3.5rem 1.5rem 6rem; font-size: 19px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  .kicker { letter-spacing: .18em; text-transform: uppercase; font-size: .72rem;
+            color: var(--accent); margin: 0 0 .4rem; font-family: sans-serif; }
+  h1 { font-size: 2.3rem; font-weight: 600; line-height: 1.08; margin: 0 0 .3rem; }
+  .sub { color: var(--muted); font-style: italic; margin: 0 0 .6rem; }
+  .mission { font-size: .82rem; color: var(--muted); font-family: sans-serif;
+             border-left: 3px solid var(--rule); padding: .3rem 0 .3rem .8rem; margin: 0 0 2.4rem; }
+  h2 { font-size: 1.3rem; font-weight: 600; margin: 2.6rem 0 .6rem; }
+  p { margin: 0 0 1rem; }
+  ul { margin: 0 0 1rem; } li { margin: .25rem 0; }
+  code { font-family: "SF Mono","DejaVu Sans Mono",Menlo,Consolas,monospace;
+         font-size: .82em; background: var(--code); padding: .08em .35em; border-radius: 3px; }
+  pre { background: #2b2b28; color: #f4f3ea; padding: 1rem 1.1rem; border-radius: 6px;
+        overflow-x: auto; font-size: .8rem; line-height: 1.5; margin: 1rem 0; }
+  pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+  .tok-c { color: #8f9183; } .tok-k { color: #e0a36b; } .tok-t { color: #8fbcd4; }
+  .tok-s { color: #c3d39a; } .tok-f { color: #d9b3e0; } .tok-p { color: #7fb0d9; }
+  a { color: var(--accent); }
+  sup a { text-decoration: none; font-size: .7em; }
+  aside.note { background:#f6f5ea; border:1px solid var(--rule); border-radius:6px;
+        padding:.9rem 1.1rem; font-size:.92rem; margin:1.4rem 0; }
+  aside.note b { color: var(--accent); }
+
+  .quiz { border-top: 2px solid var(--ink); margin-top: 3rem; padding-top: 1.4rem; }
+  .q { margin: 1.8rem 0; }
+  .q .stem { font-weight: 600; margin-bottom: .7rem; }
+  .q .stem .n { color: var(--accent); margin-right:.4rem; }
+  .opts { display: grid; gap: .5rem; }
+  .opt { text-align:left; font: inherit; cursor: pointer; background: #fff;
+         border: 1px solid var(--rule); border-radius: 6px; padding: .6rem .85rem;
+         transition: background .12s, border-color .12s; }
+  .opt:hover:not(:disabled) { border-color: var(--accent); }
+  .opt:disabled { cursor: default; }
+  .opt.correct { border-color: var(--good); background: #eaf5ee; }
+  .opt.wrong { border-color: var(--bad); background: #f7ebeb; }
+  .fb { font-size: .9rem; margin-top: .55rem; min-height: 1.2em; }
+  .fb.correct { color: var(--good); } .fb.wrong { color: var(--bad); }
+  .fb b { font-weight: 600; }
+  #score { font-family: sans-serif; font-size: 1rem; margin-top: 2rem;
+           padding: 1rem; border: 1px dashed var(--rule); border-radius: 6px;
+           text-align: center; color: var(--muted); }
+  #score.done { color: var(--ink); border-style: solid; }
+
+  .next { border-top: 1px solid var(--rule); margin-top: 3rem; padding-top: 1.4rem; }
+  .pill { display:inline-block; font-family:sans-serif; font-size:.72rem; letter-spacing:.08em;
+          text-transform:uppercase; background:var(--code); color:var(--muted);
+          padding:.2rem .55rem; border-radius:99px; margin-right:.4rem; }
+  footer { color: var(--muted); font-size: .85rem; margin-top: 2rem; }
+  .ask { background:#fdf6e3; border:1px solid #e4d9a8; border-radius:6px;
+         padding:.9rem 1.1rem; font-size:.92rem; margin-top:2rem; }
+  @media print { body{font-size:12pt;padding:1rem;} pre{background:#eee;color:#000;}
+    .opt{background:#fff;} a{color:var(--ink);} .quiz .fb{display:block;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">Lesson 08 · Type-level programming</p>
+  <h1>Recursive Type-Level Programming</h1>
+  <p class="sub">A type that calls itself — unwrap, walk, and rewrite structures until a base case.</p>
+  <p class="mission">★ Mission link: recursion is where type-level programming stops being a bag of utilities and
+    becomes a <em>language</em> — you can now write <code>Awaited</code>, a path parser, or a
+    type-level <code>toKebabCase</code>. It's the payoff you've been building toward since Lesson 05. Builds on
+    <a href="0005-conditional-types-infer.html">Lesson 05</a> (conditionals + <code>infer</code> as destructuring)
+    and <a href="0007-template-literal-types.html">Lesson 07</a> (string pattern parsing).</p>
+
+  <h2>Recursion is two branches, one promise</h2>
+  <p>Read a recursive type as a function with a test, a base case, and a recursive step. The test is a
+    conditional's <code>extends</code>; the base case stops; the step calls the type's own name.<sup><a href="#r1">1</a></sup></p>
+  <pre><code><span class="tok-c">// Awaited — unwrap Promise&lt;Promise&lt;…&gt;&gt; to the innermost non-promise</span>
+<span class="tok-k">type</span> <span class="tok-t">Awaited</span>&lt;<span class="tok-t">T</span>&gt; =
+  <span class="tok-t">T</span> <span class="tok-k">extends</span> <span class="tok-k">promise</span>&lt;<span class="tok-k">infer</span> <span class="tok-t">U</span>&gt; ? <span class="tok-t">Awaited</span>&lt;<span class="tok-t">U</span>&gt; : <span class="tok-t">T</span>;
+  <span class="tok-c">//   ^ test                ^ recurse            ^ base case</span>
+
+<span class="tok-k">type</span> <span class="tok-t">A</span> = <span class="tok-t">Awaited</span>&lt;<span class="tok-t">Promise</span>&lt;<span class="tok-t">Promise</span>&lt;<span class="tok-t">number</span>&gt;&gt;&gt;;  <span class="tok-c">// number</span>
+<span class="tok-k">type</span> <span class="tok-t">B</span> = <span class="tok-t">Awaited</span>&lt;<span class="tok-t">string</span>&gt;;                    <span class="tok-c">// string (base case)</span></code></pre>
+  <p>Read it: <em>"if <code>T</code> is a Promise, unwrap it and repeat on the inner type; otherwise stop and
+    return <code>T</code>."</em>That's it. The recursion unfolds Promise after Promise until the base case holds.</p>
+
+  <h2>Walking a tuple: head + tail</h2>
+  <p>Tuples recurse by <code>infer</code> into a <em>first element</em> plus a <em>rest tuple</em>. This is the
+    pattern for processing a fixed-length collection element by element:</p>
+  <pre><code><span class="tok-c">// convert [A, B, C] -&gt; [()&gt;=&gt;A, ()=&gt;B, ()=&gt;C] using recursion</span>
+<span class="tok-k">type</span> <span class="tok-t">Lazy</span>&lt;<span class="tok-t">T</span> <span class="tok-k">extends</span> <span class="tok-k">readonly</span> <span class="tok-t">unknown</span>[]&gt; =
+  <span class="tok-t">T</span> <span class="tok-k">extends</span> [<span class="tok-k">infer</span> <span class="tok-t">Head</span>, ...<span class="tok-k">infer</span> <span class="tok-t">Rest</span>]
+    ? [() =&gt; <span class="tok-t">Head</span>, ...<span class="tok-t">Lazy</span>&lt;<span class="tok-t">Rest</span>&gt;]
+    : [];
+
+<span class="tok-k">type</span> <span class="tok-t">T</span> = <span class="tok-t">Lazy</span>&lt;[<span class="tok-t">number</span>, <span class="tok-t">string</span>]&gt;;  <span class="tok-c">// [() =&gt; number, () =&gt; string]</span></code></pre>
+  <p>The base case is <code>[]</code> (empty tuple). Each step peels one element into <code>Head</code> and
+    recurses on the <code>Rest</code>. When the tuple is empty, <code>T extends [infer Head, ...]</code> is
+    false — so we return <code>[]</code> and the outer spreads assemble the result.</p>
+
+  <h2>The tail-call rule: recurse last</h2>
+  <p>TypeScript versions ≥ 4.5 can <em>tail-call optimize</em> a recursive type — reuse the stack instead of
+    growing it — <strong>only when the recursive call is in tail position</strong> (the last operation). Put the
+    recursion as the final expression, not buried under more work, so you can recurse over arbitrarily long
+    unions and tuples without hitting the depth cap.<sup><a href="#r2">2</a></sup></p>
+  <pre><code><span class="tok-c">// GOOD: recursion in tail position</span>
+<span class="tok-k">type</span> <span class="tok-t">Awaited</span>&lt;<span class="tok-t">T</span>&gt; = <span class="tok-t">T</span> <span class="tok-k">extends</span> <span class="tok-k">promise</span>&lt;<span class="tok-k">infer</span> <span class="tok-t">U</span>&gt; ? <span class="tok-t">Awaited</span>&lt;<span class="tok-t">U</span>&gt; : <span class="tok-t">T</span>;  <span class="tok-c">// tail ✓</span></code></pre>
+  <aside class="note"><b>The depth limit:</b> without tail-call optimization, deeply recursive types hit a
+    "type instantiation depth exceeded" error — the type-level stack overflow. Keeping the recursion last is the
+    single most important habit; it's also the difference between "works on my sample" and "handles the real
+    union with 10,000 members."</aside>
+
+  <h2>Recursive + template literals: walking a path</h2>
+  <p>Bring Lesson 07's <code>infer</code>-in-a-string pattern into the recursion to walk a dotted path to its
+    final type. This is how <code>LocaleString</code>, event-name types, and lodash-style <code>get</code>
+    signatures are built:</p>
+  <pre><code><span class="tok-k">type</span> <span class="tok-t">Obj</span> = { <span class="tok-t">a</span>: { <span class="tok-t">b</span>: { <span class="tok-t">c</span>: <span class="tok-t">number</span> } } };
+
+<span class="tok-k">type</span> <span class="tok-t">Path</span>&lt;<span class="tok-t">T</span>, <span class="tok-t">P</span> <span class="tok-k">extends</span> <span class="tok-t">string</span>&gt; =
+  <span class="tok-t">P</span> <span class="tok-k">extends</span> <span class="tok-t">`&#36;{infer A}.&#36;{infer B}`</span>
+    ? <span class="tok-t">A</span> <span class="tok-k">extends</span> <span class="tok-k">keyof</span> <span class="tok-t">T</span> ? <span class="tok-t">Path</span>&lt;<span class="tok-t">T</span>[<span class="tok-t">A</span>], <span class="tok-t">B</span>&gt; : <span class="tok-k">never</span>
+    : <span class="tok-t">P</span> <span class="tok-k">extends</span> <span class="tok-k">keyof</span> <span class="tok-t">T</span> ? <span class="tok-t">T</span>[<span class="tok-t">P</span>] : <span class="tok-k">never</span>;
+
+<span class="tok-k">type</span> <span class="tok-t">C</span> = <span class="tok-t">Path</span>&lt;<span class="tok-t">Obj</span>, <span class="tok-s">"a.b.c"</span>&gt;;  <span class="tok-c">// number</span></code></pre>
+  <p>Read it: <em>"if the path has a dot, take the head <code>A</code>, index into <code>T</code>[<code>A</code>],
+    and recurse on the tail <code>B</code>; when no dot remains, index the whole path and return."</em>The whole
+    dotted route collapses to the value type at the end.</p>
+
+  <h2>Recursion in one idea</h2>
+  <p>Every recursive type is <em>the same three pieces</em>:</p>
+  <ol>
+    <li><strong>Test</strong> — an <code>extends</code> that checks the shape you consume.</li>
+    <li><strong>Base case</strong> — the branch that does not recurse and ends the chain.</li>
+    <li><strong>Step</strong> — a call to its own name with a smaller argument (inner promise, rest tuple, tail path).</li>
+  </ol>
+  <p>If you can identify those three in any recursive type you read, you can read all of them — and write your own.</p>
+
+  <!-- ============ QUIZ ============ -->
+  <div class="quiz">
+    <p class="kicker">Retrieval practice</p>
+    <h2 style="margin-top:.3rem">Check yourself</h2>
+    <p style="color:var(--muted);font-size:.92rem">From memory. Q4 reaches back to Lesson 07.</p>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">1.</span>What does <code>type Awaited&lt;T&gt; = T extends Promise&lt;infer U&gt; ? Awaited&lt;U&gt; : T</code> produce for <code>Awaited&lt;Promise&lt;number&gt;&gt;</code>?</div>
+      <div class="opts">
+        <button class="opt">Promise&lt;number&gt;</button>
+        <button class="opt">number</button>
+        <button class="opt">never</button>
+        <button class="opt">a compile error</button>
+      </div>
+      <div class="fb" data-why="Promise&lt;number&gt; matches Promise&lt;infer U&gt;, so we recurse with U = number; number doesn't match the Promise test, so the base case returns number."></div>
+    </div>
+
+    <div class="q" data-correct="2">
+      <div class="stem"><span class="n">2.</span>Every recursive type needs a branch that…</div>
+      <div class="opts">
+        <button class="opt">uses infer</button>
+        <button class="opt">returns never</button>
+        <button class="opt">does not recurse</button>
+        <button class="opt">calls a sibling type</button>
+      </div>
+      <div class="fb" data-why="The base case terminates recursion (empty tuple, non-promise, no dot). Without one, the type recurses forever into a depth error."></div>
+    </div>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">3.</span>For TypeScript ≥ 4.5 to tail-call optimize a recursive type, the recursive call must be…</div>
+      <div class="opts">
+        <button class="opt">in tail position — the last operation</button>
+        <button class="opt">inside a mapped type</button>
+        <button class="opt">in the false branch</button>
+        <button class="opt">wrapped in an array</button>
+      </div>
+      <div class="fb" data-why="Tail position lets TS reuse the stack, avoiding the depth limit on long unions/tuples. Recurse last."></div>
+    </div>
+
+    <div class="q" data-correct="3">
+      <div class="stem"><span class="n">4.</span>In the path walker, the pattern <code>`&#36;{infer A}.&#36;{infer B}`</code> (from Lesson 07) is used to…</div>
+      <div class="opts">
+        <button class="opt">rename a key</button>
+        <button class="opt">capitalize a segment</button>
+        <button class="opt">repeat a segment three times</button>
+        <button class="opt">split a path into its head and the remaining tail</button>
+      </div>
+      <div class="fb" data-why="The infer placeholders capture the head (A) and tail (B) around the dot, letting the recursion index the head and continue on the tail."></div>
+    </div>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">5.</span>What is the base case of <code>type Lazy&lt;T&gt; = T extends [infer H, ...infer R] ? [()=&gt;H, ...Lazy&lt;R&gt;] : []</code>?</div>
+      <div class="opts">
+        <button class="opt">the empty element &#36;{H}</button>
+        <button class="opt">the empty tuple []</button>
+        <button class="opt">never</button>
+        <button class="opt">()=&gt;H</button>
+      </div>
+      <div class="fb" data-why="When the tuple is empty, the destructure [infer H, ...infer R] fails, so the false branch [] is taken — that's the base case."></div>
+    </div>
+
+    <div id="score">Answer all five to see your score.</div>
+  </div>
+
+  <!-- ============ NEXT ============ -->
+  <div class="next">
+    <h2>Primary source (read this next)</h2>
+    <p><span class="pill">Most trusted</span>
+       <a href="https://www.typescriptlang.org/docs/handbook/2/conditional-types.html#recursive-conditional-types" target="_blank">TS Handbook — Recursive conditional types</a>.
+       Official framing, including the depth-limit guidance. ~20 min.</p>
+    <p style="font-size:.9rem;color:var(--muted)">Deeper, when ready:
+       <a href="https://type-level-typescript.com/recursive-types" target="_blank">Type-Level TypeScript — Recursive types</a>
+       treats recursion as the core looping primitive of the type-level language.</p>
+
+    <h2>Where this goes</h2>
+    <p><span class="pill">Lesson 09</span> <strong>Designing type-safe APIs</strong> — all that type-level
+       machinery goes to work on the <em>boundary</em>: builder patterns, branded types, and overloads that make
+       misuse a compile error. You'll stop writing types and start designing with them.</p>
+    <p style="margin-top:1.4rem"><a href="../reference/glossary.html#recursion">→ Glossary (Recursion)</a> &nbsp;·&nbsp;
+       <a href="0007-template-literal-types.html">← Lesson 07</a> &nbsp;·&nbsp;
+       <a href="../RESOURCES.md">All resources</a></p>
+  </div>
+
+  <div class="ask">
+    <b>I'm your teacher.</b> Rewrite the Lesson 05 <code>Awaited&lt;T&gt;</code> yourself from memory (the
+    version that also handles a plain non-promise), then a harder one: a type <code>Last&lt;T&gt;</code> that
+    returns the <em>final</em> element of a tuple (e.g. <code>Last&lt;[1, 2, 3]&gt;</code> = <code>3</code>).
+    Paste both and I'll review them like a senior reviewer.
+  </div>
+
+  <footer>
+    <span id="r1">1.</span> <a href="https://www.typescriptlang.org/docs/handbook/2/conditional-types.html#recursive-conditional-types">TS Handbook — Recursive conditional types</a>. &nbsp;
+    <span id="r2">2.</span> <a href="https://devblogs.microsoft.com/typescript/announcing-typescript-4-5/">TS 4.5 release notes — tail-call optimization of recursive types</a>.
+  </footer>
+</div>
+
+<script>
+  const qs = [...document.querySelectorAll('.q')];
+  let answered = 0, correct = 0;
+  qs.forEach(q => {
+    const right = +q.dataset.correct;
+    const opts = [...q.querySelectorAll('.opt')];
+    const fb = q.querySelector('.fb');
+    opts.forEach((opt, i) => {
+      opt.addEventListener('click', () => {
+        opts.forEach(o => o.disabled = true);
+        const ok = i === right;
+        opts[right].classList.add('correct');
+        if (!ok) opt.classList.add('wrong');
+        fb.classList.add(ok ? 'correct' : 'wrong');
+        fb.innerHTML = (ok ? '<b>Correct.</b> ' : '<b>Not quite.</b> ') + fb.dataset.why;
+        answered++; if (ok) correct++;
+        if (answered === qs.length) {
+          const s = document.getElementById('score');
+          s.classList.add('done');
+          const msg = correct === qs.length ? 'Recursion solid. Type-safe API design is next.' :
+                      correct >= 3 ? 'Good. Re-read the misses — base case and tail position are the load-bearing bits.' :
+                      'Re-read above and retake — recursion is how type-level programming becomes a real language.';
+          s.textContent = `Score: ${correct} / ${qs.length}. ${msg}`;
+        }
+      });
+    });
+  });
+</script>
+</body>
+</html>

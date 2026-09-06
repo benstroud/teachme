@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 10 — Reading &amp; Decoding Any Type Error</title>
+<style>
+  :root { --ink:#1a1a1a; --paper:#fffff8; --accent:#7b1e1e; --muted:#6b6b63;
+          --rule:#d8d8cf; --good:#1b6b3a; --bad:#9a1f1f; --code:#f1f0e6; }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    line-height: 1.55; margin: 0; padding: 3.5rem 1.5rem 6rem; font-size: 19px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  .kicker { letter-spacing: .18em; text-transform: uppercase; font-size: .72rem;
+            color: var(--accent); margin: 0 0 .4rem; font-family: sans-serif; }
+  h1 { font-size: 2.3rem; font-weight: 600; line-height: 1.08; margin: 0 0 .3rem; }
+  .sub { color: var(--muted); font-style: italic; margin: 0 0 .6rem; }
+  .mission { font-size: .82rem; color: var(--muted); font-family: sans-serif;
+             border-left: 3px solid var(--rule); padding: .3rem 0 .3rem .8rem; margin: 0 0 2.4rem; }
+  h2 { font-size: 1.3rem; font-weight: 600; margin: 2.6rem 0 .6rem; }
+  p { margin: 0 0 1rem; }
+  ul { margin: 0 0 1rem; } li { margin: .25rem 0; }
+  code { font-family: "SF Mono","DejaVu Sans Mono",Menlo,Consolas,monospace;
+         font-size: .82em; background: var(--code); padding: .08em .35em; border-radius: 3px; }
+  pre { background: #2b2b28; color: #f4f3ea; padding: 1rem 1.1rem; border-radius: 6px;
+        overflow-x: auto; font-size: .8rem; line-height: 1.5; margin: 1rem 0; }
+  pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+  .tok-c { color: #8f9183; } .tok-k { color: #e0a36b; } .tok-t { color: #8fbcd4; }
+  .tok-s { color: #c3d39a; } .tok-f { color: #d9b3e0; } .tok-p { color: #7fb0d9; }
+  a { color: var(--accent); }
+  sup a { text-decoration: none; font-size: .7em; }
+  aside.note { background:#f6f5ea; border:1px solid var(--rule); border-radius:6px;
+        padding:.9rem 1.1rem; font-size:.92rem; margin:1.4rem 0; }
+  aside.note b { color: var(--accent); }
+
+  .quiz { border-top: 2px solid var(--ink); margin-top: 3rem; padding-top: 1.4rem; }
+  .q { margin: 1.8rem 0; }
+  .q .stem { font-weight: 600; margin-bottom: .7rem; }
+  .q .stem .n { color: var(--accent); margin-right:.4rem; }
+  .opts { display: grid; gap: .5rem; }
+  .opt { text-align:left; font: inherit; cursor: pointer; background: #fff;
+         border: 1px solid var(--rule); border-radius: 6px; padding: .6rem .85rem;
+         transition: background .12s, border-color .12s; }
+  .opt:hover:not(:disabled) { border-color: var(--accent); }
+  .opt:disabled { cursor: default; }
+  .opt.correct { border-color: var(--good); background: #eaf5ee; }
+  .opt.wrong { border-color: var(--bad); background: #f7ebeb; }
+  .fb { font-size: .9rem; margin-top: .55rem; min-height: 1.2em; }
+  .fb.correct { color: var(--good); } .fb.wrong { color: var(--bad); }
+  .fb b { font-weight: 600; }
+  #score { font-family: sans-serif; font-size: 1rem; margin-top: 2rem;
+           padding: 1rem; border: 1px dashed var(--rule); border-radius: 6px;
+           text-align: center; color: var(--muted); }
+  #score.done { color: var(--ink); border-style: solid; }
+
+  .next { border-top: 1px solid var(--rule); margin-top: 3rem; padding-top: 1.4rem; }
+  .pill { display:inline-block; font-family:sans-serif; font-size:.72rem; letter-spacing:.08em;
+          text-transform:uppercase; background:var(--code); color:var(--muted);
+          padding:.2rem .55rem; border-radius:99px; margin-right:.4rem; }
+  footer { color: var(--muted); font-size: .85rem; margin-top: 2rem; }
+  .ask { background:#fdf6e3; border:1px solid #e4d9a8; border-radius:6px;
+         padding:.9rem 1.1rem; font-size:.92rem; margin-top:2rem; }
+  @media print { body{font-size:12pt;padding:1rem;} pre{background:#eee;color:#000;}
+    .opt{background:#fff;} a{color:var(--ink);} .quiz .fb{display:block;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">Lesson 10 · The payoff</p>
+  <h1>Reading &amp; Decoding Any Type Error</h1>
+  <p class="sub">Every cryptic <code>not assignable</code> or <code>infinite type</code> message is decodable — read it with the set model, not memorized patterns.</p>
+  <p class="mission">★ Mission link: the MISSION's first item is <em>"read and diagnose any TypeScript error."</em> This
+    lesson is that skill, built entirely from the vocabulary you already own:
+    <a href="0001-types-as-sets.html">sets &amp; assignability</a>,
+    <a href="0004-variance.html">variance</a>,
+    <a href="0005-conditional-types-infer.html">conditional / infer</a>, and
+    <a href="0008-recursive-type-level-programming.html">recursion</a>. You are not learning new TS — you are learning to read it.</p>
+
+  <h2>The one sentence that defuses every error</h2>
+  <p>Almost every TypeScript error, no matter how long, collapses to one idea: <strong>a set that is expected is
+    missing a value that was handed to it.</strong> The message is noise around the signal — read from
+    <em>right to left</em> for the actual mismatch.</p>
+  <pre><code>Type 'string' is not assignable to type 'number'.
+       └── what you GAVE       └── what was EXPECTED
+
+Type 'Users[]' is not assignable to type 'User'.
+└── GAVE a superset           └── EXPECTED a smaller set
+
+const x: string | number = ... // the DANGER: a value here is one OR the other
+</code></pre>
+  <p>The pattern is uniform: <em>assigned</em> (the value's set) vs <em>expected</em> (the location's set).
+    If the right side ⊆ the expected — fine. Otherwise it's an error. That's all a "not assignable" ever means.</p>
+
+  <h2>Decode: it's usually variance, not a mystery</h2>
+  <p>When a function-type error looks upside down, stop and check variance (Lesson 04). The rule "demand less,
+    deliver more" explains why a function that <em>looks</em> wider is sometimes rejected:</p>
+  <pre><code><span class="tok-c">// error: the parameter type flips (contravariance)</span>
+<span class="tok-k">type</span> <span class="tok-t">A</span> = (<span class="tok-t">x</span>: <span class="tok-t">string</span>) =&gt; <span class="tok-t">void</span>;
+<span class="tok-k">type</span> <span class="tok-t">B</span> = (<span class="tok-t">x</span>: <span class="tok-t">string</span> | <span class="tok-t">number</span>) =&gt; <span class="tok-t">void</span>;
+<span class="tok-k">const</span> <span class="tok-t">a</span>: <span class="tok-t">A</span> = <span class="tok-c">/* a B value */</span>;  <span class="tok-c">// error: B's param is wider, so a B call site needs more than A allows</span></code></pre>
+  <p>When the message is <em>counterintuitive</em> — "I gave the caller more capability and it's an error?" —
+    assume contravariance is involved. The note "Type '(x: string | number) =&gt; void' is not assignable to
+    '(x: string) =&gt; void' because ... some parameters are contravariant" is TS telling you exactly this.</p>
+
+  <h2>Decode: generic inference failures</h2>
+  <p>Generic errors usually mean the compiler <em>couldn't pick one type parameter</em> that satisfies the whole
+    call. The remedy: check the constraint (<code>extends</code>), then the call site, then widen.</p>
+  <pre><code><span class="tok-c">// error: 'T' inferred as number, but the constraint expects a string</span>
+<span class="tok-k">function</span> <span class="tok-t">id</span>&lt;<span class="tok-t">T</span> <span class="tok-k">extends</span> <span class="tok-t">string</span>&gt;(<span class="tok-t">x</span>: <span class="tok-t">T</span>): <span class="tok-t">T</span> { <span class="tok-k">return</span> <span class="tok-t">x</span>; }
+<span class="tok-t">id</span>(<span class="tok-n">42</span>);  <span class="tok-c">// error: 42 doesn't extend string</span></code></pre>
+  <p>Read: "I tried to fold your argument into <code>T</code>, but it violates the <code>extends</code> subset
+    constraint." Fix by making the argument fit the constraint or loosening the constraint — never by a
+    <code>&lt;any&gt;</code> at the call site first.</p>
+
+  <h2>Decode: "Type instantiation depth exceeded" / "infinite type"</h2>
+  <p>These are the type-level bugs — fetch them like a runtime crash:<sup><a href="#r1">1</a></sup></p>
+  <ul>
+    <li><strong>"Instantiation depth exceeded":</strong> your recursion (Lesson 08) has no effective base case, or
+      isn't in tail position. Find the conditional whose two branches both lead back to itself.</li>
+    <li><strong>"infinite type expanding":</strong> a type grows forever (e.g. a conditional whose <code>infer</code>
+      re-binds the same shape). It's recursion without progress — the argument isn't getting smaller.</li>
+  </ul>
+  <pre><code><span class="tok-c">// the bug: no base case — Rec consumes forever</span>
+<span class="tok-k">type</span> <span class="tok-t">Rec</span>&lt;<span class="tok-t">T</span>&gt; = <span class="tok-t">T</span> <span class="tok-k">extends</span> <span class="tok-k">infer</span> <span class="tok-t">U</span> ? <span class="tok-t">Rec</span>&lt;<span class="tok-t">U</span>&gt; : <span class="tok-t">T</span>;  <span class="tok-c">// U === T — no progress</span></code></pre>
+
+  <h2>A reading order for any error</h2>
+  <ol>
+    <li><strong>Find the rightmost "is not assignable to".</strong> That names the two sets.</li>
+    <li><strong>Read right-to-left:</strong> what was <em>actually</em> expected is the whole story.</li>
+    <li><strong>If it's a function type, check variance.</strong> Are parameters swapped wider/narrower than expected?</li>
+    <li><strong>If it's generic, check the <code>extends</code> constraint.</strong> Does the inferred type violate it?</li>
+    <li><strong>If it mentions "depth"/"infinite", it's a recursion/base-case bug.</strong></li>
+    <li><strong>Widen with <code>string</code>/<code>number</code>/<code>unknown</code> only as a deliberate step</strong> — never <code>any</code> as a reflex.</li>
+  </ol>
+
+  <aside class="note"><b>The senior tell:</b> juniors add <code>as any</code> to silence the message. Seniors read
+    the same message, state the two sets aloud, and name <em>which rule</em> (subset, variance, constraint,
+    recursion) broke. Same 2-minute window; opposite outcome. You now own all four rules.</aside>
+
+  <!-- ============ QUIZ ============ -->
+  <div class="quiz">
+    <p class="kicker">Retrieval practice</p>
+    <h2 style="margin-top:.3rem">Check yourself</h2>
+    <p style="color:var(--muted);font-size:.92rem">From memory. This lesson deliberately reaches back across the whole course.</p>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">1.</span>In <code>Type 'string' is not assignable to type 'number'</code>, which is the <em>expected</em> set?</div>
+      <div class="opts">
+        <button class="opt">number</button>
+        <button class="opt">string</button>
+        <button class="opt">both</button>
+        <button class="opt">neither</button>
+      </div>
+      <div class="fb" data-why="Read right-to-left: the expected location's type (number) is what string failed to fit inside."></div>
+    </div>
+
+    <div class="q" data-correct="2">
+      <div class="stem"><span class="n">2.</span>A function error that says "some parameters are contravariant" means…</div>
+      <div class="opts">
+        <button class="opt">the return type is wrong in the subset direction</button>
+        <button class="opt">the compiler forgot to type-check</button>
+        <button class="opt">the parameter direction is flipped by the variance rule — demand less, deliver more</button>
+        <button class="opt">the function is recursive</button>
+      </div>
+      <div class="fb" data-why="Contravariance flips the parameter subset direction, so a wider-parameter function is rejected where a narrower one is expected."></div>
+    </div>
+
+    <div class="q" data-correct="1">
+      <div class="stem"><span class="n">3.</span>When a generic call fails because <code>T</code> is "inferred as X, but not extend Y", the first thing to check is…</div>
+      <div class="opts">
+        <button class="opt">the caller's indentation</button>
+        <button class="opt">the type parameter's <code>extends</code> constraint</button>
+        <button class="opt">the file encoding</button>
+        <button class="opt">whether overloads are sorted</button>
+      </div>
+      <div class="fb" data-why="The constraint (subset bound) is what T must satisfy; the error means the inferred type violates it."></div>
+    </div>
+
+    <div class="q" data-correct="3">
+      <div class="stem"><span class="n">4.</span><code>Type instantiation depth exceeded</code> is the type-level version of…</div>
+      <div class="opts">
+        <button class="opt">a null dereference</button>
+        <button class="opt">a syntax error</button>
+        <button class="opt">an off-by-one array index</button>
+        <button class="opt">a stack overflow from recursion with no base case</button>
+      </div>
+      <div class="fb" data-why="It's a recursion bug: the type recurses without reaching a base case (or isn't in tail position)."></div>
+    </div>
+
+    <div class="q" data-correct="0">
+      <div class="stem"><span class="n">5.</span>The senior approach to a gnarly error is to…</div>
+      <div class="opts">
+        <button class="opt">name the two sets and the rule (subset / variance / constraint / recursion) that broke</button>
+        <button class="opt">cast the offending value to <code>any</code> immediately</button>
+        <button class="opt">skip the file and hope the test covers it</button>
+        <button class="opt">disable strict mode project-wide</button>
+      </div>
+      <div class="fb" data-why="Reading the message as a set-membership failure and identifying the broken rule is exactly the skill this course built."></div>
+    </div>
+
+    <div id="score">Answer all five to see your score.</div>
+  </div>
+
+  <!-- ============ NEXT ============ -->
+  <div class="next">
+    <h2>Primary source (read this next)</h2>
+    <p><span class="pill">Most trusted</span>
+       <a href="https://www.typescriptlang.org/docs/handbook/2/narrowing.html" target="_blank">TS Handbook — Narrowing</a>,
+       plus the <a href="https://www.typescriptlang.org/docs/handbook/2/generics.html#generic-constraints" target="_blank">Generics — constraints</a>
+       section for the constraint-based errors. Combine them and nearly every real error becomes decodable. ~25 min.</p>
+    <p style="font-size:.9rem;color:var(--muted)">Deeper, when ready:
+       <a href="https://www.totaltypescript.com/type-errors" target="_blank">Total TypeScript — Understanding type errors</a>
+       walks through real, messy errors line by line.</p>
+
+    <h2>Where the course leaves you</h2>
+    <p>That's the arc: bedrock (sets, narrowing) → computation (generics, variance, conditionals, infer) →
+       machinery (mapped types, template literals, recursion) → design (type-safe APIs) → fluency (reading any
+       error). You are no longer learning TypeScript's types — you are <em>using</em> them as a senior would.</p>
+    <p style="margin-top:1.4rem"><a href="../reference/glossary.html">→ Full Glossary</a> &nbsp;·&nbsp;
+       <a href="0009-designing-type-safe-apis.html">← Lesson 09</a> &nbsp;·&nbsp;
+       <a href="../RESOURCES.md">All resources</a></p>
+  </div>
+
+  <div class="ask">
+    <b>I'm your teacher.</b> Bring me the <em>worst</em> real TypeScript error you've hit (or one from a library
+    you use). Paste it, and I'll decode it with you line by line using the set model — this is the single most
+    valuable exercise you can do with this course, because it's the one step you can't script.
+  </div>
+
+  <footer>
+    <span id="r1">1.</span> <a href="https://www.typescriptlang.org/docs/handbook/2/conditional-types.html#recursive-conditional-types">TS Handbook — Recursive conditional types (depth limit)</a>.
+  </footer>
+</div>
+
+<script>
+  const qs = [...document.querySelectorAll('.q')];
+  let answered = 0, correct = 0;
+  qs.forEach(q => {
+    const right = +q.dataset.correct;
+    const opts = [...q.querySelectorAll('.opt')];
+    const fb = q.querySelector('.fb');
+    opts.forEach((opt, i) => {
+      opt.addEventListener('click', () => {
+        opts.forEach(o => o.disabled = true);
+        const ok = i === right;
+        opts[right].classList.add('correct');
+        if (!ok) opt.classList.add('wrong');
+        fb.classList.add(ok ? 'correct' : 'wrong');
+        fb.innerHTML = (ok ? '<b>Correct.</b> ' : '<b>Not quite.</b> ') + fb.dataset.why;
+        answered++; if (ok) correct++;
+        if (answered === qs.length) {
+          const s = document.getElementById('score');
+          s.classList.add('done');
+          const msg = correct === qs.length ? 'The whole course is complete — you read errors like a senior.' :
+                      correct >= 3 ? 'Good. Re-read the misses — the reading order at the end is the takeaway.' :
+                      'Re-read above — this lesson ties every previous one together.';
+          s.textContent = `Score: ${correct} / ${qs.length}. ${msg}`;
+        }
+      });
+    });
+  });
+</script>
+</body>
+</html>
