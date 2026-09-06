@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — SQS vs the Broader Landscape</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 9</span><span>AWS SQS</span></div>
+  <h1>SQS vs the Broader Landscape</h1>
+  <p class="subtitle">How SQS compares to Redis/Valkey, MQTT, NATS, RabbitMQ, Kafka, and gRPC — and a decision tree you can defend.</p>
+</header>
+
+<section>
+<h2>What this chapter is for</h2>
+<p>Lesson 7 answered a narrow question: <em>within the AWS messaging family, which one do I reach for?</em> This one answers the wider one: <em>when is SQS the right shape at all?</em> In a senior conversation you will get asked "why SQS and not Kafka" or "why not just use Redis" — and you need the axes, not just the names.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> These are not seven versions of the same thing. Each is shaped for a different relationship between producer and consumer — durable buffer, log, pub/sub, RPC, ephemeral cache. The right answer depends on which shape fits the problem.</aside>
+
+<h2>The eight comparison axes</h2>
+<p>Before any comparison table, fix the axes in your head. Every messaging tool can be characterized on the same eight dimensions. Memorize these; everything else is a row in a table.</p>
+<table>
+  <tr><th>Axis</th><th>What it asks</th></tr>
+  <tr><td><strong>Delivery shape</strong></td><td>queue (pull) vs topic (push) vs log (replay) vs bus (route) vs RPC (request/reply)</td></tr>
+  <tr><td><strong>Durability</strong></td><td>ephemeral (memory, lost on restart) vs persistent (disk, survives restart) vs replicated (across nodes / AZs)</td></tr>
+  <tr><td><strong>Ordering</strong></td><td>none vs best-effort vs strict per partition / group</td></tr>
+  <tr><td><strong>Delivery guarantee</strong></td><td>at-most-once vs at-least-once vs exactly-once</td></tr>
+  <tr><td><strong>Consumer model</strong></td><td>push (broker calls you) vs pull (you call broker) vs long-poll (you wait)</td></tr>
+  <tr><td><strong>Throughput &amp; scale</strong></td><td>messages/sec ceiling; size ceiling; fan-out ceiling</td></tr>
+  <tr><td><strong>Operating model</strong></td><td>managed service (you configure) vs self-hosted (you run) vs hybrid (you run the protocol on a managed control plane)</td></tr>
+  <tr><td><strong>Cost shape</strong></td><td>per request vs per instance-hour vs per GB stored vs per node</td></tr>
+</table>
+<p>With these axes, every "why not X instead" reduces to "where does X sit on the axes, and where is the workload."</p>
+
+<h2>The seven alternatives, one paragraph each</h2>
+
+<h3>Redis / Valkey (as a queue, not just a cache)</h3>
+<p>Redis is an in-memory data store with primitives (<code>LPUSH</code>/<code>BRPOP</code>, Streams since 5.0) that can be used as a queue. It's blazingly fast — single-digit millisecond latency — but durability is opt-in. Plain <code>LPUSH</code> loses messages on a crash. RDB snapshots and AOF give you durability, but you operate the cluster yourself: you patch, scale, monitor, replicate, and replace nodes.<sup><a href="#r2">2</a></sup></p>
+<p>Two important 2024–2026 footnotes for AWS readers:</p>
+<ul>
+  <li><strong>Valkey is the fork.</strong> Valkey is a Linux Foundation–stewarded, BSD-licensed fork of Redis 7.2.4 created in March 2024 after Redis moved to the SSPLv1 license. The wire protocol and command set are compatible; existing Redis client libraries work against either engine. Most of what you read about Redis applies to Valkey.</li>
+  <li><strong>On AWS, the realistic Redis-shaped managed service is ElastiCache for Valkey.</strong> ElastiCache for Valkey went GA in October 2024 and is now the default engine for new ElastiCache clusters (node-based and Serverless). Pricing for Valkey nodes is roughly 20% below the equivalent Redis OSS option, with ElastiCache Serverless for Valkey about 33% cheaper. The legacy ElastiCache for Redis OSS option still exists for existing clusters but is no longer the recommended path for new ones.<sup><a href="#r7">8</a></sup></li>
+</ul>
+<p>For the rest of this chapter, "Redis" and "Valkey" are treated as one shape — the engine choice doesn't change the queue primitives, the durability story, or the operational model.</p>
+<p><strong>Where Redis/Valkey beats SQS:</strong> sub-millisecond latency, in-process pub/sub, ability to read/write the same data structure your app already uses, and the option of a fully managed path via ElastiCache for Valkey with 99.99% availability.</p>
+<p><strong>Where SQS beats Redis/Valkey:</strong> zero ops without a managed-service premium (no node sizing, no shard rebalancing), native Lambda ESM, 14-day retention, pay per request rather than per node-hour, and the same SQS guarantees for every region without an extra service to provision.</p>
+
+<h3>MQTT</h3>
+<p>MQTT is a lightweight pub/sub protocol designed for unreliable networks — IoT sensors, mobile devices, low-bandwidth links. Brokers (AWS IoT Core, Mosquitto, HiveMQ) keep persistent sessions; clients reconnect and resume. Topics are hierarchical (<code>sensors/floor-3/temp</code>) with wildcards (<code>+</code>, <code>#</code>).<sup><a href="#r3">3</a></sup></p>
+<p><strong>Where MQTT beats SQS:</strong> tiny clients on flaky networks, last-will-and-testament, millions of small devices, hierarchical topics.</p>
+<p><strong>Where SQS beats MQTT:</strong> server-side integrations, no broker to run, native Lambda ESM, FIFO per group with dedup, real durability guarantees.</p>
+
+<h3>NATS</h3>
+<p>NATS is a subject-based pub/sub system, famously small (single binary), fast, and cloud-native. Subjects are dotted strings (<code>orders.eu.placed</code>); subscribers use <code>*</code> (one token) or <code>&gt;</code> (rest) wildcards. NATS Core is at-most-once and fire-and-forget; JetStream adds persistence, at-least-once / exactly-once, streams, and replay. NATS is the canonical choice for service-to-service messaging inside Kubernetes clusters.<sup><a href="#r4">4</a></sup></p>
+<p><strong>Where NATS beats SQS:</strong> subject-based routing built in, request/reply as a first-class pattern, very low footprint, no AWS lock-in, JetStream replay.</p>
+<p><strong>Where SQS beats NATS:</strong> zero ops, native AWS integration, simpler mental model for queue-shaped work, no cluster to run, no subject taxonomy to design.</p>
+
+<h3>RabbitMQ</h3>
+<p>RabbitMQ is an AMQP 0-9-1 broker. Producers publish to <em>exchanges</em>; exchanges route to <em>queues</em> via <em>bindings</em> (the routing rules). Four exchange types — direct, fanout, topic, headers — give you precise routing. RabbitMQ supports classic queues (with or without quorum), priority queues, dead-letter exchanges, and per-message TTL. Acknowledgements are explicit; you ack a message after you process it. You usually operate it yourself, on EC2 / EKS / a managed offering (CloudAMQP, Amazon MQ).<sup><a href="#r5">5</a></sup></p>
+<p><strong>Where RabbitMQ beats SQS:</strong> rich exchange/binding routing topology, priority queues, per-message TTL, complex queue patterns, on-prem deployability, full control over broker behavior.</p>
+<p><strong>Where SQS beats RabbitMQ:</strong> zero ops, native Lambda ESM, replicates across AZs by default, no broker patching, no cluster state to manage.</p>
+
+<h3>Kafka (and Kinesis)</h3>
+<p>Kafka is a distributed, partitioned, append-only log. Producers write to a topic; the topic is split into partitions; each partition is an ordered, durable sequence of records. Consumers read by tracking an offset and can rewind, replay, or read in parallel across partitions. The unit of ordering is the partition. Kafka is built for very high throughput (millions of events/sec), event sourcing, stream processing, and replay-heavy workloads. AWS's managed version is MSK; for Lambda integration you usually see Kinesis Data Streams used similarly.<sup><a href="#r6">6</a></sup></p>
+<p><strong>Where Kafka beats SQS:</strong> ordered replay, partition-level parallelism, event sourcing, stream processing, very high throughput, sub-second end-to-end with consumer groups.</p>
+<p><strong>Where SQS beats Kafka:</strong> zero ops, no cluster, no partition design, no offset management, no consumer group balancing, cheaper for low-to-moderate volume, simpler operational story. SQS is a queue; Kafka is a database you happen to write to in append-only fashion.</p>
+
+<h3>gRPC</h3>
+<p>gRPC is not a messaging system — it's a high-performance RPC framework (HTTP/2 + Protocol Buffers). You call a function on a remote service as if it were local. Streaming variants exist (server-streaming, client-streaming, bidi) but the contract is request/response, not fire-and-forget. If you need an answer from the consumer before the producer can continue, gRPC is the right shape; if you don't, it isn't.<sup><a href="#r7">7</a></sup></p>
+<p><strong>Where gRPC beats SQS:</strong> synchronous result, strongly-typed contracts (protobuf), low-latency service-to-service, bidi streaming, code generation for many languages.</p>
+<p><strong>Where SQS beats gRPC:</strong> async work, durable buffer, fan-out to many consumers, no consumer to be online, retries / DLQ / visibility timeout built in.</p>
+
+<h3>EventBridge (a reminder)</h3>
+<p>Already covered in lesson 7. EventBridge is the AWS-native <em>router</em>: producers publish events with structure; rules match and route to many targets. It is to SQS what a router is to an inbox — different job, often combined.</p>
+
+<h2>The big comparison table</h2>
+<p>Read this as positions on the eight axes, not as "SQS is best."</p>
+<table>
+  <tr><th>Tool</th><th>Shape</th><th>Durability</th><th>Order</th><th>Delivery</th><th>Consumer</th><th>Ops</th></tr>
+  <tr><td><strong>SQS</strong></td><td>queue</td><td>persistent, multi-AZ</td><td>none (standard); strict per group (FIFO)</td><td>at-least-once; exactly-once (FIFO)</td><td>pull / Lambda ESM (long poll)</td><td>fully managed</td></tr>
+  <tr><td><strong>Redis / Valkey (queue)</strong></td><td>list / stream</td><td>opt-in (AOF / RDB)</td><td>none (list); per stream</td><td>at-most-once by default; configurable</td><td>pull (BRPOP / XREAD)</td><td>self-hosted, or ElastiCache for Valkey (managed default)</td></tr>
+  <tr><td><strong>MQTT</strong></td><td>topic pub/sub</td><td>opt-in (QoS 1/2)</td><td>none</td><td>QoS 0/1/2</td><td>push (broker → client)</td><td>self-hosted or AWS IoT Core</td></tr>
+  <tr><td><strong>NATS Core</strong></td><td>subject pub/sub</td><td>none (fire-and-forget)</td><td>none</td><td>at-most-once</td><td>push</td><td>self-hosted (small)</td></tr>
+  <tr><td><strong>NATS JetStream</strong></td><td>stream</td><td>persistent, replicated</td><td>per stream</td><td>at-least-once / exactly-once</td><td>push or pull</td><td>self-hosted</td></tr>
+  <tr><td><strong>RabbitMQ</strong></td><td>exchange → queue</td><td>persistent (with config)</td><td>none (queue); strict (quorum queue + single consumer)</td><td>at-least-once (with acks); exactly-once (with confirm + tx)</td><td>push (default) or pull</td><td>self-hosted (or Amazon MQ)</td></tr>
+  <tr><td><strong>Kafka</strong></td><td>partitioned log</td><td>persistent, replicated</td><td>strict per partition</td><td>at-least-once (manual commit); exactly-once (transactions)</td><td>pull (consumer tracks offset)</td><td>self-hosted or MSK</td></tr>
+  <tr><td><strong>gRPC</strong></td><td>RPC (request/response)</td><td>none (transient)</td><td>none</td><td>at-most-once</td><td>push (server calls client for streaming)</td><td>self-hosted framework; no broker</td></tr>
+</table>
+
+<h2>The decision tree</h2>
+<p>Walk this top-down. The first question that resolves the choice stops the walk.</p>
+
+<pre><code>Q1. Does the producer need an answer from the consumer to continue?
+    YES  → gRPC (or a synchronous HTTP call / direct Lambda invoke).
+    NO   → continue.
+
+Q2. Is the work fan-out to many independent consumers?
+    YES  → SNS, EventBridge, or Kafka (with consumer groups).
+    NO   → continue.
+
+Q3. Do consumers care about different *kinds* of events
+    (rules select who sees what)?
+    YES  → EventBridge, NATS subjects, or Kafka (filtered consumers).
+    NO   → continue.
+
+Q4. Does order matter per entity AND you need replay?
+    YES  → Kafka (partition by entity), or NATS JetStream.
+    NO   → continue.
+
+Q5. Is the client a low-power device on a flaky network?
+    YES  → MQTT.
+    NO   → continue.
+
+Q6. Are you on AWS, want zero ops, and the work is
+    one-consumer-group-pulls-at-its-own-pace?
+    YES  → SQS. (Standard, unless you can name a per-entity
+           order rule, in which case SQS FIFO.)
+    NO   → continue.
+
+Q7. Do you need rich routing, priority, per-message TTL,
+    or on-prem?
+    YES  → RabbitMQ.
+    NO   → continue.
+
+Q8. Do you need sub-millisecond latency or in-process pub/sub?
+    YES  → Redis / Valkey (typically ElastiCache for Valkey on AWS).
+    NO   → SQS (almost certainly).</code></pre>
+
+<aside class="callout callout-tip"><strong>How to use the tree</strong> In an interview or design review, walk it out loud. The value isn't reaching "SQS" — it's being able to defend why you didn't pick the others.</aside>
+
+<h2>The Lambda lens — how the answer tilts on AWS</h2>
+<p>If your system is Lambda-centric, three of these tools get demoted in your mind by default: RabbitMQ (operate a broker), NATS (operate a cluster), Kafka (operate a cluster unless you pay for MSK and tune it). The Lambda-ESM-compatible, zero-ops shortlist is:</p>
+<ul>
+  <li><strong>SQS</strong> — durable queue, the workhorse.</li>
+  <li><strong>SNS</strong> — push fan-out.</li>
+  <li><strong>EventBridge</strong> — content routing.</li>
+  <li><strong>Kinesis Data Streams</strong> — when you genuinely need Kafka-like ordered replay on AWS.</li>
+  <li><strong>Amazon MQ</strong> — when a partner or legacy system requires AMQP and you don't want to run RabbitMQ.</li>
+  <li><strong>ElastiCache for Valkey</strong> — when you need sub-millisecond in-memory pub/sub or queues behind Lambda and you want it managed on AWS (now the default engine for new ElastiCache clusters).</li>
+</ul>
+<p>You can absolutely run Kafka behind Lambda (MSK + event source mapping), NATS behind Lambda (with a poller), or Redis/Valkey behind Lambda (ElastiCache + custom client). Each works. The question is whether the operational cost of the broker is worth the features it gives you over SQS/SNS/EventBridge.</p>
+
+<h2>Three honest "SQS isn't the right answer" cases</h2>
+<ol>
+  <li><strong>Replay-heavy event sourcing.</strong> If your service's source of truth is the event log and you routinely need to rewind and reprocess days of history, Kafka is the better fit. SQS deletes on success; you can't replay.</li>
+  <li><strong>Sub-millisecond in-process pub/sub.</strong> If you have a hot path that needs to fan out inside a process or a small cluster in single-digit ms, Redis/Valkey pub/sub (or NATS Core) beat SQS on latency. On AWS, ElastiCache for Valkey is the managed way to get this.</li>
+  <li><strong>Edge devices on flaky networks.</strong> Sensors, vehicles, retail terminals, anything that reconnects across spotty cellular: MQTT is purpose-built for that, and SQS would force you to write the persistence and resumption logic yourself.</li>
+</ol>
+
+<h2>Three honest "SQS is the right answer" cases</h2>
+<ol>
+  <li><strong>Async work between Lambda functions</strong> on AWS. The ESM is the right tool, full stop.</li>
+  <li><strong>Spike absorption.</strong> A bursty workload that must not overwhelm a downstream — the queue is the shock absorber.</li>
+  <li><strong>Loose coupling without a broker.</strong> When you want durable, fire-and-forget work but don't want to operate (or pay for) a broker cluster.</li>
+</ol>
+
+<h2>What the interview answer sounds like</h2>
+<blockquote>I'd start with SQS because the work is async, one consumer group, and the system is Lambda-centric. SQS gives me durable buffering, native Lambda integration, and zero ops. I considered Kafka because of the volume, but we don't need replay or per-entity ordering — and operating MSK for this is overkill. I considered Redis for latency, but the work is in the 100s-of-ms range, not sub-ms — and if it ever did need sub-ms, I'd reach for ElastiCache for Valkey (the managed path), not SQS. If we needed to fan out to multiple teams, I'd put an SNS topic in front or have each team subscribe via their own SQS queue off EventBridge.</blockquote>
+<p>That answer shows the axes, not just a name.</p>
+</section>
+
+<section class="quiz-section">
+<h2>Check yourself</h2>
+
+<div class="q" data-correct="0">
+  <h4>1. Which statement about the comparison axes is correct?</h4>
+  <button class="opt" data-fb="Correct. The right tool depends on where the workload sits on durability, ordering, delivery, and so on — not on which name sounds more modern.">The same eight axes (shape, durability, ordering, delivery, consumer, throughput, ops, cost) let you reason about every messaging tool</button>
+  <button class="opt" data-fb="No — Kafka is a log, SQS is a queue; they are different shapes for different jobs, not interchangeable.">All of these tools are different versions of the same thing, so the choice is mostly branding</button>
+  <button class="opt" data-fb="No — cost shape varies a lot: SQS is per-request, Kafka is per node-hour, Redis is per GB.">All of these tools have the same cost shape, so cost doesn't factor into the decision</button>
+  <button class="opt" data-fb="No — operating model is a major axis; some are managed, some are self-hosted, some are hybrid.">Operating model is irrelevant; all messaging systems are equally easy to run</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="2">
+  <h4>2. A partner needs a strongly-typed request/response from your service synchronously, in under 50ms. Which shape is the natural fit?</h4>
+  <button class="opt" data-fb="No — SQS is async; it doesn't give you a synchronous answer.">SQS</button>
+  <button class="opt" data-fb="No — Kafka is a durable log, not a request/response shape.">Kafka</button>
+  <button class="opt" data-fb="Correct. Synchronous request/response with a typed contract is what gRPC is for.">gRPC</button>
+  <button class="opt" data-fb="No — MQTT is a pub/sub protocol for IoT; not a request/response shape.">MQTT</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="1">
+  <h4>3. Sensors in delivery trucks send telemetry over cellular links that drop frequently. The messages must be queued and processed when the device reconnects. Which protocol is purpose-built for this?</h4>
+  <button class="opt" data-fb="No — SQS is server-side; sensors would have to manage their own buffering and retry logic.">SQS</button>
+  <button class="opt" data-fb="Correct. MQTT is designed for unreliable networks and persistent sessions; clients reconnect and resume.">MQTT</button>
+  <button class="opt" data-fb="No — Kafka is server-side; not designed for intermittent clients.">Kafka</button>
+  <button class="opt" data-fb="No — gRPC is RPC, not pub/sub; it doesn't handle persistent sessions.">gRPC</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="3">
+  <h4>4. You need ordered, replayable events at millions per second, with partition-level parallelism, and you operate on Kubernetes. Which is the natural fit?</h4>
+  <button class="opt" data-fb="No — SQS deletes on success and doesn't give you replay.">SQS</button>
+  <button class="opt" data-fb="No — RabbitMQ gives you a queue, not a replayable log.">RabbitMQ</button>
+  <button class="opt" data-fb="No — Redis Streams exist but the volume and replay story is not its strength.">Redis Streams</button>
+  <button class="opt" data-fb="Correct. Kafka is a partitioned, ordered, replayable log; it's the canonical fit for that shape.">Kafka</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="0">
+  <h4>5. You're on AWS, using Lambda, processing 200 messages/sec of background work that one team consumes. Volume is steady, no replay, no per-entity order. Which is the most natural default?</h4>
+  <button class="opt" data-fb="Correct. SQS gives you durable buffering, native Lambda integration, and zero ops for the shape described.">SQS (standard queue)</button>
+  <button class="opt" data-fb="No — Kafka would be massive overkill; you'd be paying for cluster ops to handle work SQS handles in 5 lines of IaC.">Kafka</button>
+  <button class="opt" data-fb="No — RabbitMQ is a real option but requires you to operate a broker; on Lambda-centric AWS, SQS is the zero-ops default.">RabbitMQ on EC2</button>
+  <button class="opt" data-fb="No — gRPC is synchronous request/response, not async background work.">gRPC</button>
+  <div class="fb"></div>
+</div>
+
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>For the SQS-specific properties that anchor the comparison: <a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-introduction.html">AWS — What is Amazon Simple Queue Service?</a>. For the canonical comparison with Kafka on the AWS side: <a href="https://aws.amazon.com/compare/the-comparison-between-amazon-sqs-and-amazon-msk/">AWS — SQS vs Amazon MSK</a>. For the canonical comparison with ElastiCache (Redis / Valkey): <a href="https://aws.amazon.com/compare/the-comparison-between-amazon-sqs-and-amazon-elasticache/">AWS — SQS vs ElastiCache</a>, and the Valkey-specific guide: <a href="https://docs.aws.amazon.com/AmazonElastiCache/latest/ValkeyGuide/WhatIs.html">AWS — ElastiCache for Valkey User Guide</a>. For the open-source side, the official docs at <a href="https://kafka.apache.org/documentation/">kafka.apache.org</a>, <a href="https://www.rabbitmq.com/docs/">rabbitmq.com</a>, and <a href="https://docs.nats.io/">docs.nats.io</a> are the most precise.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Take a system you've worked on (or imagine). Run it through the decision tree. What does the answer sound like out loud, and which alternatives did the tree force you to actively reject?</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/decision-guides/latest/decision-guides/sns-or-sqs-or-eventbridge.html">AWS Decision Guide — SQS, SNS, or EventBridge?</a></li>
+    <li id="r2"><a href="https://redis.io/docs/latest/develop/data-types/streams/">Redis — Redis Streams</a></li>
+    <li id="r3"><a href="https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html">OASIS — MQTT v5.0 specification</a></li>
+    <li id="r4"><a href="https://docs.nats.io/nats-concepts/subjects">NATS — Subjects</a></li>
+    <li id="r5"><a href="https://www.rabbitmq.com/tutorials/amqp-concepts">RabbitMQ — AMQP 0-9-1 model explained</a></li>
+    <li id="r6"><a href="https://kafka.apache.org/documentation/#intro_concepts_and_terms">Apache Kafka — Concepts and terminology</a></li>
+    <li id="r7"><a href="https://grpc.io/docs/what-is-grpc/core-concepts/">gRPC — Core concepts</a></li>
+    <li id="r8"><a href="https://docs.aws.amazon.com/AmazonElastiCache/latest/ValkeyGuide/WhatIs.html">AWS — ElastiCache for Valkey (User Guide)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-choosing-sqs-vs-sns-vs-eventbridge.html">← Lesson 7: Choosing SQS vs SNS vs EventBridge</a></span>
+  <span class="nav-next"><a href="0009-putting-it-together-orders-pipeline.html">Lesson 9: Putting it together →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  MISSION · RESOURCES · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/sqs-cheatsheet.html">Cheat sheet</a> · <a href="../MISSION.md">Mission</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() {
+    if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; }
+  }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

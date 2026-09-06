@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — Choosing SQS vs SNS vs EventBridge</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 9</span><span>AWS SQS</span></div>
+  <h1>Choosing SQS vs SNS vs EventBridge</h1>
+  <p class="subtitle">Pick the right AWS messaging primitive — and the right combination.</p>
+</header>
+
+<section>
+<h2>Three primitives, three shapes</h2>
+<p>AWS gives you three managed messaging primitives, and they are not interchangeable. Each is shaped for a different delivery relationship between producer and consumer.</p>
+<table>
+  <tr><th>Primitive</th><th>Shape</th><th>Reach for it when…</th></tr>
+  <tr><td><strong>SQS</strong></td><td>Queue — one consumer group pulls</td><td>Durable buffer between a producer and one or many workers; backpressure; order or dedup per entity</td></tr>
+  <tr><td><strong>SNS</strong></td><td>Topic — push fan-out to N subscribers</td><td>Every subscriber must get a copy; subscribers are heterogeneous (Lambda, HTTP, email, SQS)</td></tr>
+  <tr><td><strong>EventBridge</strong></td><td>Event bus — route by content to N targets</td><td>Many consumers care about different <em>kinds</em> of events; rules select which consumer sees which event</td></tr>
+</table>
+<p>Sources: <a href="https://docs.aws.amazon.com/decision-guides/latest/decision-guides/sns-or-sqs-or-eventbridge.html">AWS Decision Guide — SQS, SNS, or EventBridge?</a>, <a href="https://docs.aws.amazon.com/sns/latest/dg/welcome.html">AWS — What is SNS?</a>.</p>
+
+<h2>SQS: the durable inbox</h2>
+<p>Producers <code>SendMessage</code>; a single consumer group pulls and processes. The message lives in the queue until deleted. The queue absorbs spikes; the consumer processes at its own pace.<sup><a href="#r1">1</a></sup></p>
+
+<p>Pick SQS when:</p>
+<ul>
+  <li>The producer can finish before the consumer can.</li>
+  <li>You need durability — the work must survive a consumer crash, a deploy, a region-wide issue.</li>
+  <li>One consumer group (one team, one workflow) owns the work.</li>
+  <li>You need per-entity order (FIFO) or per-entity dedup.</li>
+</ul>
+
+<p>Avoid SQS when:</p>
+<ul>
+  <li>Many unrelated consumers need their own copy of each event — the bus/topic shapes are better fits.</li>
+</ul>
+
+<h2>SNS: the push fan-out</h2>
+<p>Producers publish to a <strong>topic</strong>. Every subscriber gets a copy via their chosen protocol — Lambda, SQS, HTTP/S, email, SMS, mobile push. There is no buffering on the topic itself; if no subscriber is ready, the message is lost (unless the subscriber is an SQS queue).<sup><a href="#r2">2</a></sup></p>
+
+<p>Pick SNS when:</p>
+<ul>
+  <li>Every subscriber must get a copy, and they don't coordinate.</li>
+  <li>Subscribers are heterogeneous and managed by different teams.</li>
+  <li>Latency matters more than durability.</li>
+</ul>
+
+<p>Avoid SNS when:</p>
+<ul>
+  <li>A subscriber needs durability or backpressure — subscribe an SQS queue to the topic; that gives you both fan-out and durability.</li>
+</ul>
+
+<h2>EventBridge: the content router</h2>
+<p>Producers publish events with a structure (source, detail-type, detail). Rules on the bus match on that structure and route to many targets. A single event can fan out to many consumers, and each consumer sees only what it cares about.</p>
+
+<p>Pick EventBridge when:</p>
+<ul>
+  <li>You have many independent consumers, each reacting to a different kind of event.</li>
+  <li>The audience for an event can grow or shrink without redeploying producers.</li>
+  <li>You need integration with AWS service events (S3, CodePipeline, etc.) or SaaS partner events.</li>
+</ul>
+
+<h2>The combinations that matter</h2>
+<p>The interesting answers are usually combinations.</p>
+
+<h3>SNS → SQS: fan-out with durability</h3>
+<p>Every subscriber gets its own SQS queue subscribed to the same topic. The topic delivers a copy to each queue; each consumer drains its own queue at its own pace. This is the canonical "tell everyone reliably" pattern.<sup><a href="#r3">3</a></sup></p>
+
+<h3>EventBridge → SQS: ordering + content filtering</h3>
+<p>The bus routes events to one or more SQS queues. SQS FIFO gives per-entity order on top of the bus's content filtering. Useful when you want EventBridge's "many consumers by content" but you need order for a specific downstream.</p>
+
+<h3>SQS → Lambda (with EventBridge watching for DLQ events)</h3>
+<p>SQS as the durable work queue, Lambda as the worker, EventBridge piping DLQ events to a separate triage handler. The three primitives each play their natural role.</p>
+
+<h2>The decision in five questions</h2>
+<ol>
+  <li><strong>How many consumer groups?</strong> One → SQS. Many independent → SNS or EventBridge.</li>
+  <li><strong>Do they all want the same events?</strong> Yes → SNS. Only some of them, depending on content → EventBridge.</li>
+  <li><strong>Does order matter per entity?</strong> SQS FIFO (or EventBridge → SQS FIFO).</li>
+  <li><strong>Can the consumer fail and lose work?</strong> SQS (or SNS → SQS). Topics alone are not durable.</li>
+  <li><strong>Is the producer an AWS service or a SaaS?</strong> EventBridge has built-in integrations; use it.</li>
+</ol>
+
+<h2>A worked example</h2>
+<p>You launch a SaaS where:</p>
+<ul>
+  <li>Customers hit <code>POST /orders</code> on API Gateway → Lambda.</li>
+  <li>The Lambda validates and writes one <code>OrderPlaced</code> message to SQS.</li>
+  <li>A worker Lambda drains the queue and charges the card, reserves inventory, etc.</li>
+  <li>On DLQ, an alarm pages on-call.</li>
+  <li>If you later want a notifications team to also receive every order, you subscribe an SQS queue (or SNS topic → SQS) to EventBridge — without changing the orders Lambda.</li>
+</ul>
+<p>SQS is the workhorse. EventBridge is the optional router for new consumers. SNS would be a reasonable alternative if every downstream wanted push and the same message.</p>
+
+<aside class="callout callout-tip"><strong>Engineer's check</strong> The decision isn't <em>SQS or EventBridge</em>. It is <em>which shape fits the producer–consumer contract for THIS integration</em>. Most systems use all three.</aside>
+</section>
+
+<section class="quiz-section">
+<h2>Check yourself</h2>
+
+<div class="q" data-correct="2">
+  <h4>1. A single Lambda worker must reliably process each "image uploaded" event. Multiple workers may run in parallel. What is the right primitive?</h4>
+  <button class="opt" data-fb="No — SNS is push fan-out; it doesn't give the worker durable buffering or backpressure.">SNS topic with the Lambda subscribed directly</button>
+  <button class="opt" data-fb="No — EventBridge routes by content to many targets; for a single worker it adds no value.">EventBridge bus with the Lambda as a target</button>
+  <button class="opt" data-fb="Correct. SQS buffers the work and the worker Lambda drains it at its own pace.">SQS queue with a Lambda event source mapping</button>
+  <button class="opt" data-fb="No — that is the wrong direction: producers write to SQS, the queue does not call out.">SQS queue polling from a webhook</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="0">
+  <h4>2. Five different teams each need their own copy of every "user signed up" event, with reliable processing for each. What pattern is right?</h4>
+  <button class="opt" data-fb="Correct. SNS delivers a copy to each SQS queue; each team drains their queue independently.">SNS topic with one SQS queue per team subscribed</button>
+  <button class="opt" data-fb="No — one queue, many consumers = messages distributed to one team only (any of them, not all).">A single SQS queue with all five teams consuming in parallel</button>
+  <button class="opt" data-fb="No — EventBridge with one rule per team works, but SNS → SQS is the simpler, more idiomatic pattern for this.">EventBridge bus with five rules targeting five Lambda functions</button>
+  <button class="opt" data-fb="No — Lambda event source mappings don't fan out across teams; they drain a single queue to a single function.">An SQS queue with five Lambda event source mappings</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="1">
+  <h4>3. Which statement about SNS is correct?</h4>
+  <button class="opt" data-fb="No — topics buffer very briefly; if no subscriber is ready, the message is lost (unless the subscriber is an SQS queue).">SNS topics buffer messages for up to 14 days like SQS</button>
+  <button class="opt" data-fb="Correct. SNS pushes to all subscribers immediately; durability comes from the subscribers (especially when they're SQS).">SNS pushes a copy to every subscriber immediately; if no subscriber is ready, the message is lost</button>
+  <button class="opt" data-fb="No — that is SQS's role; SNS is fan-out.">SNS delivers each message to exactly one subscriber</button>
+  <button class="opt" data-fb="No — SNS does not inspect message bodies; routing by content is EventBridge's job.">SNS routes each message by its content to the right subscriber</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="3">
+  <h4>4. You have many independent consumers, each reacting to a different <em>kind</em> of event (Order Placed, User Created, File Uploaded). Which primitive is most natural?</h4>
+  <button class="opt" data-fb="No — SQS doesn't filter by content; it's a single inbox.">A single SQS queue with all consumers polling it</button>
+  <button class="opt" data-fb="No — SNS fans out but doesn't filter by content; every subscriber sees every event.">An SNS topic with all consumers subscribed</button>
+  <button class="opt" data-fb="No — that's a fan-out shape with no content filtering; subscribers would still see events they don't care about.">Many SQS queues, each fed by a separate Lambda fan-out</button>
+  <button class="opt" data-fb="Correct. Rules on the bus match on the event structure and route each event to the right targets.">EventBridge bus with rules matching on detail-type and detail</button>
+  <div class="fb"></div>
+</div>
+
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>The authoritative comparison from AWS itself: <a href="https://docs.aws.amazon.com/decision-guides/latest/decision-guides/sns-or-sqs-or-eventbridge.html">AWS Decision Guide — Amazon SQS, Amazon SNS, or Amazon EventBridge?</a>. It has the comparison table and the decision logic that anchors any senior-level interview answer.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Pick one integration from a real or imagined system. Justify the choice (SQS, SNS, EventBridge, or a combination). What would make you change your mind?</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-introduction.html">AWS — What is Amazon Simple Queue Service?</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/sns/latest/dg/welcome.html">AWS — What is Amazon SNS?</a></li>
+    <li id="r3"><a href="https://docs.aws.amazon.com/sns/latest/dg/sns-sqs-as-subscriber.html">AWS — Using Amazon SQS as an SNS subscriber</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-dead-letter-queues.html">← Lesson 6: Dead-letter queues</a></span>
+  <span class="nav-next"><a href="0008-sqs-vs-the-broader-landscape.html">Lesson 8: SQS vs the broader landscape →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  MISSION · RESOURCES · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/sqs-cheatsheet.html">Cheat sheet</a> · <a href="../MISSION.md">Mission</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() {
+    if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; }
+  }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

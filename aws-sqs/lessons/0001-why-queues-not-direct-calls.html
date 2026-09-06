@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — Why Queues, Not Direct Calls</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 9 — wait</span><span>AWS SQS</span></div>
+  <h1>Why Queues, Not Direct Calls</h1>
+  <p class="subtitle">The coordination problem that SQS exists to solve.</p>
+</header>
+
+<section>
+<h2>The trap: work that has to wait on other work</h2>
+<p>Here is a typical API handler in a serverless app: a customer hits <code>POST /orders</code>, the Lambda validates the order, charges the card, reserves inventory, sends the email, and finally returns <code>200 OK</code>.</p>
+<pre><code>// inside the orders Lambda handler
+const charge   = await paymentClient.charge(order);
+const reserve  = await inventoryClient.reserve(order);
+const email    = await emailClient.sendWelcome(order);
+return { statusCode: 200, body: "ok" };</code></pre>
+<p>This works on the demo, and it collapses in production. Three downstream services now sit on the user's hot path. The handler's timeout (default 30s in API Gateway) is shared with three other systems you don't control.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> The failure isn't slow code — it's coupling. The order function is a conductor for three other services, and every slow service slows the customer.</aside>
+
+<h2>Four failure modes of direct calls</h2>
+<table>
+  <tr><th>Failure mode</th><th>What happens</th></tr>
+  <tr><td>Cascade timeouts</td><td>A 25-second payment call eats most of the API Gateway timeout; one slow hop takes the whole request down.</td></tr>
+  <tr><td>Hot-path backpressure</td><td>If a thousand orders arrive in a spike, every one tries to call payment at once — your payment provider rate-limits you, every order fails.</td></tr>
+  <tr><td>Tight coupling</td><td>The handler holds names/ARNs of three services and has to be redeployed when one is renamed or replaced.</td></tr>
+  <tr><td>Lost work on failure</td><td>Charge succeeded, inventory reservation failed, email never sent. The customer is charged with no inventory. Who fixes it? The handler returned 500 and lost the context.<sup><a href="#r2">2</a></sup></td></tr>
+</table>
+
+<h2>What a queue changes</h2>
+<p>With an SQS queue, the orders function stops being a conductor. It becomes a <em>poster</em>:</p>
+<ol>
+  <li>It validates the order.</li>
+  <li>It writes one short message to the orders queue (<code>SendMessage</code>).</li>
+  <li>It returns <code>200 OK</code> immediately.</li>
+  <li>Separate worker Lambdas consume the queue at their own pace.</li>
+</ol>
+<p>The order is committed the moment the message is in the queue. The queue holds the work durably (replicated across Availability Zones) until a worker can pick it up. If payment is slow, the queue grows; if payment is down, the queue keeps the work safe for up to 14 days.<sup><a href="#r3">3</a></sup></p>
+
+<aside class="callout callout-tip"><strong>Engineer's check</strong> Ask: <em>does the customer need this work done before I can answer them?</em> If yes, do it inline. If no — and a lot of work is "no" — push it onto a queue.</aside>
+
+<h2>The decoupling trade</h2>
+<p>You've traded a synchronous result (knowing every step completed) for three things:</p>
+<ul>
+  <li><strong>Durable buffer.</strong> A failed downstream service doesn't drop the work; the queue keeps it.</li>
+  <li><strong>Independent pace.</strong> Workers scale to whatever throughput they need; the producer doesn't care.</li>
+  <li><strong>Failure isolation.</strong> A bug in the email service doesn't take down order placement.</li>
+</ul>
+<p>The cost: you no longer get an immediate answer to "did every step succeed?" You get it eventually, through monitoring and through a separate workflow you design.</p>
+
+<h2>What SQS is — and isn't</h2>
+<p>SQS is a <strong>queue</strong>: producers write, a single consumer group pulls, the message lives until deleted. It is <em>not</em> a router (use EventBridge for that) and not a fan-out (use SNS for that). It is the durable inbox you put work into when the producer can finish before the consumer can.<sup><a href="#r4">4</a></sup></p>
+
+<p>Two things are required for this to work, and they are the heart of this whole course:</p>
+<ul>
+  <li>A way to <em>write</em> a message that survives whatever happens next (the producer side).</li>
+  <li>A way to <em>consume</em> that message without losing it on a crash, and without processing it twice (the consumer side).</li>
+</ul>
+<p>Lesson 2 covers both.</p>
+</section>
+
+<section class="quiz-section">
+<h2>Check yourself</h2>
+<p>Read the scenario and pick the best answer.</p>
+
+<div class="q" data-correct="1">
+  <h4>1. An orders Lambda currently calls payment, inventory, and email synchronously before returning 200. Payment is slow today and the whole order endpoint is failing. What is the most direct cause?</h4>
+  <button class="opt" data-fb="Not quite — same region arguably helps latency, but the coupling is the structural problem here. Try again.">The Lambda regions are too far apart</button>
+  <button class="opt" data-fb="Correct. Payment's slowness becomes the request's slowness because every step sits on the hot path.">Synchronous chaining makes the caller wait on every downstream service's timing</button>
+  <button class="opt" data-fb="No — IAM permissions matter for health but don't explain 'slow today'.">IAM permissions are misconfigured</button>
+  <button class="opt" data-fb="Cold starts hurt latency but do not explain a coupling-driven outage.">The Lambda cold starts are too high</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="0">
+  <h4>2. Which statement best describes what the producer gains by writing to an SQS queue instead of calling consumers directly?</h4>
+  <button class="opt" data-fb="Correct. The work is durable in the queue, so the producer is no longer hostage to downstream speed or availability.">The work is durably stored and survives downstream slowness or outages</button>
+  <button class="opt" data-fb="No — an SQS queue has a per-message cost and a visibility-timeout retry model; it's not 'free'.">It gets guaranteed delivery with no cost or retries</button>
+  <button class="opt" data-fb="No — the producer does not know how every consumer fared; it only knows the message was accepted.">It keeps a synchronous, ordered confirmation that every consumer succeeded</button>
+  <button class="opt" data-fb="The opposite: the producer no longer holds consumer names or ARNs; consumers come and go freely.">It must edit the producer every time a new consumer is added</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="3">
+  <h4>3. A "welcome email" feature only needs to run after a user signs up; signup must succeed even if email is broken. Which shape matches this lesson's philosophy?</h4>
+  <button class="opt" data-fb="That is the old pattern — it couples signup to email and fails signup when email fails.">Signup calls the email Lambda synchronously as its final step</button>
+  <button class="opt" data-fb="Not quite — that still spreads signup logic across three callers.">Signup calls the email Lambda three times for reliability</button>
+  <button class="opt" data-fb="No — a DLQ catches failures after retries; the cleaner description is publish-and-let-consume.">Signup sends the email to a dead-letter queue</button>
+  <button class="opt" data-fb="Correct. Signup publishes a message to a queue; the email worker consumes it at its own pace; signup never waits.">Signup writes a 'User Signed Up' message to a queue and the email worker reacts to it</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="2">
+  <h4>4. Which is NOT something an SQS queue gives you for free?</h4>
+  <button class="opt" data-fb="Durability is core — messages are replicated across AZs.">Durable storage across Availability Zones</button>
+  <button class="opt" data-fb="Independent pace is core — workers pull at their own rate.">Decoupling of producer and consumer pace</button>
+  <button class="opt" data-fb="Correct. Routing by content / fan-out to many consumers is EventBridge's job, not SQS's.">Routing of one message to many consumers by content filter</button>
+  <button class="opt" data-fb="Up to 14 days of retention is a built-in queue property.">Configurable message retention up to 14 days</button>
+  <div class="fb"></div>
+</div>
+
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>The official framing of the role a queue plays in a serverless architecture: <a href="https://docs.aws.amazon.com/wellarchitected/latest/serverless-applications-lens/event-driven-architectures.html">AWS Well-Architected — Event-driven architectures (Serverless Lens)</a>. It names the trade-offs this lesson only sketches.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Finished here? Explain in your own words why a queue helps when the consumer is slow, or bring a coupling problem from your own code, and get feedback before moving on.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/lambda/latest/dg/configuration-timeout.html">AWS — Lambda configuration: timeout</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/wellarchitected/latest/serverless-applications-lens/event-driven-architectures.html">AWS Well-Architected — Event-driven architectures</a></li>
+    <li id="r3"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-introduction.html">AWS — What is Amazon Simple Queue Service?</a></li>
+    <li id="r4"><a href="https://docs.aws.amazon.com/decision-guides/latest/decision-guides/sns-or-sqs-or-eventbridge.html">AWS Decision Guide — SQS, SNS, or EventBridge?</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Glossary &amp; cheat sheet</span>
+  <span class="nav-next"><a href="0002-sqs-core-concepts.html">Lesson 2: SQS core concepts →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  MISSION · RESOURCES · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/sqs-cheatsheet.html">Cheat sheet</a> · <a href="../MISSION.md">Mission</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() {
+    if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; }
+  }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

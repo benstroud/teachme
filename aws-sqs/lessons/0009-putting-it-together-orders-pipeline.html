@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — Putting It Together</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 9 of 9</span><span>AWS SQS</span></div>
+  <h1>Putting It Together</h1>
+  <p class="subtitle">A small but realistic orders pipeline — and why every choice was made.</p>
+</header>
+
+<section>
+<h2>The system we're building</h2>
+<p>A customer-facing SaaS where:</p>
+<ul>
+  <li>Users hit <code>POST /orders</code> on API Gateway.</li>
+  <li>A Lambda validates, then enqueues a single message per order.</li>
+  <li>A worker Lambda drains the queue and runs the slow work (charge, inventory, email).</li>
+  <li>A second queue carries the result of the slow work for a fan-out step.</li>
+  <li>DLQs catch anything that fails repeatedly; alarms page on-call.</li>
+</ul>
+
+<h2>The diagram in prose</h2>
+<pre><code>customer
+   |
+   v
+[API Gateway]
+   |
+   v
+[orders-api Lambda]
+   |   SendMessage
+   v
+[orders-queue]  ---redrive(maxReceiveCount=5)---&gt;  [orders-dlq]
+   |   ESM (batchSize=10, ReportBatchItemFailures)
+   v
+[orders-worker Lambda]
+   |
+   +-- charge card (idempotent on orderId)
+   |
+   +-- reserve inventory (idempotent on orderId)
+   |
+   +-- on success: SendMessage(orderProcessed)
+   |
+   v
+[order-processed-queue]  ---redrive---&gt;  [order-processed-dlq]
+   |   ESM
+   v
+[order-processed-fanout Lambda]
+   |
+   +-- analytics
+   +-- customer notification
+   +-- third-party webhook (via API destination)</code></pre>
+
+<h2>Why each piece is shaped this way</h2>
+
+<h3>Orders queue: standard, not FIFO</h3>
+<p>Two different orders can be processed in any order. There's no business rule that order #100 must finish before order #99. Standard gives unlimited throughput at the cost of best-effort order, which we don't need.</p>
+
+<h3>Orders DLQ: redrive on maxReceiveCount=5</h3>
+<p>Five retries is enough to ride out transient failures (payment provider blip, downstream timeout) without letting a bad message loop forever. The DLQ alarm is on <code>ApproximateNumberOfMessagesVisible &gt; 0</code> for 5 minutes.</p>
+
+<h3>Worker Lambda: idempotent, partial batch response</h3>
+<p>Charging a card is not idempotent by default — we use a conditional DynamoDB write on <code>orderId</code> so a duplicate delivery never produces a duplicate charge. The handler returns <code>{ batchItemFailures: [...] }</code> with only the failing records; SQS retries only those.<sup><a href="#r1">1</a></sup></p>
+
+<pre><code>// orders-worker, sketched
+export const handler: SQSHandler = async (event: SQSEvent): Promise&lt;SQSBatchResponse&gt; =&gt; {
+  const failures: { itemIdentifier: string }[] = [];
+  for (const record of event.Records) {
+    try {
+      await processOrderOnce(JSON.parse(record.body), record.messageId);
+    } catch (err) {
+      console.error("failed", record.messageId, err);
+      failures.push({ itemIdentifier: record.messageId });
+    }
+  }
+  return { batchItemFailures: failures };
+};</code></pre>
+
+<h3>Order-processed queue: a result stream</h3>
+<p>Once the order is durably processed, the worker writes a short "OrderProcessed" message to a second queue. Why a queue and not just calling the next Lambda synchronously? Same reason as lesson 1: the next stage (analytics, notifications, third-party webhook) shouldn't sit on the worker's hot path or take the worker down with it.</p>
+
+<h3>Fan-out Lambda: pull the queue, do the side effects</h3>
+<p>The fan-out Lambda drains <code>order-processed-queue</code>. Each record triggers analytics, a notification, and a webhook. Side effects are individually idempotent (notification deduped on <code>orderId</code>, webhook retried by the receiver).</p>
+
+<h3>Visibility timeouts</h3>
+<ul>
+  <li>Orders queue: 60 seconds. The worker is fast — payment &lt; 5s, inventory &lt; 2s, email &lt; 3s — but we give headroom.</li>
+  <li>Order-processed queue: 30 seconds. The fan-out is fast too.</li>
+</ul>
+
+<h3>Why two queues, not one with a "stage" attribute</h3>
+<p>Two concerns: lifecycle and throughput. The orders queue carries one message per order; the processed queue carries the same volume plus downstream retries. Mixing them on a single queue would force a single consumer to handle both stages. Separate queues let each stage scale on its own and fail in isolation.</p>
+
+<h2>The trade-offs you can defend in an interview</h2>
+<p>Pick any one of these and explain it as if to a senior engineer:</p>
+<ol>
+  <li>Standard queue over FIFO — because no per-entity order rule applies across orders.</li>
+  <li>Two queues over one — because each stage has its own throughput and its own failure domain.</li>
+  <li>Idempotent worker — because the worker charges a card, which is the irreversible side effect.</li>
+  <li>DLQ with low <code>maxReceiveCount</code> — because we want poison messages parked fast, not after 50 retries.</li>
+  <li>Partial batch response — because without it, one bad order retries the whole batch and forces idempotency on every record.</li>
+</ol>
+
+<aside class="callout callout-tip"><strong>Engineer's check</strong> If you can defend each of the five, you can defend an SQS architecture in a senior conversation. The exact configuration is less important than the reasoning.</aside>
+
+<h2>What you would add in production</h2>
+<p>This course deliberately stopped short of:</p>
+<ul>
+  <li><strong>Observability:</strong> CloudWatch metrics for all four queues; X-Ray for trace continuity from API Gateway through both queues.</li>
+  <li><strong>Cost:</strong> batched sends where possible; long polling already on by default for ESM.</li>
+  <li><strong>Schema control:</strong> a JSON Schema for the message body, versioned, with a CI check that producers and consumers match.</li>
+  <li><strong>Cross-cutting alarms:</strong> DLQ depth, <code>ApproximateAgeOfOldestMessage</code> (queue is backing up), consumer error rate.</li>
+  <li><strong>Cross-region / multi-account:</strong> out of scope for this course; the same shape scales by replicating the queues per region.</li>
+</ul>
+
+<h2>Where to go next</h2>
+<p>Two natural follow-ons, in this order:</p>
+<ol>
+  <li><strong>EventBridge</strong> — for the kind of routing this pipeline would need when more teams want to react to orders (notifications team, finance team, analytics).</li>
+  <li><strong>Step Functions</strong> — for workflows that need explicit orchestration (e.g. "wait for human approval before charging").</li>
+</ol>
+</section>
+
+<section class="quiz-section">
+<h2>Check yourself</h2>
+
+<div class="q" data-correct="0">
+  <h4>1. Why is the orders queue a standard queue rather than a FIFO queue?</h4>
+  <button class="opt" data-fb="Correct. Two different orders don't have an order rule between them; standard gives nearly unlimited throughput without an unnecessary constraint.">No business rule says order #99 must finish before order #100; we don't need per-entity order or exactly-once</button>
+  <button class="opt" data-fb="No — FIFO queues with high-throughput mode are 3,000 msg/s; throughput is rarely the reason.">Standard queues have higher throughput than FIFO queues ever could</button>
+  <button class="opt" data-fb="No — standard has at-least-once delivery; we still need idempotency regardless of queue type.">Standard queues are exactly-once and FIFO queues are at-least-once</button>
+  <button class="opt" data-fb="No — FIFO's per-group ordering has nothing to do with cross-order fairness.">FIFO queues serialize all orders, so they would be unfair to new customers</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="2">
+  <h4>2. The orders-worker Lambda charges a card. Why must it be idempotent even though SQS already retries?</h4>
+  <button class="opt" data-fb="No — the card provider charges once per API call; the issue is duplicate API calls from retries.">Card providers always reject duplicate charges</button>
+  <button class="opt" data-fb="No — SQS visibility timeout retries; that is exactly why duplicates can happen.">SQS guarantees exactly-once delivery, so idempotency is not needed</button>
+  <button class="opt" data-fb="Correct. SQS retries are the source of duplicate work, and charging a card twice is the worst possible side effect.">SQS retries can deliver the same message more than once; charging a card twice is irreversible</button>
+  <button class="opt" data-fb="No — that is FIFO's role; standard doesn't give exactly-once.">Standard SQS guarantees exactly-once when you set MessageDeduplicationId</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="1">
+  <h4>3. The pipeline has two queues (orders, order-processed) instead of one queue with a "stage" attribute. Why?</h4>
+  <button class="opt" data-fb="No — both queues are SQS; latency to the consumer is similar.">Different message sizes require different queues</button>
+  <button class="opt" data-fb="Correct. Each stage has its own failure domain and its own scaling profile; sharing a queue couples them.">Each stage has its own failure domain and scaling profile; separating them isolates failures and lets each scale independently</button>
+  <button class="opt" data-fb="No — you can use message attributes on a single queue; the choice is about isolation, not attributes.">You can't filter messages by attributes on a single queue</button>
+  <button class="opt" data-fb="No — FIFO is unrelated to the two-stage shape.">Standard queues don't support two stages, only FIFO does</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="3">
+  <h4>4. A team wants to start receiving every OrderProcessed event for analytics. Without changing the orders-worker Lambda, what's the simplest durable shape?</h4>
+  <button class="opt" data-fb="No — calling the analytics Lambda synchronously re-couples them and adds the analytics team to the worker's hot path.">Add a direct Lambda invoke in the worker to the analytics function</button>
+  <button class="opt" data-fb="No — the order-processed queue is already serving the fan-out; the analytics team would compete with notifications for messages.">Subscribe the analytics team's Lambda to the existing order-processed queue</button>
+  <button class="opt" data-fb="No — that pushes a copy to everyone but loses durability for the analytics consumer; SQS as a subscriber is the durability step.">Subscribe the analytics team's Lambda directly to an SNS topic fed by the worker</button>
+  <button class="opt" data-fb="Correct. SNS delivers a copy to every subscriber; the analytics team's own SQS queue gives them their own durable buffer without touching the worker.">Add an SNS topic subscribed by the fan-out's SQS queue and the analytics team's own SQS queue</button>
+  <div class="fb"></div>
+</div>
+
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Return to the cheat sheet for the condensed reference: <a href="../reference/sqs-cheatsheet.html">SQS Cheat Sheet</a>. Then the AWS reference architecture for end-to-end patterns: <a href="https://docs.aws.amazon.com/wellarchitected/latest/serverless-applications-lens/event-driven-architectures.html">AWS Well-Architected — Event-driven architectures</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Defend one piece of the pipeline out loud (or in chat). What is the failure mode it prevents? What would break first if it were removed?</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.powertools.aws.dev/lambda/typescript/features/batch/">AWS Lambda Powertools — Batch processing (TypeScript)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0008-sqs-vs-the-broader-landscape.html">← Lesson 8: SQS vs the broader landscape</a></span>
+  <span class="nav-next"><a href="../reference/sqs-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  MISSION · RESOURCES · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/sqs-cheatsheet.html">Cheat sheet</a> · <a href="../MISSION.md">Mission</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() {
+    if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; }
+  }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

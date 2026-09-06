@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — Lambda as a Consumer</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 9 — wait</span><span>AWS SQS</span></div>
+  <h1>Lambda as a Consumer</h1>
+  <p class="subtitle">The event source mapping — let Lambda poll the queue for you.</p>
+</header>
+
+<section>
+<h2>Why you almost never poll SQS yourself</h2>
+<p>The pattern from lesson 2 — <code>ReceiveMessage</code> in a loop, <code>DeleteMessage</code> when done — works, but you now own a long-running process, scaling, retries, and visibility-timeout renewal. For Lambda-to-Lambda architectures there is a better shape: an <strong>event source mapping</strong> (ESM) that AWS runs on your behalf.</p>
+
+<p>An ESM is a piece of Lambda-side configuration. It tells Lambda: <em>poll this SQS queue, batch what you find, invoke my function with each batch, and delete the messages after a successful invocation</em>.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> The ESM owns the polling loop and the successful-message cleanup. Your Lambda owns only the per-message work.</aside>
+
+<h2>The shape of an event</h2>
+<p>Lambda invokes your handler with a single argument shaped like this:</p>
+<pre><code>{
+  "Records": [
+    {
+      "messageId":     "9b...",
+      "receiptHandle": "AQEBaZ...==",
+      "body":          "{\"orderId\":\"ord_1001\",\"total\":129.99}",
+      "attributes": {
+        "ApproximateReceiveCount":        "1",
+        "SentTimestamp":                  "1757145600000",
+        "ApproximateFirstReceiveTimestamp": "1757145610000"
+      },
+      "messageAttributes": {
+        "eventType": { "stringValue": "Order Placed" }
+      },
+      "eventSource": "aws:sqs",
+      "eventSourceARN": "arn:aws:sqs:us-east-1:123:orders",
+      "awsRegion": "us-east-1"
+    }
+  ]
+}</code></pre>
+<p>The shape is the standard <code>SQSEvent</code> TypeScript type. The interesting fields are:</p>
+<ul>
+  <li><code>Records[].messageId</code> — use this as your idempotency key.</li>
+  <li><code>Records[].body</code> — your payload, a string; parse it.</li>
+  <li><code>Records[].attributes.ApproximateReceiveCount</code> — how many times SQS has delivered this message; useful for fail-fast logic.</li>
+  <li><code>Records[].messageAttributes</code> — your structured metadata.</li>
+</ul>
+
+<h2>A minimal handler</h2>
+<pre><code>import type { SQSEvent, SQSHandler } from "aws-lambda";
+
+export const handler: SQSHandler = async (event: SQSEvent) =&gt; {
+  for (const record of event.Records) {
+    const order = JSON.parse(record.body);
+    await processOrder(order, record.messageId);
+  }
+  // Returning nothing = "treat the whole batch as successful".
+  // SQS deletes every message in the batch.
+};</code></pre>
+<p>This works — but it has a sharp edge. If <em>one</em> record throws, the whole batch throws. SQS treats the whole batch as failed, leaves every message in the queue, and they all become visible again after the visibility timeout. You will process some messages twice.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Partial batch response — the right shape</h2>
+<p>Tell SQS exactly which messages failed by returning a partial batch response:</p>
+<pre><code>import type { SQSEvent, SQSHandler, SQSBatchResponse } from "aws-lambda";
+
+export const handler: SQSHandler = async (event: SQSEvent): Promise&lt;SQSBatchResponse&gt; =&gt; {
+  const failures: { itemIdentifier: string }[] = [];
+
+  for (const record of event.Records) {
+    try {
+      const order = JSON.parse(record.body);
+      await processOrder(order, record.messageId);
+    } catch (err) {
+      console.error("failed", record.messageId, err);
+      failures.push({ itemIdentifier: record.messageId });
+    }
+  }
+
+  // SQS deletes the successful messages and leaves the failed ones
+  // to become visible again after their visibility timeout.
+  return { batchItemFailures: failures };
+};</code></pre>
+<p>Two things to know about this:</p>
+<ul>
+  <li>The function signature uses <code>ReportBatchItemFailures</code> semantics; you opt in by returning the right shape.</li>
+  <li>If <code>batchItemFailures</code> is empty (or absent), SQS deletes every message in the batch.</li>
+</ul>
+
+<h2>Configuring the mapping</h2>
+<p>The ESM has a handful of settings that matter. Set them in the console or in IaC:</p>
+<table>
+  <tr><th>Setting</th><th>What it controls</th><th>Default</th></tr>
+  <tr><td><code>batchSize</code></td><td>Max messages per invocation (1–10,000)</td><td>10</td></tr>
+  <tr><td><code>maximumBatchingWindowInSeconds</code></td><td>Wait this long to fill a batch before invoking</td><td>0 (invoke as soon as batch is full)</td></tr>
+  <tr><td><code>functionResponseType</code> (was <code>ReportBatchItemFailures</code>)</td><td>Enable partial batch response</td><td>off</td></tr>
+  <tr><td><code>filterCriteria</code></td><td>Skip records by attribute (e.g. only process <code>Order Placed</code>)</td><td>none</td></tr>
+  <tr><td><code>scalingConfig</code></td><td>Min / max concurrent invocations</td><td>min 5, max 1000</td></tr>
+</table>
+<p>Source: <a href="https://docs.aws.amazon.com/lambda/latest/dg/with-sqs.html">AWS Lambda — Using Lambda with SQS</a>.</p>
+
+<aside class="callout callout-tip"><strong>Engineer's rule</strong> Always turn on partial batch response. Without it, one bad message will retry the whole batch — and your idempotency story has to cover records you already processed.</aside>
+
+<h2>How concurrency plays with the queue</h2>
+<p>Lambda's reserved concurrency caps how many ESM invocations run at once. If your queue has 10,000 messages and concurrency is 10, Lambda runs 10 in parallel until the queue drains. If a downstream is slow, that throttles cleanly — the queue absorbs the spike instead of your function timing out.</p>
+
+<p>For FIFO queues, the ESM respects <code>MessageGroupId</code>: a single group runs serially through the function (in send order), but different groups run in parallel up to your concurrency cap.<sup><a href="#r3">3</a></sup></p>
+
+<h2>Long polling is on by default</h2>
+<p>As of 2022, ESM uses long polling automatically — <code>WaitTimeSeconds: 20</code>. You don't have to configure it.<sup><a href="#r4">4</a></sup></p>
+
+<h2>When to write your own consumer instead</h2>
+<p>An ESM is right when:</p>
+<ul>
+  <li>Work is per-message and fits in a Lambda invocation.</li>
+  <li>You want zero ops on the consumer.</li>
+  <li>You want auto-scaling and backpressure for free.</li>
+</ul>
+<p>Write your own consumer (long-poll loop, manual scaling) when:</p>
+<ul>
+  <li>You need to preserve message order across the whole queue (rare; usually a FIFO group is enough).</li>
+  <li>You need to <code>ChangeMessageVisibility</code> mid-processing to extend the window past 12h.</li>
+  <li>You need a non-Lambda runtime for some reason.</li>
+</ul>
+</section>
+
+<section class="quiz-section">
+<h2>Check yourself</h2>
+
+<div class="q" data-correct="2">
+  <h4>1. What does the Lambda event source mapping do for you?</h4>
+  <button class="opt" data-fb="No — IAM grants the function permission; the ESM does not bypass auth.">Grants the function permission to read the queue without IAM</button>
+  <button class="opt" data-fb="No — visibility is per-receive and managed by SQS, not the ESM.">Extends the visibility timeout to 12 hours automatically</button>
+  <button class="opt" data-fb="Correct. The ESM polls, batches, invokes your function, and deletes successful messages.">Polls the queue, batches messages, invokes your function, and deletes messages after success</button>
+  <button class="opt" data-fb="No — that's EventBridge's job; SQS is a queue, not a router.">Routes each message to many targets by content filter</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="1">
+  <h4>2. You turn on partial batch response (<code>ReportBatchItemFailures</code>). A batch of 10 has 3 failures and 7 successes. What does SQS do?</h4>
+  <button class="opt" data-fb="No — partial batch response is the whole point; the 7 succeed.">Retries the entire batch from scratch</button>
+  <button class="opt" data-fb="Correct. SQS deletes the 7 successes; the 3 failures stay in the queue.">Deletes the 7 successes and leaves the 3 failures to become visible again after the visibility timeout</button>
+  <button class="opt" data-fb="No — partial batch response does not move anything to the DLQ by itself.">Sends all 10 to the dead-letter queue immediately</button>
+  <button class="opt" data-fb="No — only the failed message ids in your response stay; the rest are deleted.">Pauses delivery for the queue until you re-ack</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="0">
+  <h4>3. Why should you turn on partial batch response for any Lambda SQS consumer?</h4>
+  <button class="opt" data-fb="Correct. One poison message will otherwise retry the whole batch and force you to be idempotent across records you already processed.">Without it, one bad message retries the entire batch and forces duplicate-side-effect-safe idempotency on every record</button>
+  <button class="opt" data-fb="No — partial batch response has no impact on cost; it only changes which messages are deleted.">It lowers your per-invocation cost</button>
+  <button class="opt" data-fb="No — long polling is on by default; it's unrelated to partial batch response.">It enables long polling on the queue</button>
+  <button class="opt" data-fb="No — it changes behavior on failure, not on the happy path.">It makes successful messages faster</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="3">
+  <h4>4. A FIFO queue has 5 message groups, each with 100 messages. Your Lambda has reserved concurrency 20. What happens?</h4>
+  <button class="opt" data-fb="No — SQS doesn't run function code; it just delivers messages.">Each group is processed by 20 concurrent invocations</button>
+  <button class="opt" data-fb="No — Lambda will use concurrency up to the cap; 5 groups × 20 = 100 invocations is over the cap.">All 500 messages run in parallel up to 100 concurrent invocations</button>
+  <button class="opt" data-fb="No — the cap is 1000 by default; not the bottleneck here.">Lambda caps at 5 concurrent invocations because there are 5 groups</button>
+  <button class="opt" data-fb="Correct. Each group runs serially in send order; up to 20 groups-in-flight at once, capped by concurrency.">Each group is processed strictly in order, with up to 5 groups running in parallel (capped by concurrency 20 and group count 5)</button>
+  <div class="fb"></div>
+</div>
+
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>The official Lambda-side view of the SQS event source mapping, including <code>ReportBatchItemFailures</code> semantics: <a href="https://docs.aws.amazon.com/lambda/latest/dg/with-sqs.html">AWS Lambda — Using Lambda with SQS</a>. For the TypeScript-flavored batch wrapper, see <a href="https://docs.powertools.aws.dev/lambda/typescript/features/batch/">AWS Lambda Powertools — Batch processing</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Sketch a handler you would write for a real workload (orders, signup, image-processing). Which fields would you read from each record? What would you log?</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-configure-lambda-function-trigger.html">AWS — Configuring a Lambda trigger</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/lambda/latest/dg/with-sqs.html">AWS Lambda — Using Lambda with SQS</a></li>
+    <li id="r3"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-fifo-queues.html">AWS — FIFO queues</a></li>
+    <li id="r4"><a href="https://aws.amazon.com/blogs/compute/amazon-sqs-adds-long-polling-support-for-aws-lambda-event-source-mappings/">AWS Blog — SQS long polling for Lambda ESMs</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-standard-vs-fifo.html">← Lesson 3: Standard vs FIFO</a></span>
+  <span class="nav-next"><a href="0005-visibility-retries-and-idempotency.html">Lesson 5: Visibility, retries, idempotency →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  MISSION · RESOURCES · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/sqs-cheatsheet.html">Cheat sheet</a> · <a href="../MISSION.md">Mission</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() {
+    if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; }
+  }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

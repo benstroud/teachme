@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Amazon SQS — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  .two-col { display: flex; flex-wrap: wrap; gap: 1.4rem; }
+  .two-col > div { flex: 1 1 46%; min-width: 18rem; }
+  code i { color: var(--accent); font-style: normal; }
+  td code, .q code { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>AWS SQS</span></div>
+  <h1>SQS Cheat Sheet</h1>
+  <p class="subtitle">The compressed essence of the course. Skim before a lesson, study it fully before an interview.</p>
+</header>
+
+<section>
+<h2>1. The message model</h2>
+<p>A message on a queue looks like this (what your producer sends and what your consumer receives):</p>
+<pre><code>{
+  "MessageId":    "9b...",
+  "ReceiptHandle": "AQEBaZ...==",
+  "MessageBody":  "{\"orderId\":\"ord_1001\",\"total\":129.99}",
+  "MessageAttributes": {
+    "eventType": { "DataType": "String", "StringValue": "Order Placed" },
+    "priority":  { "DataType": "Number", "StringValue": "5" }
+  },
+  "Attributes": {
+    "SentTimestamp":     "1757145600000",
+    "ApproximateReceiveCount": "1",
+    "ApproximateFirstReceiveTimestamp": "1757145610000"
+  }
+}</code></pre>
+<table>
+  <tr><th>Field</th><th>Meaning</th></tr>
+  <tr><td><code>MessageBody</code></td><td>Your payload (up to 256 KiB). SQS treats it as opaque text — JSON in, JSON out.</td></tr>
+  <tr><td><code>MessageId</code></td><td>SQS-assigned unique id. Reuse it as the idempotency key.</td></tr>
+  <tr><td><code>ReceiptHandle</code></td><td>Required to <code>DeleteMessage</code> or <code>ChangeMessageVisibility</code>. Expires — not a durable ref.</td></tr>
+  <tr><td><code>MessageAttributes</code></td><td>Up to 10 structured fields (String / Number / Binary) sent with the body.</td></tr>
+  <tr><td><code>Attributes</code></td><td>SQS-set metadata: sent time, receive count, first-receive time.</td></tr>
+</table>
+</section>
+
+<section>
+<h2>2. Producer (TypeScript sketch)</h2>
+<pre><code>import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
+
+const sqs = new SQSClient({});
+
+await sqs.send(new SendMessageCommand({
+  QueueUrl:    "https://sqs.us-east-1.amazonaws.com/123/orders",
+  MessageBody: JSON.stringify({ orderId: "ord_1001", total: 129.99 }),
+  MessageAttributes: {
+    eventType: { DataType: "String", StringValue: "Order Placed" }
+  },
+  // For FIFO queues only:
+  // MessageGroupId: "ord_1001",
+  // MessageDeduplicationId: "ord_1001",
+}));</code></pre>
+<ul>
+  <li><code>QueueUrl</code> is the address; you can also use <code>QueueName</code> via <code>GetQueueUrl</code>.</li>
+  <li>For FIFO queues, the queue name must end with <code>.fifo</code>; both FIFO-only fields are required.</li>
+</ul>
+</section>
+
+<section>
+<h2>3. Consumer — Lambda with event source mapping</h2>
+<pre><code>import { SQSBatchResponse, SQSEvent, SQSHandler, SQSRecord } from "aws-lambda";
+
+export const handler: SQSHandler = async (event: SQSEvent): Promise&lt;SQSBatchResponse&gt; =&gt; {
+  const failures: { itemIdentifier: string }[] = [];
+
+  for (const record of event.Records) {
+    try {
+      const order = JSON.parse(record.body);
+      await processOrder(order, record.messageId);
+    } catch (err) {
+      failures.push({ itemIdentifier: record.messageId });
+    }
+  }
+
+  // Returning this tells SQS: delete the successful ones,
+  // leave the failed ones in the queue (their visibility will expire and retry).
+  return { batchItemFailures: failures };
+};</code></pre>
+<ul>
+  <li>ESM polls the queue (long polling by default since 2022), batches up to <code>batchSize</code> (default 10) or waits up to <code>batchWindow</code> (default 0).</li>
+  <li>Returning <code>batchItemFailures</code> with <code>itemIdentifier</code> values is the <strong>partial batch response</strong>. SQS only retries those.</li>
+  <li><strong>Tip:</strong> the same handler code works whether or not you return <code>batchItemFailures</code> — the response is opt-in.<sup><a href="#r-lambda">13</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>4. Standard vs FIFO</h2>
+<table>
+  <tr><th></th><th>Standard</th><th>FIFO</th></tr>
+  <tr><td>Delivery</td><td>At-least-once</td><td>Exactly-once</td></tr>
+  <tr><td>Order</td><td>Best-effort</td><td>Strict per <code>MessageGroupId</code></td></tr>
+  <tr><td>Throughput (default)</td><td>Nearly unlimited</td><td>300 msg/s (3,000 with batching)</td></tr>
+  <tr><td>Throughput (high-throughput mode)</td><td>n/a</td><td>3,000 msg/s (with batching)</td></tr>
+  <tr><td>Dedup</td><td>None</td><td>5-minute dedup window via <code>MessageDeduplicationId</code></td></tr>
+  <tr><td>Name suffix</td><td>any</td><td>must end in <code>.fifo</code></td></tr>
+</table>
+<p>Default to standard. Reach for FIFO when you can name a specific <em>business</em> reason you need order and dedup.</p>
+</section>
+
+<section>
+<h2>5. Polling</h2>
+<ul>
+  <li><strong>Short polling (default)</strong>: immediate response, samples subset of servers; more empty receives at low load.</li>
+  <li><strong>Long polling</strong>: <code>WaitTimeSeconds</code> 1–20; SQS holds the request open until a message arrives or wait expires. Reduces cost and empty responses.</li>
+  <li>For a Lambda ESM, long polling is enabled automatically — no extra config needed.</li>
+</ul>
+</section>
+
+<section>
+<h2>6. Visibility timeout</h2>
+<ul>
+  <li>Default 30s; range 0–12 hours. Set per queue or per message.</li>
+  <li>Clock starts when a message is received.</li>
+  <li>If you don't delete (or the consumer crashes), the message becomes visible again after the timeout and gets retried.</li>
+  <li>For long tasks, call <code>ChangeMessageVisibility</code> periodically to keep extending.</li>
+  <li>Set this higher than your P99 handler duration. Lower it for fast-failing jobs.</li>
+</ul>
+</section>
+
+<section>
+<h2>7. Dead-letter queue</h2>
+<ul>
+  <li>Configure a redrive policy on the source queue: <code>maxReceiveCount</code> (default 10).</li>
+  <li>DLQ must be same account + region as the source.</li>
+  <li>FIFO sources can use FIFO DLQs.</li>
+  <li>DLQ messages keep the original body and a few extra attributes (<code>DeadLetterQueueSourceArn</code>, <code>ApproximateReceiveCount</code>).</li>
+  <li>Use DLQ redrive to move messages back to the source after a fix.</li>
+  <li>Alarm on <code>ApproximateNumberOfMessagesVisible</code> on the DLQ.</li>
+</ul>
+</section>
+
+<section>
+<h2>8. Choosing: SQS vs SNS vs EventBridge</h2>
+<table>
+  <tr><th>Behavior needed</th><th>Reach for</th></tr>
+  <tr><td>Single consumer group pulls durable work at its own pace</td><td><strong>SQS</strong></td></tr>
+  <tr><td>Strict order per entity + dedup</td><td><strong>SQS FIFO</strong> with <code>MessageGroupId</code></td></tr>
+  <tr><td>Tell-everyone fan-out, push to many subscribers</td><td><strong>SNS</strong></td></tr>
+  <tr><td>Route events to many targets by content filter</td><td><strong>EventBridge bus</strong></td></tr>
+  <tr><td>Each event must reach <em>every</em> subscriber reliably</td><td><strong>SNS → SQS</strong> per subscriber</td></tr>
+  <tr><td>Buffer before a slow consumer; backpressure</td><td><strong>SQS</strong></td></tr>
+</table>
+</section>
+
+<section>
+<h2>9. Design checklist</h2>
+<ul>
+  <li><strong>Idempotent handlers</strong> — dedupe on <code>messageId</code> or a business id from the body. Treat every retry as if it could be a duplicate.</li>
+  <li><strong>Visibility timeout &gt; P99 handler duration</strong>, with headroom.</li>
+  <li><strong>DLQ on every queue</strong> with a redrive policy. Alert on its depth.</li>
+  <li><strong>Long polling</strong> for any custom consumer; ESM gets it for free.</li>
+  <li><strong>Don't store big payloads</strong> in the body; use S3 + a reference, or the Extended Client Library.</li>
+  <li><strong>Use FIFO groups correctly</strong>: one group per logical entity, not one for the whole queue.</li>
+  <li><strong>Partial batch response</strong> for Lambda — return only the failed message ids.</li>
+  <li><strong>Monitor</strong>: <code>ApproximateNumberOfMessagesVisible</code>, <code>ApproximateNumberOfMessagesNotVisible</code>, <code>ApproximateAgeOfOldestMessage</code>.</li>
+</ul>
+</section>
+
+<footer class="citation">
+  Primary sources:
+  <a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-introduction.html">Amazon SQS Developer Guide</a>,
+  <a href="https://docs.aws.amazon.com/lambda/latest/dg/with-sqs.html">Lambda — Using Lambda with SQS</a>,
+  <a href="https://docs.aws.amazon.com/decision-guides/latest/decision-guides/sns-or-sqs-or-eventbridge.html">AWS Decision Guide — SQS, SNS, or EventBridge?</a>.
+  <ol>
+    <li id="r-lambda"><a href="https://docs.powertools.aws.dev/lambda/typescript/features/batch/">AWS Lambda Powertools — Batch processing (TypeScript)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="../lessons/0001-why-queues-not-direct-calls.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

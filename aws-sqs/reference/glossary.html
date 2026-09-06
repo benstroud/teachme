@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Amazon SQS — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>AWS SQS</span></div>
+  <h1>SQS Glossary</h1>
+  <p class="subtitle">Every term in this course, in one place. Return here when a lesson uses a word you do not fully own.</p>
+</header>
+
+<section>
+<h2>The queue and its messages</h2>
+<dl>
+  <dt><strong>Queue</strong></dt>
+  <dd>A durable, hosted buffer between a producer (sender) and a consumer (receiver). Producers call <code>SendMessage</code> to add work; consumers call <code>ReceiveMessage</code> to pull work; consumers call <code>DeleteMessage</code> when done. SQS stores messages redundantly across multiple Availability Zones.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>Message</strong></dt>
+  <dd>A unit of work on a queue. Has a <code>MessageBody</code> (the payload, up to 256 KiB), a SQS-assigned <code>MessageId</code>, and on receive a <code>ReceiptHandle</code> that authorizes you to delete it.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>MessageBody</strong></dt>
+  <dd>The free-form payload. SQS treats it as opaque text; the consumer parses it. Most apps send JSON here.</dd>
+
+  <dt><strong>MessageId</strong></dt>
+  <dd>SQS-generated unique id for a message. Use it as a deduplication key when you build idempotent handlers.</dd>
+
+  <dt><strong>ReceiptHandle</strong></dt>
+  <dd>An opaque token returned with every received message. You must present it to <code>DeleteMessage</code> to remove the message, or to <code>ChangeMessageVisibility</code> to extend the visibility window. ReceiptHandles expire — they are not durable references.</dd>
+
+  <dt><strong>Message attributes</strong></dt>
+  <dd>Up to 10 small structured fields (String / Number / Binary, with optional custom labels like <code>Number.byte</code>) sent alongside the body. Useful for routing hints or business metadata that consumers need without parsing the body. Total message size (body + attributes) capped at 256 KiB.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>Message system attributes</strong></dt>
+  <dd>Reserved attributes consumed by AWS services (currently <code>AWSTraceHeader</code> for X-Ray). Don't invent your own here — the <code>AWS.</code> prefix is reserved.</dd>
+</dl>
+</section>
+
+<section>
+<h2>Producers and consumers</h2>
+<dl>
+  <dt><strong>Producer</strong></dt>
+  <dd>Anything that calls <code>SendMessage</code> (or <code>SendMessageBatch</code>). In a Lambda-centric system, often the Lambda that handles an inbound API request, an S3 event, or a stream record.</dd>
+
+  <dt><strong>Consumer</strong></dt>
+  <dd>Anything that calls <code>ReceiveMessage</code>. In a serverless app, usually a Lambda wired to the queue via an event source mapping. SQS also lets you run a long-polling worker on EC2, ECS, or your laptop.</dd>
+
+  <dt><strong>Event source mapping (ESM)</strong></dt>
+  <dd>Lambda-side configuration that polls the queue on your behalf, batches messages, invokes your function synchronously, and deletes successfully-processed messages. The ESM is the standard way to attach a Lambda to an SQS queue.<sup><a href="#r4">4</a></sup></dd>
+</dl>
+</section>
+
+<section>
+<h2>Delivery semantics</h2>
+<dl>
+  <dt><strong>At-least-once delivery</strong></dt>
+  <dd>SQS standard queue guarantee: a message will be delivered <em>at least</em> once, but it may arrive more than once. Your handler must tolerate duplicates (see idempotency).<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>Best-effort ordering</strong></dt>
+  <dd>Standard queue guarantee about order: messages are generally delivered in send order, but high volume can reorder them. Don't rely on order from a standard queue.</dd>
+
+  <dt><strong>Exactly-once processing</strong></dt>
+  <dd>FIFO queue guarantee: each message is delivered exactly once and processed in order. Achieved via deduplication IDs and a per-message visibility window.<sup><a href="#r6">6</a></sup></dd>
+
+  <dt><strong>MessageGroupId</strong></dt>
+  <dd>A FIFO-only identifier that partitions a queue into ordered streams. Two messages with the same <code>MessageGroupId</code> are delivered strictly in order; messages with different group ids can be processed in parallel. Use one group per logical entity (e.g. per customer or per order).<sup><a href="#r7">7</a></sup></dd>
+
+  <dt><strong>MessageDeduplicationId</strong></dt>
+  <dd>A FIFO-only token (or content-based hash) that prevents SQS from accepting the same message twice within a 5-minute window. Use it whenever your producer might re-send (retries, at-least-once producer side).<sup><a href="#r8">8</a></sup></dd>
+</dl>
+</section>
+
+<section>
+<h2>Polling and timing</h2>
+<dl>
+  <dt><strong>Short polling (default)</strong></dt>
+  <dd><code>ReceiveMessage</code> samples a subset of SQS servers and returns immediately, even with zero messages. Cheap on the producer side; can result in more empty receives at low load.<sup><a href="#r9">9</a></sup></dd>
+
+  <dt><strong>Long polling</strong></dt>
+  <dd>Setting <code>WaitTimeSeconds</code> to 1–20 makes SQS hold the receive call open until a message is available or the wait expires. Reduces empty responses and cost; recommended for almost every consumer.<sup><a href="#r9">9</a></sup></dd>
+
+  <dt><strong>Visibility timeout</strong></dt>
+  <dd>The window after a message is received during which no other consumer can see it. Default 30s; range 0–43,200s (12h); can be changed per-message via <code>ChangeMessageVisibility</code>. If you don't <code>DeleteMessage</code> before it expires, the message becomes visible again.<sup><a href="#r10">10</a></sup></dd>
+
+  <dt><strong>Message retention</strong></dt>
+  <dd>How long a message lives in the queue if never deleted. Default 4 days; configurable 60 seconds to 14 days (1,209,600 seconds).<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>In-flight message</strong></dt>
+  <dd>A message that has been received but not yet deleted. For standard queues, the in-flight limit is ~120,000 — once you hit it, receives fail until you delete or let visibility expire.</dd>
+</dl>
+</section>
+
+<section>
+<h2>Failure handling</h2>
+<dl>
+  <dt><strong>Poison message</strong></dt>
+  <dd>A message that consistently causes your handler to fail (bad payload, missing dependency). Without a DLQ, it loops forever.</dd>
+
+  <dt><strong>Dead-letter queue (DLQ)</strong></dt>
+  <dd>A second queue that SQS moves a message to after it has been received <code>maxReceiveCount</code> times without being deleted. The DLQ must be in the same account and region as the source queue; a FIFO source can use a FIFO DLQ.<sup><a href="#r11">11</a></sup></dd>
+
+  <dt><strong>maxReceiveCount</strong></dt>
+  <dd>The threshold on the source queue's redrive policy. Default 10; tune based on how transient you expect failures to be.</dd>
+
+  <dt><strong>Idempotent handler</strong></dt>
+  <dd>A consumer that produces the same observable effect regardless of whether it processes a given message once or twice. Usually implemented by deduplicating side effects on a key (often the SQS <code>MessageId</code> or a business id from the body).<sup><a href="#r12">12</a></sup></dd>
+</dl>
+</section>
+
+<section>
+<h2>The decision: queue vs bus vs topic</h2>
+<dl>
+  <dt><strong>Event bus (EventBridge)</strong></dt>
+  <dd>A router. Producers send events to the bus; rules match on event structure and deliver to many targets. Good for fan-out and decoupling consumers.</dd>
+
+  <dt><strong>Queue (SQS)</strong></dt>
+  <dd>A buffer with a single consumer group. Producer writes once, one or many workers pull at their own pace. Good for work that must be done reliably and where pace matters.</dd>
+
+  <dt><strong>Topic (SNS)</strong></dt>
+  <dd>A push fan-out. One producer, many subscribers (HTTP, email, SQS, Lambda). Good when every subscriber must get a copy and consumers can keep up.</dd>
+</dl>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-introduction.html">AWS — What is Amazon Simple Queue Service?</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-receive-delete-message.html">AWS — Receiving and deleting messages</a></li>
+    <li id="r3"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-message-metadata.html">AWS — Message metadata</a></li>
+    <li id="r4"><a href="https://docs.aws.amazon.com/lambda/latest/dg/with-sqs.html">AWS Lambda — Using Lambda with SQS (event source mapping)</a></li>
+    <li id="r5"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-at-least-once-delivery.html">AWS — Amazon SQS at-least-once delivery</a></li>
+    <li id="r6"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-fifo-queues.html">AWS — FIFO queues</a></li>
+    <li id="r7"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-using-message-group-id.html">AWS — Using the message group ID</a></li>
+    <li id="r8"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-using-message-deduplication-id.html">AWS — Using the message deduplication ID</a></li>
+    <li id="r9"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-short-and-long-polling.html">AWS — Short and long polling</a></li>
+    <li id="r10"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html">AWS — Visibility timeout</a></li>
+    <li id="r11"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues.html">AWS — Dead-letter queues</a></li>
+    <li id="r12"><a href="https://docs.powertools.aws.dev/lambda/typescript/utilities/idempotency/">AWS Lambda Powertools — Idempotency (TypeScript)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Mission &amp; notes</span>
+  <span class="nav-next"><a href="../lessons/0001-why-queues-not-direct-calls.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../NOTES.md">Notes</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

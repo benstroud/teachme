@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — Standard vs FIFO</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 9 — wait</span><span>AWS SQS</span></div>
+  <h1>Standard vs FIFO</h1>
+  <p class="subtitle">Pick the queue type by the contract you need, not by "it feels safer."</p>
+</header>
+
+<section>
+<h2>Two queue types, one decision</h2>
+<p>When you create an SQS queue, you choose <strong>standard</strong> or <strong>FIFO</strong>. That single choice pins three things for the life of the queue:</p>
+<ul>
+  <li>how many times a message can be delivered</li>
+  <li>what order messages arrive in</li>
+  <li>how much throughput the queue can carry</li>
+</ul>
+<p>You cannot convert between them later without a cutover — pick carefully up front.</p>
+
+<h2>The contract in one table</h2>
+<table>
+  <tr><th>Property</th><th>Standard</th><th>FIFO</th></tr>
+  <tr><td>Delivery</td><td>At-least-once; possible duplicates</td><td>Exactly-once processing</td></tr>
+  <tr><td>Order</td><td>Best-effort; high volume may reorder</td><td>Strict, per <code>MessageGroupId</code></td></tr>
+  <tr><td>Default throughput</td><td>Nearly unlimited</td><td>300 msg/s (3,000/s with batching)</td></tr>
+  <tr><td>High-throughput mode</td><td>n/a</td><td>Up to 3,000 msg/s</td></tr>
+  <tr><td>Deduplication</td><td>None</td><td>5-minute window via <code>MessageDeduplicationId</code></td></tr>
+  <tr><td>Name suffix</td><td>any</td><td>must end with <code>.fifo</code></td></tr>
+</table>
+<p>Source: <a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-difference-between-standard-and-fifo.html">AWS — Differences between standard and FIFO queues</a> and <a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-fifo-queues.html">AWS — FIFO queues</a>.</p>
+
+<h2>Why standard can reorder</h2>
+<p>SQS standard queues are built for raw throughput. To deliver very high TPS, SQS uses many servers; a high-volume send can hit different servers and arrive in a slightly different order than sent. Most apps don't care, but order-sensitive ones (e.g. "process order creation before order payment") cannot rely on it.<sup><a href="#r1">1</a></sup></p>
+
+<h2>How FIFO achieves strict order</h2>
+<p>A FIFO queue is partitioned by <code>MessageGroupId</code>. Two messages with the same group id are delivered <em>strictly</em> in the order they were sent. Messages with <em>different</em> group ids can be processed in parallel by different consumers.</p>
+
+<pre><code>// FIFO send
+await sqs.send(new SendMessageCommand({
+  QueueUrl:              "https://sqs.us-east-1.amazonaws.com/123/orders.fifo",
+  MessageBody:           JSON.stringify({ orderId: "ord_1", action: "create" }),
+  MessageGroupId:        "ord_1",
+  MessageDeduplicationId: "ord_1-create",
+}));</code></pre>
+<p>Use one <code>MessageGroupId</code> per logical entity you want to keep ordered — per customer, per order, per session — not one for the whole queue. If you use the same group id for everything, you serialize the entire queue and lose FIFO's parallelism.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="callout callout-tip"><strong>Engineer's rule</strong> One <code>MessageGroupId</code> per entity that has an order. Many entities → many groups → parallelism.</aside>
+
+<h2>Why FIFO deduplicates</h2>
+<p>Within a 5-minute window, SQS refuses to accept a second message that carries the same <code>MessageDeduplicationId</code> as a recently accepted one. Two ways to use it:</p>
+<ul>
+  <li><strong>Content-based deduplication:</strong> turn it on at queue level; SQS hashes the body for you. Good when the body is identical on retries.</li>
+  <li><strong>Explicit deduplication ID:</strong> you pass a stable id (often your business key) on every send. Good when you want control over what counts as "the same."</li>
+</ul>
+<p>This protects you from double-charging a customer when your own producer retries — not from a duplicate on the consumer side (that's what idempotency handles; covered in lesson 5).<sup><a href="#r3">3</a></sup></p>
+
+<h2>When FIFO isn't enough throughput</h2>
+<p>If your workload exceeds the default 300 msg/s per FIFO queue, turn on <strong>high-throughput mode</strong> (via the <code>FifoThroughputLimit</code> attribute) and use <code>MessageDeduplicationId</code> (or content-based dedup). That gives you up to 3,000 msg/s with batching. For higher, you parallelize across multiple FIFO queues.<sup><a href="#r4">4</a></sup></p>
+
+<h2>The decision in three questions</h2>
+<ol>
+  <li><strong>Does order matter within an entity?</strong> If no → standard. If yes → FIFO.</li>
+  <li><strong>Can a duplicate cause a duplicate side effect?</strong> If yes → idempotent handler (lesson 5). FIFO's dedup window covers producer-side duplicates within 5 minutes; consumer-side idempotency is on you regardless.</li>
+  <li><strong>What's your peak throughput?</strong> If &gt; 3,000 msg/s on a single FIFO queue → parallelize across many FIFO queues (one per shard key).</li>
+</ol>
+
+<h2>The default answer</h2>
+<p>Most production queues are <strong>standard</strong>. FIFO's strict order and exactly-once processing are valuable, but they come at the cost of throughput and operational complexity. Reach for FIFO when you can name a concrete business reason: an order that must be created before it is paid, a seat reservation that must register before it is sold, an account that must exist before it is granted access.<sup><a href="#r5">5</a></sup></p>
+</section>
+
+<section class="quiz-section">
+<h2>Check yourself</h2>
+
+<div class="q" data-correct="2">
+  <h4>1. Which statement about a standard SQS queue is correct?</h4>
+  <button class="opt" data-fb="No — standard is at-least-once, not exactly-once; duplicates can occur.">Each message is delivered exactly once and in strict send order</button>
+  <button class="opt" data-fb="No — standard has a per-message size cap (256 KiB) and message retention up to 14 days.">There is no limit on throughput, message size, or retention</button>
+  <button class="opt" data-fb="Correct. High volume can reorder; idempotency is required because duplicates can happen.">Delivery is at-least-once with best-effort order; duplicates and out-of-order delivery can occur</button>
+  <button class="opt" data-fb="No — standard is the right pick for high throughput, but it does not enforce order.">Standard queues enforce strict order; FIFO is for higher throughput</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="0">
+  <h4>2. You must process all events for the same customer in the order they occurred, and reject producer-side duplicates within 5 minutes. Which design is correct?</h4>
+  <button class="opt" data-fb="Correct. Per-customer groups give you per-customer order, and dedup IDs catch producer retries.">A FIFO queue, MessageGroupId = customerId, MessageDeduplicationId = a stable business key per event</button>
+  <button class="opt" data-fb="No — a single group for the whole queue serializes all customers, killing throughput.">A FIFO queue, MessageGroupId = "all-customers", one shared deduplication ID namespace</button>
+  <button class="opt" data-fb="No — standard will not give you the per-customer order guarantee you need.">A standard queue with a long visibility timeout</button>
+  <button class="opt" data-fb="No — standard + DLQ doesn't add order or dedup; it's still standard.">A standard queue with a dead-letter queue attached</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="3">
+  <h4>3. You turn on content-based deduplication on a FIFO queue. What does SQS do for you?</h4>
+  <button class="opt" data-fb="No — that is what MessageDeduplicationId (explicit) does.">Rejects every duplicate from any producer for the lifetime of the queue</button>
+  <button class="opt" data-fb="No — dedup only prevents the duplicate <em>message</em> from being enqueued, not the side effect on the consumer.">Re-checks every message against a DynamoDB lock before delivering to consumers</button>
+  <button class="opt" data-fb="No — dedup is a producer-side mechanism; consumer-side dedup is your job.">Re-runs the consumer if the same body arrives twice</button>
+  <button class="opt" data-fb="Correct. SQS hashes the body and refuses the duplicate within the 5-minute window.">Hashes the message body and refuses any duplicate with the same hash within the 5-minute window</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="1">
+  <h4>4. A single FIFO queue can't carry your 8,000 msg/s peak. What do you do?</h4>
+  <button class="opt" data-fb="No — high-throughput mode tops out at 3,000/s for one queue; you need parallel queues.">Turn on high-throughput mode and call it done</button>
+  <button class="opt" data-fb="Correct. Each FIFO queue can do up to 3,000/s with batching and high-throughput mode; shard by a key to scale further.">Parallelize across multiple FIFO queues, sharding by a stable key (e.g. customerId % N)</button>
+  <button class="opt" data-fb="No — standard is faster but does not give you the FIFO guarantees you need.">Switch the queue to standard and accept reordering</button>
+  <button class="opt" data-fb="No — long polling reduces empty receives, not throughput limits.">Enable long polling and increase WaitTimeSeconds</button>
+  <div class="fb"></div>
+</div>
+
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>AWS's own side-by-side comparison with the throughput numbers: <a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-difference-between-standard-and-fifo.html">AWS — Differences between standard and FIFO queues</a>. Pair with the AWS blog piece for practical FIFO patterns: <a href="https://aws.amazon.com/blogs/compute/solving-complex-ordering-challenges-with-amazon-sqs-fifo-queues/">Solving Complex Ordering Challenges with Amazon SQS FIFO Queues</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Bring a queue you've used or imagined. Answer: standard or FIFO? Why? What is your <code>MessageGroupId</code> key?</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-at-least-once-delivery.html">AWS — Amazon SQS at-least-once delivery</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-using-message-group-id.html">AWS — Using the message group ID</a></li>
+    <li id="r3"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-using-message-deduplication-id.html">AWS — Using the message deduplication ID</a></li>
+    <li id="r4"><a href="https://aws.amazon.com/blogs/compute/aws-sqs-standard-vs-fifo-when-and-why-to-use-them/">AWS Blog — Standard queues vs FIFO</a></li>
+    <li id="r5"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-fifo-queues.html">AWS — FIFO queues</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-sqs-core-concepts.html">← Lesson 2: Core concepts</a></span>
+  <span class="nav-next"><a href="0004-lambda-consumer-event-source-mapping.html">Lesson 4: Lambda as consumer →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  MISSION · RESOURCES · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/sqs-cheatsheet.html">Cheat sheet</a> · <a href="../MISSION.md">Mission</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() {
+    if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; }
+  }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — SQS Core Concepts</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 9 — wait</span><span>AWS SQS</span></div>
+  <h1>SQS Core Concepts</h1>
+  <p class="subtitle">Queue, message, polling — the vocabulary you will reuse for the rest of the course.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A queue is a named, durable inbox. Producers <code>SendMessage</code> into it; consumers <code>ReceiveMessage</code> from it; consumers <code>DeleteMessage</code> when they're done with each message. SQS stores the messages redundantly across Availability Zones so that no single server going down loses work.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The two queue types</h2>
+<p>SQS has exactly two kinds of queue, and you choose one when you create it:</p>
+<table>
+  <tr><th>Type</th><th>When to pick it</th></tr>
+  <tr><td><strong>Standard queue</strong></td><td>Default choice. At-least-once delivery, best-effort order, virtually unlimited throughput. Pick this unless you have a specific reason not to.</td></tr>
+  <tr><td><strong>FIFO queue</strong></td><td>When order within a logical group matters <em>and</em> duplicates are unacceptable. Lower throughput cap (300/s default; 3,000/s with batching; up to 3,000/s without batching in high-throughput mode). Queue name must end with <code>.fifo</code>.<sup><a href="#r2">2</a></sup></td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> Most production queues are standard. Reach for FIFO when you can name a <em>business</em> reason for order and dedup — not "it would feel safer."</aside>
+
+<h2>The message</h2>
+<p>Every message on an SQS queue carries:</p>
+<ul>
+  <li><strong>MessageBody</strong> — your payload, up to 256 KiB. SQS treats it as opaque text. JSON in, JSON out.</li>
+  <li><strong>MessageId</strong> — a SQS-assigned unique id. Use it as your idempotency key.</li>
+  <li><strong>ReceiptHandle</strong> — a per-receive token you must present to <code>DeleteMessage</code> or <code>ChangeMessageVisibility</code>. It expires; it is not a durable reference.</li>
+  <li><strong>MessageAttributes</strong> — up to 10 small structured fields (String / Number / Binary) sent alongside the body.</li>
+  <li><strong>Attributes</strong> — SQS-set metadata like <code>SentTimestamp</code> and <code>ApproximateReceiveCount</code>.<sup><a href="#r3">3</a></sup></li>
+</ul>
+
+<h2>The producer side: SendMessage</h2>
+<p>TypeScript with the v3 SDK looks like this:</p>
+<pre><code>import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
+
+const sqs = new SQSClient({});
+
+await sqs.send(new SendMessageCommand({
+  QueueUrl:    "https://sqs.us-east-1.amazonaws.com/123456789012/orders",
+  MessageBody: JSON.stringify({ orderId: "ord_1001", total: 129.99 }),
+  MessageAttributes: {
+    eventType: { DataType: "String", StringValue: "Order Placed" }
+  },
+  // For FIFO queues only:
+  // MessageGroupId:        "ord_1001",
+  // MessageDeduplicationId: "ord_1001",
+}));</code></pre>
+<p>Three things to know:</p>
+<ul>
+  <li><code>QueueUrl</code> identifies the queue. You can also look it up by name via <code>GetQueueUrl</code>.</li>
+  <li><code>MessageBody</code> is a <em>string</em>. JSON-stringify objects before sending.</li>
+  <li>For FIFO queues, <code>MessageGroupId</code> is required; <code>MessageDeduplicationId</code> is optional but strongly recommended.</li>
+</ul>
+
+<h2>The consumer side: ReceiveMessage and DeleteMessage</h2>
+<p>The classical two-step dance, used by anything that polls the queue directly:</p>
+<pre><code>import { SQSClient, ReceiveMessageCommand, DeleteMessageCommand } from "@aws-sdk/client-sqs";
+
+const sqs = new SQSClient({});
+
+const { Messages } = await sqs.send(new ReceiveMessageCommand({
+  QueueUrl:           "https://sqs.us-east-1.amazonaws.com/123/orders",
+  MaxNumberOfMessages: 1,
+  WaitTimeSeconds:    20,            // long polling
+  VisibilityTimeout:  60,
+  MessageAttributeNames: ["All"],
+}));
+
+for (const msg of Messages ?? []) {
+  await handle(JSON.parse(msg.Body!));
+  await sqs.send(new DeleteMessageCommand({
+    QueueUrl:      "https://sqs.us-east-1.amazonaws.com/123/orders",
+    ReceiptHandle: msg.ReceiptHandle!,
+  }));
+}</code></pre>
+<p>Two crucial details:</p>
+<ul>
+  <li><strong>Long polling:</strong> <code>WaitTimeSeconds: 20</code> makes SQS hold the request open until a message arrives or 20s elapses. Cheaper than short polling and recommended everywhere.<sup><a href="#r4">4</a></sup></li>
+  <li><strong>Delete with ReceiptHandle:</strong> the <code>ReceiptHandle</code> is the only thing that authorizes the delete. If you lose it, the message becomes visible again when the visibility timeout expires (more on that in lesson 5).</li>
+</ul>
+
+<aside class="callout callout-tip"><strong>Engineer's note</strong> If you ever write a custom consumer instead of a Lambda event source mapping, long polling is the single biggest cost lever you have.</aside>
+
+<h2>Queue URL and ARN</h2>
+<p>Every queue has both. The URL is what you put in <code>QueueUrl</code> on the API calls. The ARN is what IAM policies reference:</p>
+<pre><code>URL : https://sqs.us-east-1.amazonaws.com/123456789012/orders
+ARN : arn:aws:sqs:us-east-1:123456789012:orders</code></pre>
+<p>A FIFO queue's URL and ARN both carry the <code>.fifo</code> suffix.</p>
+
+<h2>The minimal vocabulary</h2>
+<p>Lock these in before the next lesson:</p>
+<ul>
+  <li><strong>Queue</strong> — the named durable inbox.</li>
+  <li><strong>Standard queue</strong> — at-least-once, best-effort order, default.</li>
+  <li><strong>FIFO queue</strong> — exactly-once, strict order per group, <code>.fifo</code> suffix.</li>
+  <li><strong>Message</strong> — body + id + receipt handle + optional attributes.</li>
+  <li><strong>SendMessage / ReceiveMessage / DeleteMessage</strong> — the three verbs.</li>
+  <li><strong>ReceiptHandle</strong> — the per-receive token; expires.</li>
+</ul>
+</section>
+
+<section class="quiz-section">
+<h2>Check yourself</h2>
+
+<div class="q" data-correct="2">
+  <h4>1. Which field do you need to call <code>DeleteMessage</code>?</h4>
+  <button class="opt" data-fb="No — MessageId identifies the message but does not authorize the delete.">MessageId</button>
+  <button class="opt" data-fb="No — MessageBody is your payload; SQS doesn't act on it.">MessageBody</button>
+  <button class="opt" data-fb="Correct. SQS uses the per-receive ReceiptHandle to authorize the delete.">ReceiptHandle</button>
+  <button class="opt" data-fb="No — MessageAttributes are your metadata; they don't authorize deletes.">MessageAttributes</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="1">
+  <h4>2. You need a queue that delivers every message exactly once and in strict order per customer. Which do you create?</h4>
+  <button class="opt" data-fb="No — standard is at-least-once with best-effort order.">A standard queue, named <code>orders</code></button>
+  <button class="opt" data-fb="Correct. FIFO guarantees exactly-once processing and strict order per MessageGroupId; use one group per customer.">A FIFO queue, named <code>orders.fifo</code>, with <code>MessageGroupId</code> set to the customer id</button>
+  <button class="opt" data-fb="No — a FIFO queue is the right tool; standard won't satisfy the requirement.">A standard queue with long polling enabled</button>
+  <button class="opt" data-fb="No — a dead-letter queue is a failure destination, not a primary queue.">A standard queue with a dead-letter queue attached</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="3">
+  <h4>3. What is the practical effect of <code>WaitTimeSeconds: 20</code> on a <code>ReceiveMessage</code> call?</h4>
+  <button class="opt" data-fb="No — long polling reduces, it does not eliminate, message delivery.">Messages are guaranteed to be delivered within 20 seconds</button>
+  <button class="opt" data-fb="No — it does not extend the visibility timeout; that is a separate parameter.">The visibility timeout is extended to 20 seconds</button>
+  <button class="opt" data-fb="No — short polling is the default; WaitTimeSeconds turns it on.">Short polling is enabled and runs for 20 seconds</button>
+  <button class="opt" data-fb="Correct. SQS holds the request open up to 20s and returns as soon as a message arrives.">Long polling is enabled; SQS holds the call open until a message is available or 20s elapses</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="0">
+  <h4>4. Your Lambda handler calls <code>SendMessage</code>. What must be true about <code>MessageBody</code>?</h4>
+  <button class="opt" data-fb="Correct. SQS treats the body as a string; you JSON.stringify before sending.">It is a string; objects must be serialized (e.g. via JSON.stringify)</button>
+  <button class="opt" data-fb="No — SQS accepts any text; it does not parse or validate JSON.">It must be a JSON object that SQS validates on send</button>
+  <button class="opt" data-fb="No — the body is opaque to SQS; the 256 KiB limit is the only constraint.">It must be a Buffer that SQS base64-encodes for you</button>
+  <button class="opt" data-fb="No — FIFO is irrelevant to MessageBody; the FIFO-specific fields are MessageGroupId and MessageDeduplicationId.">It must include a MessageGroupId when the queue is FIFO</button>
+  <div class="fb"></div>
+</div>
+
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>The official orientation: <a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-introduction.html">AWS — What is Amazon Simple Queue Service?</a>. It includes the basic-architecture diagram and the side-by-side SQS / SNS / MQ comparison that anchors the rest of this course.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Pick one of the three verbs (SendMessage, ReceiveMessage, DeleteMessage) and explain what could go wrong if the wrong verb is paired with the wrong argument (for example: <em>what if I delete using MessageId?</em>).</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-introduction.html">AWS — What is Amazon Simple Queue Service?</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-fifo-queues.html">AWS — FIFO queues</a></li>
+    <li id="r3"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-message-metadata.html">AWS — Message metadata</a></li>
+    <li id="r4"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-short-and-long-polling.html">AWS — Short and long polling</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-why-queues-not-direct-calls.html">← Lesson 1: Why queues</a></span>
+  <span class="nav-next"><a href="0003-standard-vs-fifo.html">Lesson 3: Standard vs FIFO →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  MISSION · RESOURCES · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/sqs-cheatsheet.html">Cheat sheet</a> · <a href="../MISSION.md">Mission</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() {
+    if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; }
+  }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

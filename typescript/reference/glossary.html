@@ -177,35 +177,28 @@
 
   <h2 id="conditional">Conditional Types &amp; <code>infer</code></h2>
   <dl>
-    <dt>Conditional type <code>T extends U ? X : Y</code></dt>
-    <dd>A type-level ternary. The test <code>T extends U</code> is the subset check
-        (<span class="sym">T ⊆ U</span>); resolves to <code>X</code> if it holds, else <code>Y</code>.</dd>
+    <dt>Conditional type</dt>
+    <dd>A type-level ternary: <code>T extends U ? X : Y</code>. The <code>extends</code> test is the subset
+        check (<span class="sym">T ⊆ U</span>) — the <em>true</em> branch is taken when it holds.</dd>
+    <dd class="eg"><code>"hi" extends string ? 1 : 0</code> = <code>1</code>.</dd>
 
     <dt>Distributive conditional type</dt>
-    <dd>When the checked type is a <em>naked type parameter</em> and is a union, the conditional runs
-        once per member and re-unions the results.</dd>
-    <dd class="eg"><code>ToArray&lt;string | number&gt;</code> ⟶ <code>string[] | number[]</code>, not
-        <code>(string | number)[]</code>.</dd>
+    <dd>When the checked type is a <em>bare</em> type parameter given a <em>union</em>, the conditional runs
+        once per member and unions the results.</dd>
+    <dd class="eg"><code>ToArray&lt;A | B&gt;</code> = <code>ToArray&lt;A&gt; | ToArray&lt;B&gt;</code>.</dd>
 
-    <dt>Distribution over <code>never</code></dt>
-    <dd>Since <code>never</code> is the empty set, distributing over it produces the empty union —
-        <code>never</code>. The true branch is never reached.</dd>
-
-    <dt>Tuple-wrap opt-out <code>[T] extends [U]</code></dt>
-    <dd>Wrapping both sides takes <code>T</code> out of naked position, suppressing distribution so the
-        union is matched as one whole type. The idiomatic way to test "is <code>T</code> exactly
-        <code>never</code>?": <code>[T] extends [never]</code>.</dd>
+    <dt>Disabling distribution</dt>
+    <dd>Wrap both sides in a one-tuple — <code>[T] extends [U]</code> — to test the union as a single whole.</dd>
 
     <dt><code>infer</code></dt>
-    <dd>Inside an <code>extends</code> clause, declares a fresh type variable that TS solves by matching
-        structure — destructuring for types. The capture is usable in the true branch.</dd>
-    <dd class="eg"><code>T extends (...a: any[]) =&gt; infer R ? R : never</code> extracts a return type.</dd>
+    <dd>A placeholder declared inside the <code>extends</code> clause that pattern-matches a type and binds a
+        captured part to a name, usable in the <em>true</em> branch.</dd>
+    <dd class="eg"><code>T extends (...a:any[]) =&gt; infer R ? R : never</code> captures the return type (=
+        <code>ReturnType</code>).</dd>
 
-    <dt>Same <code>infer</code> in multiple positions</dt>
-    <dd>Combined by <em>variance</em>: covariant (output) positions yield the <strong>union</strong> of
-        matches; contravariant (input/parameter) positions yield the <strong>intersection</strong>.</dd>
-    <dd class="eg">Two <code>infer U</code> params of types <code>string</code> and <code>number</code>
-        ⟶ <code>string &amp; number</code> = <code>never</code>.</dd>
+    <dt><code>never</code> as the else-branch</dt>
+    <dd>The idiomatic "no match" result: ∅ means "no values," and it absorbs cleanly under distribution
+        (<code>T | never</code> = <code>T</code>). Prefer it over <code>any</code>/<code>unknown</code>.</dd>
   </dl>
 
   <hr>

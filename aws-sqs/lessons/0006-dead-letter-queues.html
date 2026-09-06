@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — Dead-Letter Queues</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 9 — wait</span><span>AWS SQS</span></div>
+  <h1>Dead-Letter Queues</h1>
+  <p class="subtitle">Stopping the loop when a message is genuinely unprocessable.</p>
+</header>
+
+<section>
+<h2>The problem: a message that never succeeds</h2>
+<p>Imagine your handler has a subtle bug: it crashes on any order whose <code>total</code> is exactly <code>0</code>. Visibility timeout expires, message becomes visible again, Lambda retries, handler crashes again, forever. The queue grows. Your DLQ stays empty. The bad message is invisible.</p>
+
+<p>A <strong>dead-letter queue</strong> is the trip wire. After N failed receives, SQS moves the message to a separate queue where humans can look at it. The original queue keeps serving healthy traffic; the bad message is isolated for diagnosis.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> A DLQ is not a retry mechanism — SQS's natural visibility-timeout loop is the retry mechanism. A DLQ is a <em>parking lot</em> for messages that have proven they can't be processed by the current consumer.</aside>
+
+<h2>How the redrive policy works</h2>
+<p>You attach a <strong>redrive policy</strong> to the source queue. It says: "after this message has been received N times without being deleted, move it to this other queue." The two settings you care about:</p>
+<table>
+  <tr><th>Setting</th><th>What it does</th></tr>
+  <tr><td><code>deadLetterTargetArn</code></td><td>The ARN of the DLQ</td></tr>
+  <tr><td><code>maxReceiveCount</code></td><td>How many receives before the message is moved to the DLQ (default 10)</td></tr>
+</table>
+<p>The DLQ must be in the same AWS account and region as the source queue. A FIFO source can use a FIFO DLQ (and should, unless breaking the order is OK).<sup><a href="#r2">2</a></sup></p>
+
+<h2>Picking maxReceiveCount</h2>
+<ul>
+  <li><strong>Low (1–3):</strong> very strict; one failure sends to DLQ. Use for handlers that should be fast-failing — bad input shouldn't get four chances.</li>
+  <li><strong>Medium (5–10, the default 10):</strong> good for most transient failure shapes — network blips, occasional timeouts.</li>
+  <li><strong>High (30+):</strong> for handlers with genuinely long retry curves (e.g. dependency that comes back online slowly).</li>
+</ul>
+
+<p>One subtle behavior for standard queues with <code>maxReceiveCount &gt; 3</code>: after a message has been received 3 or more times without being deleted, SQS moves it to the back of the queue so a younger message has a chance to be processed. The <code>ApproximateAgeOfOldestMessage</code> metric then reflects the age of the next message that hasn't hit the threshold.<sup><a href="#r3">3</a></sup></p>
+
+<h2>What lands in the DLQ</h2>
+<p>The original message body, attributes, and a few extras:</p>
+<ul>
+  <li><code>DeadLetterQueueSourceArn</code> — the source queue's ARN</li>
+  <li>The original <code>messageId</code> and body (unchanged)</li>
+  <li><code>ApproximateReceiveCount</code> continues to be useful</li>
+</ul>
+<p>You will see your normal CloudWatch metrics on the DLQ too — <code>NumberOfMessagesSent</code>, <code>ApproximateNumberOfMessagesVisible</code>. These are your alarms.</p>
+
+<h2>The DLQ is itself a queue</h2>
+<p>The DLQ is just an SQS queue. Nothing inspects it for you. You have three reasonable choices:</p>
+<ol>
+  <li><strong>Alarm and inspect by hand</strong> — CloudWatch alarm on <code>ApproximateNumberOfMessagesVisible &gt; 0</code>; on-call engineer reads messages.</li>
+  <li><strong>Another Lambda watches it</strong> — event source mapping on the DLQ; a triage handler tries to figure out what went wrong and pages a human.</li>
+  <li><strong>Redrive back to source</strong> — once you fix the bug, use <strong>DLQ redrive</strong> to move messages from the DLQ back to the source queue for another attempt.<sup><a href="#r4">4</a></sup></li>
+</ol>
+
+<aside class="callout callout-tip"><strong>Engineer's rule</strong> If your DLQ has zero messages forever, it means you have no failures — or no observability. Alarm on it.</aside>
+
+<h2>Don't use a DLQ with FIFO when order matters</h2>
+<p>The official guidance: don't use a DLQ with a FIFO queue if exact order is critical. A message that fails N times is moved to the DLQ, but messages after it continue being delivered. When you redrive, the dead-lettered message arrives out of order with respect to its successors.<sup><a href="#r5">5</a></sup></p>
+
+<h2>The minimal setup</h2>
+<ol>
+  <li>Create a second SQS queue (the DLQ). Same account, same region. FIFO if the source is FIFO.</li>
+  <li>On the source queue, set the redrive policy: target = the DLQ ARN, <code>maxReceiveCount</code> = your choice.</li>
+  <li>Add a CloudWatch alarm on <code>ApproximateNumberOfMessagesVisible</code> on the DLQ.</li>
+  <li>Document who looks at the DLQ and how messages get redriven or deleted.</li>
+</ol>
+
+<h2>What a DLQ does NOT do</h2>
+<ul>
+  <li>It does not retry for you — visibility timeout already retries for you.</li>
+  <li>It does not auto-fix the bad message.</li>
+  <li>It does not page on its own — you need the alarm.</li>
+  <li>It does not preserve messages past the DLQ's own retention. The DLQ has its own 4-day default; set it long enough to be looked at.</li>
+</ul>
+</section>
+
+<section class="quiz-section">
+<h2>Check yourself</h2>
+
+<div class="q" data-correct="2">
+  <h4>1. What does the redrive policy's <code>maxReceiveCount</code> control?</h4>
+  <button class="opt" data-fb="No — that's message retention, a separate queue-level setting.">How long a message lives before it expires from the queue</button>
+  <button class="opt" data-fb="No — that's the visibility timeout setting.">How long a single receive hides a message from other consumers</button>
+  <button class="opt" data-fb="Correct. After N receives without a delete, SQS moves the message to the DLQ.">How many times a message can be received before being moved to the DLQ</button>
+  <button class="opt" data-fb="No — DLQ trips are not rate-limited per minute.">How many DLQ messages per minute the queue will produce</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="0">
+  <h4>2. Your source queue is in us-east-1 and your DLQ is in us-west-2. What happens?</h4>
+  <button class="opt" data-fb="Correct. Cross-region DLQs are not allowed — you must create the DLQ in the same region.">The redrive setup will fail; the DLQ must be in the same account and region as the source queue</button>
+  <button class="opt" data-fb="No — SQS doesn't transcribe bodies; messages are forwarded as-is.">SQS transcribes the message to the new region for you</button>
+  <button class="opt" data-fb="No — cross-region is allowed only between FIFO queues; standard does not.">It works for FIFO queues but fails for standard</button>
+  <button class="opt" data-fb="No — DLQ trips just don't happen across regions.">Messages silently disappear after maxReceiveCount</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="1">
+  <h4>3. You set <code>maxReceiveCount: 3</code> on a standard queue. A bad message arrives, fails three times, and lands in the DLQ. What is a sensible next step?</h4>
+  <button class="opt" data-fb="No — CloudWatch doesn't inspect message contents; you'd see the count go up, not the body.">Use CloudWatch Logs Insights to read the message body from the DLQ</button>
+  <button class="opt" data-fb="Correct. The DLQ is just a queue; you need an alarm to know when something has landed there.">Set a CloudWatch alarm on the DLQ's ApproximateNumberOfMessagesVisible metric and triage on page</button>
+  <button class="opt" data-fb="No — visibility timeout is unrelated to the DLQ; the message is already out of the source queue.">Increase the source queue's visibility timeout to 12 hours</button>
+  <button class="opt" data-fb="No — SQS does not auto-replay DLQ messages; you have to use DLQ redrive or a custom replay tool.">Wait — SQS will automatically retry the DLQ message back into the source queue after 1 hour</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="3">
+  <h4>4. A FIFO source queue has a strict order requirement across all messages. You attach a DLQ. What is the warning?</h4>
+  <button class="opt" data-fb="No — the order is broken when redriving, not on initial delivery.">FIFO queues always break order when sending to a DLQ</button>
+  <button class="opt" data-fb="No — DLQ trips happen; you can use DLQ redrive later when the bug is fixed.">The DLQ will never receive any messages from a FIFO source</button>
+  <button class="opt" data-fb="No — DLQ messages are forwarded as-is; the source queue can use either FIFO or standard DLQ.">A FIFO source requires a standard DLQ, which loses the FIFO ordering guarantee</button>
+  <button class="opt" data-fb="Correct. The failed message lands in the DLQ while later messages continue; when redriven, the order is no longer preserved.">If a message is sent to the DLQ mid-stream, subsequent messages continue being delivered; redriving later puts the message back out of order</button>
+  <div class="fb"></div>
+</div>
+
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>The official DLQ guide including the redrive-to-source workflow: <a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues.html">AWS — Using dead-letter queues in Amazon SQS</a>. Pair with the alarm recipe: <a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/using-cloudwatch-alarms.html">AWS — Creating alarms for dead-letter queues using CloudWatch</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Sketch your on-call runbook for a DLQ alarm page. What does the responder read? What is the decision (redrive, fix, discard)?</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues.html">AWS — Using dead-letter queues in Amazon SQS</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues.html">AWS — Dead-letter queues (same-account, same-region constraint)</a></li>
+    <li id="r3"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues.html">AWS — Redrive policy and receive-count semantics</a></li>
+    <li id="r4"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues-redrive.html">AWS — Configuring a dead-letter queue redrive</a></li>
+    <li id="r5"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues.html">AWS — DLQ and FIFO ordering caveat</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-visibility-retries-and-idempotency.html">← Lesson 5: Visibility, retries, idempotency</a></span>
+  <span class="nav-next"><a href="0007-choosing-sqs-vs-sns-vs-eventbridge.html">Lesson 7: Choosing SQS vs SNS vs EventBridge →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  MISSION · RESOURCES · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/sqs-cheatsheet.html">Cheat sheet</a> · <a href="../MISSION.md">Mission</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() {
+    if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; }
+  }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

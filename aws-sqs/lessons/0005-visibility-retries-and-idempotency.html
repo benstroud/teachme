@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — Visibility, Retries, Idempotency</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 9 — wait</span><span>AWS SQS</span></div>
+  <h1>Visibility, Retries, Idempotency</h1>
+  <p class="subtitle">The retry mechanism SQS gives you — and the discipline it requires.</p>
+</header>
+
+<section>
+<h2>What "at-least-once" really means</h2>
+<p>SQS standard queue gives you at-least-once delivery: each message will arrive, but it may arrive more than once. Your handler, then, must produce the same observable result whether it runs once or twice. That is the entire shape of this lesson.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Visibility timeout — SQS's retry lever</h2>
+<p>When you <code>ReceiveMessage</code> a message, SQS does not remove it. It marks it <em>invisible</em> for a window called the <strong>visibility timeout</strong>. During that window, no other consumer will see it. You process it, then call <code>DeleteMessage</code> to remove it permanently.<sup><a href="#r2">2</a></sup></p>
+
+<p>Three failure shapes if you don't delete in time:</p>
+<ol>
+  <li>The visibility timeout expires.</li>
+  <li>SQS makes the message visible again.</li>
+  <li>Another consumer (or the same one) receives it — and processes it again.</li>
+</ol>
+
+<p>Default is 30 seconds. Range is 0 seconds to 12 hours. Set it on the queue, or override per receive with the <code>VisibilityTimeout</code> field on <code>ReceiveMessage</code>, or extend mid-flight with <code>ChangeMessageVisibility</code>.</p>
+
+<aside class="note"><strong>Key idea</strong> Visibility timeout is not a delay. It is a claim window. While it runs, the message is <em>only yours</em>. When it expires, the message is <em>everyone's</em> again.</aside>
+
+<h2>Picking a visibility timeout</h2>
+<p>The rule of thumb:</p>
+<ul>
+  <li><strong>Set it higher than your P99 handler duration.</strong> If most calls finish in 500ms but the slow path is 8 seconds, give yourself 15 seconds headroom — a 200ms cron in production will surprise you otherwise.</li>
+  <li><strong>Short timeouts for fast-failing jobs.</strong> If the handler either succeeds or throws in &lt; 2 seconds, a 10-second timeout means a poison message retries quickly and ends up in the DLQ fast.</li>
+  <li><strong>Long timeouts for slow jobs.</strong> Image processing or PDF generation might need minutes; use <code>ChangeMessageVisibility</code> in a heartbeat to extend.</li>
+</ul>
+
+<h2>Heartbeating a long task</h2>
+<p>If your handler runs longer than the visibility timeout, extend it periodically:</p>
+<pre><code>import {
+  SQSClient, ChangeMessageVisibilityCommand, ReceiveMessageCommand, DeleteMessageCommand,
+} from "@aws-sdk/client-sqs";
+
+async function runWithHeartbeat(sqs: SQSClient, queueUrl: string, receiptHandle: string, body: string) {
+  const TIMEOUT = 60;          // current visibility window
+  const HEARTBEAT_EVERY = 20;  // extend before it expires
+
+  const extend = async () =&gt; {
+    await sqs.send(new ChangeMessageVisibilityCommand({
+      QueueUrl: queueUrl,
+      ReceiptHandle: receiptHandle,
+      VisibilityTimeout: TIMEOUT,
+    }));
+  };
+
+  const timer = setInterval(extend, HEARTBEAT_EVERY * 1000);
+
+  try {
+    await doLongWork(body);   // up to TIMEOUT seconds per leg
+    await sqs.send(new DeleteMessageCommand({ QueueUrl: queueUrl, ReceiptHandle: receiptHandle }));
+  } finally {
+    clearInterval(timer);
+  }
+}</code></pre>
+<p>Lambda's ESM does this for you up to the function's own 15-minute timeout, but if you write a long-running consumer you need the heartbeat pattern yourself.</p>
+
+<h2>Retries: the natural shape</h2>
+<p>With visibility timeout, SQS retries "for free" on any consumer crash or timeout: the message becomes visible again, gets re-delivered, gets another chance. There is no retry count built into SQS itself beyond <code>ApproximateReceiveCount</code> — which is metadata you can read and decide on. The redrive policy (covered in lesson 6) is what stops the loop after N receives.<sup><a href="#r3">3</a></sup></p>
+
+<h2>Idempotency — the discipline</h2>
+<p>An <strong>idempotent handler</strong> produces the same observable effect whether the message arrives once or five times. Two common patterns:</p>
+
+<h3>1. Dedupe on <code>messageId</code></h3>
+<p>The SQS-assigned <code>messageId</code> is unique to each message and stable across retries of the same message. Store the ids you've processed in a fast key-value store; on receipt, check and skip if seen.</p>
+
+<h3>2. Dedupe on a business key from the body</h3>
+<p>Often the <code>messageId</code> is wrong: a business event "Charge Customer X $5" is the same work whether the producer retries once or twice. Use a stable id from the body (e.g. <code>orderId</code>) as the dedup key.</p>
+
+<pre><code>import { DynamoDBClient, UpdateItemCommand } from "@aws-sdk/client-dynamodb";
+
+const ddb = new DynamoDBClient({});
+
+async function chargeOnce(orderId: string, amount: number) {
+  // Conditional write: succeed only if no row exists for this orderId yet.
+  try {
+    await ddb.send(new UpdateItemCommand({
+      TableName: "orders_processed",
+      Key:  { orderId: { S: orderId } },
+      UpdateExpression: "SET #s = :done, amount = :a",
+      ConditionExpression: "attribute_not_exists(orderId)",
+      ExpressionAttributeNames:  { "#s": "status" },
+      ExpressionAttributeValues: { ":done": { S: "charged" }, ":a": { N: String(amount) } },
+    }));
+    await paymentClient.charge(orderId, amount);
+  } catch (err: any) {
+    if (err.name === "ConditionalCheckFailedException") {
+      // Already processed — idempotent no-op.
+      return;
+    }
+    throw err;
+  }
+}</code></pre>
+<p>The conditional write is the heart of it: only one of the duplicate deliveries wins; the others see a <code>ConditionalCheckFailedException</code> and exit cleanly. <a href="https://docs.powertools.aws.dev/lambda/typescript/utilities/idempotency/">AWS Lambda Powertools — Idempotency</a> packages this pattern in TypeScript.<sup><a href="#r4">4</a></sup></p>
+
+<aside class="callout callout-tip"><strong>Engineer's rule</strong> If your handler charges a card, sends an email, decrements inventory, or posts to another system that has its own side effect, it must be idempotent. There is no exception.</aside>
+
+<h2>The mental model in one diagram</h2>
+<pre><code>producer --SendMessage--&gt; [SQS queue]
+                            |
+                            | ReceiveMessage (becomes invisible for VT seconds)
+                            v
+                       consumer
+                       /        \
+                  success     failure
+                     |           |
+              DeleteMessage     (do nothing — VT expires)
+                     |           |
+                  removed        becomes visible again
+                                  |
+                                  +--&gt; another consumer (or this one) receives
+                                        |
+                                       ...until deleted or DLQ trips</code></pre>
+
+<h2>The discipline checklist</h2>
+<ul>
+  <li>Pick <code>VisibilityTimeout</code> &gt; P99 handler time, with headroom.</li>
+  <li>If work can exceed the timeout, heartbeat via <code>ChangeMessageVisibility</code>.</li>
+  <li>Make the side effect idempotent — dedupe on <code>messageId</code> or a business key.</li>
+  <li>Turn on partial batch response for Lambda so one bad record doesn't retry the whole batch.</li>
+</ul>
+</section>
+
+<section class="quiz-section">
+<h2>Check yourself</h2>
+
+<div class="q" data-correct="0">
+  <h4>1. Your handler takes 45 seconds; visibility timeout is 30 seconds. What happens without action?</h4>
+  <button class="opt" data-fb="Correct. The handler is still running when the window expires, so the message becomes visible again and another consumer can pick it up — a duplicate.">The message becomes visible again mid-handler; another consumer (or this one) can receive it and process it again</button>
+  <button class="opt" data-fb="No — SQS does not extend timeouts unless you call ChangeMessageVisibility.">SQS automatically extends the timeout to match your handler duration</button>
+  <button class="opt" data-fb="No — SQS doesn't move messages anywhere by itself; the DLQ is a separate configuration.">SQS moves the message to the dead-letter queue</button>
+  <button class="opt" data-fb="No — exceeding the timeout does not affect the queue's retention (the 14-day message TTL).">The message expires from the queue</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="2">
+  <h4>2. Which is the correct way to make a Lambda SQS consumer idempotent?</h4>
+  <button class="opt" data-fb="No — that only stops one specific failure shape; duplicates can still arrive.">Add try/catch around the whole handler and swallow errors</button>
+  <button class="opt" data-fb="No — partial batch response changes which records retry, it doesn't make records themselves idempotent.">Turn on partial batch response so duplicates don't retry</button>
+  <button class="opt" data-fb="Correct. Dedup on the SQS messageId or a business key from the body so the side effect runs at most once per unique work item.">Use a stable key (SQS messageId or a business id from the body) and dedupe the side effect on it (e.g. via a conditional DynamoDB write)</button>
+  <button class="opt" data-fb="No — that changes delivery, not the consumer's idempotency story.">Switch the queue to FIFO so duplicates are impossible</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="1">
+  <h4>3. A handler either succeeds in &lt; 2s or throws. What visibility timeout is sensible?</h4>
+  <button class="opt" data-fb="No — 30s is fine but more than needed; poison messages take longer to land in the DLQ.">30 seconds (the default)</button>
+  <button class="opt" data-fb="Correct. Short enough that a poison message retries quickly and ends up in the DLQ after maxReceiveCount receives.">10 seconds — short enough that a poison message retries quickly and reaches maxReceiveCount fast</button>
+  <button class="opt" data-fb="No — visibility timeout cannot be negative.">Negative, to fail fast</button>
+  <button class="opt" data-fb="No — that's the upper bound; far more than needed and keeps bad messages retrying for 12 hours.">12 hours (the maximum)</button>
+  <div class="fb"></div>
+</div>
+
+<div class="q" data-correct="3">
+  <h4>4. A producer retries <code>SendMessage</code> because of a network blip. Two copies of the message end up on the queue. Which layer stops the consumer from charging the customer twice?</h4>
+  <button class="opt" data-fb="No — that is FIFO's producer-side dedup; standard queues don't do it.">Standard queue deduplication</button>
+  <button class="opt" data-fb="No — FIFO's dedup window is 5 minutes; later retries would not be caught, and standard has no dedup at all.">FIFO queue deduplication within the 5-minute window</button>
+  <button class="opt" data-fb="No — visibility timeout is a claim window, not a dedup mechanism.">Visibility timeout on receive</button>
+  <button class="opt" data-fb="Correct. Idempotency in the consumer is the only mechanism that survives across retries, across consumers, and across the dedup window.">Idempotency in the consumer — dedup on the SQS messageId or a business id from the body</button>
+  <div class="fb"></div>
+</div>
+
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>The official description of visibility timeout, including the <code>ChangeMessageVisibility</code> pattern for long-running tasks: <a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html">AWS — Visibility timeout</a>. For TypeScript idempotency, see <a href="https://docs.powertools.aws.dev/lambda/typescript/utilities/idempotency/">AWS Lambda Powertools — Idempotency</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Pick a side effect you care about (charge a card, send an email, decrement inventory, post to Slack). Describe the dedup key and the storage you'd use to make the side effect idempotent.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-at-least-once-delivery.html">AWS — Amazon SQS at-least-once delivery</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html">AWS — Visibility timeout</a></li>
+    <li id="r3"><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues.html">AWS — Dead-letter queues</a></li>
+    <li id="r4"><a href="https://docs.powertools.aws.dev/lambda/typescript/utilities/idempotency/">AWS Lambda Powertools — Idempotency (TypeScript)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-lambda-consumer-event-source-mapping.html">← Lesson 4: Lambda as consumer</a></span>
+  <span class="nav-next"><a href="0006-dead-letter-queues.html">Lesson 6: Dead-letter queues →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  MISSION · RESOURCES · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/sqs-cheatsheet.html">Cheat sheet</a> · <a href="../MISSION.md">Mission</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() {
+    if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; }
+  }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
