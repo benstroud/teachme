@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ben's Teaching Workspaces</title>
+<style>
+  :root {
+    --paper: #151412;
+    --paper-2: #1d1c19;
+    --ink: #e8e4dd;
+    --muted: #9a958a;
+    --accent: #8ed3d6;
+    --link: #e8a14f;
+    --rule: #3a3832;
+    --font-body: 'Georgia', 'Garamond', 'Times New Roman', serif;
+    --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { font-size: 17px; -webkit-font-smoothing: antialiased; }
+  body { font-family: var(--font-body); color: var(--ink); background: var(--paper); line-height: 1.7; max-width: 44em; margin: 0 auto; padding: 2.5rem 1.4rem 4rem; }
+  h1 { font-size: 2rem; line-height: 1.25; margin: 0 0 0.4rem; }
+  .subtitle { color: var(--muted); font-style: italic; font-size: 1.05rem; margin: 0 0 2rem; }
+  h2 { font-family: var(--font-ui); font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 2rem 0 0.6rem; padding-top: 1rem; border-top: 1px solid var(--rule); }
+  a { color: var(--link); text-decoration: underline; text-underline-offset: 3px; }
+  a:hover { color: var(--accent); text-decoration: none; }
+  .workspace { padding: 0.9rem 0 0.9rem 0.2rem; border-bottom: 1px solid var(--rule); }
+  .workspace h3 { font-size: 1.15rem; margin: 0 0 0.2rem; }
+  .workspace h3 a { color: var(--ink); text-decoration: none; }
+  .workspace h3 a:hover { color: var(--accent); }
+  .workspace p { margin: 0 0 0.4rem; color: var(--muted); font-size: 0.95rem; }
+  .workspace .links { font-family: var(--font-ui); font-size: 0.8rem; }
+  .workspace .links a { margin-right: 0.7rem; }
+  footer { margin-top: 2.5rem; font-size: 0.8rem; color: var(--muted); font-family: var(--font-ui); }
+  @media print { body { background: #fff; color: #000; } .workspace h3 a { color: #000; } a { color: #000; } }
+</style>
+</head>
+<body>
+<h1>Teaching Workspaces</h1>
+<p class="subtitle">Interactive HTML lessons — open any course below and work through it in your browser.</p>
+
+<h2>AWS Serverless</h2>
+<div class="workspace">
+  <h3><a href="aws-sqs/lessons/0001-why-queues-not-direct-calls.html">AWS SQS</a></h3>
+  <p>Queue-backed Lambda coordination: why queues, core concepts, standard vs FIFO, visibility &amp; idempotency, dead-letter queues, and picking SQS over SNS / EventBridge / Kafka / Redis / MQTT / NATS / RabbitMQ / gRPC.</p>
+  <div class="links"><a href="aws-sqs/lessons/0001-why-queues-not-direct-calls.html">Start course</a><a href="aws-sqs/reference/glossary.html">Glossary</a><a href="aws-sqs/reference/sqs-cheatsheet.html">Cheat sheet</a></div>
+</div>
+<div class="workspace">
+  <h3><a href="aws-eventbridge/lessons/0001-why-events-not-lambda-chains.html">AWS EventBridge</a></h3>
+  <p>Event-bus Lambda coordination: why events, core concepts, producing &amp; routing events, content patterns, targets, delivery guarantees, and schema design.</p>
+  <div class="links"><a href="aws-eventbridge/lessons/0001-why-events-not-lambda-chains.html">Start course</a><a href="aws-eventbridge/reference/glossary.html">Glossary</a><a href="aws-eventbridge/reference/eventbridge-cheatsheet.html">Cheat sheet</a></div>
+</div>
+
+<h2>TypeScript &amp; JavaScript</h2>
+<div class="workspace">
+  <h3><a href="typescript/lessons/0001-types-as-sets.html">TypeScript</a></h3>
+  <p>TypeScript type system mastery — types as sets, through conditional types and beyond.</p>
+  <div class="links"><a href="typescript/lessons/0001-types-as-sets.html">Start course</a></div>
+</div>
+<div class="workspace">
+  <h3><a href="jest-ts/lessons/0001-from-zero-to-a-test-that-runs.html">Jest + TypeScript</a></h3>
+  <p>Testing from the ground up: a first passing test, matchers, mocks, async testing, config, and testing like a senior.</p>
+  <div class="links"><a href="jest-ts/lessons/0001-from-zero-to-a-test-that-runs.html">Start course</a><a href="jest-ts/reference/glossary.html">Glossary</a></div>
+</div>
+<div class="workspace">
+  <h3><a href="js-node-for-ts/lessons/0001-js-core-runtime-and-prototypes.html">JS Core for TS Devs</a></h3>
+  <p>The JavaScript runtime and object model beneath TypeScript — prototypes, closures, the event loop.</p>
+  <div class="links"><a href="js-node-for-ts/lessons/0001-js-core-runtime-and-prototypes.html">Start course</a></div>
+</div>
+
+<h2>Backend &amp; Systems</h2>
+<div class="workspace">
+  <h3><a href="node-ts-backend/lessons/0001-node-22-runtime-and-native-typescript.html">Node.js TypeScript Backend</a></h3>
+  <p>Building a Node.js backend with native TypeScript — runtime foundations and server patterns.</p>
+  <div class="links"><a href="node-ts-backend/lessons/0001-node-22-runtime-and-native-typescript.html">Start course</a></div>
+</div>
+<div class="workspace">
+  <h3><a href="odin/lessons/0001-hello-odin.html">Odin</a></h3>
+  <p>A tour of the Odin language — packages, imports, and getting a first program running.</p>
+  <div class="links"><a href="odin/lessons/0001-hello-odin.html">Start course</a></div>
+</div>
+
+<h2>Making</h2>
+<div class="workspace">
+  <h3><a href="parade-puppets/lessons/0001-anatomy-of-a-backpack-puppet.html">Parade Puppets</a></h3>
+  <p>Design and build a backpack parade puppet — anatomy, materials, frame &amp; spine, papier-mâché, sculpting, control rods, costuming, and parade-day repair.</p>
+  <div class="links"><a href="parade-puppets/lessons/0001-anatomy-of-a-backpack-puppet.html">Start course</a><a href="parade-puppets/reference/glossary.html">Glossary</a></div>
+</div>
+
+<footer>Source lives in the <a href="https://github.com/benstroud/teachme">teachme repository</a>. Hosted with GitHub Pages.</footer>
+</body>
+</html>
