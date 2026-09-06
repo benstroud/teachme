@@ -1,0 +1,75 @@
+/* Parade Puppets — Quiz Styles */
+
+.quiz-section {
+  margin: 2rem 0;
+}
+
+.quiz-question {
+  margin-bottom: 2rem;
+  padding: 1.2rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.quiz-prompt {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 1rem;
+  margin-top: 0;
+}
+
+.quiz-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.6rem 1rem;
+  margin: 0.4rem 0;
+  border: 2px solid var(--color-border);
+  border-radius: 4px;
+  background: white;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.quiz-option:hover:not(:disabled) {
+  border-color: var(--color-link);
+  background: #f0f7fc;
+}
+
+.quiz-option:disabled {
+  cursor: default;
+}
+
+.quiz-option.correct {
+  border-color: var(--color-success);
+  background: #eafaf1;
+}
+
+.quiz-option.incorrect {
+  border-color: var(--color-border);
+  background: #f9f9f9;
+  color: var(--color-muted);
+}
+
+.quiz-option.selected-correct {
+  border-color: var(--color-success);
+  background: #d5f5e3;
+  font-weight: 600;
+}
+
+.quiz-option.selected-incorrect {
+  border-color: var(--color-error);
+  background: #f9e8e6;
+}
+
+.quiz-explanation {
+  margin-top: 0.8rem;
+  padding: 0.8rem;
+  background: #eafaf1;
+  border-left: 3px solid var(--color-success);
+  font-size: 0.9rem;
+  border-radius: 0 4px 4px 0;
+}
