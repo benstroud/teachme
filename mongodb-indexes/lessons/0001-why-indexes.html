@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — Why Indexes &amp; How They Work</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 9</span><span>MongoDB Indexes</span></div>
+  <h1>Why Indexes &amp; How They Work</h1>
+  <p class="subtitle">An index is a book's table of contents — a small, ordered structure that turns every-document scanning into a quick lookup.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>MongoDB stores a small, ordered copy of a field's values in a <strong>B-tree index</strong>; with one, a query reads just the relevant keys instead of scanning every document.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The relentless collection scan</h2>
+<p>Without a usable index, MongoDB must examine every document to answer a query — a full <em>collection scan</em>. That's fast on toy data and catastrophic at scale:</p>
+<pre><code>db.orders.find({ customerId: 7 })
+// no index on customerId → MongoDB inspects every order document</code></pre>
+
+<h2>What an index changes</h2>
+<p>Create an index on the queried field:</p>
+<pre><code>db.orders.createIndex({ customerId: 1 })</code></pre>
+<p>Now MongoDB can find <code>customerId: 7</code> directly in the B-tree and jump to just those documents. The read becomes an <em>index scan</em> (<code>IXSCAN</code>) rather than a collection scan (<code>COLLSCAN</code>).<sup><a href="#r1">1</a></sup></p>
+
+<h2>The trade-off that defines your job</h2>
+<p>Indexes speed <em>reads</em> but slow <em>writes</em>: every insert must also update each index on the collection.<sup><a href="#r1">1</a></sup> So you don't index everything — you index the queries that matter:</p>
+<ul>
+  <li>Repeatedly queried fields: index them.</li>
+  <li>A field on a high-write collection that's rarely read: think before indexing.</li>
+</ul>
+
+<h2>What's always there: the _id index</h2>
+<p>MongoDB automatically creates a unique index on every collection's <code>_id</code> and you can't drop it — which is why lookups by <code>_id</code> are always fast.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Before optimizing a slow query, ask: <em>is there an index it can use, and does the read's value justify that index's write cost?</em> Those two questions are the whole discipline.</aside>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Without a usable index, MongoDB answers a query by…</h4>
+  <button class="opt" data-fb="No — it uses index keys when they exist, which is faster.">reading only the relevant index keys</button>
+  <button class="opt" data-fb="Correct — with no index it scans every document in the collection.">scanning every document in the collection</button>
+  <button class="opt" data-fb="No — it cannot, so every query returns the full collection.">guessing which documents match</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. Indexes make reads faster but…</h4>
+  <button class="opt" data-fb="No — every insert must also update the indexes, adding cost.">add no cost at all</button>
+  <button class="opt" data-fb="No — the trade-off affects writes, not memory.">use indexed memory permanently</button>
+  <button class="opt" data-fb="Correct — every write must maintain them, which is the trade-off.">add overhead to every write</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. The index MongoDB always creates is on…</h4>
+  <button class="opt" data-fb="Correct — it makes a unique _id index it won't drop.">the _id field</button>
+  <button class="opt" data-fb="No — that index is auto-created, not the _id one.">the createdAt field</button>
+  <button class="opt" data-fb="No — it starts with _id; others you add.">no field, you add them all</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://www.mongodb.com/docs/manual/indexes.md">Indexes</a> for the B-tree explanation, the read/write trade-off, and the default <code>_id</code> index.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Pick one query in your own app that repeatedly scans. Write the index that would let MongoDB serve it from an index scan, then say what that index costs on every insert the collection receives.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/indexes.md">MongoDB — Indexes</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="0002-single-field-indexes.html">Lesson 2: Single-field indexes →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/indexes-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

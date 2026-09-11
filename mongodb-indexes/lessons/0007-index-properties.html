@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — Index Properties</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 9</span><span>MongoDB Indexes</span></div>
+  <h1>Index Properties</h1>
+  <p class="subtitle">Unique, TTL, partial, sparse, hidden — the options that turn a plain index into a constraint or a lifecycle tool.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Beyond ordering, indexes can carry <em>properties</em>: <code>unique</code> to enforce constraints, <code>expireAfterSeconds</code> (TTL) to auto-delete, and partial/sparse/hidden to scope or test coverage.</p>
+
+<h2>Unique: enforce no duplicates</h2>
+<pre><code>db.users.createIndex({ email: 1 }, { unique: true })</code></pre>
+<ul>
+  <li>Ensures no two documents share the indexed value(s).<sup><a href="#r1">1</a></sup></li>
+  <li>A compound unique index enforces uniqueness of the <em>combination</em>.</li>
+  <li>A missing field counts as a <code>null</code> key — so with a unique index, only one document may be missing that field.<sup><a href="#r1">1</a></sup></li>
+</ul>
+
+<h2>TTL: let time expire data</h2>
+<pre><code>db.eventlog.createIndex({ createdAt: 1 }, { expireAfterSeconds: 3600 })</code></pre>
+<ul>
+  <li>A single-field index on a <em>date</em> (or array of dates); MongoDB auto-deletes documents once they're older than <code>expireAfterSeconds</code>.<sup><a href="#r2">2</a></sup></li>
+  <li>Great for sessions, logs, and temp data. Deletion is a background task; on a replica set it runs only on the primary.<sup><a href="#r2">2</a></sup></li>
+  <li>TTL is single-field only — compounds ignore <code>expireAfterSeconds</code>, and <code>_id</code> can't be a TTL index.<sup><a href="#r2">2</a></sup></li>
+</ul>
+
+<h2>Partial &amp; sparse: index a subset</h2>
+<pre><code>db.orders.createIndex(
+  { status: 1 },
+  { partialFilterExpression: { status: { $exists: true } } })</code></pre>
+<ul>
+  <li><strong>Partial</strong> indexes only docs matching a filter — smaller, cheaper to write.<sup><a href="#r3">3</a></sup></li>
+  <li><strong>Sparse</strong> indexes only docs that have the field (older, simpler analog).</li>
+</ul>
+
+<h2>Hidden: rehearse a drop</h2>
+<p>A <strong>hidden</strong> index is invisible to the query planner, so you can observe how your app behaves without it — before actually dropping it.<sup><a href="#r3">3</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Reach for unique to enforce integrity and TTL to bound data lifetime — both are free-ish index properties that replace app-side bookkeeping with a database guarantee.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. A unique index on users.email prevents…</h4>
+  <button class="opt" data-fb="No — that is TTL's job, to delete by time.">expiring old documents</button>
+  <button class="opt" data-fb="Correct — two documents sharing an email value.">duplicate values in the field</button>
+  <button class="opt" data-fb="No — a compound unique enforces the whole combo, not speed.">reading the field faster</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. A TTL index auto-deletes documents based on…</h4>
+  <button class="opt" data-fb="No — that is a partial index, not TTL.">matching a filter predicate</button>
+  <button class="opt" data-fb="No — it must be a single-field index on a date.">a compound date and status</button>
+  <button class="opt" data-fb="Correct — a date field, after expireAfterSeconds.">a date field and a timeout</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. A partial index helps by…</h4>
+  <button class="opt" data-fb="Correct — indexing only matching documents, saving space and writes.">indexing only the documents that match it</button>
+  <button class="opt" data-fb="No — unique rejects duplicates; it's a different concern.">rejecting duplicate documents</button>
+  <button class="opt" data-fb="No — hidden hides from the planner; partial scopes coverage.">hiding from the query planner</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://www.mongodb.com/docs/manual/core/index-unique.md">Unique Indexes</a> and <a href="https://www.mongodb.com/docs/manual/core/index-ttl.md">TTL Indexes</a>, then the <a href="https://www.mongodb.com/docs/manual/core/indexes/index-properties.md">Index Properties</a> page for partial/sparse/hidden.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Add a unique index so a user can't register an email twice, and a TTL index so pending reset tokens expire after 15 minutes. Write both, then say what happens if one user has a reset token but no email.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/core/index-unique.md">MongoDB — Unique Indexes</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/core/index-ttl.md">MongoDB — TTL Indexes</a></li>
+    <li id="r3"><a href="https://www.mongodb.com/docs/manual/core/indexes/index-properties.md">MongoDB — Index Properties</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-multikey-array-indexes.html">← Lesson 6: Multikey indexes</a></span>
+  <span class="nav-next"><a href="0008-reading-query-plans.html">Lesson 8: Reading query plans →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/indexes-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>

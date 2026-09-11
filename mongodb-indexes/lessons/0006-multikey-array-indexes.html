@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — Multikey (Array) Indexes</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 9</span><span>MongoDB Indexes</span></div>
+  <h1>Multikey (Array) Indexes</h1>
+  <p class="subtitle">Index an array field and MongoDB automatically creates one index entry per element.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Indexing an array field makes it a <em>multikey</em> index: MongoDB stores one entry per distinct element, all pointing back to the same document.<sup><a href="#r1">1</a></sup></p>
+
+<h2>It's automatic</h2>
+<pre><code>db.movies.createIndex({ genres: 1 })   // genres is an array → multikey</code></pre>
+<p>No flag needed — if the field holds an array, MongoDB builds the index as multikey automatically.<sup><a href="#r1">1</a></sup></p>
+
+<h2>One entry per element</h2>
+<p>A document with <code>genres: ["Drama", "Action"]</code> contributes an index entry for <code>"Drama"</code> and one for <code>"Action"</code> — distinct values only. So a query for <code>{ genres: "Drama" }</code> finds it via the index.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The soft rule of one</h2>
+<p>Compound indexes can contain at most one multikey field. This matters when you design an index over two arrays: MongoDB won't create a faithful compound multikey over both, because matching two arrays simultaneously can't be represented by simple multikey entries.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<h2>Multikey and covered queries</h2>
+<p>A multikey index can only <em>cover</em> a query (answer it from the index alone) when the array field is <em>not</em> in the projection and there's no <code>$elemMatch</code>. So a query projecting the array itself will always need a <code>FETCH</code>.<sup><a href="#r1">1</a></sup></p>
+<pre><code>// covered if: array not projected, no $elemMatch
+db.movies.find({ genres: "Drama" }, { _id: 0, title: 1 })
+  .sort({ title: 1 }).limit(5)</code></pre>
+
+<aside class="note"><strong>Key idea</strong> Multikey is the mechanism behind tagging, categorizing, and "element in array" queries you'll design constantly. Remember it stores per-element, is limited to one array per compound index, and rarely covers a query that returns the array.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. An index on an array field is built as…</h4>
+  <button class="opt" data-fb="No — MongoDB creates it automatically this way.">a regular single-field index</button>
+  <button class="opt" data-fb="No — that is for text search, not arrays.">a text index</button>
+  <button class="opt" data-fb="Correct — it is automatically a multikey index.">a multikey index, automatically</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>2. For each distinct value in the array, MongoDB stores…</h4>
+  <button class="opt" data-fb="No — one doc can have many entries in one multikey index.">a separate copy of the document</button>
+  <button class="opt" data-fb="Correct — one index entry per distinct element, back to the doc.">one index entry pointing to the doc</button>
+  <button class="opt" data-fb="No — it indexes elements distinctly, not the whole combined array.">one combined entry</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. A multikey index usually can't cover a query that…</h4>
+  <button class="opt" data-fb="Correct — projecting the array itself defeats the index-only answer.">returns the array field in the projection</button>
+  <button class="opt" data-fb="No — omitting the array is exactly what enables index-only.">excludes the array from the projection</button>
+  <button class="opt" data-fb="No — covering needs the array absent from projection.">limits the number of results</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey.md">Multikey Indexes</a> for the per-element behavior and the covered-query conditions.</p>
+
+<div class="ask"><strong>Ask the agent</strong> You index <code>movies.genres</code> (an array) so you can find all movies tagged "Drama". Sketch the index, then state how many index entries one document with genres ["Drama","Action"] contributes, and why a query projecting <code>genres</code> needs a FETCH.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey.md">MongoDB — Multikey Indexes</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey.md">MongoDB — Multikey (compound &amp; covered queries)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-indexes-and-sorting.html">← Lesson 5: Indexes &amp; sorting</a></span>
+  <span class="nav-next"><a href="0007-index-properties.html">Lesson 7: Index properties →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/indexes-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>

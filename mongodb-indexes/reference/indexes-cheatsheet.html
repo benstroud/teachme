@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MongoDB Indexes &amp; Query Performance — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  .two-col { display: flex; flex-wrap: wrap; gap: 1.4rem; }
+  .two-col > div { flex: 1 1 46%; min-width: 18rem; }
+  code i { color: var(--accent); font-style: normal; }
+  td code, .q code { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>MongoDB Indexes</span></div>
+  <h1>Indexes &amp; Query Performance Cheat Sheet</h1>
+  <p class="subtitle">The compressed essence of the course. Skim before a lesson, study it fully before an interview.</p>
+</header>
+
+<section>
+<h2>1. The core idea</h2>
+<p>An index is a B-tree over a field's values. It lets MongoDB answer a query by scanning the relevant index keys instead of every document. The trade-off: indexes speed reads but add cost to every write.<sup><a href="#r1">1</a></sup></p>
+<pre><code>// no index → collection scan (COLLSCAN)
+// with index → index scan (IXSCAN) + FETCH
+
+db.orders.createIndex({ customerId: 1 })   // single-field</code></pre>
+<ul>
+  <li><code>_id</code> is implicitly indexed (unique); you can't drop it.<sup><a href="#r1">1</a></sup></li>
+  <li>Default index name = keys + directions, e.g. <code>customerId_1</code>.</li>
+  <li>An embedded-field index serves only whole-document equality on that sub-doc, not sub-field queries.<sup><a href="#r1">1</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>2. Compound indexes &amp; prefixes</h2>
+<pre><code>db.orders.createIndex({ region: 1, placed: 1, total: 1 })</code></pre>
+<p>The compound index serves queries on any <strong>prefix</strong>: <code>{region}</code>, <code>{region, placed}</code>, <code>{region, placed, total}</code>. It does NOT serve <code>{placed}</code> or <code>{total}</code>.<sup><a href="#r2">2</a></sup></p>
+<ul>
+  <li><code>{a,c}</code> can use the prefix <code>{a}</code> but is less efficient than a true <code>{a,c}</code> index.</li>
+  <li>If you have <code>{a:1,b:1}</code>, a separate <code>{a:1}</code> is redundant (unless sparse/unique) — drop it.<sup><a href="#r2">2</a></sup></li>
+  <li>Max 32 fields in a compound index.<sup><a href="#r2">2</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>3. ESR — the field-order recipe</h2>
+<pre><code>// query: equality on region, sort by placed, range on total
+db.orders.createIndex({ region: 1, placed: 1, total: 1 })  // E S R</code></pre>
+<ul>
+  <li><strong>Equality</strong> (exact match) fields first.</li>
+  <li>Then <strong>Sort</strong> (to avoid an in-memory sort), then <strong>Range</strong> (<code>$gt</code>/<code>$lt</code>).<sup><a href="#r3">3</a></sup></li>
+  <li>Equality fields can be any order among themselves, but all precede sort/range.</li>
+  <li><code>$ne</code>, <code>$nin</code>, <code>$regex</code> are <em>range</em>; <code>$in</code> alone is <em>equality</em> (with sort caveats).<sup><a href="#r3">3</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>4. Sorting with an index</h2>
+<pre><code>db.orders.createIndex({ placed: 1 })         // asc
+// serves sort { placed: 1 } AND { placed: -1 } (walk in reverse)
+
+db.orders.createIndex({ a: 1, b: -1 })       // must match pattern or inverse
+// serves sort {a:1,b:-1} and {a:-1,b:1} only</code></pre>
+<ul>
+  <li>If an index includes the sort fields (in the same order), MongoDB sorts from the index — no in-memory <code>SORT</code> stage.<sup><a href="#r4">4</a></sup></li>
+  <li>Otherwise a <code>SORT</code> stage appears in <code>explain</code> (in-memory sort; spills to disk if &gt;100&nbsp;MB).<sup><a href="#r4">4</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>5. Multikey (array) indexes</h2>
+<pre><code>db.movies.createIndex({ genres: 1 })         // genres is an array → multikey</code></pre>
+<ul>
+  <li>One index entry per <em>distinct</em> array element, all pointing to the same document.<sup><a href="#r5">5</a></sup></li>
+  <li>Automatically multikey — no flag needed.</li>
+  <li>To <em>cover</em> a query, the multikey array must be out of the projection and no <code>$elemMatch</code>.<sup><a href="#r5">5</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>6. Properties: unique, TTL, partial, sparse</h2>
+<pre><code>db.users.createIndex({ email: 1 }, { unique: true })
+db.eventlog.createIndex({ createdAt: 1 }, { expireAfterSeconds: 3600 })
+db.orders.createIndex(
+  { status: 1 },
+  { partialFilterExpression: { status: { $exists: true } } })</code></pre>
+<ul>
+  <li><strong>Unique</strong> — rejects duplicate values / combinations.<sup><a href="#r6">6</a></sup></li>
+  <li><strong>TTL</strong> — single-field, on a date; auto-deletes after <code>expireAfterSeconds</code> (primary only on replica sets).<sup><a href="#r7">7</a></sup></li>
+  <li><strong>Partial / sparse / hidden</strong> — restrict coverage for space &amp; write savings, or test a drop.</li>
+</ul>
+</section>
+
+<section>
+<h2>7. Reading explain</h2>
+<pre><code>db.orders.find({ customerId: 7 }).explain("executionStats")</code></pre>
+<ul>
+  <li><code>winningPlan.stage</code>: <code>IXSCAN</code> (using an index), <code>COLLSCAN</code> (full scan), <code>FETCH</code>, <code>SORT</code>.</li>
+  <li>A <code>SORT</code> stage means an in-memory sort; a <strong>covered query</strong> has query+projection all in the index (no <code>FETCH</code>).<sup><a href="#r8">8</a></sup></li>
+  <li><code>executionStats</code>: <code>nReturned</code>, <code>executionTimeMillis</code>, scan counts — compare before/after an index.</li>
+</ul>
+</section>
+
+<section>
+<h2>8. Strategy checklist</h2>
+<ul>
+  <li><strong>Index the workload</strong>, not everything — cover the frequent queries from the app.</li>
+  <li>Order compound fields <strong>ESR</strong>; remember the prefix rule.</li>
+  <li>Use the index to <strong>satisfy sorts</strong> (avoid <code>SORT</code>).</li>
+  <li>Balance read wins against <strong>write overhead</strong>.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>Prune redundant</strong> prefix indexes (covered by a compound).</li>
+  <li>Prove it with <code>explain</code> (<code>IXSCAN</code>, no <code>SORT</code>).</li>
+</ul>
+</section>
+
+<footer class="citation">
+  Primary sources: <a href="https://www.mongodb.com/docs/manual/indexes.md">Indexes</a>,
+  <a href="https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-guideline.md">ESR Guideline</a>,
+  <a href="https://www.mongodb.com/docs/manual/reference/explain-results.md">Explain Results</a>.
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/indexes.md">MongoDB — Indexes</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/core/indexes/index-types/index-compound.md">MongoDB — Compound Indexes</a></li>
+    <li id="r3"><a href="https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-guideline.md">MongoDB — ESR Guideline</a></li>
+    <li id="r4"><a href="https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes.md">MongoDB — Use Indexes to Sort</a></li>
+    <li id="r5"><a href="https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey.md">MongoDB — Multikey Indexes</a></li>
+    <li id="r6"><a href="https://www.mongodb.com/docs/manual/core/index-unique.md">MongoDB — Unique Indexes</a></li>
+    <li id="r7"><a href="https://www.mongodb.com/docs/manual/core/index-ttl.md">MongoDB — TTL Indexes</a></li>
+    <li id="r8"><a href="https://www.mongodb.com/docs/manual/reference/explain-results.md">MongoDB — Explain Results</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="../lessons/0001-why-indexes.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

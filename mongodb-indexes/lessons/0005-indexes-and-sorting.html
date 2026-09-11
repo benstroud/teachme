@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — Indexes &amp; Sorting</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 9</span><span>MongoDB Indexes</span></div>
+  <h1>Indexes &amp; Sorting</h1>
+  <p class="subtitle">Let the index return sorted results for free — or watch MongoDB fall into an in-memory sort.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>If an index is ordered by the fields you sort on (in the same order), MongoDB returns results already sorted with no separate <code>SORT</code> stage; otherwise it sorts in memory.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Single-field sorts</h2>
+<p>An ascending index on <code>a</code> serves both <code>sort({a:1})</code> and, by walking it in reverse, <code>sort({a:-1})</code>.<sup><a href="#r1">1</a></sup></p>
+<pre><code>db.records.createIndex({ a: 1 })
+db.records.find().sort({ a: 1 })    // index-served
+db.records.find().sort({ a: -1 })    // index-served (reverse)</code></pre>
+
+<h2>Compound sorts follow the prefix, and the direction</h2>
+<p>Get this one exactly:</p>
+<pre><code>// index { a: 1, b: -1 } serves sorts that MATCH the pattern or its exact inverse
+//   { a: 1, b: -1 }  ✓   { a: -1, b: 1 }  ✓
+//   { a: -1, b: -1 } ✗   { a: 1, b: 1 }   ✗</code></pre>
+<p>The sort keys must be a prefix of the index, in the same order.<sup><a href="#r1">1</a></sup></p>
+
+<h2>What an in-memory sort costs</h2>
+<p>When no index supplies the order, MongoDB adds a <code>SORT</code> stage — the query plan's fingerprint of an in-memory sort. Since MongoDB 6.0, sorts that exceed 100 MB spill to disk (unless <code>allowDiskUse:false</code>), but a large in-memory sort is still expensive and a red flag for latency.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Why this interacts with ESR</h2>
+<p>This is exactly why ESR puts the <em>sort</em> field in the index: doing so removes the <code>SORT</code> stage. A <code>sort({ place: 1 })</code> on a query filtered by <code>{ region: 1 }</code> wants an index like <code>{ region: 1, place: 1 }</code> — equality, then sort.<sup><a href="#r3">3</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> When you read a plan and see a <code>SORT</code> stage for a hot query, the fix is almost always an index whose field order puts the sort field after your equality fields.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Sorting is free when…</h4>
+  <button class="opt" data-fb="No — compounding never removes the need for order.">the cursor is compounded</button>
+  <button class="opt" data-fb="Correct — an index supplies the order, with no SORT stage.">the index supplies the sorted order</button>
+  <button class="opt" data-fb="No — that is the spill threshold, not a free-sort rule.">the result is under 100 MB</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. An index { a: 1, b: -1 } serves which sort?</h4>
+  <button class="opt" data-fb="No — that direction differs in b from the index.">{ a: 1, b: 1 }</button>
+  <button class="opt" data-fb="No — it must match the pattern or its exact inverse.">{ a: -1, b: -1 }</button>
+  <button class="opt" data-fb="Correct — it matches the index direction exactly.">{ a: 1, b: -1 }</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. A SORT stage in the plan means…</h4>
+  <button class="opt" data-fb="Correct — no index supplied the order, so MongoDB sorts in memory.">MongoDB sorted in memory, no index order</button>
+  <button class="opt" data-fb="No — an index-served sort omits the SORT stage entirely.">the index sorted the results</button>
+  <button class="opt" data-fb="No — that reports the spill, not the sort's existence.">the sort spilled to disk</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes.md">Use Indexes to Sort Query Results</a> for the direction-matching and prefix-sort details.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Orders are filtered by <code>region</code> and sorted newest-first by <code>placed</code>. Write the single compound index that both filters and sorts (think ESR), then say the sort direction you'd need if you also sorted by <code>total</code> descending.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes.md">MongoDB — Use Indexes to Sort Query Results</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes.md">MongoDB — Sorting (in-memory / disk spill)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-the-esr-guideline.html">← Lesson 4: The ESR guideline</a></span>
+  <span class="nav-next"><a href="0006-multikey-array-indexes.html">Lesson 6: Multikey indexes →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/indexes-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 9 — Index Strategy &amp; Putting It Together</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 9 of 9</span><span>MongoDB Indexes</span></div>
+  <h1>Index Strategy &amp; Putting It Together</h1>
+  <p class="subtitle">The end-to-end method: analyze the workload, design the minimal index set, prove it, and reap the write-cost savings.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Index to serve the app's <em>frequent query patterns</em> — a small, well-ordered set — then verify each with <code>explain</code> and prune anything redundant.</p>
+
+<h2>Step 1 — Index the workload, not everything</h2>
+<p>List the queries your app runs most (the same workload table that drives schema design: action, fields, frequency, priority). The frequent reads that filter on specific fields are the ones that earn an index — and the read-vs-write ratio decides whether each is worth it.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Step 2 — Design the smallest efficient set</h2>
+<pre><code>// queries shown by the workload
+db.orders.find({ region: "EU", total: { $gt: 100 } }).sort({ placed: -1 })
+
+// ESR-ordered compound index that serves it
+db.orders.createIndex({ region: 1, placed: -1, total: 1 })</code></pre>
+<ul>
+  <li>Order fields by <strong>ESR</strong> (Lesson 4).</li>
+  <li>Let one compound index cover several queries via its prefixes (Lesson 3).</li>
+</ul>
+
+<h2>Step 3 — Prove it and prune</h2>
+<ol>
+  <li><code>explain</code> each hot query → want <code>IXSCAN</code>, no <code>SORT</code>, ideally covered.</li>
+  <li>Drop redundant prefix indexes (a compound supersedes its own prefix).<sup><a href="#r2">2</a></sup></li>
+  <li>Use <code>hidden</code> indexes to test a drop before committing (Lesson 7).</li>
+</ol>
+
+<h2>Real costs to watch</h2>
+<ul>
+  <li><strong>Write overhead</strong>: every index updates on every insert — a wide write collector shouldn't carry many.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>Index builds</strong>: creating an index on a large live collection is itself an operation; run it in off-hours or on a rolling schedule.</li>
+  <li><strong>Unused indexes</strong> waste disk and slow writes for nothing — audit and drop them.</li>
+</ul>
+
+<h2>The check you can run today</h2>
+<p>For every slow query: is there an index (<code>IXSCAN</code>)? is the order free (no <code>SORT</code>)? is the compound prefix-served? is it selective? Answering these four turns query tuning from art into a routine.<sup><a href="#r3">3</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Great indexing is minimalism: the fewest, best-ordered indexes that serve the workload — each proven in <code>explain</code> and each pulling its weight against its own write cost.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. The right thing to index is…</h4>
+  <button class="opt" data-fb="Correct — cover the frequent queries the app actually runs.">the frequent query patterns</button>
+  <button class="opt" data-fb="No — this wastes write cost and disk on unneeded indexes.">every single field</button>
+  <button class="opt" data-fb="No — indexes on heavy-write fields need a real reason.">the most write-heavy field</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>2. When a compound index supersedes its prefix, you should…</h4>
+  <button class="opt" data-fb="No — keeping both just adds write overhead.">keep both and ignore</button>
+  <button class="opt" data-fb="Correct — drop the redundant prefix index.">drop the redundant prefix index</button>
+  <button class="opt" data-fb="No — the compound serves those queries; you remove the empty one.">drop the compound index instead</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. Proof an index works is a plan with…</h4>
+  <button class="opt" data-fb="No — COLLSCAN means no index was used.">COLLSCAN and a SORT</button>
+  <button class="opt" data-fb="No — that points to missing indexes, not success.">an in-memory SORT stage</button>
+  <button class="opt" data-fb="Correct — an IXSCAN, no SORT, ideally covered.">an IXSCAN and no SORT</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Revisit <a href="https://www.mongodb.com/docs/manual/indexes.md">Indexes</a> for the workload/read-write framing, then the <a href="https://www.mongodb.com/docs/manual/applications/indexes.md">Indexing Strategies</a> page for the higher-level strategy.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Take one collection from your own app. List its three highest-frequency queries, design the minimal ESR-ordered index set to serve them, note any redundant index you'd drop, and describe the explain output that would prove it worked.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/indexes.md">MongoDB — Indexes</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/core/indexes/index-types/index-compound.md">MongoDB — Compound Indexes (redundant prefixes)</a></li>
+    <li id="r3"><a href="https://www.mongodb.com/docs/manual/reference/explain-results.md">MongoDB — Explain Results</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0008-reading-query-plans.html">← Lesson 8: Reading query plans</a></span>
+  <span class="nav-next"><a href="../reference/indexes-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/indexes-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>

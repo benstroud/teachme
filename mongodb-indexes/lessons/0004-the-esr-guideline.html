@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — The ESR Guideline</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 9</span><span>MongoDB Indexes</span></div>
+  <h1>The ESR Guideline</h1>
+  <p class="subtitle">Equality, Sort, Range — the recipe that tells you which field order a compound index needs.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>To build an efficient compound index, order the fields <strong>Equality fields first, then Sort, then Range</strong> — matching how the query uses each field.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The three roles</h2>
+<ul>
+  <li><strong>Equality</strong> — the query matches a value exactly (<code>{ region: "EU" }</code>). Most selective to place first.</li>
+  <li><strong>Sort</strong> — the field that orders results (<code>.sort({ placed: 1 })</code>).</li>
+  <li><strong>Range</strong> — a comparison like <code>{ total: { $gt: 100 } }</code>. Also <code>$ne</code>, <code>$nin</code>, <code>$regex</code>.<sup><a href="#r1">1</a></sup></li>
+</ul>
+
+<h2>Why this order</h2>
+<p>Once a range boundary is used, index traversal stops being a clean point-lookup and the ordering after it is broken for further fields. So you consolidate equalities first, then use the index's order to satisfy the sort (avoiding an in-memory <code>SORT</code>), and let the range filter run last over an already-narrowed set.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Worked example</h2>
+<pre><code>db.movies.find(
+  { directors: "David Lynch", runtime: { $lt: 130 } }
+).sort({ year: 1 })</code></pre>
+<p>Break it down:</p>
+<ul>
+  <li>Equality: <code>directors</code></li>
+  <li>Sort: <code>year</code></li>
+  <li>Range: <code>runtime</code> (<code>$lt</code>)</li>
+</ul>
+<p>So the optimal compound index is:</p>
+<pre><code>db.movies.createIndex({ directors: 1, year: 1, runtime: 1 })  // E S R</code></pre>
+<p>Equality fields may appear in any order among themselves, but all must precede sort and range.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The one judgment call: S before R</h2>
+<p>Put sort before range when avoiding an in-memory sort is critical (the common case). If the range is <em>very</em> selective, you can put it before sort (ERS) and accept an in-memory sort over the few survivors.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> For each query, sort its fields into Equality / Sort / Range buckets, then build the index in that order. If you only remember one rule from this course, remember ESR.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. The ESR field order for a compound index is…</h4>
+  <button class="opt" data-fb="Correct — Equality, then Sort, then Range.">Equality, Sort, Range</button>
+  <button class="opt" data-fb="No — equality must come first, before any sort or range.">Range, Equality, Sort</button>
+  <button class="opt" data-fb="No — equality fields all precede sort and range.">Sort, Equality, Range</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>2. In { directors: "David Lynch", runtime: { $lt: 130 } }.sort({ year: 1 })…</h4>
+  <button class="opt" data-fb="No — runtime uses $lt, which makes it a range field.">runtime is the equality field</button>
+  <button class="opt" data-fb="Correct — directors equality, year sort, runtime range.">the order is directors, year, runtime</button>
+  <button class="opt" data-fb="No — it sorts and is a sort field, not equality.">year is the equality field</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. $ne, $nin, and $regex are treated as…</h4>
+  <button class="opt" data-fb="No — they are not exact single-value matches.">equality operators</button>
+  <button class="opt" data-fb="No — only exact matches are equality; these are not.">sort operators</button>
+  <button class="opt" data-fb="Correct — they behave as range operators in indexing.">range operators</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the full <a href="https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-guideline.md">ESR Guideline</a> for the exact worked example and the operator notes.</p>
+
+<div class="ask"><strong>Ask the agent</strong> For this query — <code>orders.find({ status: "paid", total: { $gt: 500 } }).sort({ placed: -1 })</code> — name each field's role and write the ESR-ordered index that serves it without an in-memory sort.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-guideline.md">MongoDB — ESR (Equality, Sort, Range) Guideline</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-compound-indexes-and-prefixes.html">← Lesson 3: Compound indexes</a></span>
+  <span class="nav-next"><a href="0005-indexes-and-sorting.html">Lesson 5: Indexes &amp; sorting →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/indexes-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>

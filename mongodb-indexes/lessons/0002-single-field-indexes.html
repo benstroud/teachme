@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — Single-Field Indexes</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 9</span><span>MongoDB Indexes</span></div>
+  <h1>Single-Field Indexes</h1>
+  <p class="subtitle">The simplest index — one field, ordered — and the two caveats that surprise people.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A single-field index orders a collection by one field, so MongoDB can locate values and support sorts on it directly.</p>
+
+<h2>Creating one</h2>
+<pre><code>db.collection.createIndex({ field: 1 })    // 1 = ascending, -1 = descending
+db.orders.createIndex({ customerId: 1 })   // serve finds by customerId
+db.orders.createIndex({ placed: -1 })      // serve "newest first" sorts</code></pre>
+<ul>
+  <li>The key pattern is <code>{ field: direction }</code>.<sup><a href="#r1">1</a></sup></li>
+  <li>Direction matters for sorts (Lesson 5); for a plain equality lookup either works.</li>
+</ul>
+
+<h2>Index names</h2>
+<p>The default name is the keys and directions joined by underscores — <code>customerId_1</code>, <code>placed_-1</code>. You can give it an explicit name, but you can't rename one after creation (drop and recreate instead).<sup><a href="#r2">2</a></sup></p>
+
+<h2>Caveat 1: embedded-object indexes are coarse</h2>
+<p>Indexing an embedded document (e.g. <code>location</code>) is used only by queries that specify the <em>entire</em> document. A query on a sub-field inside it (<code>location.city</code>) won't benefit — index the sub-field directly instead.<sup><a href="#r2">2</a></sup></p>
+<pre><code>db.sales.createIndex({ location: 1 })        // only full {state,city,zip} matches
+db.sales.createIndex({ "location.city": 1 }) // what you usually want instead</code></pre>
+
+<h2>Caveat 2: selectivity</h2>
+<p>An index is most useful when it's selective — an equality on it narrows the result a lot. An index on a field with one dominant value (e.g. <code>status: "active"</code> for 99% of docs) still lets Mongo scan the index, but returns most documents anyway; weigh whether it's worth the write cost.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> For a field you filter on, the single-field index is the starting point. Remember it orders the data, and its usefulness is bounded by how selective the values are.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. A single-field index orders a collection by…</h4>
+  <button class="opt" data-fb="No — ordering is over the index field only.">every field at once</button>
+  <button class="opt" data-fb="Correct — one field, in an ascending or descending direction.">one field you choose</button>
+  <button class="opt" data-fb="No — the key pattern names one field plus a direction.">no field, it sorts on read</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. An index on an embedded document is used by…</h4>
+  <button class="opt" data-fb="No — those need an index on the sub-field itself.">any query on a sub-field</button>
+  <button class="opt" data-fb="No — it cannot ever be used, which is the caveat.">no query at all</button>
+  <button class="opt" data-fb="Correct — only whole-document equality matches use it.">whole-document equality matches only</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. The default name for { placed: -1 } is…</h4>
+  <button class="opt" data-fb="Correct — keys and directions joined by underscores.">placed_-1</button>
+  <button class="opt" data-fb="No — names include the direction part too.">placed</button>
+  <button class="opt" data-fb="No — the _id index is automatic, this one is not.">_id_</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://www.mongodb.com/docs/manual/indexes.md">Indexes</a> for creation and names, and <a href="https://www.mongodb.com/docs/manual/core/indexes/index-types/index-single.md">Single Field Indexes</a> for the embedded-document behavior.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Write single-field indexes for two hot lookups in your own app — including one on a nested field like <code>location.city</code> — then say which of the two is more selective and why that matters.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/indexes.md">MongoDB — Indexes</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/core/indexes/index-types/index-single.md">MongoDB — Single Field Indexes</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-why-indexes.html">← Lesson 1: Why indexes</a></span>
+  <span class="nav-next"><a href="0003-compound-indexes-and-prefixes.html">Lesson 3: Compound indexes →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/indexes-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>

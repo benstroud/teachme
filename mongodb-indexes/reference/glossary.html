@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MongoDB Indexes &amp; Query Performance — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>MongoDB Indexes</span></div>
+  <h1>Indexes &amp; Query Performance Glossary</h1>
+  <p class="subtitle">Every term in this course, in one place. Return here when a lesson uses a word you do not fully own.</p>
+</header>
+
+<section>
+<h2>Indexes</h2>
+<dl>
+  <dt><strong>Index</strong></dt>
+  <dd>A data structure storing a small, ordered portion of the collection. MongoDB indexes use a <strong>B-tree</strong>; the ordering supports equality, range, and returned-sort efficiency.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>Collection scan (COLLSCAN)</strong></dt>
+  <dd>What happens with no usable index — MongoDB scans every document to answer a query.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>Index scan (IXSCAN)</strong></dt>
+  <dd>Reading only the relevant slice of index keys instead of the whole collection.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>_id index</strong></dt>
+  <dd>The unique index MongoDB creates on every collection's `_id`; it can't be dropped.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>Key pattern</strong></dt>
+  <dd>The index's fields and directions, e.g. <code>{ item: 1, quantity: -1 }</code>. Also the basis of the default index name.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>Single-field index</strong></dt>
+  <dd>An index on one field; on an embedded document it serves only whole-document equality, not sub-field queries.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>Compound index</strong></dt>
+  <dd>An index over several fields in a fixed order; field order is critical and there is a 32-field limit.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>Index prefix</strong></dt>
+  <dd>A leading subset of a compound index's fields; queries on a prefix can use the index.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>Multikey index</strong></dt>
+  <dd>An index on an array field; MongoDB stores one entry per distinct element, pointing back to the same document.<sup><a href="#r4">4</a></sup></dd>
+</dl>
+</section>
+
+<section>
+<h2>Guidelines &amp; plans</h2>
+<dl>
+  <dt><strong>ESR (Equality, Sort, Range) guideline</strong></dt>
+  <dd>The recommended ordering of fields in a compound index: equality fields first, then sort, then range.<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>Equality / Sort / Range fields</strong></dt>
+  <dd>An <em>equality</em> field is an exact match; a <em>sort</em> field orders results; a <em>range</em> field uses an operator like <code>$gt</code>/<code>$lt</code> (or <code>$ne</code>, <code>$nin</code>, <code>$regex</code>).<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>In-memory sort (SORT stage)</strong></dt>
+  <dd>What MongoDB performs when no index supplies the requested order; it appears as a <code>SORT</code> stage in the plan.<sup><a href="#r6">6</a></sup></dd>
+
+  <dt><strong>Covered query</strong></dt>
+  <dd>A query answered entirely from the index because all query and projection fields are in it — no <code>FETCH</code>.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>winnerPlan</strong></dt>
+  <dd>The plan MongoDB selects, shown in <code>explain</code>'s <code>queryPlanner</code> output.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>FETCH</strong></dt>
+  <dd>The stage that retrieves the actual documents after an index narrows the matches.<sup><a href="#r2">2</a></sup></dd>
+</dl>
+</section>
+
+<section>
+<h2>Properties &amp; types</h2>
+<dl>
+  <dt><strong>Unique index</strong></dt>
+  <dd>Enforces no duplicate values on the field(s); a compound unique index enforces uniqueness of the combination.<sup><a href="#r7">7</a></sup></dd>
+
+  <dt><strong>TTL index</strong></dt>
+  <dd>A single-field index on a date that makes MongoDB auto-delete expired documents after <code>expireAfterSeconds</code>.<sup><a href="#r8">8</a></sup></dd>
+
+  <dt><strong>Partial index</strong></dt>
+  <dd>An index that only covers documents matching a <code>partialFilterExpression</code>, saving space and write cost.<sup><a href="#r9">9</a></sup></dd>
+
+  <dt><strong>Sparse index</strong></dt>
+  <dd>An index that skips documents missing the indexed field.</dd>
+
+  <dt><strong>Hidden index</strong></dt>
+  <dd>An index invisible to the query planner, used to test dropping it without actually removing it.</dd>
+
+  <dt><strong>Text / geospatial / hashed / wildcard indexes</strong></dt>
+  <dd>Specialized indexes for <code>$text</code> search, geo queries, hashed sharding, and flexible-schema wildcard fields respectively.<sup><a href="#r9">9</a></sup></dd>
+</dl>
+</section>
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/indexes.md">MongoDB — Indexes</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/reference/explain-results.md">MongoDB — Explain Results</a></li>
+    <li id="r3"><a href="https://www.mongodb.com/docs/manual/core/indexes/index-types/index-compound.md">MongoDB — Compound Indexes</a></li>
+    <li id="r4"><a href="https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey.md">MongoDB — Multikey Indexes</a></li>
+    <li id="r5"><a href="https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-guideline.md">MongoDB — ESR (Equality, Sort, Range) Guideline</a></li>
+    <li id="r6"><a href="https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes.md">MongoDB — Use Indexes to Sort Query Results</a></li>
+    <li id="r7"><a href="https://www.mongodb.com/docs/manual/core/index-unique.md">MongoDB — Unique Indexes</a></li>
+    <li id="r8"><a href="https://www.mongodb.com/docs/manual/core/index-ttl.md">MongoDB — TTL Indexes</a></li>
+    <li id="r9"><a href="https://www.mongodb.com/docs/manual/core/indexes/index-properties.md">MongoDB — Index Properties</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Mission &amp; notes</span>
+  <span class="nav-next"><a href="../lessons/0001-why-indexes.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../NOTES.md">Notes</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — Reading Query Plans with explain</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 9</span><span>MongoDB Indexes</span></div>
+  <h1>Reading Query Plans with explain</h1>
+  <p class="subtitle">Stop guessing whether an index is used. Ask the database and read its answer.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p><code>explain</code> shows the winning query plan as a stage tree, so you can see at a glance whether MongoDB did a collection scan, used an index, or had to sort in memory.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Running explain</h2>
+<pre><code>db.orders.find({ customerId: 7 }).explain("executionStats")</code></pre>
+<p>Useful verbs: <code>queryPlanner</code> (the plan) and <code>executionStats</code> (what actually ran, including counts and time). Default is <code>allPlansExecution</code>. Note it ignores the plan cache, so it exercises the planner fresh.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<h2>The stage vocabulary</h2>
+<table>
+  <tr><th>Stage</th><th>Meaning</th></tr>
+  <tr><td><code>COLLSCAN</code></td><td>Collection scan — no index used.</td></tr>
+  <tr><td><code>IXSCAN</code></td><td>Index scan — reading keys from an index.</td></tr>
+  <tr><td><code>FETCH</code></td><td>Retrieving the actual documents after the index narrows matches.</td></tr>
+  <tr><td><code>SORT</code></td><td>In-memory sort — no index supplied the order.</td></tr>
+</table>
+<p>The stages nest: a plan like <code>FETCH → IXSCAN</code> means it found matching keys in the index, then fetched those documents.</p>
+
+<h2>Spotting the two things you care about</h2>
+<ul>
+  <li><strong>Is an index used?</strong> Look for <code>IXSCAN</code> instead of <code>COLLSCAN</code>.<sup><a href="#r2">2</a></sup></li>
+  <li><strong>Is the sort free?</strong> If there's no <code>SORT</code> stage, the index supplied the order.<sup><a href="#r2">2</a></sup></li>
+</ul>
+
+<h2>Covered queries</h2>
+<p>When the projection is also in the index, MongoDB can answer from the index alone — no <code>FETCH</code> at all. That's a <em>covered query</em>, the ideal end state.<sup><a href="#r3">3</a></sup></p>
+<pre><code>// index { customerId: 1, region: 1 } covers this:
+db.orders.find({ customerId: 7 }, { _id: 0, region: 1 })</code></pre>
+
+<h2>The before-after loop</h2>
+<ol>
+  <li><code>explain</code> the slow query → note <code>stage</code> and execution time.</li>
+  <li>Create/adjust the index (ESR, Lesson 4).</li>
+  <li><code>explain</code> again → confirm <code>COLLSCAN</code> → <code>IXSCAN</code>, no <code>SORT</code>, time down.</li>
+</ol>
+
+<aside class="note"><strong>Key idea</strong> The plan is the ground truth your design is measured against — <code>COLLSCAN</code>, <code>SORT</code>, and <code>FETCH</code> in the wrong places are the evidence that an index is missing or mis-ordered.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. A plan whose root is COLLSCAN means…</h4>
+  <button class="opt" data-fb="No — that would be a FETCH stage after an IXSCAN.">the query used an index</button>
+  <button class="opt" data-fb="No — SORT is a separate stage, not a scan.">the query sorted in memory</button>
+  <button class="opt" data-fb="Correct — MongoDB scanned every document; no index.">a full collection scan ran</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>2. A covered query needs…</h4>
+  <button class="opt" data-fb="No — covering serves from the index without a fetch.">a FETCH for every document</button>
+  <button class="opt" data-fb="Correct — all query + projection fields live in the index.">all fields present in the index</button>
+  <button class="opt" data-fb="No — that is exactly what a covered query avoids.">a SORT stage afterward</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. To confirm an index eliminated an in-memory sort, look for…</h4>
+  <button class="opt" data-fb="Correct — the absence of a SORT stage means the index ordered it.">no SORT stage in the plan</button>
+  <button class="opt" data-fb="No — IXSCAN confirms index use, not the sort outcome.">an IXSCAN stage only</button>
+  <button class="opt" data-fb="No — COLLSCAN means no index was used at all.">a COLLSCAN stage</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://www.mongodb.com/docs/manual/reference/command/explain.md">explain (command)</a> for how to run it, and <a href="https://www.mongodb.com/docs/manual/reference/explain-results.md">Explain Results</a> for the stage vocabulary.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Write a query you run often, run its <code>explain</code> (or reason over its likely plan), and state which stage is the root and whether a SORT appears. Then say what index would remove the SORT and turn COLLSCAN into IXSCAN.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/reference/command/explain.md">MongoDB — explain (command)</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/reference/explain-results.md">MongoDB — Explain Results</a></li>
+    <li id="r3"><a href="https://www.mongodb.com/docs/manual/core/query-plans.md">MongoDB — Query Plans (covered queries)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-index-properties.html">← Lesson 7: Index properties</a></span>
+  <span class="nav-next"><a href="0009-index-strategy-and-putting-it-together.html">Lesson 9: Strategy &amp; wrap-up →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/indexes-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>

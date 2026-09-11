@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — Compound Indexes &amp; Prefixes</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 9</span><span>MongoDB Indexes</span></div>
+  <h1>Compound Indexes &amp; Prefixes</h1>
+  <p class="subtitle">The single most important index rule: order matters, and a compound index serves queries on its leading prefixes.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A compound index orders by several fields at once, and MongoDB can use it for any query that filters on a <em>leading prefix</em> of those fields — but only the prefix, in the index's order.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The prefix rule</h2>
+<pre><code>db.orders.createIndex({ region: 1, placed: 1, total: 1 })</code></pre>
+<p>This index serves queries on:</p>
+<ul>
+  <li><code>{ region }</code> (prefix of 1)</li>
+  <li><code>{ region, placed }</code> (prefix of 2)</li>
+  <li><code>{ region, placed, total }</code></li>
+</ul>
+<p>It does <strong>not</strong> serve queries on <code>{ placed }</code>, <code>{ total }</code>, or <code>{ placed, total }</code> — those skip the leading field.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Partial prefixes still help, thinly</h2>
+<p>A query on <code>{ region, total }</code> can use the <code>region</code> prefix but then filters <code>total</code> in the scan rather than via the index — correct, but less efficient than a true <code>{ region, total }</code> index.</p>
+
+<h2>Field order decides everything</h2>
+<p>The index is physically sorted by its first field, then its second, and so on. Reordering the fields changes which queries it serves — which is exactly what the ESR guideline (Lesson 4) exploits.</p>
+
+<h2>The "drop the redundant prefix index" rule</h2>
+<p>If you already have <code>{ a: 1, b: 1 }</code>, an index on just <code>{ a: 1 }</code> is redundant — the compound covers every query the prefix index would, so the standalone index is pure write overhead (unless it carries a unique/sparse constraint).<sup><a href="#r2">2</a></sup></p>
+<pre><code>// redundant: keep only the compound one
+db.c.createIndex({ a: 1 })
+db.c.createIndex({ a: 1, b: 1 })</code></pre>
+
+<aside class="note"><strong>Key idea</strong> Think of a compound index as a phone book sorted by (region, then placed, then total). You can look things up only if you know the region first. Field order = which lookups are possible.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. A compound { region, placed, total } serves queries on…</h4>
+  <button class="opt" data-fb="No — it must start with the leading prefix field.">{ total } and { placed }</button>
+  <button class="opt" data-fb="No — { placed, total } skips the leading field entirely.">{ placed, total }</button>
+  <button class="opt" data-fb="Correct — only the leading prefixes are served.">its leading prefixes only</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>2. With { a:1, b:1 } already present, a separate { a:1 } index is…</h4>
+  <button class="opt" data-fb="No — the compound covers every query the prefix would.">always necessary for correctness</button>
+  <button class="opt" data-fb="Correct — redundant, so drop it unless it is unique/sparse.">redundant and droppable</button>
+  <button class="opt" data-fb="No — reordering b before a is what changes which queries it serves.">faster than the compound</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. Field order in a compound index matters because…</h4>
+  <button class="opt" data-fb="Correct — it fixes which field is sorted first, enabling prefixes.">it decides which queries the index can serve</button>
+  <button class="opt" data-fb="No — the B-tree stores them in the order you specify.">the database ignores later fields</button>
+  <button class="opt" data-fb="No — that is the 32-field cap, not the ordering rule.">of a hard 32-field limit</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://www.mongodb.com/docs/manual/core/indexes/index-types/index-compound.md">Compound Indexes</a> for the prefix rule, the example, and the redundant-index guidance.</p>
+
+<div class="ask"><strong>Ask the agent</strong> You query orders by <code>{ customerId }</code> and by <code>{ customerId, status }</code>, and already have both <code>{ customerId }</code> and <code>{ customerId, status }</code>. Which index is redundant, and what single index would you replace them with?</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/core/indexes/index-types/index-compound.md">MongoDB — Compound Indexes</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/core/indexes/index-types/index-compound.md">MongoDB — Compound Indexes (redundant prefixes)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-single-field-indexes.html">← Lesson 2: Single-field indexes</a></span>
+  <span class="nav-next"><a href="0004-the-esr-guideline.html">Lesson 4: The ESR guideline →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/indexes-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>
