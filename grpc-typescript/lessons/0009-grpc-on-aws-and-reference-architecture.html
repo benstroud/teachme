@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 9 — gRPC on AWS &amp; Reference Architecture</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 9 of 9</span><span>gRPC TypeScript</span></div>
+  <h1>gRPC on AWS &amp; Reference Architecture</h1>
+  <p class="subtitle">Where the domain services run, how they're discovered and encrypted, and the whole picture assembled.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>gRPC needs long-lived HTTP/2 listeners, so on AWS the classic fit is containerized Node domain services on <strong>ECS (or EKS)</strong> behind an Application Load Balancer that speaks gRPC — not Lambda.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Hosting: the two realistic AWS options</h2>
+<ul>
+  <li><strong>ECS (or EKS) + ALB — recommended.</strong> Run each domain service as a container. Register it in a target group using the gRPC target type over HTTP/2; the ALB fronts all instances. Use TLS (HTTPS listener, HTTP/2) publicly, or h2c on a private network where TLS terminates elsewhere or mTLS is handled internally.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>API Gateway + Lambda — transcoding.</strong> API Gateway can transcode gRPC into REST-style calls that invoke a Lambda. It is serverless-friendly but trades away streaming and HTTP/2 benefits, and only suits unary-shaped domain calls.<sup><a href="#r2">2</a></sup></li>
+</ul>
+
+<h2>Encryption &amp; service discovery</h2>
+<ul>
+  <li><strong>TLS end to end.</strong> Encrypt the BFF → domain hop even inside the VPC — mutual TLS (mTLS) or a lightweight mesh/ingress so a caller can't impersonate a BFF.</li>
+  <li><strong>Discovery.</strong> BFFs resolve the domain service by name. Options: the ALB's DNS name (DNS resolver, <code>dns:///…</code>) for load-balanced access, or AWS Cloud Map for per-instance discovery with health checks.<sup><a href="#r3">3</a></sup></li>
+  <li><strong>Keepalive + health checks.</strong> Configure <code>grpc.keepalive</code> so an idle connection doesn't die, and wire the gRPC health-checking protocol (or ALB health checks) so the load balancer drops dead instances.</li>
+</ul>
+
+<h2>Observability</h2>
+<p>Propagate W3C trace context in metadata from the inbound edge request through every BFF → domain hop. Emit OpenTelemetry spans/metrics per RPC (including retry attempts). Because request-id and trace travel in metadata, one user click produces one end-to-end trace across GraphQL BFF, REST BFF, and each domain service.</p>
+</section>
+<section>
+<h2>Putting it together: the reference architecture</h2>
+<pre><code>             Browser / external clients
+                        │  HTTP/1.1 · GraphQL / REST
+              ┌─────────▼─────────┐
+              │    Edge layer     │
+              │  GraphQL BFF      │  REST BFF
+              └─────────┬─────────┘
+                        │  gRPC over HTTP/2 · TLS · deadlines
+                    ┌───▼────┐  ┌──────┐  ┌─────────┐
+                    │ orders │  │ cat. │  │ billing │   ← domain
+                    │ svc    │  │ svc  │  │ svc     │     services
+                    └───┬────┘  └──┬───┘  └────┬────┘
+                        │ (ECS / EKS behind an ALB gRPC target)
+                    ┌───▼─────────┴────────────▼────┐
+                    │  Data stores (DynamoDB, Aurora) │
+                    └────────────────────────────────┘
+   Context in metadata: authorization · x-request-id ·
+                        x-tenant · traceparent (→ OpenTelemetry)</code></pre>
+<ul>
+  <li><strong>Edge</strong> stays client-friendly (GraphQL/REST).</li>
+  <li><strong>Domain layer</strong> is contract-first gRPC over HTTP/2, each service single-purpose, on ECS behind an ALB.</li>
+  <li><strong>Resilience</strong> rides the call: deadlines from every BFF, retries on idempotent-safe codes, idempotent handlers.</li>
+  <li><strong>Context</strong> (auth, tenant, trace) is carried in metadata and re-propagated every hop.</li>
+</ul>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. The best AWS home for a long-lived TypeScript gRPC service is…</h4>
+  <button class="opt" data-fb="Correct — containers keep a persistent HTTP/2 listener; an ALB fronts them.">ECS (or EKS) behind an ALB with a gRPC target</button>
+  <button class="opt" data-fb="No — Lambda is per-invocation and needs transcoding; it lacks HTTP/2 listeners.">a plain Lambda behind API Gateway</button>
+  <button class="opt" data-fb="No — that is for revealing a RESTful edge to external clients, not hosting gRPC.">an S3 + CloudFront static site</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. BFFs find a domain service's instances typically by…</h4>
+  <button class="opt" data-fb="No — resolution should be by name, not a browser-facing URL.">hardcoding a browser-supplied URL</button>
+  <button class="opt" data-fb="No — the browser should not resolve internal services.">letting the browser discover it</button>
+  <button class="opt" data-fb="Correct — name resolution via ALB DNS or Cloud Map points the channel at instances.">resolving the service name via DNS/ALB or Cloud Map</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. The biggest cost of the API Gateway + Lambda transcoding path is…</h4>
+  <button class="opt" data-fb="No — it actually keeps the contract; that is not its real downside.">losing contract-first typing</button>
+  <button class="opt" data-fb="Correct — it maps to REST-style calls and drops streaming/HTTP/2 transport benefits.">losing streaming and the HTTP/2 transport benefits</button>
+  <button class="opt" data-fb="No — TLS is still available; encryption is not the tradeoff.">losing TLS entirely</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Confirm the vend details first-hand:
+<a href="https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-target-grpcs.html">ALB gRPC targets</a>,
+<a href="https://docs.aws.amazon.com/lambda/latest/dg/api-gateway-grpc.html">gRPC transcoding with Lambda/API Gateway</a>, and
+<a href="https://docs.aws.amazon.com/cloud-map/latest/dg/cloud-map-overview.html">AWS Cloud Map</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Draw the full path for one "place an order" click: edge → BFF → which domain services, what gRPC calls, what status codes you would map, and how one trace spans all of them.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-target-grpcs.html">AWS ELB — Register gRPC targets with an ALB</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/lambda/latest/dg/api-gateway-grpc.html">AWS Lambda — gRPC with API Gateway (transcoding)</a></li>
+    <li id="r3"><a href="https://docs.aws.amazon.com/cloud-map/latest/dg/cloud-map-overview.html">AWS Cloud Map — service discovery</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0008-the-bff-boundary.html">← Lesson 8: BFF boundary</a></span>
+  <span class="nav-next"><a href="../reference/grpc-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/grpc-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

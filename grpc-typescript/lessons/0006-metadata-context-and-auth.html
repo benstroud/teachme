@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — Metadata, Context &amp; Auth</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 9</span><span>gRPC TypeScript</span></div>
+  <h1>Metadata, Context &amp; Auth</h1>
+  <p class="subtitle">The side channel that carries request identity, tenant, tracing, and credentials across the BFF → domain hop.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Metadata is a key/value bag attached to a call, shipped as HTTP/2 headers (before the first message) and trailers (when the server closes it). It is the natural home for context — tokens, request ids, tenant, trace context — that isn't part of your message data.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Metadata rules</h2>
+<ul>
+  <li>Keys are ASCII strings, case-insensitive, and must <strong>not start with <code>grpc-</code></strong> (reserved for gRPC itself).<sup><a href="#r1">1</a></sup></li>
+  <li>Values are strings (or base64 binary for binary headers).</li>
+  <li>Servers may limit request-header size (~8 KiB default suggestion) — metadata is for small context, not payloads.</li>
+</ul>
+
+<h2>What to carry on every BFF → domain call</h2>
+<pre><code>const metadata = new grpc.Metadata();
+metadata.set("authorization", "Bearer " + token);  // from the inbound request
+metadata.set("x-request-id", requestId);           // for correlation
+metadata.set("x-tenant", tenantId);                // multi-tenant context
+metadata.set("traceparent", traceContext);         // W3C trace propagation
+// pass via call options:
+client.getOrder(req, { metadata }, handler);</code></pre>
+<p>The domain service reads the same keys from <code>call.metadata</code> in its handler and can re-propagate them to any downstream service it calls — that is how a request id and trace survive the whole fan-out.</p>
+
+<h2>Interceptors: apply behavior to every call</h2>
+<p>Interceptors are middleware attached to a channel or server that runs for every RPC — ideal for logging, metrics, fault injection, and (server-side) auth.<sup><a href="#r2">2</a></sup> They split into client vs server interceptors, and <em>order matters</em>: an interceptor closer to the network sees raw traffic, one closer to the app sees app behavior.</p>
+
+<h2>Auth: channel creds + call creds</h2>
+<p>Authentication has two layers:<sup><a href="#r3">3</a></sup></p>
+<ul>
+  <li><strong>Channel credentials</strong> — transport-level TLS (<code>createSsl</code>) so traffic inside the VPC is encrypted; with mTLS, both ends present certs.</li>
+  <li><strong>Call credentials</strong> — per-RPC identity, typically a token. The idiomatic way is a <em>metadata generator</em>, not an interceptor:</li>
+</ul>
+<pre><code>const callCreds = grpc.credentials.createFromMetadataGenerator((_params, cb) =&gt; {
+  const m = new grpc.Metadata();
+  m.set("authorization", "Bearer " + token);
+  cb(null, m);                       // re-run before retries so tokens refresh
+});
+
+const client = new OrderServiceClient(
+  "orders:50051",
+  grpc.credentials.createSsl(rootCert),
+  undefined, callCreds);</code></pre>
+<p>On the server, a verification interceptor validates the token (e.g. a JWT against a JWKS endpoint) and rejects with <code>UNAUTHENTICATED</code>/<code>PERMISSION_DENIED</code> before the handler runs.</p>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. A custom metadata key may NOT start with…</h4>
+  <button class="opt" data-fb="No — x- (HTTP-style) and others are fine; only grpc- is reserved.">x-</button>
+  <button class="opt" data-fb="Correct — the grpc- prefix is reserved for the gRPC protocol itself.">grpc-</button>
+  <button class="opt" data-fb="No — authorization is a normal, allowed key carried in metadata.">authorization</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. To attach an auth token per RPC with retry safety, use…</h4>
+  <button class="opt" data-fb="Half right — a server interceptor validates inbound tokens; it does not attach the outbound one.">a server-side interceptor on the domain service</button>
+  <button class="opt" data-fb="No — channel creds are for transport TLS, not per-RPC identity.">channel credentials built from the token</button>
+  <button class="opt" data-fb="Correct — call credentials via a metadata generator attach the token per call, refreshed for retries.">call credentials via a metadata generator</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. A request-id and trace context should travel fan-out calls by…</h4>
+  <button class="opt" data-fb="Correct — metadata rides headers and is re-propagated hop to hop.">carrying them in metadata and re-propagating each hop</button>
+  <button class="opt" data-fb="No — message fields are for business data; context belongs alongside the call.">putting them as required fields on every request message</button>
+  <button class="opt" data-fb="No — a client stub does not add correlation automatically.">letting each generated client forge its own id</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://grpc.io/docs/guides/metadata/">Metadata guide</a>, then the <a href="https://grpc.io/docs/guides/auth/">Authentication guide</a> (Node examples) for the exact call-credential API.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Walk a request end-to-end: the REST BFF receives a browser request and calls the orders domain service. List the exact metadata keys you would set in the BFF, and how the orders service would verify the token and know the tenant.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://grpc.io/docs/guides/metadata/">gRPC — Metadata</a></li>
+    <li id="r2"><a href="https://grpc.io/docs/guides/interceptors/">gRPC — Interceptors</a></li>
+    <li id="r3"><a href="https://grpc.io/docs/guides/auth/">gRPC — Authentication</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-channels-resilience-and-retries.html">← Lesson 5: Channels &amp; retries</a></span>
+  <span class="nav-next"><a href="0007-streaming-for-domain-apis.html">Lesson 7: Streaming for domain APIs →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/grpc-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

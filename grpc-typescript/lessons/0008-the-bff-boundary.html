@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — The BFF Boundary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 9</span><span>gRPC TypeScript</span></div>
+  <h1>The BFF Boundary</h1>
+  <p class="subtitle">How your GraphQL and REST BFFs are gRPC clients of the domain layer — and how errors and shapes cross that seam.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>The BFF is the translator: it takes a GraphQL/REST shape from the browser, fans out into <em>multiple</em> gRPC calls to domain services, aggregates the typed results, and maps any gRPC status back into a client-safe error.<sup><a href="#r1">1</a></sup></p>
+
+<h2>A GraphQL resolver as a gRPC client</h2>
+<pre><code>// resolver: order + the customer it belongs to
+order: async (parent, _args, ctx) =&gt; {
+  const [order, customer] = await Promise.all([
+    ctx.orders.getOrder({ id: parent.orderId },
+      { deadline: ctx.deadline }),
+    ctx.orders.getCustomer({ id: parent.orderId },
+      { deadline: ctx.deadline }),
+  ]);
+  return { ...order.toObject(), customer: customer.toObject() };
+}</code></pre>
+<ul>
+  <li>A single GraphQL field can fan out to several gRPC calls; <code>Promise.all</code> keeps them concurrent (mind your deadlines).</li>
+  <li>Domain services stay small and single-purpose; the BFF owns aggregation and shape — that is its job, not the domain's.<sup><a href="#r2">2</a></sup></li>
+  <li>The same pattern holds in a REST BFF: a route handler calls the gRPC client and maps to an HTTP response.</li>
+</ul>
+
+<h2>Mapping gRPC errors to the edge</h2>
+<table>
+  <tr><th>gRPC code</th><th>GraphQL</th><th>REST</th></tr>
+  <tr><td>NOT_FOUND (5)</td><td>null / field error</td><td>404</td></tr>
+  <tr><td>INVALID_ARGUMENT (3)</td><td>validation error</td><td>400</td></tr>
+  <tr><td>UNAUTHENTICATED (16)</td><td>authn error</td><td>401</td></tr>
+  <tr><td>PERMISSION_DENIED (7)</td><td>authz error</td><td>403</td></tr>
+  <tr><td>DEADLINE_EXCEEDED (4)</td><td>server error</td><td>504</td></tr>
+  <tr><td>UNAVAILABLE (14)</td><td>server error</td><td>503</td></tr>
+</table>
+<p>Do the mapping <em>at the BFF</em>, and don't leak internal detail (server addresses, raw messages) verbatim to browsers.</p>
+
+<h2>Why browsers don't call gRPC directly</h2>
+<p>Browsers speak HTTP/1.1, not gRPC's HTTP/2 framing. gRPC-web exists and bridges that gap through a proxy, but it drops most of the transport benefits (binary framing, streaming semantics) and adds a deployment.<sup><a href="#r3">3</a></sup> For a service you control end-to-end, the cleaner call is:</p>
+<blockquote>Browser → GraphQL/REST BFF → <strong>gRPC</strong> → domain service.</blockquote>
+<p>The BFF is the only gRPC client that matters for your edge.</p>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. A gRPC NOT_FOUND from a domain service should surface to a REST browser as…</h4>
+  <button class="opt" data-fb="No — 500 hides the "not found" intent from the client.">a 500 with the raw gRPC message</button>
+  <button class="opt" data-fb="No — that is miscategorized; a missing entity is not a server fault.">the internal server address it came from</button>
+  <button class="opt" data-fb="Correct — the BFF maps NOT_FOUND to 404 and sanitizes the message.">a 404 mapped at the BFF</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Who owns aggregating several domain results into one edge shape?</h4>
+  <button class="opt" data-fb="Correct — the BFF translates shapes; domain services stay single-purpose.">the BFF, which fans out and joins</button>
+  <button class="opt" data-fb="No — that spreads cross-service joins into the browser-facing layer's client.">the browser, across every domain service</button>
+  <button class="opt" data-fb="No — domain services that join each other bloat the domain layer.">each domain service, by calling the others</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. Browsers typically call domain services through a BFF because…</h4>
+  <button class="opt" data-fb="No — gRPC-web works, but it needs a proxy and loses most HTTP/2 benefits.">gRPC is impossible in browsers</button>
+  <button class="opt" data-fb="Correct — the BFF proxies gRPC so the edge stays simple and the internals stay fast.">the BFF translates, so the browser never needs gRPC to domain services</button>
+  <button class="opt" data-fb="No — the domain layer should stay private and single-purpose, not browser-facing.">each domain service should expose HTTP to browsers directly</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>See <a href="https://grpc.io/docs/guides/error-handling/">Error Handling</a> for rich-error patterns, and the <a href="https://grpc.io/docs/languages/web/basics/">gRPC-web basics</a> to confirm why you keep gRPC server-side.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Sketch a GraphQL resolver for <code>order { items customer }</code> that resolves the order, its line items, and its customer via three gRPC calls. Write the deadline and error-mapping you would apply to each.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://grpc.io/docs/guides/status-codes/">gRPC — Status codes</a></li>
+    <li id="r2"><a href="https://grpc.io/docs/guides/error-handling/">gRPC — Error handling</a></li>
+    <li id="r3"><a href="https://grpc.io/docs/languages/web/basics/">gRPC-web — basics</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-streaming-for-domain-apis.html">← Lesson 7: Streaming</a></span>
+  <span class="nav-next"><a href="0009-grpc-on-aws-and-reference-architecture.html">Lesson 9: gRPC on AWS &amp; reference architecture →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/grpc-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

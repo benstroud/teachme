@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — $facet &amp; Windows</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 9</span><span>MongoDB Aggregations</span></div>
+  <h1>$facet &amp; Windows</h1>
+  <p class="subtitle">Several analyses in one pass, and running totals / rankings over ordered partitions.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p><code>$facet</code> runs several independent sub-pipelines on the <em>same</em> input in a single stage; <code>$setWindowFields</code> computes values across an ordered <em>partition</em> of documents — ranks, running sums, moving windows.</p>
+
+<h2>$facet: a dashboard in one query</h2>
+<pre><code>{ $facet: {
+    byRegion:  [ { $group: { _id: "$region", orders: { $sum: 1 } } } ],
+    topSellers:[ { $sort: { qty: -1 } }, { $limit: 3 } ],
+    totals:    [ { $group: { _id: null, revenue: { $sum: "$total" } } } ]
+} }</code></pre>
+<p>Output is <em>one</em> document whose keys are the facet names, each holding that sub-pipeline's result array:<sup><a href="#r1">1</a></sup></p>
+<pre><code>{ byRegion: [ { _id: "EU", orders: 12 }, ... ],
+  topSellers: [ { sku: "pad", qty: 300 }, ... ],
+  totals: [ { _id: null, revenue: 12490 } ] }</code></pre>
+<ul>
+  <li>All three sub-pipelines see the <em>same</em> input document stream — one scan, many answers.<sup><a href="#r1">1</a></sup></li>
+  <li>Perfect for a page that needs counts, top-N, and totals together.</li>
+</ul>
+
+<h2>$setWindowFields: partitions, sorts, outputs</h2>
+<pre><code>{ $setWindowFields: {
+    partitionBy: "$region",                 // restart per region
+    sortBy: { date: 1 },                    // order within partition
+    output: {
+      rank:     { $rank: {} },              // 1,2,3… within partition
+      rowNum:   { $documentNumber: {} },    // 1-based position in partition
+      runTotal: { $sum: "$total",
+                  window: { documents: [ "unbounded", "current" ] } }
+    }
+} }</code></pre>
+<ul>
+  <li><code>partitionBy</code> splits input into groups; the window math restarts in each.<sup><a href="#r2">2</a></sup></li>
+  <li><code>$rank</code> (with ties) vs <code>$denseRank</code>; <code>$documentNumber</code> is the physical row number.<sup><a href="#r2">2</a></sup></li>
+  <li>Accumulators become <em>moving</em> when given a <code>window</code> (a documents/range span). Omit <code>window</code> to use the whole partition.</li>
+</ul>
+
+<h2>Running totals and moving averages</h2>
+<pre><code>// running total per region over time
+{ $setWindowFields: {
+    partitionBy: "$region",
+    sortBy: { date: 1 },
+    output: { runningTotal: { $sum: "$total",
+                              window: { documents: [ "unbounded", "current" ] } } }
+} }
+
+// 3-row moving average of quantity
+{ $setWindowFields: {
+    partitionBy: "$region",
+    sortBy: { date: 1 },
+    output: { avg3: { $avg: "$qty",
+                      window: { documents: [ -1, 1 ] } } }
+} }</code></pre>
+<p>Combine with <code>$shift</code> to compare each row to its predecessor (e.g. price change), and time-based <code>range</code> + <code>unit</code> windows for rolling time spans.</p>
+
+<aside class="note"><strong>Key idea</strong> Use <code>$setWindowFields</code> when each row needs <em>its neighbours'</em> influence without collapsing the stream (the way <code>$group</code> would). It is where "trend" and "rank" questions get answered.</aside>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. With $facet, each facet runs…</h4>
+  <button class="opt" data-fb="No — they share the same single input stream.">on its own separate fresh query</button>
+  <button class="opt" data-fb="Correct — on the same input, in one pass, one document out.">on the same single input document stream</button>
+  <button class="opt" data-fb="No — the output holds an array per facet name.">and returns one array, merged together</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A running total that restarts per region needs…</h4>
+  <button class="opt" data-fb="Correct — the partition restarts the window per group.">partitionBy set to the region</button>
+  <button class="opt" data-fb="No — omitting window spans the whole partition, not cumulative.">no window at all</button>
+  <button class="opt" data-fb="No — $group collapses the rows instead of keeping each.">a $group after the stage</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. The window operator that numbers rows 1, 2, 3 in order is…</h4>
+  <button class="opt" data-fb="No — $rank assigns ranks with ties; not simply row number.">$rank</button>
+  <button class="opt" data-fb="No — $shift reads a neighbour's value, not a number.">$shift</button>
+  <button class="opt" data-fb="Correct — $documentNumber gives the 1-based position.">$documentNumber</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/">$facet</a> reference, then the <a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/">$setWindowFields</a> reference for the full window-operator catalogue and the time-based <code>range</code>/<code>unit</code> syntax.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Write a <code>$facet</code> with three facets: orders per region, top seller by quantity, and overall revenue. Then write the <code>$setWindowFields</code> that gives each order a 1-based rank (ties allowed) within its region, sorted by total.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/">MongoDB — $facet</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/">MongoDB — $setWindowFields</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-expressions-conditionals-and-dates.html">← Lesson 7: Expressions &amp; dates</a></span>
+  <span class="nav-next"><a href="0009-performance-and-putting-it-together.html">Lesson 9: Performance &amp; wrap-up →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/aggregations-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MongoDB Aggregations — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  .two-col { display: flex; flex-wrap: wrap; gap: 1.4rem; }
+  .two-col > div { flex: 1 1 46%; min-width: 18rem; }
+  code i { color: var(--accent); font-style: normal; }
+  td code, .q code { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>MongoDB Aggregations</span></div>
+  <h1>Aggregations Cheat Sheet</h1>
+  <p class="subtitle">The compressed essence of the course. Skim before a lesson, study it fully before an interview.</p>
+</header>
+
+<section>
+<h2>1. The pipeline mental model</h2>
+<p>Documents flow through an array of stages; each stage takes documents in and outputs documents, possibly changing their shape. Computation runs in the database; <code>db.collection.aggregate([...])</code> returns a cursor.<sup><a href="#r1">1</a></sup></p>
+<pre><code>db.orders.aggregate([
+  { $match: { status: "fulfilled" } },   // filter early (uses index)
+  { $group: { _id: "$region", total: { $sum: "$total" } } },
+  { $sort: { total: -1 } },
+  { $limit: 5 }
+])</code></pre>
+</section>
+
+<section>
+<h2>2. Core shaping stages</h2>
+<pre><code>{ $match: { status: "fulfilled", price: { $gt: 100 } } }
+{ $project: { title: 1, region: 1, _id: 0 } }      // include/exclude
+{ $addFields: { n: { $size: "$items" } } }          // add computed field
+{ $set:   { flag: true } }                          // add/overwrite fields
+{ $unset: [ "tmp", "secret" ] }                     // remove fields
+{ $sort:  { total: -1, name: 1 } }                  // desc, asc
+{ $limit: 10 }
+{ $skip:  20 }
+{ $count: "total" }                                 // last stage only
+{ $out: "copy" }                                    // last stage only</code></pre>
+<ul>
+  <li><code>$match</code> as early as possible — it is the stage the optimizer/repl can push to an index.<sup><a href="#r4">4</a></sup></li>
+  <li>Computed new fields use <code>$addFields</code>/<code>$set</code>; <code>$project</code> shapes.</li>
+  <li>Put <code>$limit</code> after a big <code>$sort</code> (sort, then limit) — or let the optimizer handle it.<sup><a href="#r6">6</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>3. Grouping &amp; accumulators</h2>
+<pre><code>{ $group: {
+    _id: { region: "$region", year: { $year: "$placed" } },   // group key
+    count: { $sum: 1 },                 // count rows
+    total: { $sum: "$total" },          // sum a field
+    avg:   { $avg: "$total" },          // average
+    minPrice: { $min: "$price" },       // extremes
+    maxPrice: { $max: "$price" },
+    skus:    { $push: "$sku" },         // collect (allows dupes)
+    tags:    { $addToSet: "$tag" },     // collect (unique)
+    firstT:  { $first: "$placed" },     // first in input order
+    whole:   { $push: "$$ROOT" }        // the whole document
+} }</code></pre>
+<ul>
+  <li><code>_id: null</code> aggregates all input into one document.<sup><a href="#r3">3</a></sup></li>
+  <li><code>$group</code> output is <em>unordered</em> and it is a blocking stage.<sup><a href="#r3">3</a></sup></li>
+  <li>The group's output documents must each stay under 16 MiB — watch big <code>$push</code>/<code>$$ROOT</code> arrays.<sup><a href="#r2">2</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>4. Unwind &amp; regroup</h2>
+<pre><code>{ $unwind: "$items" }                      // array of N → N docs
+{ $unwind: { path: "$items", preserveNullAndEmptyArrays: true,
+             includeArrayIndex: "idx" } }   // options form</code></pre>
+<ul>
+  <li>An array of N elements becomes N documents, the field replaced by one element.<sup><a href="#r7">7</a></sup></li>
+  <li>Default drops null/missing/empty-array documents; <code>preserveNullAndEmptyArrays: true</code> keeps them.</li>
+  <li>Common idiom: <code>$unwind</code> → <code>$group</code> back by something in the element.<sup><a href="#r7">7</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>5. Join with $lookup</h2>
+<pre><code>// equality form (left outer join; same database)
+{ $lookup: { from: "users", localField: "customerId",
+             foreignField: "_id", as: "customer" } }
+
+// correlated form: sub-pipeline matching on the current doc
+{ $lookup: { from: "events", let: { oid: "$_id" },
+             pipeline: [ { $match: { $expr: { $eq: ["$orderId", "$$oid"] } } } ],
+             as: "events" } }</code></pre>
+<ul>
+  <li>Adds an <em>array</em> field; empty array when no match (left outer).<sup><a href="#r8">8</a></sup></li>
+  <li>Use <code>$unwind</code> + <code>$match</code> after to emulate an inner join.</li>
+  <li>Correlated form is slower; index the foreign field. Consider embedding instead.</li>
+</ul>
+</section>
+<section>
+<h2>6. Arrays inside a document</h2>
+<pre><code>{ $map:    { input: "$prices", as: "p", in: { $multiply: ["$$p", 2] } } }
+{ $filter: { input: "$items", as: "i", cond: { $gt: ["$$i.qty", 5] } } }
+{ $reduce: { input: "$nums", initialValue: 0,
+             in: { $add: ["$$value", "$$this"] } } }
+{ $slice: [ "$tags", 2 ] }             // first two
+{ $arrayElemAt: [ "$tags", 0 ] }       // first element (scalar)
+{ $size: "$items" }                    // array length
+{ $concatArrays: [ "$a", "$b" ] }      // concatenate arrays
+{ $setUnion: [ "$a", "$b" ] }          // unique elements</code></pre>
+<ul>
+  <li><code>$$this</code> (or <code>$$&lt;as&gt;</code>) references each element; <code>$$IDX</code> its index.<sup><a href="#r12">12</a></sup></li>
+  <li>These transform arrays in place — no <code>$unwind</code> of the whole collection needed.</li>
+</ul>
+</section>
+
+<section>
+<h2>7. Expressions, conditionals &amp; dates</h2>
+<pre><code>{ $add: [ "$a", "$b" ] }  { $subtract: [ "$a", "$b" ] }
+{ $multiply: [ "$a", "$b" ] }  { $divide: [ "$a", "$b" ] }
+
+{ $cond: { if: { $gte: ["$total", 100] }, then: "big", else: "small" } }
+{ $ifNull: [ "$nickname", "$fullName", "anon" ] }
+{ $switch: { branches: [ { case: { $eq: ["$r", "US"] }, then: "americas" } ],
+             default: "other" } }
+
+{ $dateToString: { format: "%Y-%m", date: "$placed" } }
+{ $dateAdd: { startDate: "$placed", unit: "month", amount: 1 } }
+{ $year: "$placed" }  { $month: "$placed" }
+{ $toDate: "$isoString" }</code></pre>
+</section>
+
+<section>
+<h2>8. Advanced: $facet &amp; windows</h2>
+<pre><code>{ $facet: {
+    byRegion:  [ { $group: { _id: "$region", n: { $sum: 1 } } } ],
+    topSellers: [ { $sort: { qty: -1 } }, { $limit: 3 } ],
+    totals:    [ { $group: { _id: null, total: { $sum: "$total" } } } ]
+} }   // one pass, one document with three arrays
+
+{ $setWindowFields: {
+    partitionBy: "$region",
+    sortBy: { date: 1 },
+    output: {
+      rank:   { $rank: {} },                       // 1-based rank
+      docNum: { $documentNumber: {} },
+      runTot: { $sum: "$total", window: { documents: ["unbounded","current"] } }
+    }
+} }</code></pre>
+</section>
+
+<section>
+<h2>9. Limits, memory &amp; speed (design checklist)</h2>
+<ul>
+  <li><strong>16 MiB</strong> per result document (BSON). Big <code>$push</code>/<code>$$ROOT</code>/<code>$lookup</code> arrays blow this up.<sup><a href="#r2">2</a></sup></li>
+  <li><strong>100 MB</strong> per-stage RAM cap; blocking stages (<code>$group</code>, <code>$sort</code>) may spill to disk when <code>allowDiskUse</code> is on.<sup><a href="#r2">2</a></sup></li>
+  <li><strong>1000 stages</strong> maximum in one pipeline.<sup><a href="#r2">2</a></sup></li>
+  <li><strong>Filter first</strong>: put <code>$match</code> and <code>$limit</code> early to shrink the stream.</li>
+  <li><strong>Index the join</strong> foreign key; prefer embedding over <code>$lookup</code> where you can.<sup><a href="#r8">8</a></sup></li>
+  <li><strong>Sort then limit</strong> for top-N; avoid <code>$sort</code> over huge unindexed sets.</li>
+</ul>
+</section>
+<footer class="citation">
+  Primary sources: <a href="https://www.mongodb.com/docs/manual/aggregation/">Aggregation Operations</a>,
+  <a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/group/">$group</a>,
+  <a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/unwind/">$unwind</a>,
+  <a href="https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/">Pipeline Limits</a>.
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/aggregation/">MongoDB — Aggregation Operations</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/">MongoDB — Aggregation Pipeline Limits</a></li>
+    <li id="r3"><a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/group/">MongoDB — $group</a></li>
+    <li id="r4"><a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/match/">MongoDB — $match</a></li>
+    <li id="r6"><a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/sort/">MongoDB — $sort</a></li>
+    <li id="r7"><a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/unwind/">MongoDB — $unwind</a></li>
+    <li id="r8"><a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/">MongoDB — $lookup</a></li>
+    <li id="r12"><a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/filter/">MongoDB — $filter</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="../lessons/0001-why-aggregations.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

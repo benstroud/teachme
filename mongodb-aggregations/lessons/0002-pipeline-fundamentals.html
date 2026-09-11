@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — Pipeline Fundamentals</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 9</span><span>MongoDB Aggregations</span></div>
+  <h1>Pipeline Fundamentals</h1>
+  <p class="subtitle">Filter, shape, sort, cap, and count — the stages nearly every pipeline opens and closes with.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Between the source collection and the final answer, you filter with <code>$match</code>, reshape with <code>$project</code>/<code>$addFields</code>/<code>$set</code>/<code>$unset</code>, order with <code>$sort</code>, and trim with <code>$limit</code>/<code>$skip</code> and report with <code>$count</code>.</p>
+
+<h2>Filter: $match is your first move</h2>
+<p><code>$match</code> keeps only documents that satisfy a query predicate — the same syntax as <code>find</code>. It deserves to be first: it shrinks the stream before any costly stage and is the one stage the query planner can serve from an index.<sup><a href="#r1">1</a></sup></p>
+<pre><code>{ $match: { status: "fulfilled", total: { $gte: 100 } } }</code></pre>
+
+<h2>Reshape: project, add fields, set, unset</h2>
+<pre><code>{ $project: { title: 1, region: 1, _id: 0 } }   // keep only these
+{ $addFields: { itemCount: { $size: "$items" } } } // add computed field
+{ $set:  { reviewed: true } }                      // add or overwrite
+{ $unset: [ "secret", "tmp" ] }                    // drop fields</code></pre>
+<ul>
+  <li><code>$project</code> shapes the output (include/exclude, or just new computed fields). <code>$addFields</code>/<code>$set</code> add and keep everything else.<sup><a href="#r2">2</a></sup></li>
+  <li>Keep <code>$project</code> lean — only carry what later stages need. Less data through each stage is cheaper.</li>
+</ul>
+
+<h2>Order: $sort, then cap with $limit/$skip</h2>
+<pre><code>{ $sort: { region: 1, total: -1 } }   // asc by region, desc by total
+{ $skip: 20 }                          // drop the first 20
+{ $limit: 10 }                         // keep the next 10</code></pre>
+<ul>
+  <li><code>$sort</code> is a blocking stage: it holds the whole input, then emits in order.<sup><a href="#r3">3</a></sup></li>
+  <li>For "top N" always <code>$sort</code> then <code>$limit</code>; <code>$skip</code>/<code>$limit</code> together give paging.</li>
+</ul>
+
+<h2>Report: $count and $out</h2>
+<pre><code>{ $count: "fulfilledOrders" }   // one doc: { fulfilledOrders: N } — must be last
+{ $out: "fulfilledSnapshot" }   // write the pipeline output to a collection — last</code></pre>
+<ul>
+  <li><code>$count</code> returns a single document with the running count; it must be the final stage.</li>
+  <li><code>$out</code> replaces the target collection; <code>$merge</code> merges into one (both last-stage).<sup><a href="#r4">4</a></sup></li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> Order is a cost decision. Push <code>$match</code> and <code>$limit</code> as early as you safely can, keep <code>$project</code> narrow, and let only the stages that must, block.</aside>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Which stage should open a pipeline, and why?</h4>
+  <button class="opt" data-fb="No — sort is blocking and should come later, after grouping.">$sort, because it orders everything first</button>
+  <button class="opt" data-fb="Correct — $match filters early and is the stage an index best serves.">$match, because it filters early and uses an index</button>
+  <button class="opt" data-fb="No — $project narrows fields but does not filter documents.">$project, because it trims every document</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. To keep all existing fields and add a computed one, use…</h4>
+  <button class="opt" data-fb="Correct — $addFields adds and keeps everything else.">$addFields</button>
+  <button class="opt" data-fb="No — $unset removes fields, the opposite of what we want.">$unset</button>
+  <button class="opt" data-fb="No — $count summarizes instead of adding a field per document.">$count</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. For "top 5 by total", the correct stage order is…</h4>
+  <button class="opt" data-fb="No — limiting first keeps arbitrary documents and then you sort a tiny subset.">$limit then $sort</button>
+  <button class="opt" data-fb="No — skipping before sorting drops the wrong documents.">$skip then $sort then $limit</button>
+  <button class="opt" data-fb="Correct — rank everything, then cut to the top five.">$sort then $limit</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Browse the manual's stage pages for <a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/match/">$match</a>, <a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/project/">$project</a>, and <a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/sort/">$sort</a> for the exact option objects and behaviors.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Write a pipeline that returns the 20 highest-total fulfilled orders in the Pacific region, showing only order id and total — then say which stage you would move earlier if the collection were huge, and why.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/match/">MongoDB — $match</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/project/">MongoDB — $project</a></li>
+    <li id="r3"><a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/sort/">MongoDB — $sort</a></li>
+    <li id="r4"><a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/merge/">MongoDB — $merge</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-why-aggregations.html">← Lesson 1: Why aggregations</a></span>
+  <span class="nav-next"><a href="0003-grouping-and-accumulators.html">Lesson 3: $group &amp; accumulators →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/aggregations-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

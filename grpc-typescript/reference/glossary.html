@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>gRPC TypeScript — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>gRPC TypeScript</span></div>
+  <h1>gRPC Glossary</h1>
+  <p class="subtitle">Every term in this course, in one place. Return here when a lesson uses a word you do not fully own.</p>
+</header>
+
+<section>
+<h2>The contract</h2>
+<dl>
+  <dt><strong>IDL (Interface Definition Language)</strong></dt>
+  <dd>A language for describing an interface in a tool-readable way. gRPC uses Protocol Buffers (<code>.proto</code>) as both its IDL and its message wire format. The same file is compiled to clients and servers in many languages.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>proto / proto3</strong></dt>
+  <dd>The Protocol Buffers schema syntax. <code>proto3</code> is the version recommended with gRPC: simplified syntax, first-class multiplatform support.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>message</strong></dt>
+  <dd>A structured record in a <code>.proto</code>, made of typed, <em>numbered</em> fields. Compiled into data-access classes. e.g. <code>message Person { string name = 1; }</code>.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>field number</strong></dt>
+  <dd>The integer identifying a field on the wire. Write-once: never reuse a number (older readers corrupt data) and never rename the meaning of one. This is the backbone of forward/backward compatibility.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>scalar type</strong></dt>
+  <dd>A primitive field type: <code>int32</code>, <code>int64</code>, <code>uint32</code>, <code>uint64</code>, <code>sint32</code>, <code>sint64</code>, <code>fixed32</code>, <code>fixed64</code>, <code>float</code>, <code>double</code>, <code>bool</code>, <code>string</code>, <code>bytes</code>.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>enum</strong></dt>
+  <dd>A named set of integer constants allowed in a field; the first value must be <code>0</code> in proto3.</dd>
+
+  <dt><strong>repeated</strong></dt>
+  <dd>Marker making a field a list (an array of that type). The protobuf equivalent of a typed collection.</dd>
+
+  <dt><strong>service</strong></dt>
+  <dd>The interface being exposed, containing <code>rpc</code> methods. The server implements it; the client gets a generated stub with the same methods.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>rpc method / call type</strong></dt>
+  <dd>A single remote method. Four kinds: unary, server-streaming, client-streaming, and bidirectional streaming — determined by <code>stream</code> appearing on the request and/or response.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>protoc</strong></dt>
+  <dd>The Protocol Buffers compiler. With a gRPC plugin it also emits client/server stubs for each language.<sup><a href="#r1">1</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Transport &amp; runtime</h2>
+<dl>
+  <dt><strong>HTTP/2</strong></dt>
+  <dd>The transport gRPC runs on: multiplexed streams, binary framing, header compression, flow control. This is what makes true streaming and low-overhead multiplexed calls feasible.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>channel</strong></dt>
+  <dd>A client-side connection to a server (with its connection pooling, name resolution, and load-balancing config). A client stub is bound to a channel.<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>stub (client)</strong></dt>
+  <dd>The generated client object exposing the service's methods locally; each call is serialized and sent over the channel. Also called &ldquo;the client&rdquo;.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>deadline</strong></dt>
+  <dd>The point in time past which a client is unwilling to wait; the local gRPC library fails the call with <code>DEADLINE_EXCEEDED</code>. There is <em>no default</em> — set one or you may wait forever.<sup><a href="#r6">6</a></sup></dd>
+
+  <dt><strong>metadata</strong></dt>
+  <dd>Key/value side channel attached to a call, carried as HTTP/2 headers (sent before the first message) and trailers (sent by the server when it closes the call). Keys must not start with <code>grpc-</code>. Used for auth tokens, request IDs, trace context, tenant headers.<sup><a href="#r7">7</a></sup></dd>
+
+  <dt><strong>status code</strong></dt>
+  <dd>The integer outcome of every RPC (0 = OK … 16 = UNAUTHENTICATED). The gRPC library and your app both choose codes; some codes are generated only by user code.<sup><a href="#r8">8</a></sup></dd>
+
+  <dt><strong>interceptor</strong></dt>
+  <dd>Middleware applied to every RPC on a channel or server: logging, metadata injection, auth, metrics, fault injection. Split into client and server interceptors.<sup><a href="#r9">9</a></sup></dd>
+
+  <dt><strong>call credentials</strong></dt>
+  <dd>Per-RPC credentials (e.g. a token) attached via a metadata generator, combined with channel credentials. The idiomatic way to do client-side auth — better than an interceptor.<sup><a href="#r10">10</a></sup></dd>
+
+  <dt><strong>channel credentials</strong></dt>
+  <dd>Transport-level credentials: <code>createInsecure()</code> or <code>createSsl(rootCert)</code> for TLS.<sup><a href="#r10">10</a></sup></dd>
+
+  <dt><strong>toolchain: @grpc/grpc-js</strong></dt>
+  <dd>The maintained pure-JS gRPC implementation for Node. Client, server, and channel API.</dd>
+
+  <dt><strong>loaders &amp; codegen</strong></dt>
+  <dd><code>@grpc/proto-loader</code> loads a <code>.proto</code> at runtime (dynamic). <code>grpc-tools</code> / <code>buf</code> compile a <code>.proto</code> to static TypeScript stubs ahead of time (static) — better type safety.<sup><a href="#r11">11</a></sup></dd>
+</dl>
+</section>
+
+<section>
+<h2>Resilience &amp; context</h2>
+<dl>
+  <dt><strong>transparent retry</strong></dt>
+  <dd>Retry done by the gRPC client even with no policy: unlimited while the RPC never left the client; a single retry if it reached the server but not the app logic. Safe because gRPC is certain the work wasn't processed.<sup><a href="#r12">12</a></sup></dd>
+
+  <dt><strong>retryPolicy</strong></dt>
+  <dd>Service-config settings (<code>maxAttempts</code>, <code>initialBackoff</code>, <code>maxBackoff</code>, <code>backoffMultiplier</code>, <code>retryableStatusCodes</code>) enabling per-method retries; jitter ±20% is applied. No default policy is configured.<sup><a href="#r12">12</a></sup></dd>
+
+  <dt><strong>idempotency</strong></dt>
+  <dd>The property that a handler produces the same observable result whether a request is executed once or repeatedly. Required to retry safely, since retries can duplicate side effects.</dd>
+
+  <dt><strong>cancellation</strong></dt>
+  <dd>When a client cancels (deadline expiry, user cancel), the server is told to abandon work; the app must stop its own sub-work. The server sees the call as cancelled.</dd>
+
+  <dt><strong>trace context</strong></dt>
+  <dd>Identifying metadata propagated across calls so a single logical request can be assembled from many service spans (e.g. W3C <code>traceparent</code> / gRPC <code>grpc-trace-bin</code>).<sup><a href="#r13">13</a></sup></dd>
+
+  <dt><strong>BFF (Backend-for-Frontend)</strong></dt>
+  <dd>A client-facing service (here a GraphQL and/or REST layer) that sits at the edge and fans out to domain services behind it.</dd>
+</dl>
+</section>
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://grpc.io/docs/what-is-grpc/introduction/">gRPC — Introduction to gRPC</a></li>
+    <li id="r2"><a href="https://protobuf.dev/programming-guides/proto3/">protobuf.dev — Language Guide (proto3)</a></li>
+    <li id="r3"><a href="https://protobuf.dev/programming-guides/encoding/">protobuf.dev — Encoding (wire format)</a></li>
+    <li id="r4"><a href="https://grpc.io/docs/what-is-grpc/core-concepts/">gRPC — Core concepts</a></li>
+    <li id="r5"><a href="https://grpc.io/docs/what-is-grpc/core-concepts/">gRPC — Core concepts (channels)</a></li>
+    <li id="r6"><a href="https://grpc.io/docs/guides/deadlines/">gRPC — Deadlines</a></li>
+    <li id="r7"><a href="https://grpc.io/docs/guides/metadata/">gRPC — Metadata</a></li>
+    <li id="r8"><a href="https://grpc.io/docs/guides/status-codes/">gRPC — Status codes</a></li>
+    <li id="r9"><a href="https://grpc.io/docs/guides/interceptors/">gRPC — Interceptors</a></li>
+    <li id="r10"><a href="https://grpc.io/docs/guides/auth/">gRPC — Authentication</a></li>
+    <li id="r11"><a href="https://github.com/grpc/grpc-node/blob/master/PACKAGE-COMPARISON.md">grpc-node — package comparison</a></li>
+    <li id="r12"><a href="https://grpc.io/docs/guides/retry/">gRPC — Retry</a></li>
+    <li id="r13"><a href="https://opentelemetry.io/docs/specs/otlp/">OpenTelemetry — instrumentation</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Mission &amp; notes</span>
+  <span class="nav-next"><a href="../lessons/0001-why-grpc-for-domain-services.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../NOTES.md">Notes</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

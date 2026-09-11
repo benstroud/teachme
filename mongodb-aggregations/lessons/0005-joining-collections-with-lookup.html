@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — Joining Collections with $lookup</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 9</span><span>MongoDB Aggregations</span></div>
+  <h1>Joining Collections with $lookup</h1>
+  <p class="subtitle">Enrich each document with related documents from another collection — a left outer join in the same database.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p><code>$lookup</code> performs a <em>left outer join</em> to another collection in the <em>same database</em>, adding a new array field whose entries are the matching foreign documents (an empty array when there is no match).<sup><a href="#r1">1</a></sup></p>
+
+<h2>The equality form</h2>
+<pre><code>{ $lookup: {
+    from: "customers",
+    localField: "customerId",     // field on the input documents
+    foreignField: "_id",          // field on the "from" docs
+    as: "customer"
+} }</code></pre>
+<p>Each input order gets a <code>customer</code> array — one element when a customer matches, empty when it doesn't:</p>
+<pre><code>{ _id: 10, orderId: "o1", customerId: 55 }
+→
+{ _id: 10, orderId: "o1", customerId: 55,
+  customer: [ { _id: 55, email: "ada@x.dev" } ] }</code></pre>
+
+<h2>Making it look like a single row</h2>
+<p>Because <code>$lookup</code> returns an array, the common next move is <code>$unwind</code> to flatten it, and a <code>$match</code> to drop non-matches — emulating an inner join:</p>
+<pre><code>db.orders.aggregate([
+  { $lookup: { from: "customers", localField: "customerId",
+               foreignField: "_id", as: "customer" } },
+  { $unwind: "$customer" },        // one order per customer match
+  { $match:  { "customer.region": "US" } }
+])</code></pre>
+
+<h2>The correlated form: let + pipeline</h2>
+<p>When equality isn't enough (join on a computed or interrogatable condition), use <code>let</code> to bind the current document's fields, then run a <code>pipeline</code> inside <code>$lookup</code> that references them with <code>$$var</code>:</p>
+<pre><code>{ $lookup: {
+    from: "events",
+    let: { oid: "$_id", after: "$someDate" },
+    pipeline: [
+      { $match: { $expr: { $and: [
+          { $eq: [ "$orderId", "$$oid" ] },
+          { $gt: [ "$when", "$$after" ] }
+      ] } } }
+    ],
+    as: "postEvents"
+} }</code></pre>
+<p>The sub-pipeline runs once per input document, so the correlated form is heavier — index the foreign field, or rethink the model.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Joins are a signal to reconsider your model. MongoDB prefers <em>embedded</em> related data over joins; use <code>$lookup</code> when data is genuinely separate (customers, users), and keep the joined data out of the 16 MiB result limit (Lesson 9).<sup><a href="#r2">2</a></sup></aside>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. $lookup returns the foreign matches as…</h4>
+  <button class="opt" data-fb="No — it always adds an array field, even for a single match.">a single embedded document</button>
+  <button class="opt" data-fb="Correct — an array field, empty when there is no match.">an array field on each document</button>
+  <button class="opt" data-fb="No — $lookup may only join within one database.">a separate result collection</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. When an order has no matching customer, customer is…</h4>
+  <button class="opt" data-fb="No — the field is an empty array, not null.">null</button>
+  <button class="opt" data-fb="No — left outer means the order is still emitted.">the order is dropped entirely</button>
+  <button class="opt" data-fb="Correct — left outer join keeps the order with an empty array.">an empty array</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. To emulate an inner join after $lookup…</h4>
+  <button class="opt" data-fb="Correct — unwind, then match on the joined field.">$unwind then $match</button>
+  <button class="opt" data-fb="No — sorting does not remove non-matches.">$sort then $limit</button>
+  <button class="opt" data-fb="No — $count summarizes instead of filtering matches.">$count then $out</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>The <a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/">$lookup</a> reference covers both syntaxes and the correlated-subquery performance notes. Then read <a href="https://www.mongodb.com/docs/manual/data-modeling/embedding/">data modeling — embedding</a> to see why MongoDB often prefers embedded data over joins.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Given an <code>orders</code> collection with <code>customerId</code> and a <code>customers</code> collection keyed by <code>_id</code>, write the pipeline that lists US customers' orders with the customer's email. Then say whether you'd model customers embedded instead, and why or why not.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/">MongoDB — $lookup</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/">MongoDB — $lookup (performance considerations)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-unwinding-and-regrouping-arrays.html">← Lesson 4: Unwind arrays</a></span>
+  <span class="nav-next"><a href="0006-transforming-arrays-in-place.html">Lesson 6: Arrays in place →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/aggregations-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

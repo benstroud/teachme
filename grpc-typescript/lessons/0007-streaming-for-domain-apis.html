@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — Streaming for Domain APIs</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 9</span><span>gRPC TypeScript</span></div>
+  <h1>Streaming for Domain APIs</h1>
+  <p class="subtitle">The <code>stream</code> keyword and when a domain service should actually earn its complexity by using it.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Streaming means a single RPC carries <em>many</em> messages in one direction (or both), flowing over one HTTP/2 stream instead of many separate calls.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The four call kinds, recap</h2>
+<table>
+  <tr><th>Kind</th><th>Request</th><th>Response</th><th>Domain use</th></tr>
+  <tr><td>Unary</td><td>one</td><td>one</td><td>default; most domain reads/writes</td></tr>
+  <tr><td>Server-streaming</td><td>one</td><td>many</td><td>bulk query / paging a big result</td></tr>
+  <tr><td>Client-streaming</td><td>many</td><td>one</td><td>bulk ingest / batch writes</td></tr>
+  <tr><td>Bidirectional</td><td>many</td><td>many</td><td>live sync / chat; use rarely</td></tr>
+</table>
+
+<h2>Server-streaming in the client</h2>
+<pre><code>const call = client.listOrders({ customer_id: "c_1" });   // returns a stream
+call.on("data", (order) =&gt; { /* accumulate or forward each Order */ });
+call.on("end",  () =&gt; { /* stream finished cleanly */ });
+call.on("error", (err) =&gt; { /* a status code is here */ });</code></pre>
+<p>Server-streaming shines when a result can be huge (all orders for a customer) — the server starts sending the first row while it still materializes the rest. The server calls <code>write(order)</code> repeatedly and <code>end()</code> when done. Watch backpressure: a slow BFF resolver should stop pulling from the domain stream when it can't keep up.</p>
+
+<h2>Client-streaming for bulk ingest</h2>
+<pre><code>// client: write many requests, then finish with one response callback
+const call = client.submitBatch((err, summary) =&gt; { /* one final summary */ });
+for (const order of batch) call.write(order);
+call.end();</code></pre>
+<p>Use it to push a large batch to a domain service and get a single result — e.g. importing a week of inventory.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Bidirectional: rare by design</h2>
+<p>Bidi (<code>rpc Sync(stream Req) returns (stream Res)</code>) lets both ends write independently, like a WebSocket. It's powerful for live sync, but costs: harder load-balancing, harder retries/dedup, more state. In a domain layer, reach for it only when streaming both ways is genuinely needed.</p>
+
+<aside class="note"><strong>Key idea</strong> Streaming is a tool, not a default. Prefer unary RPCs — they are simple and retryable. Add streaming when the volume or latency pattern (bulk query, bulk ingest) makes a stream of many messages over one connection materially better.</aside>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. A "list every order for this customer" RPC is best declared as…</h4>
+  <button class="opt" data-fb="Correct — many rows flow over one stream, streaming as they are produced.">server-streaming: returns (stream Order)</button>
+  <button class="opt" data-fb="No — you would send all ids as separate messages, which wastes the single-request shape.">client-streaming: (stream Req) returns (stream Order)</button>
+  <button class="opt" data-fb="No — that fits one request/one response, not a huge page.">unary: returns (Order)</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. Importing 10,000 inventory rows and getting one summary is…</h4>
+  <button class="opt" data-fb="No — you aren't streaming back a response per row; the result is a single summary.">server-streaming on the response side</button>
+  <button class="opt" data-fb="No — bidi needs streaming in both directions, which you don't need here.">bidirectional streaming</button>
+  <button class="opt" data-fb="Correct — many wrote messages, one final response.">client-streaming then one response</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. The default bias for a domain API should be…</h4>
+  <button class="opt" data-fb="No — bidi is powerful but the costliest; it is the exception, not the rule.">bidirectional for maximum flexibility</button>
+  <button class="opt" data-fb="Correct — unary is simple and retryable; add streaming only where it pays.">unary, escalating to streaming where volume or latency justifies it</button>
+  <button class="opt" data-fb="No — streaming everywhere ignores its real costs in load-balancing and retries.">streaming everywhere to use HTTP/2 fully</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Work the streaming half of the <a href="https://grpc.io/docs/languages/node/basics/">Node basics tutorial</a> and the RPC-kinds section of <a href="https://grpc.io/docs/what-is-grpc/core-concepts/">Core Concepts</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> For each of three RPCs — (a) get one order, (b) download all of a customer's orders, (c) push a batch of stock movements — name the call kind and one thing that could go wrong with a BFF consuming it too slowly.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://grpc.io/docs/what-is-grpc/core-concepts/">gRPC — Core concepts (RPC kinds)</a></li>
+    <li id="r2"><a href="https://grpc.io/docs/languages/node/basics/">gRPC — Node basics (streaming)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-metadata-context-and-auth.html">← Lesson 6: Metadata &amp; auth</a></span>
+  <span class="nav-next"><a href="0008-the-bff-boundary.html">Lesson 8: The BFF boundary →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/grpc-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

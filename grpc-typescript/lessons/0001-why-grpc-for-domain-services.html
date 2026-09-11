@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — Why gRPC for Domain Services</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 9</span><span>gRPC TypeScript</span></div>
+  <h1>Why gRPC for Domain Services</h1>
+  <p class="subtitle">The hand-rolled JSON hop between your BFFs and your domain services is the class of problem gRPC exists to solve.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>gRPC is a way for one <em>server</em> to call a method on another server as if it were a local object — with a typed, versioned, machine-readable contract between them instead of a drifting pile of JSON.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Where your architecture actually breaks</h2>
+<p>Client-facing traffic ends at the edge: a GraphQL BFF and a REST BFF. They request data from a layer of smaller domain services (orders, catalog, inventory, billing). The fracture point is <em>that middle hop</em> — BFF → domain service. Hand-written REST between every pair produces:</p>
+<ul>
+  <li><strong>No contract.</strong> The "schema" is whatever a converter and a constructor happen to agree on this week. A field rename in one service silently breaks the caller.</li>
+  <li><strong>Ad-hoc serialization.</strong> JSON-in-JSON-out, stringified by hand, parsed by guess, validated nowhere.</li>
+  <li><strong>Per-call overhead.</strong> Each call opens another HTTP/1.1 request; fan-out multiplies it.</li>
+  <li><strong>No shared type safety.</strong> TypeScript types on each side drift because nothing generates them from one source of truth.</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> The client-facing protocols (GraphQL, REST) serve browsers and external clients. The service-to-service protocol can be far more structured, because you control both ends.</aside>
+
+<h2>What gRPC gives you</h2>
+<table>
+  <tr><th>Property</th><th>What it means for a domain layer</th></tr>
+  <tr><td>Contract-first IDL</td><td>The <code>.proto</code> file is the single source of truth. Services are <em>defined</em>, not discovered by reading code.</td></tr>
+  <tr><td>Codegen</td><td>Client stubs and server handlers are generated in TypeScript (and other languages) from the same file — no drift.</td></tr>
+  <tr><td>Binary encoding</td><td>Protocol Buffers are small and fast to serialize — less payload per fan-out call.</td></tr>
+  <tr><td>HTTP/2 transport</td><td>Multiplexed streams, header compression, and true streaming (see Lesson 7).<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td>Status codes</td><td>A typed outcome on every RPC (0–16) instead of "it 500'd".</td></tr>
+  <tr><td>Cross-language</td><td>The same contract can serve a Go catalog service and a TypeScript orders service.</td></tr>
+</table>
+
+<h2>Where gRPC does NOT belong</h2>
+<ul>
+  <li><strong>In the browser.</strong> Browsers don't speak HTTP/2 gRPC natively; gRPC-web needs a proxy and loses benefits. Keep gRPC server-side and let the BFFs be its clients.<sup><a href="#r3">3</a></sup></li>
+  <li><strong>For public, third-party APIs</strong> where clients are unruly and discoverability matters — HTTP/JSON and OpenAPI fit better.</li>
+  <li><strong>Tiny two-service systems</strong> where the overhead of a contract layer outweighs the benefit. The payoff comes when several domain services sit under several BFFs.</li>
+</ul>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. The primary reason gRPC fits the BFF → domain-service hop is…</h4>
+  <button class="opt" data-fb="Correct — you own both ends, so a rich, machine-readable contract earns its keep.">you control both ends, so a typed contract beats drifting JSON</button>
+  <button class="opt" data-fb="No — browser constraints are a reason to keep gRPC away from the edge, not toward it.">it is the only protocol browsers can call directly</button>
+  <button class="opt" data-fb="No — that is what REST/GraphQL are for; gRPC thrives where clients are servers too.">it replaces the need for your GraphQL and REST BFFs entirely</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. What is the single source of truth for a gRPC service's interface?</h4>
+  <button class="opt" data-fb="No — generated stubs are derived from the contract, not the other way around.">the generated TypeScript stubs in the client repo</button>
+  <button class="opt" data-fb="No — a README describes, but nothing enforces it; the wire reads the proto.">a hand-maintained README of endpoints</button>
+  <button class="opt" data-fb="Correct — the .proto file is compiled to both sides, so it can't drift.">the .proto contract file shared by both sides</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. gRPC belongs on the service-to-service boundary rather than at the edge because…</h4>
+  <button class="opt" data-fb="No — the edge speaks HTTP/1/GraphQL/REST specifically to reach browsers.">browsers enjoy HTTP/2 multiplexing the most</button>
+  <button class="opt" data-fb="Correct — at the edge you serve external clients; internally you can demand a structured contract.">you control both ends internally and can demand a structured contract</button>
+  <button class="opt" data-fb="No — error mapping is done at the BFF precisely because the edge is different.">it makes error messages identical to REST status codes</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>The official orientation: <a href="https://grpc.io/docs/what-is-grpc/introduction/">gRPC — Introduction</a>. It walks the stub/client model and Protocol Buffers as IDL that anchors this entire course.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Sketch your own BFF → domain-service fan-out (say, a GraphQL resolver that needs order, inventory, and billing). Write down what a JSON REST call for each would look like. Then re-read the four failure modes above and name which ones you have actually hit.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://grpc.io/docs/what-is-grpc/introduction/">gRPC — Introduction to gRPC</a></li>
+    <li id="r2"><a href="https://grpc.io/docs/what-is-grpc/introduction/">gRPC — Introduction (HTTP/2 &amp; protobuf)</a></li>
+    <li id="r3"><a href="https://grpc.io/docs/languages/web/basics/">gRPC-web — basics</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="0002-the-proto-contract.html">Lesson 2: The proto contract →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/grpc-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

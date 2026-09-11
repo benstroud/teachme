@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MongoDB Aggregations — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>MongoDB Aggregations</span></div>
+  <h1>Aggregations Glossary</h1>
+  <p class="subtitle">Every term in this course, in one place. Return here when a lesson uses a word you do not fully own.</p>
+</header>
+
+<section>
+<h2>The pipeline</h2>
+<dl>
+  <dt><strong>Aggregation pipeline</strong></dt>
+  <dd>An array of stages run against a collection. Documents flow through each stage in order; each stage takes documents in, processes them, and outputs documents, so the shape of the stream can change stage to stage.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>Stage</strong></dt>
+  <dd>One operation in the pipeline (e.g. <code>$match</code>, <code>$group</code>). Order matters — a stage operates on the output of the previous stage.</dd>
+
+  <dt><strong>Streaming stage</strong></dt>
+  <dd>A stage that can emit documents as they arrive (e.g. <code>$match</code>, <code>$limit</code>), without needing the whole input first.</dd>
+
+  <dt><strong>Blocking stage</strong></dt>
+  <dd>A stage that must consume all its input before emitting anything (e.g. <code>$sort</code>, <code>$group</code>). Uses memory; may spill to disk past 100 MB.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>Stage order</strong></dt>
+  <dd>The sequence of stages. Put filters/limits early to shrink what later stages see; the order changes the result and the cost.</dd>
+
+  <dt><strong>Field path</strong></dt>
+  <dd>How an expression refers to a field, written with a leading <code>$</code>, e.g. <code>"$price"</code> or <code>"$items.price"</code>. Distinguish from literal strings and from <code>$$variable</code> references.</dd>
+
+  <dt><strong>Accumulator</strong></dt>
+  <dd>An operator used inside <code>$group</code> that folds many values into one (<code>$sum</code>, <code>$avg</code>, <code>$push</code>, …).<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>Group key</strong></dt>
+  <dd>The <code>_id</code> expression in <code>$group</code> that decides which documents share a bucket. <code>null</code> groups everything into a single document.<sup><a href="#r3">3</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Core stages</h2>
+<dl>
+  <dt><strong>$match</strong></dt>
+  <dd>Filters documents by a query predicate — the pipeline stage that best uses an index. Put it as early as possible.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>$project</strong></dt>
+  <dd>Shapes the output document: include/exclude fields, or compute new <code>field: &lt;expression&gt;</code> fields. 1/0 inclusion <em>and</em> computed new fields in one stage was only valid before 4.4 — computed fields want <code>$addFields</code> or <code>$project</code> with inclusions.<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>$addFields / $set</strong></dt>
+  <dd>Add or overwrite fields without removing others; <code>$unset</code> removes fields.</dd>
+
+  <dt><strong>$sort</strong></dt>
+  <dd>Orders documents by one or more keys (1 asc / -1 desc). Blocking; prefers an index; often placed after <code>$group</code> and before <code>$limit</code>.<sup><a href="#r6">6</a></sup></dd>
+
+  <dt><strong>$limit / $skip / $count</strong></dt>
+  <dd><code>$limit</code> caps the number of documents; <code>$skip</code> drops the first N; <code>$count</code> returns a single count document and must be the last stage.</dd>
+
+  <dt><strong>$unwind</strong></dt>
+  <dd>Deconstructs an array: an array of N yields N documents, each with the array field replaced by one element. Drops null/missing/empty unless <code>preserveNullAndEmptyArrays</code>.<sup><a href="#r7">7</a></sup></dd>
+
+  <dt><strong>$lookup</strong></dt>
+  <dd>Performs a left outer join into another collection <em>in the same database</em>, adding an array field of matching documents.<sup><a href="#r8">8</a></sup></dd>
+
+  <dt><strong>$facet</strong></dt>
+  <dd>Runs multiple independent sub-pipelines on the same input in one pass; each result lands under its own facet key.</dd>
+
+  <dt><strong>$setWindowFields</strong></dt>
+  <dd>Adds fields computed across a window (partition) of ordered documents: ranks, running totals, moving averages, shifts.<sup><a href="#r9">9</a></sup></dd>
+
+  <dt><strong>$out / $merge</strong></dt>
+  <dd>Write the pipeline's output into a collection: <code>$out</code> replaces the target (must be the last stage); <code>$merge</code> merges into an existing collection.</dd>
+</dl>
+</section>
+
+<section>
+<h2>Variables, expressions &amp; memory</h2>
+<dl>
+  <dt><strong>$$ROOT</strong></dt>
+  <dd>The current input document as a whole. Used to group entire documents: <code>{ $push: "$$ROOT" }</code>.<sup><a href="#r10">10</a></sup></dd>
+
+  <dt><strong>$$CURRENT / $$REMOVE / $$NOW / $$IDX</strong></dt>
+  <dd><code>$$CURRENT</code> = current document/field; <code>$$REMOVE</code> = drop a field; <code>$$NOW</code> = the command's start date; <code>$$IDX</code> = current array element index (8.3).<sup><a href="#r10">10</a></sup></dd>
+
+  <dt><strong>Expression operators</strong></dt>
+  <dd>Functions used inside a stage to compute values, e.g. <code>$add</code>, <code>$multiply</code>, <code>$cond</code>, <code>$ifNull</code>, <code>$dateToString</code>, <code>$filter</code>, <code>$map</code>.</dd>
+
+  <dt><strong>16 MiB BSON document limit</strong></dt>
+  <dd>The maximum size of any single BSON document. Every aggregation <em>result</em> document must stay under it, or the aggregation errors.<sup><a href="#r11">11</a></sup></dd>
+
+  <dt><strong>100 MB per-stage limit</strong></dt>
+  <dd>Pipeline stages needing more than ~100 MB of RAM either spill to disk or error, depending on <code>allowDiskUse</code>. <code>$group</code>, <code>$sort</code>, <code>$setWindowFields</code>, <code>$bucket*</code> can spill.<sup><a href="#r11">11</a></sup></dd>
+
+  <dt><strong>allowDiskUse</strong></dt>
+  <dd>The option (or <code>allowDiskUseByDefault</code> parameter) that lets memory-hungry stages write temporary files to disk instead of erroring past 100 MB.</dd>
+</dl>
+</section>
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/aggregation/">MongoDB — Aggregation Operations</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/core/aggregation-pipeline/">MongoDB — Aggregation Pipeline</a></li>
+    <li id="r3"><a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/group/">MongoDB — $group</a></li>
+    <li id="r4"><a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/match/">MongoDB — $match</a></li>
+    <li id="r5"><a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/project/">MongoDB — $project</a></li>
+    <li id="r6"><a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/sort/">MongoDB — $sort</a></li>
+    <li id="r7"><a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/unwind/">MongoDB — $unwind</a></li>
+    <li id="r8"><a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/">MongoDB — $lookup</a></li>
+    <li id="r9"><a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields/">MongoDB — $setWindowFields</a></li>
+    <li id="r10"><a href="https://www.mongodb.com/docs/manual/reference/aggregation-variables/">MongoDB — Variables in aggregation expressions</a></li>
+    <li id="r11"><a href="https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/">MongoDB — Aggregation Pipeline Limits</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Mission &amp; notes</span>
+  <span class="nav-next"><a href="../lessons/0001-why-aggregations.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../NOTES.md">Notes</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — The proto Contract</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 9</span><span>gRPC TypeScript</span></div>
+  <h1>The proto Contract</h1>
+  <p class="subtitle">Messages, field numbers, and the compatibility rules that let an old server talk to a new client.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A <code>.proto</code> file is a plain-text schema: <code>message</code> blocks of typed, <em>numbered</em> fields. One tool (<code>protoc</code>) compiles it into data classes for every language, so the same schema generates both your TypeScript client and your TypeScript server.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Messages: typed, numbered fields</h2>
+<pre><code>syntax = "proto3";
+
+package orders.v1;
+
+message Address {
+  string line1 = 1;
+  string city   = 2;
+  string zip    = 3;
+}
+
+message Order {
+  string        id          = 1;
+  string        customer_id = 2;
+  repeated LineItem items   = 3;   // a list of LineItem
+  Address       ship_to     = 4;   // a nested message
+  Status        status      = 5;   // an enum
+}
+
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_PLACED      = 1;
+  STATUS_FULFILLED   = 2;
+}</code></pre>
+<ul>
+  <li>Scalar types to remember: <code>string</code>, <code>bool</code>, <code>bytes</code>, <code>int32/int64</code>, <code>uint32/64</code>, <code>float</code>, <code>double</code>.<sup><a href="#r2">2</a></sup></li>
+  <li><code>repeated</code> makes a field a list. Enums come from a named <code>enum</code>; its first value is <code>0</code> (the default).</li>
+  <li>Types can reference other messages in the same file, or imported ones (<code>import "google/protobuf/timestamp.proto";</code>).</li>
+</ul>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. What identifies a field on the wire in protobuf?</h4>
+  <button class="opt" data-fb="No — the name is for humans; removing it from docs still transmits data correctly.">the field's name in the .proto file</button>
+  <button class="opt" data-fb="Correct — the receiver locates fields by their number via the tag.">the field number, encoded in the tag</button>
+  <button class="opt" data-fb="No — field order in the file has no wire meaning; tags carry the number.">the order the field appears in the message</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. You deleted field 5 and later need a new string field. The safe move is…</h4>
+  <button class="opt" data-fb="Correct — reuse only a number that was never used, and reserve 5 so nobody reuses it.">use a brand-new number and reserve 5</button>
+  <button class="opt" data-fb="No — an old server still maps 5 to the deleted field, corrupting data.">reuse number 5 since the old field is gone</button>
+  <button class="opt" data-fb="No — reserved protects you, and a new number is still required for the field.">reuse number 5 but mark it reserved first</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. Adding a new field with a fresh number is…</h4>
+  <button class="opt" data-fb="No — this is the historic weakness of ad-hoc JSON, not protobuf's design.">a breaking change that requires all clients to redeploy</button>
+  <button class="opt" data-fb="No — old servers skip unknown fields and new servers read them; that is the point.">only safe if both sides upgrade at the same instant</button>
+  <button class="opt" data-fb="Correct — unknown fields are preserved and skipped, so old and new interoperate.">compatible in both directions thanks to field numbers</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>The authoritative syntax and compatibility rules live in the <a href="https://protobuf.dev/programming-guides/proto3/">proto3 language guide</a> ("Updating A Message Type"). The <a href="https://protobuf.dev/programming-guides/encoding/">wire-format</a> page explains the tag you saw here.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Take your <code>Order</code> message. Add <code>string external_ref = 6;</code>, then write one sentence explaining why an already-deployed catalog service and a brand-new orders service can still talk after that change.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://grpc.io/docs/what-is-grpc/introduction/">gRPC — Introduction (protobuf as IDL)</a></li>
+    <li id="r2"><a href="https://protobuf.dev/programming-guides/proto3/">protobuf.dev — proto3 language guide</a></li>
+    <li id="r3"><a href="https://protobuf.dev/programming-guides/encoding/">protobuf.dev — Encoding (wire format)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-why-grpc-for-domain-services.html">← Lesson 1: Why gRPC</a></span>
+  <span class="nav-next"><a href="0003-defining-a-service-and-codegen.html">Lesson 3: Define a service &amp; codegen →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/grpc-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+<aside class="note"><strong>Key idea</strong> The <em>field number</em>, not the name, is the identity of a field on the wire. Think of it as a write-once database schema key.</aside>
+
+<h2>Why field numbers make compatibility possible</h2>
+<p>On the wire a field is identified by its number, encoded as part of a tag: <code>(field &lt;&lt; 3) | wire_type</code>.<sup><a href="#r3">3</a></sup> Names are only for humans. Because receivers read fields by number and preserve fields they don't recognize, you can evolve a message safely:</p>
+<ul>
+  <li><strong>Add a field</strong> with a fresh, unused number → old readers skip it, new readers use it. Backward <em>and</em> forward compatible.</li>
+  <li><strong>Never reuse a number</strong> after deleting a field → an old server still thinks number 7 means the old thing and corrupts data. Reserve the number instead.</li>
+  <li><strong>Never rename the meaning</strong> of an existing number. Renaming the <em>field name</em> is fine (numbers carry the wire); changing what it means is not.</li>
+</ul>
+<p>This is the entire reason versioning is a non-event: the contract evolves by <em>adding numbered fields</em>, not by breaking calls.</p>
+</section>

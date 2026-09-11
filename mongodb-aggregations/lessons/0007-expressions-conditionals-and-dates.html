@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — Expressions, Conditionals &amp; Dates</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 9</span><span>MongoDB Aggregations</span></div>
+  <h1>Expressions, Conditionals &amp; Dates</h1>
+  <p class="subtitle">Arithmetic, branching, and time math — computing new values inside any stage.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Expression operators compute a value from fields and constants, are used anywhere a field path can appear, and let you derive numbers, booleans, strings, and dates <em>inside</em> a pipeline.</p>
+
+<h2>Arithmetic</h2>
+<pre><code>{ $add:      [ "$price", 5 ] }
+{ $subtract: [ "$total", "$discount" ] }
+{ $multiply: [ "$items.qty", "$items.price" ] }
+{ $divide:   [ "$total", "$itemsCount" ] }
+{ $mod:      [ "$total", 100 ] }</code></pre>
+<p>Each is just an array of operands (field paths and constants); the result can feed another operator or an accumulator like <code>$sum</code>.</p>
+
+<h2>Conditionals</h2>
+<pre><code>{ $cond: { if: { $gte: [ "$total", 100 ] }, then: "big", else: "small" } }
+
+{ $ifNull: [ "$nickname", "$fullName", "anon" ] }   // first non-null
+
+{ $switch: {
+    branches: [ { case: { $eq: [ "$region", "US" ] }, then: "domestic" },
+                { case: { $eq: [ "$region", "CA" ] }, then: "north" } ],
+    default: "international"
+} }</code></pre>
+<ul>
+  <li><code>$cond</code> is the ternary; <code>$ifNull</code> collapses missing/null; <code>$switch</code> is the case statement.</li>
+  <li>Use them to classify or normalize fields before grouping.</li>
+</ul>
+
+<h2>Dates</h2>
+<pre><code>{ $dateToString: { format: "%Y-%m", date: "$placed" } }  // "2026-09"
+{ $year: "$placed" }  { $month: "$placed" }  { $dayOfMonth: "$placed" }
+
+// shift a date
+{ $dateAdd: { startDate: "$placed", unit: "month", amount: 1 } }
+
+// the command's start time (same for all docs)
+{ $project: { ageDays: { $divide: [ { $subtract: [ "$$NOW", "$placed" ] },
+                                    86400000 ] } } }</code></pre>
+<ul>
+  <li><code>$$NOW</code> is a fixed moment (the aggregation's start), so it is stable across the pipeline.<sup><a href="#r1">1</a></sup></li>
+  <li>Date arithmetic works in milliseconds; divide by <code>86400000</code> to get days.</li>
+</ul>
+
+<h2>Putting it together</h2>
+<pre><code>db.orders.aggregate([
+  { $addFields: {
+      bucket: { $cond: { if: { $gte: [ "$total", 1000 ] },
+                         then: "whale", else: "minnow" } },
+      month:  { $dateToString: { format: "%Y-%m", date: "$placed" } }
+  } },
+  { $group: { _id: { bucket: "$bucket", month: "$month" },
+              revenue: { $sum: "$total" } } }
+])</code></pre>
+
+<aside class="note"><strong>Key idea</strong> Derived and classified fields become clean group keys. Compute them with <code>$addFields</code>, then group on the new fields — a pattern you will reuse constantly.</aside>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. The expression that picks the first present value is…</h4>
+  <button class="opt" data-fb="No — $cond branches on a boolean, it has no fallback.">$cond</button>
+  <button class="opt" data-fb="Correct — $ifNull falls through to the next operand.">$ifNull</button>
+  <button class="opt" data-fb="No — $switch tests cases; it needs a default.">$switch</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. To render a date as "2026-09" for grouping by month…</h4>
+  <button class="opt" data-fb="No — that only extracts the year number.">$year</button>
+  <button class="opt" data-fb="No — $dateAdd shifts the date; it does not format it.">$dateAdd</button>
+  <button class="opt" data-fb="Correct — $dateToString formats a DateTime.">$dateToString</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. $$NOW inside a pipeline is…</h4>
+  <button class="opt" data-fb="Correct — one fixed moment: the aggregation's start time.">a single fixed start time for the run</button>
+  <button class="opt" data-fb="No — it does not tick fresh per document.">the current time at every document</button>
+  <button class="opt" data-fb="No — it is a time value, not the current document.">the current document as a variable</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Browse <a href="https://www.mongodb.com/docs/manual/reference/aggregation-expression/">Aggregation expressions</a> for the full arithmetic/date/conditional catalog, and <a href="https://www.mongodb.com/docs/manual/reference/aggregation-variables/">Variables</a> for <code>$$NOW</code> and friends.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Write an <code>$addFields</code> that derives a <code>tier</code> (gold/silver/none) from <code>total</code> with <code>$cond</code>, then a <code>$group</code> on <code>{ tier, month }</code> summing <code>total</code>. Now explain why <code>$$NOW</code> is safe to use in that <code>$group</code>.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/reference/aggregation-variables/">MongoDB — Variables in aggregation expressions</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/reference/aggregation-expression/">MongoDB — Aggregation expressions</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-transforming-arrays-in-place.html">← Lesson 6: Arrays in place</a></span>
+  <span class="nav-next"><a href="0008-facet-and-window-fields.html">Lesson 8: $facet &amp; windows →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/aggregations-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

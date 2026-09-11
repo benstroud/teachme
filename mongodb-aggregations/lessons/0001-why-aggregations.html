@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — Why Aggregations</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 9</span><span>MongoDB Aggregations</span></div>
+  <h1>Why Aggregations</h1>
+  <p class="subtitle">Stop shipping documents to Node to reduce them by hand. Move the computation into the database.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>An aggregation pipeline is an array of stages; documents stream through them in order, and each stage takes documents in, processes them, and outputs documents — so the shape of the stream can change as it travels.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Where answering questions actually happens</h2>
+<p>When a product asks "revenue per region" or "top five sellers", the naive approach is:</p>
+<pre><code>// Anti-pattern: move analysis into the app
+const all = await db.orders.find({}).toArray();
+const byRegion = {};
+for (const o of all) {
+  byRegion[o.region] = (byRegion[o.region] || 0) + o.total;
+}</code></pre>
+<p>That downloads every document, piles them in memory in Node, and burns network and RAM — and it gets worse as the collection grows. The aggregation pipeline moves this work <em>into the server</em>: you send an array of stages, and MongoDB returns the answer.</p>
+
+<h2>The pipeline replaces the for-loop</h2>
+<p>The loop above is one idiom of the pipeline: filter, shuffle through the collection (unwind), then group and reduce:</p>
+<pre><code>db.orders.aggregate([
+  { $match:  { status: "fulfilled" } },          // keep only these
+  { $unwind: "$items" },                         // one doc per line item
+  { $group:  { _id: "$region",
+               totalRevenue: { $sum: { $multiply: [ "$items.price", "$items.qty" ] } } } },
+  { $sort:   { totalRevenue: -1 } },             // biggest first
+  { $limit:  5 }                                 // top five
+])</code></pre>
+<table>
+  <tr><th>Stage</th><th>What it does</th></tr>
+  <tr><td><code>$match</code></td><td>Filters documents (like <code>find</code>).</td></tr>
+  <tr><td><code>$unwind</code></td><td>Deconstructs an array into one document per element.</td></tr>
+  <tr><td><code>$group</code></td><td>Collects documents sharing a key and reduces them with an accumulator.</td></tr>
+  <tr><td><code>$sort</code> → <code>$limit</code></td><td>Orders and caps the output — "top N".</td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> A stage's output is a <em>new</em> stream of documents. Master the shape at each stage and every pipeline becomes legible: filter → flatten → group → rank.</aside>
+
+<h2>Where the pipeline fits (and where it doesn't)</h2>
+<ul>
+  <li><strong>Put it in front of questions</strong>: totals, averages, counts, distincts, rankings, per-group breakdowns, time buckets.</li>
+  <li><strong>Pairing with single-purpose helpers</strong>: <code>estimatedDocumentCount()</code>, <code>count()</code>, and <code>distinct()</code> answer the simplest forms without a full pipeline.<sup><a href="#r2">2</a></sup></li>
+  <li><strong>Avoid huge results</strong> if a group's output would grow past MongoDB's document-size and memory limits (covered in Lesson 9).</li>
+</ul>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. In an aggregation pipeline, each stage…</h4>
+  <button class="opt" data-fb="Correct — a stage takes documents in, processes, and outputs a new stream.">takes documents in and outputs a new stream of documents</button>
+  <button class="opt" data-fb="No — it also reshapes documents, not only filters them.">only filters the original collection, nothing else</button>
+  <button class="opt" data-fb="No — $group changes shape (many docs into one per key).">must output the same shape it receives</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. The biggest reason to use a pipeline for "revenue per region" is…</h4>
+  <button class="opt" data-fb="No — the pipeline can sort, group, and even join, so it is more capable.">it can join collections, which find cannot</button>
+  <button class="opt" data-fb="No — the server returns a cursor; it does not store the result.">it always writes results to a new collection</button>
+  <button class="opt" data-fb="Correct — computation moves into the server, not into app memory.">the server does the reducing, not the Node app</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. Which stage deconstructs an array into one document per element?</h4>
+  <button class="opt" data-fb="No — that filters documents by a query predicate.">$match</button>
+  <button class="opt" data-fb="Correct — $unwind turns each array element into its own document.">$unwind</button>
+  <button class="opt" data-fb="No — that groups documents sharing a key.">$group</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the official <a href="https://www.mongodb.com/docs/manual/aggregation/">Aggregation Operations</a> page and the <a href="https://www.mongodb.com/docs/manual/core/aggregation-pipeline/">Aggregation Pipeline</a> overview. The "top directors" example there is the exact filter→unwind→group→sort→limit shape you met here.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Take one real question from your own domain ("total sales by month", "orders per customer"). Write the Node for-loop you would have written, then sketch the equivalent pipeline as a list of stages. Which stage replaces the loop's accumulation logic?</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/aggregation/">MongoDB — Aggregation Operations</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/aggregation/">MongoDB — Aggregation Operations (single-purpose methods)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="0002-pipeline-fundamentals.html">Lesson 2: Pipeline fundamentals →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/aggregations-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

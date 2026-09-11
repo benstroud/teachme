@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — Run a gRPC Server in Node</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 9</span><span>gRPC TypeScript</span></div>
+  <h1>Run a gRPC Server in Node</h1>
+  <p class="subtitle">Implement handlers, surface real status codes, and stop waiting forever.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A gRPC server mounts one handler per <code>rpc</code> method. Each handler receives the call and finishes by calling <code>callback(err, response)</code> for unary methods.<sup><a href="#r1">1</a></sup></p>
+
+<h2>A working server</h2>
+<pre><code>import * as grpc from "@grpc/grpc-js";
+import { OrderServiceService } from "./gen/orders_grpc_pb";
+import { repository } from "./repository";
+
+const server = new grpc.Server();
+server.addService(OrderServiceService, {
+  getOrder(call, callback) {
+    const found = repository.findById(call.request.id);
+    if (!found) {
+      return callback(mkError(grpc.status.NOT_FOUND, "order not found"));
+    }
+    callback(null, found);
+  },
+});
+
+server.bindAsync("0.0.0.0:50051", grpc.ServerCredentials.createInsecure(),
+  (err, port) =&gt; {
+    if (err) throw err;
+    server.start();
+    console.log(`listening on :${port}`);
+  });
+
+function mkError(code, message) {
+  return Object.assign(new Error(message), { code });
+}</code></pre>
+<ul>
+  <li><code>addService(Svc.service, handlers)</code> — the <code>Service</code> object comes from your generated code or <code>@grpc/proto-loader</code>.<sup><a href="#r2">2</a></sup></li>
+  <li>For TLS: <code>grpc.ServerCredentials.createSsl(ca, [key, cert])</code>. For h2c behind an internal ALB: insecure on a private network.</li>
+  <li>Handlers for streaming methods differ — Lesson 7.</li>
+</ul>
+
+<h2>Errors are status codes, not 500s</h2>
+<p>Every RPC ends with a status object: an integer <code>code</code> and a message. Reach for the codes your domain actually has:<sup><a href="#r3">3</a></sup></p>
+<table>
+  <tr><th>Domain situation</th><th>Code</th></tr>
+  <tr><td>Input is unusable regardless of state</td><td><code>INVALID_ARGUMENT</code> (3)</td></tr>
+  <tr><td>Entity missing</td><td><code>NOT_FOUND</code> (5)</td></tr>
+  <tr><td>Create collided with an existing row</td><td><code>ALREADY_EXISTS</code> (6)</td></tr>
+  <tr><td>Auth token missing/invalid</td><td><code>UNAUTHENTICATED</code> (16)</td></tr>
+  <tr><td>Allowed but not permitted</td><td><code>PERMISSION_DENIED</code> (7)</td></tr>
+  <tr><td>System not in required state</td><td><code>FAILED_PRECONDITION</code> (9)</td></tr>
+  <tr><td>Transient outage, retry me</td><td><code>UNAVAILABLE</code> (14)</td></tr>
+  <tr><td>Ran out of time</td><td><code>DEADLINE_EXCEEDED</code> (4)</td></tr>
+</table>
+<p>Set the <code>code</code> on the error (as above); if you don't, the client sees <code>UNKNOWN</code> (2) — unhelpful for a caller deciding what to do.</p>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. An order id was typed wrong and nothing exists by that id. The handler should return…</h4>
+  <button class="opt" data-fb="Correct — the entity is absent; NOT_FOUND (5) is the semantic code.">NOT_FOUND, so the BFF can branch on it</button>
+  <button class="opt" data-fb="No — that is a generic fallback the library produces when you set nothing.">UNKNOWN, because it is the empty default</button>
+  <button class="opt" data-fb="No — ALREADY_EXISTS is for create collisions, not fetches.">ALREADY_EXISTS, to signal the row is gone</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. Who decides when a call has waited too long?</h4>
+  <button class="opt" data-fb="No — the server cancels at the deadline, but only because the client declared one.">the server, whenever it feels overloaded</button>
+  <button class="opt" data-fb="No — the default is no deadline at all, so the caller could wait forever.">the library, with a built-in default timeout</button>
+  <button class="opt" data-fb="Correct — the client sets a deadline; there is no default.">the client, by setting a deadline on the call</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. If your handler throws without setting <code>code</code>, the client receives…</h4>
+  <button class="opt" data-fb="No — that is the opposite result; you lose the semantic you meant.">whatever HTTP 500 the proxy chooses</button>
+  <button class="opt" data-fb="Correct — the library maps an untyped error to UNKNOWN (2).">UNKNOWN, because the library has no semantic to use</button>
+  <button class="opt" data-fb="No — INTERNAL is only meaningful when you deliberately set it.">INTERNAL, since it is a server-side throw</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Run the official <a href="https://grpc.io/docs/languages/node/quickstart/">Node quick start</a>, then read <a href="https://grpc.io/docs/guides/status-codes/">Status Codes</a> for the full 0–16 table.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Write the <code>getOrder</code> handler so that a missing id is <code>INVALID_ARGUMENT</code>, but a valid id that isn't found is <code>NOT_FOUND</code>. Then explain to yourself why those must be different codes.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://grpc.io/docs/languages/node/basics/">gRPC — Node basics</a></li>
+    <li id="r2"><a href="https://grpc.io/docs/languages/node/quickstart/">gRPC — Node quick start</a></li>
+    <li id="r3"><a href="https://grpc.io/docs/guides/status-codes/">gRPC — Status codes</a></li>
+    <li id="r4"><a href="https://grpc.io/docs/guides/deadlines/">gRPC — Deadlines</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-defining-a-service-and-codegen.html">← Lesson 3: Service &amp; codegen</a></span>
+  <span class="nav-next"><a href="0005-channels-resilience-and-retries.html">Lesson 5: Channels, resilience, retries →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/grpc-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+
+<aside class="note"><strong>Key idea</strong> Only codes a handful of codes are ever produced by the library; the rest come from <em>your</em> handlers. Choose them on purpose — a caller's retry logic depends on <code>UNAVAILABLE</code> vs <code>INVALID_ARGUMENT</code> being correct.</aside>
+
+<h2>Deadlines: the caller owns the clock</h2>
+<p>A deadline is set by the <em>client</em> — there is no default, so a client can wait forever.<sup><a href="#r4">4</a></sup> When the deadline passes, the client fails the call (<code>DEADLINE_EXCEEDED</code>) and the server is told to cancel; your handler should check for cancellation and stop its own work. This is the discipline that keeps fan-out usable: every outbound BFF call carries a deadline.</p>
+</section>

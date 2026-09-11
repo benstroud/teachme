@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — $group &amp; Accumulators</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 9</span><span>MongoDB Aggregations</span></div>
+  <h1>$group &amp; Accumulators</h1>
+  <p class="subtitle">Many documents in, one per group out — the heart of aggregation.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p><code>$group</code> collects documents that share a <em>group key</em> and folds each group down to one document using <em>accumulator</em> expressions.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Anatomy of $group</h2>
+<pre><code>{ $group: {
+    _id: "$region",                    // group key (required)
+    orderCount: { $sum: 1 },           // count docs in the group
+    revenue:    { $sum: "$total" },    // sum a field
+    avgOrder:   { $avg: "$total" },    // average
+    cheapest:   { $min: "$price" },    // extremes
+    priciest:   { $max: "$price" }
+} }</code></pre>
+<ul>
+  <li><code>_id</code> sets the group key — a field, several fields as a document, or an expression.<sup><a href="#r1">1</a></sup></li>
+  <li>Every other output field must be an <em>accumulator</em>: fold the group's values into one.</li>
+</ul>
+
+<h2>Group keys and grouping by null</h2>
+<pre><code>// group by multiple fields: the _id is a nested document
+{ $group: { _id: { region: "$region", year: { $year: "$placed" } },
+            count: { $sum: 1 } } }
+
+// one aggregate across ALL input
+{ $group: { _id: null, grandTotal: { $sum: "$total" } } }</code></pre>
+<p>An <code>_id</code> of <code>null</code> (or any constant) puts every document into a single group — the "summary row" of the whole stream.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The accumulator tool belt</h2>
+<table>
+  <tr><th>Accumulator</th><th>What it produces</th></tr>
+  <tr><td><code>$sum</code> / <code>$avg</code></td><td>Total and mean of a numeric value.</td></tr>
+  <tr><td><code>$min</code> / <code>$max</code></td><td>Smallest / largest value.</td></tr>
+  <tr><td><code>$push</code></td><td>Collects values into an array, duplicates kept.</td></tr>
+  <tr><td><code>$addToSet</code></td><td>Collects unique values into an array.</td></tr>
+  <tr><td><code>$first</code> / <code>$last</code></td><td>First / last value seen in input order.</td></tr>
+  <tr><td><code>$sum: 1</code></td><td>The count idiom — one per document.</td></tr>
+  <tr><td><code>{ $push: "$$ROOT" }</code></td><td>The whole document, collected (<code>$$ROOT</code> = current doc).<sup><a href="#r2">2</a></sup></td></tr>
+</table>
+<pre><code>{ $group: {
+    _id: "$region",
+    skus:  { $push: "$sku" },         // [skuA, skuB, skuA]    — dupes
+    tags:  { $addToSet: "$tag" },     // [tagA, tagB]          — unique
+    docs:  { $push: "$$ROOT" }        // whole documents
+} }</code></pre>
+
+<aside class="note"><strong>Key idea</strong> <code>$group</code> is a <em>blocking</em> stage: it buffers the whole input before emitting. And its output is <em>unordered</em> — sort after grouping, not before.<sup><a href="#r1">1</a></sup></aside>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. What sets which group each document belongs to?</h4>
+  <button class="opt" data-fb="No — that computes a field after grouping.">an accumulator like $sum</button>
+  <button class="opt" data-fb="Correct — the _id expression is the group key.">the _id expression in the $group stage</button>
+  <button class="opt" data-fb="No — a $match filters before grouping, it does not key it.">a leading $match</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. To count documents in each group, write…</h4>
+  <button class="opt" data-fb="No — $size works on arrays, not on grouped streams.">{ count: { $size: "$items" } }</button>
+  <button class="opt" data-fb="No — $count is a standalone stage, not an accumulator.">{ count: { $count: "$group" } }</button>
+  <button class="opt" data-fb="Correct — $sum with a constant 1 tallies rows per group.">{ count: { $sum: 1 } }</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. To aggregate everything into a single summary row…</h4>
+  <button class="opt" data-fb="Correct — _id: null puts all documents in one group.">use _id: null</button>
+  <button class="opt" data-fb="No — that would still create one group per region.">use _id: "$region"</button>
+  <button class="opt" data-fb="No — unwinding does not group; it flattens arrays.">add $unwind first</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the full <a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/group/">$group</a> reference. Note its own caution: it is a blocking stage and does not order its output — pair it with <code>$sort</code> deliberately.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Using one <code>$group</code>, return for each region: order count, total revenue, average order value, and the set of distinct customers. Then write the <code>$sort</code> that ranks regions by revenue descending.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/group/">MongoDB — $group</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/reference/aggregation-variables/">MongoDB — Variables in aggregation expressions</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-pipeline-fundamentals.html">← Lesson 2: Pipeline fundamentals</a></span>
+  <span class="nav-next"><a href="0004-unwinding-and-regrouping-arrays.html">Lesson 4: $unwind arrays →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/aggregations-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

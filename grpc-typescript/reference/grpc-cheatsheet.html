@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>gRPC TypeScript — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  .two-col { display: flex; flex-wrap: wrap; gap: 1.4rem; }
+  .two-col > div { flex: 1 1 46%; min-width: 18rem; }
+  code i { color: var(--accent); font-style: normal; }
+  td code, .q code { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>gRPC TypeScript</span></div>
+  <h1>gRPC TypeScript Cheat Sheet</h1>
+  <p class="subtitle">The compressed essence of the course. Skim before a lesson, study it fully before an interview.</p>
+</header>
+
+<section>
+<h2>1. The contract (.proto)</h2>
+<pre><code>syntax = "proto3";
+
+package orders.v1;
+
+import "google/protobuf/timestamp.proto";
+
+enum OrderState {
+  ORDER_STATE_UNSPECIFIED = 0;
+  ORDER_STATE_CREATED     = 1;
+  ORDER_STATE_FULFILLED   = 2;
+  ORDER_STATE_CANCELLED   = 3;
+}
+
+message Order {
+  string        id = 1;                       // field numbers are write-once
+  string        customer_id = 2;
+  OrderState    state = 3;
+  repeated LineItem line_items = 4;           // array
+  google.protobuf.Timestamp placed_at = 5;    // imported message
+}
+
+message LineItem { string sku = 1; int32 qty = 2; }</code></pre>
+<ul>
+  <li>Fields are typed + numbered. Scalar types: <code>int32/64</code>, <code>uint32/64</code>, <code>sint32/64</code>, <code>fixed32/64</code>, <code>float</code>, <code>double</code>, <code>bool</code>, <code>string</code>, <code>bytes</code>.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>Never reuse or rename a field number</strong> — older readers will decode the new meaning as the old, corrupting data.</li>
+  <li>Adding a new field with a fresh number is backward-and-forward compatible.</li>
+</ul>
+</section>
+
+<section>
+<h2>2. Defining a service (4 call kinds)</h2>
+<pre><code>service OrderService {
+  // unary
+  rpc GetOrder(GetOrderRequest) returns (Order);
+
+  // server-streaming: one request, many responses
+  rpc ListOrders(ListOrdersRequest) returns (stream Order);
+
+  // client-streaming: many requests, one response
+  rpc SubmitBatch(stream Order) returns (SubmitBatchResponse);
+
+  // bidirectional: many requests and responses
+  rpc Subscribe(stream OrderUpdateReq) returns (stream OrderUpdate);
+}</code></pre>
+<p>The <code>stream</code> keyword on request and/or response picks the RPC kind.<sup><a href="#r2">2</a></sup></p>
+</section>
+<section>
+<h2>3. Codegen &amp; project setup</h2>
+<pre><code># static (TypeScript-first): compile protos to .ts ahead of time
+npm i -D @grpc/grpc-js @grpc/proto-loader grpc-tools google-protobuf
+npx grpc_tools_node_protoc -I . ./orders.proto \
+  --js_out=import_style=commonjs,binary:./gen \
+  --grpc_out=grpc_js:./gen \
+  --plugin=protoc-gen-grpc=./node_modules/.bin/grpc_tools_node_protoc_plugin</code></pre>
+<ul>
+  <li><strong>Static codegen</strong> (<code>grpc-tools</code> / <code>buf</code>) emits <code>.js</code> + <code>.d.ts</code> → the most type safety.<sup><a href="#r3">3</a></sup></li>
+  <li><strong>Dynamic</strong> (<code>@grpc/proto-loader</code> + <code>grpc.loadPackageDefinition</code>) loads the proto at runtime — less setup, weaker types.</li>
+  <li>Add a <code>protoc-gen-grpc-web</code> plugin if browser clients are needed (see §8).</li>
+</ul>
+</section>
+
+<section>
+<h2>4. Server (Node / TypeScript)</h2>
+<pre><code>import * as grpc from "@grpc/grpc-js";
+import { loadPackageDefinition } from "@grpc/grpc-js";
+import { loadSync } from "@grpc/proto-loader";
+import { OrderServiceService } from "./gen/orders_grpc_pb";
+
+const server = new grpc.Server();
+server.addService(OrderServiceService, {
+  getOrder: (call, callback) =&gt; {
+    if (!call.request.id) {
+      const err = Object.assign(new Error("missing id"), { code: grpc.status.INVALID_ARGUMENT });
+      return callback(err);
+    }
+    const order = lookup(call.request.id);
+    if (!order) return callback(Object.assign(new Error("not found"), { code: grpc.status.NOT_FOUND }));
+    callback(null, order);
+  },
+});
+
+server.bindAsync("0.0.0.0:50051", grpc.ServerCredentials.createInsecure(), (err, port) =&gt; {
+  if (err) throw err;
+  server.start();
+});</code></pre>
+<ul>
+  <li>For TLS use <code>grpc.ServerCredentials.createSsl(ca, [key, cert])</code> and an h2/http2 protocol listener.</li>
+  <li>Always set a <strong>deadline</strong> and a <strong>code</strong> on errors — defaults are waiting forever and UNKNOWN.<sup><a href="#r4">4</a></sup><sup><a href="#r5">5</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>5. Client</h2>
+<pre><code>import * as grpc from "@grpc/grpc-js";
+import { OrderServiceClient } from "./gen/orders_grpc_pb";
+
+const client = new OrderServiceClient(
+  "orders.internal.example:50051",
+  grpc.credentials.createInsecure(),   // or createSsl(rootCert)
+  { "grpc.keepalive_time_ms": 30000 }
+);
+
+const deadline = new Date(Date.now() + 1500);        // ALWAYS set one
+client.getOrder({ id: "ord_1" }, { deadline, 9: "some-call-opt" }, (err, res) =&gt; {
+  if (err) { const code = err.code; return; }        // 0..16
+  console.log(res?.toObject());
+});</code></pre>
+<ul>
+  <li>Channel options: <code>deadline</code> per call, <code>"grpc.keepalive_time_ms"</code>, retry/service config for the channel.<sup><a href="#r6">6</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>6. Status codes (subset you will actually use)</h2>
+<table>
+  <tr><th>Code</th><th>Meaning</th><th>Retry?</th></tr>
+  <tr><td>0 OK</td><td>Success.</td><td>—</td></tr>
+  <tr><td>1 CANCELLED</td><td>Operation cancelled by caller / deadline.</td><td>usually no</td></tr>
+  <tr><td>2 UNKNOWN</td><td>Generic fallback; untyped errors land here.</td><td>no</td></tr>
+  <tr><td>3 INVALID_ARGUMENT</td><td>Bad client input, independent of state.</td><td>no</td></tr>
+  <tr><td>4 DEADLINE_EXCEEDED</td><td>Operation didn't finish in time.</td><td>sometimes</td></tr>
+  <tr><td>5 NOT_FOUND</td><td>Entity absent.</td><td>no</td></tr>
+  <tr><td>6 ALREADY_EXISTS</td><td>Creation collided with an existing entity.</td><td>no</td></tr>
+  <tr><td>7 PERMISSION_DENIED</td><td>Authenticated but not allowed.</td><td>no</td></tr>
+  <tr><td>9 FAILED_PRECONDITION</td><td>System not in required state; fix then retry.</td><td>after fix</td></tr>
+  <tr><td>10 ABORTED</td><td>Concurrency conflict; retry at a higher level.</td><td>higher level</td></tr>
+  <tr><td>12 UNIMPLEMENTED</td><td>Method not supported on this server.</td><td>no</td></tr>
+  <tr><td>13 INTERNAL</td><td>Server bug / broken invariant.</td><td>no</td></tr>
+  <tr><td>14 UNAVAILABLE</td><td>Transient outage; retry the call with backoff.</td><td><strong>yes</strong></td></tr>
+  <tr><td>16 UNAUTHENTICATED</td><td>Missing/invalid credentials.</td><td>after re-auth</td></tr>
+</table>
+<p>Codes generated only by user code (never by the library): <code>INVALID_ARGUMENT</code>, <code>NOT_FOUND</code>, <code>ALREADY_EXISTS</code>, <code>FAILED_PRECONDITION</code>, <code>ABORTED</code>, <code>OUT_OF_RANGE</code>, <code>DATA_LOSS</code>.<sup><a href="#r7">7</a></sup></p>
+</section>
+
+<section>
+<h2>7. Deadlines, retries, idempotency</h2>
+<pre><code>// deadline: fail the call if it can't finish by a time
+client.getOrder(req, { deadline: new Date(Date.now() + 1500) }, cb);
+
+// retry policy via service config (channel-level in grpc-js)
+const channel = new grpc.Channel("orders:50051", creds, {
+  "grpc.service_config": JSON.stringify({
+    methodConfig: [{ name: [{ service: "orders.v1.OrderService" }],
+      retryPolicy: {
+        maxAttempts: 4,
+        initialBackoff: "0.1s",
+        maxBackoff: "1s",
+        backoffMultiplier: 2,
+        retryableStatusCodes: ["UNAVAILABLE"],
+      } }],
+  }),
+});</code></pre>
+<ul>
+  <li>No default deadline (<em>wait forever</em>) and no default retry policy.<sup><a href="#r8">8</a></sup><sup><a href="#r9">9</a></sup></li>
+  <li>Transparent retries happen even without a policy; a configured policy adds controlled retries for chosen codes.</li>
+  <li>Retryable side-effect calls: make the handler <strong>idempotent</strong> (dedupe on a request/business key).</li>
+</ul>
+</section>
+
+<section>
+<h2>8. Metadata, context, auth</h2>
+<pre><code>// client: attach a token + request id
+const meta = new grpc.Metadata();
+meta.set("authorization", "Bearer " + token);
+meta.set("x-request-id", requestId);
+client.getOrder(req, { metadata: meta }, cb);
+
+// server: read context / intercept
+server.addService(Svc.service, {
+  getOrder: (call, cb) =&gt; {
+    const rid = call.metadata.get("x-request-id")[0];
+    const auth = call.metadata.get("authorization")[0];
+    // ...verify token, then serve
+  },
+});
+
+// call credentials (idiomatic client auth) — not an interceptor
+const callCreds = grpc.credentials.createFromMetadataGenerator((params, cb) =&gt; {
+  const m = new grpc.Metadata(); m.set("authorization", "Bearer " + token); cb(null, m);
+});
+const client = new SvcClient(url, grpc.credentials.createInsecure(), undefined, callCreds);</code></pre>
+<ul>
+  <li>Keys are case-insensitive ASCII, must not start with <code>grpc-</code>; use it for tokens, request IDs, tenant, and trace context (<code>traceparent</code>).<sup><a href="#r10">10</a></sup></li>
+  <li>Interceptors: middleware on a channel or server for logging/metrics/auth; server-side auth is fine here.</li>
+</ul>
+</section>
+<section>
+<h2>9. The BFF boundary &amp; AWS</h2>
+<ul>
+  <li><strong>Keep gRPC server-side.</strong> The GraphQL and REST BFFs are gRPC <em>clients</em> of the domain services; browsers don't call gRPC directly (gRPC-web exists but needs a proxy).<sup><a href="#r11">11</a></sup></li>
+  <li>A GraphQL resolver or REST handler maps a requested shape to one or more gRPC calls, fanning out and aggregating, then maps gRPC status codes to GraphQL errors / HTTP statuses.</li>
+  <li><strong>AWS hosting:</strong>
+    <ul>
+      <li>Long-running Node gRPC service on <strong>ECS</strong> (or EKS) behind an Application Load Balancer using the gRPC target type with HTTP/2 (TLS, or h2c on a private network).<sup><a href="#r12">12</a></sup></li>
+      <li>Serverless alternative: API Gateway + Lambda <strong>transcoding</strong> maps a gRPC contract onto REST calls into a Lambda — loses streaming/HTTP/2 benefits.</li>
+      <li>Discover instances via ALB target group or <strong>AWS Cloud Map</strong>; add <code>grpc.keepalive</code> + health checks.<sup><a href="#r13">13</a></sup></li>
+    </ul>
+  </li>
+  <li><strong>Observability:</strong> propagate W3C trace context in metadata end-to-end; emit OpenTelemetry spans/metrics for each call and retry attempt.</li>
+</ul>
+</section>
+
+<section>
+<h2>10. Design checklist</h2>
+<ul>
+  <li><strong>Contract-first:</strong> the <code>.proto</code> is the source of truth; field numbers are write-once; never rename or reuse a number.</li>
+  <li><strong>Prefer unary</strong> for domain reads/writes; add server-streaming for bulk query and client-streaming for bulk ingest; use bidi rarely (live sync).</li>
+  <li><strong>Always pass a deadline</strong> from the BFF into every outbound call; propagate it to downstream services.</li>
+  <li><strong>Map to real status codes</strong>: NOT_FOUND, INVALID_ARGUMENT, ALREADY_EXISTS, UNAVAILABLE, DEADLINE_EXCEEDED, UNAUTHENTICATED/PERMISSION_DENIED.</li>
+  <li><strong>Configure retries</strong> only for idempotent-safe calls and choose retryable codes deliberately (UNAVAILABLE, sometimes DEADLINE_EXCEEDED/ABORTED).</li>
+  <li><strong>Make handlers idempotent</strong> (dedupe on a request/business key) so retries can't double side effects.</li>
+  <li><strong>Carry context</strong>: request-id, tenant, trace context, auth token in metadata; use call credentials for client auth, interceptors for logging/metrics.</li>
+  <li><strong>Encrypt in transit</strong> (TLS via mTLS or service mesh) even inside the VPC; never send unauthenticated tokens.</li>
+  <li><strong>BFFs aggregate</strong>, domain services stay small and single-purpose; map gRPC errors at the BFF, not leak raw codes to clients verbatim.</li>
+</ul>
+</section>
+
+<footer class="citation">
+  Primary sources: <a href="https://grpc.io/docs/what-is-grpc/introduction/">gRPC Introduction</a>,
+  <a href="https://grpc.io/docs/guides/status-codes/">Status Codes</a>,
+  <a href="https://grpc.io/docs/guides/deadlines/">Deadlines</a>,
+  <a href="https://grpc.io/docs/guides/retry/">Retry</a>,
+  <a href="https://grpc.io/docs/guides/metadata/">Metadata</a>.
+  <ol>
+    <li id="r1"><a href="https://protobuf.dev/programming-guides/proto3/">protobuf.dev — proto3 language guide</a></li>
+    <li id="r2"><a href="https://grpc.io/docs/what-is-grpc/core-concepts/">gRPC — core concepts (RPC kinds)</a></li>
+    <li id="r3"><a href="https://github.com/grpc/grpc-node/blob/master/PACKAGE-COMPARISON.md">grpc-node — package comparison</a></li>
+    <li id="r4"><a href="https://grpc.io/docs/languages/node/basics/">gRPC — Node basics</a></li>
+    <li id="r5"><a href="https://grpc.io/docs/guides/status-codes/">gRPC — status codes</a></li>
+    <li id="r6"><a href="https://grpc.github.io/grpc/node/">@grpc/grpc-js — API</a></li>
+    <li id="r7"><a href="https://grpc.io/docs/guides/status-codes/">gRPC — status codes</a></li>
+    <li id="r8"><a href="https://grpc.io/docs/guides/deadlines/">gRPC — deadlines</a></li>
+    <li id="r9"><a href="https://grpc.io/docs/guides/retry/">gRPC — retry</a></li>
+    <li id="r10"><a href="https://grpc.io/docs/guides/metadata/">gRPC — metadata</a></li>
+    <li id="r11"><a href="https://grpc.io/docs/languages/web/basics/">gRPC-web — basics</a></li>
+    <li id="r12"><a href="https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-target-grpcs.html">AWS ELB — gRPC targets on ALB</a></li>
+    <li id="r13"><a href="https://docs.aws.amazon.com/cloud-map/latest/dg/cloud-map-overview.html">AWS Cloud Map — service discovery</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="../lessons/0001-why-grpc-for-domain-services.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

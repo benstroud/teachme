@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — Transforming Arrays in Place</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 9</span><span>MongoDB Aggregations</span></div>
+  <h1>Transforming Arrays in Place</h1>
+  <p class="subtitle">Map, filter, slice, and reduce an array without exploding the whole collection — the operators that work inside each document.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Array <em>expression</em> operators take an array field inside one document and return a new array (or value), so you can reshape nested data per document without unwinding the collection.</p>
+
+<h2>$map, $filter, $reduce</h2>
+<pre><code>// double every price
+{ $map: { input: "$prices", as: "p", in: { $multiply: [ "$$p", 2 ] } } }
+
+// keep only items with qty over 5
+{ $filter: { input: "$items", as: "i", cond: { $gt: [ "$$i.qty", 5 ] } } }
+
+// total of an array of numbers
+{ $reduce: { input: "$nums", initialValue: 0,
+             in: { $add: [ "$$value", "$$this" ] } } }</code></pre>
+<ul>
+  <li>Inside these operators, <code>$$this</code> (or your chosen <code>as</code> name) refers to each element; <code>$$value</code> is the running accumulator in <code>$reduce</code>.<sup><a href="#r1">1</a></sup></li>
+  <li><code>$$IDX</code> gives the current element's index while mapping/filtering (8.3+).</li>
+</ul>
+
+<h2>Read and slice</h2>
+<pre><code>{ $arrayElemAt: [ "$tags", 0 ] }    // the first element, as a value
+{ $slice: [ "$tags", 2 ] }           // first two elements
+{ $size: "$items" }                  // the array's length
+{ $in: [ "$sku", "$items" ] }        // true if the value is in the array</code></pre>
+
+<h2>Combine and set-operate</h2>
+<pre><code>{ $concatArrays: [ "$tags", "$extraTags" ] }          // join arrays
+{ $setUnion:   [ "$a", "$b" ] }                        // unique of both
+{ $setIntersection: [ "$a", "$b" ] }                   // common elements
+{ $setDifference:    [ "$a", "$b" ] }                  // in a, not in b</code></pre>
+
+<h2>Composing them: a filtered mapped total</h2>
+<pre><code>db.orders.aggregate([
+  { $addFields: {
+      bigItemCount: { $size: { $filter: {
+          input: "$items", as: "i", cond: { $gt: [ "$$i.qty", 10 ] }
+      } } }
+  } }
+])</code></pre>
+<p>Here <code>$filter</code> narrows <code>items</code>, then <code>$size</code> counts the survivors — all inside a single document.</p>
+
+<aside class="note"><strong>Key idea</strong> Prefer in-place array operators when the answer lives <em>inside</em> each document. Reach for <code>$unwind</code> only when you need <em>across</em>-document aggregation over the elements (Lesson 4).</aside>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. To keep only expensive items in one document, use…</h4>
+  <button class="opt" data-fb="Correct — $filter selects matching array elements in place.">$filter</button>
+  <button class="opt" data-fb="No — $map transforms every element rather than choosing.">$map</button>
+  <button class="opt" data-fb="No — $reduce folds to a single value, not a subset.">$reduce</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. Inside $filter/$map, the current element is referred to as…</h4>
+  <button class="opt" data-fb="No — that is the running accumulator in $reduce.">$$value</button>
+  <button class="opt" data-fb="No — those are document/root system variables.">$$ROOT</button>
+  <button class="opt" data-fb="Correct — $$this (or the name from 'as').">$$this</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. The array's element count is given by…</h4>
+  <button class="opt" data-fb="No — that reads the first element as a value.">$arrayElemAt</button>
+  <button class="opt" data-fb="Correct — $size returns the array length.">$size</button>
+  <button class="opt" data-fb="No — that returns a subset, not the count.">$slice</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Start with the <a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/filter/">$filter</a> page for the exact option objects, then browse the <a href="https://www.mongodb.com/docs/manual/reference/operation/">MongoDB operator index</a> for <code>$map</code>, <code>$reduce</code>, and the set operators.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Write a single <code>$addFields</code> that adds: (a) a list of category names uppercased, and (b) the count of items priced above 50 — both derived from <code>items</code>, without unwinding. Then say when you would instead unwind instead of doing it in place.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/reference/aggregation-variables/">MongoDB — Variables in aggregation expressions</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/filter/">MongoDB — $filter</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-joining-collections-with-lookup.html">← Lesson 5: $lookup</a></span>
+  <span class="nav-next"><a href="0007-expressions-conditionals-and-dates.html">Lesson 7: Expressions &amp; dates →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/aggregations-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

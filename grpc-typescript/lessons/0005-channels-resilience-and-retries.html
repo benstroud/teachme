@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — Channels, Resilience, Retries</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 9</span><span>gRPC TypeScript</span></div>
+  <h1>Channels, Resilience, Retries</h1>
+  <p class="subtitle">A client stub talks through a channel; make that hop survive transient faults without corrupting state.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A <em>channel</em> is a client's virtual connection to a server address — it owns connection pooling, name resolution, and load-balancing config, and a stub rides on it.<sup><a href="#r1">1</a></sup> Resilience comes from deadlines, retries, and idempotent handlers.</p>
+
+<h2>Channels and stubs</h2>
+<pre><code>import * as grpc from "@grpc/grpc-js";
+import { OrderServiceClient } from "./gen/orders_grpc_pb";
+
+const client = new OrderServiceClient(
+  "orders.internal.example:50051",     // name the channel resolves
+  grpc.credentials.createInsecure(),   // or createSsl(rootCert)
+  { "grpc.keepalive_time_ms": 30000 }  // channel options
+);
+
+// every call carries its own deadline
+client.getOrder({ id: "ord_1" }, { deadline: new Date(Date.now() + 1500) },
+  (err, res) =&gt; { /* ... */ });</code></pre>
+<ul>
+  <li>Reuse one channel/stub for many calls; it pools connections rather than opening one per call.</li>
+  <li>The address can be <code>dns:///…</code> for a hostname, or a service-discovery name (AWS Cloud Map / ALB DNS resolves it).</li>
+</ul>
+
+<h2>Transparent retry: free but limited</h2>
+<p>Retries are enabled by default but <em>there is no default retry policy</em>. Without one, gRPC only performs <strong>transparent retries</strong> — safe because it is certain the work was not processed:<sup><a href="#r2">2</a></sup></p>
+<ul>
+  <li>Unlimited while the RPC has never left the client.</li>
+  <li>A single retry if it reached the server library but not your app logic.</li>
+</ul>
+<p>That covers connection races but not "server really failed", so you additionally configure a policy for the codes you want retried.</p>
+
+<h2>A configured retry policy</h2>
+<pre><code>const channel = new grpc.Channel("orders:50051", creds, {
+  "grpc.service_config": JSON.stringify({
+    methodConfig: [{
+      name: [{ service: "orders.v1.OrderService" }],
+      retryPolicy: {
+        maxAttempts: 4,
+        initialBackoff: "0.1s",
+        maxBackoff: "1s",
+        backoffMultiplier: 2,
+        retryableStatusCodes: ["UNAVAILABLE"],
+      },
+    }],
+  }),
+});</code></pre>
+<ul>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. With no retry policy configured, gRPC will…</h4>
+  <button class="opt" data-fb="No — retries are enabled by default, but limited to transparent retries only.">never retry; every failure surfaces to the app</button>
+  <button class="opt" data-fb="Correct — transparent retry covers only cases gRPC knows were not processed.">still transparently retry when it is certain the work was not processed</button>
+  <button class="opt" data-fb="No — application failures need a configured retryPolicy; that is the point.">retry every status code forever until the deadline</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Which status code is the reasonable default to list in <code>retryableStatusCodes</code>?</h4>
+  <button class="opt" data-fb="Correct — UNAVAILABLE signals a transient condition the docs say to retry with backoff.">UNAVAILABLE</button>
+  <button class="opt" data-fb="No — that means the input is bad; retrying is wasteful.">INVALID_ARGUMENT</button>
+  <button class="opt" data-fb="No — that is a server bug; retrying won't fix it.">INTERNAL</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. A retryable side-effecting RPC is safe only if…</h4>
+  <button class="opt" data-fb="No — latency is not what makes a retry safe.">it returns quickly enough to beat the deadline</button>
+  <button class="opt" data-fb="No — that limits retries but does not stop a duplicate side effect.">you set maxAttempts to 2</button>
+  <button class="opt" data-fb="Correct — deduping on a request key means the second attempt repeats no side effect.">the handler is idempotent, deduping on a request/business key</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://grpc.io/docs/guides/retry/">Retry guide</a> for the full knob list (throttling, service config) and the <a href="https://grpc.io/docs/guides/deadlines/">Deadlines guide</a> for why the deadline is your first line of defense.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Your BFF calls a billing service that <em>creates a charge</em>. Design the request message so the call can be safely retried by gRPC's policy. Explain what field(s) you add and how the billing server uses them.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://grpc.io/docs/what-is-grpc/core-concepts/">gRPC — Core concepts (channels)</a></li>
+    <li id="r2"><a href="https://grpc.io/docs/guides/retry/">gRPC — Retry</a></li>
+    <li id="r3"><a href="https://grpc.io/docs/guides/status-codes/">gRPC — Status codes (retry guidance)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-running-a-grpc-server-in-node.html">← Lesson 4: Server in Node</a></span>
+  <span class="nav-next"><a href="0006-metadata-context-and-auth.html">Lesson 6: Metadata, context, auth →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/grpc-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+  <li>Pick retryable codes deliberately — realistically <code>UNAVAILABLE</code>, and sometimes <code>DEADLINE_EXCEEDED</code>/<code>ABORTED</code>.<sup><a href="#r3">3</a></sup> Do not blindly retry <code>INVALID_ARGUMENT</code>.</li>
+  <li>Backoff jitter (±20%) is applied automatically so many clients don't hammer a recovering service.</li>
+  <li>Once the server sends a response header, the call is committed — no further retries.<sup><a href="#r2">2</a></sup></li>
+</ul>
+
+<h2>Retryable calls must be idempotent</h2>
+<p>A retried call can be executed twice. If the handler performs a side effect (create a charge, decrement stock) a naive retry duplicates it. Make the RPC <strong>idempotent</strong>: carry a client-supplied request/business key and dedupe on it server-side, so attempt #2 returns the same result instead of a second side effect.</p>
+</section>

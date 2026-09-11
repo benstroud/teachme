@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 9 — Performance, Limits &amp; Wrap-up</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 9 of 9</span><span>MongoDB Aggregations</span></div>
+  <h1>Performance, Limits &amp; Wrap-up</h1>
+  <p class="subtitle">Know the guardrails, spend the pipeline well, and assemble a real analytics query.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Aggregations have hard guardrails — per-document size, per-stage memory, stage count — and a performance story driven by index use and stage order. Respect both and pipelines stay fast and predictable.</p>
+
+<h2>The three guardrails (learn these)</h2>
+<table>
+  <tr><th>Limit</th><th>What breaks</th><th>Mitigation</th></tr>
+  <tr><td><strong>16 MiB</strong> per result document (BSON)</td><td>A group's big <code>$push</code>/<code>$$ROOT</code> array, or a fat <code>$lookup</code> result, exceeds it → error.</td><td>Keep stored arrays small; slice/project; write big results to a collection.</td></tr>
+  <tr><td><strong>100 MB</strong> per-stage RAM</td><td>Blocking stages (<code>$group</code>, <code>$sort</code>) exhaust memory.</td><td>Allow <code>allowDiskUse: true</code> to spill those stages to disk.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><strong>1000 stages</strong></td><td>Over-long pipelines error.</td><td>Consolidate; you rarely need that many.</td></tr>
+</table>
+<p>Stages that can spill to disk when allowed: <code>$group</code>, <code>$sort</code>, <code>$bucket</code>, <code>$bucketAuto</code>, <code>$setWindowFields</code>, <code>$sortByCount</code>.<sup><a href="#r1">1</a></sup> The <code>usedDisk</code> profiler flag tells you when it happened.</p>
+
+<h2>Performance: spend the pipeline well</h2>
+<ul>
+  <li><strong>Filter first, filter cheap.</strong> <code>$match</code> and <code>$limit</code> early shrink everything after; <code>$match</code> is the stage an index best serves.<sup><a href="#r2">2</a></sup></li>
+  <li><strong>Keep <code>$project</code> narrow.</strong> Less data per stage is less memory and I/O.</li>
+  <li><strong>Sort then limit</strong> for top-N; avoid sorting huge unindexed inputs.</li>
+  <li><strong>Index the join key</strong> for <code>$lookup</code>; prefer embedding where the data belongs together.<sup><a href="#r3">3</a></sup></li>
+  <li><strong>Mind blocking stages</strong> — <code>$group</code> and <code>$sort</code> hold the whole input. Order them late, not early.</li>
+</ul>
+
+<h2>Putting it together: a monthly seller dashboard</h2>
+<pre><code>db.orders.aggregate([
+  { $match: { status: "fulfilled", placed: { $gte: startOfYear } } },
+  { $unwind: "$items" },
+  { $addFields: {
+      month:  { $dateToString: { format: "%Y-%m", date: "$placed" } },
+      lineRevenue: { $multiply: [ "$items.qty", "$items.price" ] }
+  } },
+  { $group: {
+      _id: { month: "$month", seller: "$items.sellerId" },
+      revenue:   { $sum: "$lineRevenue" },
+      unitsSold: { $sum: "$items.qty" },
+      orders:    { $addToSet: "$_id" }
+  } },
+  { $setWindowFields: {
+      partitionBy: "$_id.month",
+      sortBy: { revenue: -1 },
+      output: { rank: { $rank: {} } }
+  } },
+  { $match: { rank: { $lte: 5 } } },
+  { $sort: { "_id.month": 1, revenue: -1 } }
+])</code></pre>
+<p>Read it stage by stage: filter early → flatten line items → derive month and line revenue → group per seller-month → rank sellers within each month → keep the top five → present ordered.</p>
+
+<aside class="note"><strong>Key idea</strong> Senior fluency is the reflex of asking "what shape does each stage hand to the next, and where do the guardrails and indexes bite?" Before running any pipeline, answer both.</aside>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. A group output that exceeds the per-document size fails because…</h4>
+  <button class="opt" data-fb="No — that is the per-stage memory limit, a different guardrail.">the 100 MB per-stage memory cap</button>
+  <button class="opt" data-fb="Correct — every result document must stay under 16 MiB.">of the 16 MiB BSON document limit</button>
+  <button class="opt" data-fb="No — stage count is capped at 1000, unrelated to size.">the 1000-stage pipeline cap</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A memory-hungry $sort can avoid erroring by…</h4>
+  <button class="opt" data-fb="Correct — allowDiskUse lets the stage spill to disk.">setting allowDiskUse to true</button>
+  <button class="opt" data-fb="No — the stage can, but only when allowed; not automatically.">always writing to disk automatically</button>
+  <button class="opt" data-fb="No — result size limits and memory limits are separate.">raising the 16 MiB document size</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. The best first move in most pipelines is…</h4>
+  <button class="opt" data-fb="No — that is blocking and should come later.">$sort</button>
+  <button class="opt" data-fb="No — unwind explodes rows; do it after filtering.">$unwind</button>
+  <button class="opt" data-fb="Correct — a cheap $match shrinks the stream and uses an index.">$match</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read <a href="https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/">Aggregation Pipeline Limits</a> end-to-end, then the <a href="https://www.mongodb.com/docs/manual/core/aggregation-pipeline/">Aggregation Pipeline</a> page, which covers optimization and index use.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Take the monthly seller dashboard. For each stage name what shape its output has, which guardrail (size/memory) could bite, and where an index would help. Then tighten the pipeline to make it cheaper.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits/">MongoDB — Aggregation Pipeline Limits</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/core/aggregation-pipeline/">MongoDB — Aggregation Pipeline (optimization)</a></li>
+    <li id="r3"><a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/">MongoDB — $lookup (performance considerations)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0008-facet-and-window-fields.html">← Lesson 8: $facet &amp; windows</a></span>
+  <span class="nav-next"><a href="../reference/aggregations-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/aggregations-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — Define a Service &amp; Codegen</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 9</span><span>gRPC TypeScript</span></div>
+  <h1>Define a Service &amp; Codegen</h1>
+  <p class="subtitle">Turn messages into RPCs, then turn the whole thing into TypeScript stubs you can type against.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A <code>service</code> block groups <code>rpc</code> methods; the server implements them and the client gets a generated stub with matching methods — one contract, two sides, both typesafe.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Declaring the service</h2>
+<pre><code>syntax = "proto3";
+
+package orders.v1;
+
+message GetOrderRequest  { string id = 1; }
+message GetOrderResponse { Order order = 1; }
+
+service OrderService {
+  rpc GetOrder(GetOrderRequest) returns (GetOrderResponse);
+}</code></pre>
+<ul>
+  <li>The <code>package</code> becomes the namespace for generated types: <code>orders.v1.OrderService</code>.</li>
+  <li>Each <code>rpc</code> names a method, an input message, and an output message.</li>
+  <li>Adding <code>stream</code> before a type changes the call kind — you will meet all four in Lesson 7.</li>
+</ul>
+
+<h2>The four RPC kinds (preview)</h2>
+<table>
+  <tr><th>Shape</th><th>Syntax</th><th>When (domain layer)</th></tr>
+  <tr><td>Unary</td><td><code>rpc Get(Req) returns (Res)</code></td><td>Default for reads/writes.</td></tr>
+  <tr><td>Server-streaming</td><td><code>rpc List(Req) returns (stream Res)</code></td><td>Bulk query, page streaming.</td></tr>
+  <tr><td>Client-streaming</td><td><code>rpc Send(stream Req) returns (Res)</code></td><td>Bulk ingest/upload.</td></tr>
+  <tr><td>Bidirectional</td><td><code>rpc Sync(stream Req) returns (stream Res)</code></td><td>Live sync; use rarely.</td></tr>
+</table>
+
+<h2>Turning the proto into TypeScript</h2>
+<p>Two ways to load a proto in Node:<sup><a href="#r2">2</a></sup></p>
+<ul>
+  <li><strong>Dynamic</strong> (<code>@grpc/proto-loader</code> + <code>grpc.loadPackageDefinition</code>): the proto is parsed at runtime. Least setup, weakest types.</li>
+  <li><strong>Static</strong> (<code>grpc-tools</code>/<code>buf</code>): <code>protoc</code> emits JS + <code>.d.ts</code> at build time. Most type safety — recommended for a real project.</li>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. The <code>stream</code> keyword before a type determines…</h4>
+  <button class="opt" data-fb="No — streaming is a call-shape concept; keepalive is a channel concern.">whether the connection stays alive after the call</button>
+  <button class="opt" data-fb="No — that is about deadline propagation, not the call shape.">whether responses are compressed</button>
+  <button class="opt" data-fb="Correct — it picks which of the four RPC kinds the method is.">which of the four RPC kinds the method is</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The generated file <code>orders_grpc_pb.d.ts</code> gives the server side…</h4>
+  <button class="opt" data-fb="Correct — OrderServiceService is the registration object used to mount handlers.">an OrderServiceService registration object for mounting handlers</button>
+  <button class="opt" data-fb="No — OrderServiceClient is what the client instantiates to make calls.">an OrderServiceClient for making outbound calls</button>
+  <button class="opt" data-fb="No — it is generated from the proto, and would break if you hand-edit it by hand.">hand-written middleware you fill in yourself</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. For the strongest type safety in a real project, prefer…</h4>
+  <button class="opt" data-fb="Close, but dynamic loading sacrifices the .d.ts type safety this question targets.">loading the proto at runtime with @grpc/proto-loader</button>
+  <button class="opt" data-fb="Correct — grpc-tools/buf emit .d.ts ahead of time.">static codegen that emits client and server .d.ts files</button>
+  <button class="opt" data-fb="No — the browser cannot be trusted as the type source; generated stubs are.">copying the types by hand from the proto</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Work through the <a href="https://grpc.io/docs/what-is-grpc/core-concepts/">Core Concepts</a> page for the RPC kinds, and the <a href="https://github.com/grpc/grpc-node/blob/master/PACKAGE-COMPARISON.md">Node package comparison</a> to decide static vs dynamic in your own setup.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Add <code>ListOrders</code> as a server-streaming method (<code>stream Order</code>) to the orders service in your head. Then say which of the four kinds you would choose for: (a) fetching one order, (b) exporting all of a customer's orders, (c) uploading a batch of them.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://grpc.io/docs/what-is-grpc/introduction/">gRPC — Introduction (services &amp; stubs)</a></li>
+    <li id="r2"><a href="https://github.com/grpc/grpc-node/blob/master/PACKAGE-COMPARISON.md">grpc-node — package comparison</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-the-proto-contract.html">← Lesson 2: The proto contract</a></span>
+  <span class="nav-next"><a href="0004-running-a-grpc-server-in-node.html">Lesson 4: Run a server in Node →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/grpc-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</ul>
+<pre><code>npm i @grpc/grpc-js @grpc/proto-loader google-protobuf
+npm i -D grpc-tools
+
+npx grpc_tools_node_protoc -I . ./orders.proto \
+  --js_out=import_style=commonjs,binary:./gen \
+  --grpc_out=grpc_js:./gen \
+  --plugin=protoc-gen-grpc=./node_modules/.bin/grpc_tools_node_protoc_plugin
+# emits ./gen/orders_pb.js, ./gen/orders_pb.d.ts,
+#        ./gen/orders_grpc_pb.js, ./gen/orders_grpc_pb.d.ts</code></pre>
+<p>The generated <code>_grpc_pb.d.ts</code> exposes <code>OrderServiceClient</code> (client) and <code>OrderServiceService</code> (server registration) — the two halves you will use in the next lesson.</p>
+</section>

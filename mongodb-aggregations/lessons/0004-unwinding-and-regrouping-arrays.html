@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — Unwind &amp; Regroup Arrays</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 9</span><span>MongoDB Aggregations</span></div>
+  <h1>Unwind &amp; Regroup Arrays</h1>
+  <p class="subtitle">Turn an array of N into N documents, so you can aggregate over the elements — then group back up.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p><code>$unwind</code> deconstructs an array field: an array of N elements yields N output documents, each with the array field replaced by a single element.<sup><a href="#r1">1</a></sup> This "flattens" one document per line-item so you can run <code>$group</code> against the items.</p>
+
+<h2>Basic unwinding</h2>
+<pre><code>// one order with items: [pen, pad, ink]
+{ _id: 1, orderId: "o1", region: "EU", items: [
+    { sku: "pen", qty: 5 }, { sku: "pad", qty: 2 }, { sku: "ink", qty: 8 } ] }
+
+{ $unwind: "$items" }
+
+// becomes three documents, items now a single element each:
+{ _id: 1, orderId: "o1", region: "EU", items: { sku: "pen", qty: 5 } }
+{ _id: 1, orderId: "o1", region: "EU", items: { sku: "pad", qty: 2 } }
+{ _id: 1, orderId: "o1", region: "EU", items: { sku: "ink", qty: 8 } }</code></pre>
+<ul>
+  <li>The field path is written <code>"$items"</code> — dollar prefix, quoted.<sup><a href="#r1">1</a></sup></li>
+  <li>Everything else on the parent document is copied to each output document (here <code>region</code>).</li>
+</ul>
+
+<h2>Options: the document form</h2>
+<pre><code>{ $unwind: {
+    path: "$items",
+    includeArrayIndex: "position",     // add the 0-based index
+    preserveNullAndEmptyArrays: true   // keep docs with null/missing/empty
+} }</code></pre>
+<ul>
+  <li>By default <code>$unwind</code> <em>drops</em> a document whose array is missing, null, or empty — use <code>preserveNullAndEmptyArrays: true</code> to keep it and omit the field.<sup><a href="#r1">1</a></sup></li>
+  <li><code>includeArrayIndex</code> records each element's 0-based position in a new field.</li>
+  <li>A non-array, non-null value is passed through as one document.</li>
+</ul>
+
+<h2>The flat-then-regroup idiom</h2>
+<p>Unwind gives you a row per element; now you can aggregate over elements, then bring them back together. Sum revenue per SKU across every order:</p>
+<pre><code>db.orders.aggregate([
+  { $unwind: "$items" },
+  { $group: {
+      _id: "$items.sku",
+      qtySold: { $sum: "$items.qty" },
+      revenue: { $sum: { $multiply: [ "$items.qty", "$items.price" ] } }
+  } },
+  { $sort: { revenue: -1 } }
+])</code></pre>
+
+<aside class="note"><strong>Key idea</strong> Unwind explodes the document count (one order → N rows). Do it only as far as needed, and re-aggregate with <code>$group</code> right after so you don't carry an exploded stream through the whole pipeline.<sup><a href="#r2">2</a></sup></aside>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. An order with an items array of 3 becomes how many docs after $unwind?</h4>
+  <button class="opt" data-fb="Correct — one document per array element.">three documents</button>
+  <button class="opt" data-fb="No — the count equals the number of elements.">one document, items unchanged</button>
+  <button class="opt" data-fb="No — it only grows to element count, not to four.">four documents</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. By default, a document with an empty or missing array…</h4>
+  <button class="opt" data-fb="No — the default drops these documents entirely.">is kept with the field set to null</button>
+  <button class="opt" data-fb="No — it does not become one doc; it is dropped.">becomes one document with a null element</button>
+  <button class="opt" data-fb="Correct — missing/null/empty arrays are dropped unless you opt out.">is dropped from the output</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. To keep the element position, add…</h4>
+  <button class="opt" data-fb="No — that preserves nulls, it does not add an index.">preserveNullAndEmptyArrays</button>
+  <button class="opt" data-fb="Correct — includeArrayIndex writes the 0-based position.">includeArrayIndex</button>
+  <button class="opt" data-fb="No — path just names the field to unwind.">path</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>The <a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/unwind/">$unwind</a> reference has the full behavior matrix, and the <a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/group/">$group</a> example shows unwinding twice for nested arrays.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Write a pipeline that reports total quantity sold per region by unwinding <code>items</code>, grouping by the <code>region</code> that lived on the parent document, and summing each item's <code>qty</code>. Why does <code>region</code> survive the unwind?</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/unwind/">MongoDB — $unwind</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/group/">MongoDB — $group (unwind/regroup example)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-grouping-and-accumulators.html">← Lesson 3: $group &amp; accumulators</a></span>
+  <span class="nav-next"><a href="0005-joining-collections-with-lookup.html">Lesson 5: $lookup →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/aggregations-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
