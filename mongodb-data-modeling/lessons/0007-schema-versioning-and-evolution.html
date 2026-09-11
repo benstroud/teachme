@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — Schema Versioning &amp; Evolution</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 9</span><span>MongoDB Data Modeling</span></div>
+  <h1>Schema Versioning &amp; Evolution</h1>
+  <p class="subtitle">The flexible model lets you change shape over time — do it without breaking the running app.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>MongoDB's flexible schema means you can evolve a model in production; the safe way is an additive, backward-compatible change that you roll out across old and new documents with a version marker.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Prefer additive, backward-compatible changes</h2>
+<p>The least risky evolution is one that old documents and old code still understand:</p>
+<ul>
+  <li><strong>Add a new field</strong> with a default — old reads ignore it, new reads use it.</li>
+  <li><strong>Don't rename or retype</strong> a field that's in production unless you migrate readers too.</li>
+  <li><strong>Keep the old shape readable</strong> while the app rolls forward.</li>
+</ul>
+<pre><code>// additive: new field with a default for existing docs
+db.orders.updateMany({}, { $set: { discount: 0 } })</code></pre>
+
+<h2>The schema-versioning pattern</h2>
+<p>Store a version marker so both old and new documents can coexist and code can route by shape:<sup><a href="#r1">1</a></sup></p>
+<pre><code>// v1 document
+{ _id: 1, schema_version: 1, title: "A", author: "ada" }
+
+// v2 document (additive: releaseDate added, defaulted on old)
+{ _id: 2, schema_version: 2, title: "B", author: "ada",
+  releaseDate: ISODate("2026-09-01") }</code></pre>
+<pre><code>// read-time: route by version
+if (doc.schema_version &lt;= 1) { /* old behavior */ }
+else { /* new behavior */ }</code></pre>
+<p>The version field is itself a schema-design pattern; it makes the rollout of a new shape explicit and testable.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Rolling forward: reads before writes</h2>
+<ol>
+  <li>Deploy code that <strong>reads</strong> both shapes.</li>
+  <li>Write new documents in the new shape; add the version marker.</li>
+  <li>Backfill existing documents (a script or aggregation) with defaults.</li>
+  <li>Once no old documents remain, the old shape can be retired.</li>
+</ol>
+
+<h2>Know when to reference instead</h2>
+<p>If the "evolution" is really unbounded growth (an array that keeps expanding) or data being split into a separate entity, that's a modeling change — the schema versioning pattern handles <em>shape</em> evolution, while the 16 MiB/atomicity rules (Lesson 4) tell you when to split into a reference.</p>
+
+<aside class="note"><strong>Key idea</strong> A schema migration in MongoDB is mostly <em>additive and cheap</em>. Keep the version marker and the read-both pattern so you can change shape on a live system without a coordinated multi-service outage.</aside>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. The safest production schema change is…</h4>
+  <button class="opt" data-fb="Correct — additive fields leave old shapes readable.">additive and backward-compatible</button>
+  <button class="opt" data-fb="No — renaming a live field breaks existing readers.">renaming a field in place</button>
+  <button class="opt" data-fb="No — this usually warrants a modeling split, not a rename.">retyping an existing field</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. A schema_version field lets you…</h4>
+  <button class="opt" data-fb="No — versioning coexists shapes; it does not replace keys.">replace the _id with a version</button>
+  <button class="opt" data-fb="No — the marker accompanies the shape, not removes it.">delete the old shape immediately</button>
+  <button class="opt" data-fb="Correct — old and new shapes coexist and code routes by it.">coexist old and new shapes and route reads</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. The correct rollout order is…</h4>
+  <button class="opt" data-fb="No — deleting old data before readers are ready breaks reads.">drop old fields, then write new docs</button>
+  <button class="opt" data-fb="Correct — ship readers that accept both first, then backfill.">ship read-both code, then backfill</button>
+  <button class="opt" data-fb="No — a live model change should be read-safe first.">rename the field, then migrate</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://www.mongodb.com/docs/manual/data-modeling/design-patterns.md">Schema Design Patterns</a> index for the Document &amp; Schema Versioning pattern, and <a href="https://www.mongodb.com/docs/manual/data-modeling/best-practices.md">Best Practices</a> for the course-model iteration example that motivates evolving a design.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Your order documents need a new required <code>currency</code> field, but millions of old orders lack it. Walk the safe rollout: the version marker, the read-both code, and the backfill. Then decide whether to keep <code>total</code> numeric or store an object — and why.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/data-modeling/design-patterns.md">MongoDB — Schema Design Patterns</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/data-modeling/best-practices.md">MongoDB — Best Practices (modify your data model)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-schema-validation.html">← Lesson 6: Schema validation</a></span>
+  <span class="nav-next"><a href="0008-modeling-tree-data.html">Lesson 8: Modeling tree data →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/data-modeling-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

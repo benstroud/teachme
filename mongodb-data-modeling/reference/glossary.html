@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MongoDB Data Modeling — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>MongoDB Data Modeling</span></div>
+  <h1>Data Modeling Glossary</h1>
+  <p class="subtitle">Every term in this course, in one place. Return here when a lesson uses a word you do not fully own.</p>
+</header>
+
+<section>
+<h2>The document model</h2>
+<dl>
+  <dt><strong>Flexible data model</strong></dt>
+  <dd>Documents in a collection are not required to share fields, and a field's type may differ between documents. The schema can evolve with the app.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>Polymorphic data</strong></dt>
+  <dd>Storing documents with different fields or types in one collection — a pattern MongoDB endorses for product catalogs, events, and similar.</dd>
+
+  <dt><strong>Denormalized (embedded) model</strong></dt>
+  <dd>Related data stored together in one document (often with duplication across collections) so it can be read back in a single operation.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>Normalized (reference) model</strong></dt>
+  <dd>Related data split across collections and linked by references, avoiding duplication.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>"Data accessed together is stored together"</strong></dt>
+  <dd>The core MongoDB modeling principle: choose the model by how the application reads and writes, not by abstract normal forms.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>BSON</strong></dt>
+  <dd>The binary JSON format MongoDB stores documents in; docs must be under 16 MiB.</dd>
+
+  <dt><strong>_id</strong></dt>
+  <dd>The required unique identifier of a document; always indexed. It may be a meaningful value you supply rather than an ObjectId.<sup><a href="#r4">4</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Relationships &amp; linking</h2>
+<dl>
+  <dt><strong>One-to-one</strong></dt>
+  <dd>Each document relates to exactly one other (a patient ↔ their medical record). Usually embedded.<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>One-to-many</strong></dt>
+  <dd>One document relates to many others (a user → many posts). Embed when the many is shown inside the parent; reference when it is large or independent.<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>Many-to-many</strong></dt>
+  <dd>Each side relates to many of the other (students ↔ courses). Usually modeled with references or reverse references.<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>Embedding</strong></dt>
+  <dd>Storing a related sub-document or array inside the parent document, for "contains"/has-a and co-read data.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>Referencing</strong></dt>
+  <dd>Storing a link (often the other document's <code>_id</code>) and resolving it with an application join or <code>$lookup</code>.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>Reverse reference / array of ids</strong></dt>
+  <dd>The "many" side storing the parent's <code>_id(s)</code>, e.g. a student document listing its <code>courseIds</code>.</dd>
+
+  <dt><strong>High cardinality</strong></dt>
+  <dd>A child side that has very many or unbounded members — a signal to reference rather than embed.<sup><a href="#r6">6</a></sup></dd>
+</dl>
+</section>
+
+<section>
+<h2>Constraints, validation &amp; evolution</h2>
+<dl>
+  <dt><strong>16 MiB BSON document limit</strong></dt>
+  <dd>The maximum size of any single document. Unbounded embedded arrays will eventually exceed it.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>Atomic single-document write</strong></dt>
+  <dd>Writes to one document are atomic even when they change multiple fields; <code>updateMany</code> is not atomic as a whole.<sup><a href="#r7">7</a></sup></dd>
+
+  <dt><strong>$jsonSchema</strong></dt>
+  <dd>The validator expression for schema validation: <code>bsonType</code>, <code>required</code>, <code>properties</code>, <code>minimum</code>/<code>maximum</code>, <code>enum</code>.<sup><a href="#r8">8</a></sup></dd>
+
+  <dt><strong>Schema validation</strong></dt>
+  <dd>Rules that runs on insert and update; by default MongoDB rejects invalid documents (or can be set to warn).<sup><a href="#r8">8</a></sup></dd>
+
+  <dt><strong>Schema versioning</strong></dt>
+  <dd>A <code>schema_version</code>-style field that lets old and new document shapes coexist while an app rolls forward.<sup><a href="#r9">9</a></sup></dd>
+
+  <dt><strong>Materialized path / tree patterns</strong></dt>
+  <dd>Five ways to model a tree: parent references, child references, ancestors array, materialized paths (path string), nested sets.<sup><a href="#r10">10</a></sup></dd>
+</dl>
+</section>
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/data-modeling.md">MongoDB — Data Modeling in MongoDB</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/data-modeling/embedding.md">MongoDB — Embedded Data</a></li>
+    <li id="r3"><a href="https://www.mongodb.com/docs/manual/data-modeling/referencing.md">MongoDB — Reference Data</a></li>
+    <li id="r4"><a href="https://www.mongodb.com/docs/manual/data-modeling/best-practices.md">MongoDB — Best Practices (small documents)</a></li>
+    <li id="r5"><a href="https://www.mongodb.com/docs/manual/applications/data-models-relationships.md">MongoDB — Document Relationships</a></li>
+    <li id="r6"><a href="https://www.mongodb.com/docs/manual/data-modeling/best-practices.md">MongoDB — Best Practices (embed vs reference)</a></li>
+    <li id="r7"><a href="https://www.mongodb.com/docs/manual/core/write-operations-atomicity.md">MongoDB — Atomicity and Transactions</a></li>
+    <li id="r8"><a href="https://www.mongodb.com/docs/manual/core/schema-validation/specify-json-schema.md">MongoDB — Specify JSON Schema Validation</a></li>
+    <li id="r9"><a href="https://www.mongodb.com/docs/manual/data-modeling/design-patterns.md">MongoDB — Schema Design Patterns</a></li>
+    <li id="r10"><a href="https://www.mongodb.com/docs/manual/applications/data-models-tree-structures.md">MongoDB — Model Tree Structures</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Mission &amp; notes</span>
+  <span class="nav-next"><a href="../lessons/0001-why-data-modeling.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../NOTES.md">Notes</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

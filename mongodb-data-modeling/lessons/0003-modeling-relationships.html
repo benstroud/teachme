@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — Modeling Relationships</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 9</span><span>MongoDB Data Modeling</span></div>
+  <h1>Modeling Relationships</h1>
+  <p class="subtitle">One-to-one, one-to-many, many-to-many — the three relationship shapes and the document shapes that serve them.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Every relationship is one-to-one, one-to-many, or many-to-many, and each can be modeled embedded or referenced — your workload picks the shape.<sup><a href="#r1">1</a></sup></p>
+
+<h2>One-to-one: embed the "one"</h2>
+<p>When each document relates to exactly one other and they're read together, embed it.</p>
+<pre><code>{ _id: "alice", email: "a@x.dev",
+  healthRecord: { height: 170, allergies: ["peanuts"] } }</code></pre>
+
+<h2>One-to-many: the interesting one</h2>
+<p>Two idioms, chosen by how the child is used:<sup><a href="#r2">2</a></sup></p>
+<pre><code>// (a) EMBED the many — bounded, always shown with the parent
+{ _id: "joeb", name: "Joe", addresses: [
+    { street: "...", city: "Faketon" },
+    { street: "...", city: "Boston" } ] }
+
+// (b) REFERENCE the many — array of ids, or a foreign key on the child
+// user: { _id: "joeb", name: "Joe" }
+// posts live in their own collection, each carrying the author id
+post:    { _id: 9001, author: "joeb", text: "..." }</code></pre>
+<ul>
+  <li>Embed when you always read the children with the parent and they're bounded (addresses, line items on an order).<sup><a href="#r2">2</a></sup></li>
+  <li>Reference (often a "reverse" array of ids on the parent, or a foreign key on each child) when the children are many, large, or queried on their own — e.g. a user's posts.<sup><a href="#r3">3</a></sup></li>
+</ul>
+
+<h2>Many-to-many: reference on both sides</h2>
+<p>A student has many courses and a course has many students. Model it with references — often arrays of ids on each side (or a join collection):<sup><a href="#r5">5</a></sup></p>
+<pre><code>student: { _id: 7, name: "Ada", courseIds: [ 101, 102 ] }
+course:  { _id: 101, title: "Algorithms", studentIds: [ 7, 8 ] }</code></pre>
+<p>This avoids duplicating a course inside every student (and a student inside every course). Resolve with application-side lookups or aggregation.</p>
+
+<h2>Turning the crank: which shape wins?</h2>
+<table>
+  <tr><th>Relationship</th><th>Default shape</th><th>Why</th></tr>
+  <tr><td>One-to-one, co-read</td><td>Embed</td><td>One read, atomic.</td></tr>
+  <tr><td>One-to-many, bounded, co-read</td><td>Embed the array</td><td>One read for the page.</td></tr>
+  <tr><td>One-to-many, many/large/independent</td><td>Reference</td><td>Bounded size, independent queries.</td></tr>
+  <tr><td>Many-to-many</td><td>Reference (both sides)</td><td>No unbounded duplication.</td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> There is no one "right" shape in the abstract — only the shape that matches the read/write workload of <em>that</em> relationship. Embed by default; move to references the moment cardinality or independence makes embedding costly.</aside>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. A user's 100,000 posts, queried on their own, should be…</h4>
+  <button class="opt" data-fb="No — unbounded, independently-queried children are a reference case.">embedded as an array in the user</button>
+  <button class="opt" data-fb="Correct — large, independent children belong in their own collection.">referenced, in their own collection</button>
+  <button class="opt" data-fb="No — this is the reference trigger, not a sizing fix.">embedded but stored in subdocuments</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. Many-to-many is best modeled by…</h4>
+  <button class="opt" data-fb="No — one shared embedded array duplicates data on both sides.">embedding a shared array in one side</button>
+  <button class="opt" data-fb="No — a single _id link only models a one-to-one.">a single reference from student to course</button>
+  <button class="opt" data-fb="Correct — references from both sides (often arrays of ids).">references on both sides</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. An order's line items, always shown with the order…</h4>
+  <button class="opt" data-fb="Correct — bounded and co-read, so embed the array.">are embedded so one read returns them</button>
+  <button class="opt" data-fb="No — line items are bounded and always read with the order.">live in a separate lineItems collection</button>
+  <button class="opt" data-fb="No — that is for large, independent child sets.">are referenced and fetched individually</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://www.mongodb.com/docs/manual/applications/data-models-relationships.md">Document Relationships</a> for the three relationship types, then the one-to-many embedding tutorial the manual links from <a href="https://www.mongodb.com/docs/manual/data-modeling/embedding.md">Embedded Data</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Model each: (a) a book and its author who is an author of many books, (b) a category tree where products show their full breadcrumb, (c) an event with an unbounded guest list. State followed the embed/reference rule you've learned.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/applications/data-models-relationships.md">MongoDB — Document Relationships</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/data-modeling/embedding.md">MongoDB — Embedded Data</a></li>
+    <li id="r3"><a href="https://www.mongodb.com/docs/manual/data-modeling/referencing.md">MongoDB — Reference Data</a></li>
+    <li id="r5"><a href="https://www.mongodb.com/docs/manual/data-modeling/best-practices.md">MongoDB — Best Practices (many-to-many)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-embed-vs-reference.html">← Lesson 2: Embed vs reference</a></span>
+  <span class="nav-next"><a href="0004-the-16mb-and-atomicity-rules.html">Lesson 4: 16 MiB &amp; atomicity →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/data-modeling-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

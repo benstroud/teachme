@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 9 — Putting It Together</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 9 of 9</span><span>MongoDB Data Modeling</span></div>
+  <h1>Putting It Together</h1>
+  <p class="subtitle">A full modeled app, an explicit anti-pattern pass, and the senior design reflex.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Model a real feature end-to-end: start from its workload, choose embed-or-reference per relationship, honor the 16 MiB and atomicity rules, lock it with validation, and sweep for anti-patterns.</p>
+
+<h2>Example: an e-commerce checkout</h2>
+<p><strong>Workload:</strong> place an order (write total + line items together, high); view an order (read everything, high); manage inventory per SKU (many admins, independently).</p>
+<pre><code>// order: line items embedded (bounded, co-read, atomic update)
+{ _id: ObjectId(), schema_version: 1,
+  customerId: 55,
+  items: [ { sku: "pen", qty: 3, price: 2.00 },
+           { sku: "pad", qty: 1, price: 5.00 } ],
+  total: 11.00, status: "placed", placedAt: ISODate(...) }
+
+// inventory: referenced, because it mutates often and is read alone
+// sku "pen": { _id: "pen", stock: 97, updatedAt: ISODate(...) }
+
+// customer: referenced, independent, changes separately
+// { _id: 55, email: "ada@x.dev" }</code></pre>
+<p>Why: line items are bounded and always shown with the order (embed, atomic); inventory and customer change independently and are queried alone (reference).<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<h2>Lock it down with validation</h2>
+<pre><code>db.createCollection("orders", {
+  validator: { $jsonSchema: {
+      bsonType: "object",
+      required: [ "schema_version", "customerId", "items", "total", "status" ],
+      properties: {
+        total: { bsonType: "double", minimum: 0 },
+        status: { enum: [ "placed", "fulfilled", "cancelled" ] },
+        items: { bsonType: "array", minItems: 1 }
+      }
+  } }
+})</code></pre>
+
+<h2>The anti-pattern sweep</h2>
+<ul>
+  <li><strong>Massive unbounded document?</strong> No — <code>items</code> is bounded; history is not embedded forever.</li>
+  <li><strong>Embedding what should stand alone?</strong> No — inventory and customer are referenced.</li>
+  <li><strong>Over-fragmenting?</strong> Reasonable — order, inventory, customer are genuinely separate.<sup><a href="#r3">3</a></sup></li>
+</ul>
+
+<h2>The senior reflex</h2>
+<p>Before finalizing any model, verbally test it against the rules you've learned:</p>
+<ol>
+  <li>Does the shape serve the <em>highest-frequency read</em> in one operation?</li>
+  <li>Is every embedded thing bounded and co-updated (16 MiB, atomicity)?</li>
+  <li>Is anything queried alone trapped inside another document (should reference)?</li>
+  <li>Is the schema pinned where drift would hurt, and versioned so it can evolve?</li>
+</ol>
+
+<aside class="note"><strong>Key idea</strong> Data modeling is a reflex, not a recall task. Run the four checks on every schema and you'll make the embedded/atomic/shaped choice that interviewers and production both reward.</aside>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. In the checkout model, line items are embedded because…</h4>
+  <button class="opt" data-fb="No — line items are bounded and always read with the order, which favors embedding.">they can grow without limit</button>
+  <button class="opt" data-fb="Correct — bounded, co-read, and atomically updatable with the order.">they are bounded and read only with the order</button>
+  <button class="opt" data-fb="No — that is why inventory is instead referenced.">they change frequently and stand alone</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. Inventory is referenced, not embedded, because…</h4>
+  <button class="opt" data-fb="No — the rule it violates is the mutate-nowhere-else one, not type.">it has many fields</button>
+  <button class="opt" data-fb="No — it is customer data, not an identity concern.">it must stay in the same database</button>
+  <button class="opt" data-fb="Correct — it mutates often and is queried on its own.">it is written often and queried independently</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>4. The "massive unbounded array" anti-pattern is avoided here by…</h4>
+  <button class="opt" data-fb="Correct — keeping unbounded history out of the embedded items array.">not embedding an ever-growing history array</button>
+  <button class="opt" data-fb="No — that single field's size is not the fix.">adding more fields to the order</button>
+  <button class="opt" data-fb="No — items is bounded; the anti-pattern is unbounded growth elsewhere.">compressing the items array</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Revisit <a href="https://www.mongodb.com/docs/manual/data-modeling/best-practices.md">Best Practices for Data Modeling</a> for the course-model iteration example, and the manual's schema-design-patterns index for a deeper catalogue to apply.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Take your own highest-traffic feature and walk the four checks aloud: the highest-frequency read, the bounded/atomic embedded data, the standalone data that should reference, and the validation + versioning. Then name any anti-pattern you found and how you'd fix it.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/data-modeling/embedding.md">MongoDB — Embedded Data</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/data-modeling/referencing.md">MongoDB — Reference Data</a></li>
+    <li id="r3"><a href="https://www.mongodb.com/docs/manual/data-modeling/best-practices.md">MongoDB — Best Practices (link related data)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0008-modeling-tree-data.html">← Lesson 8: Modeling tree data</a></span>
+  <span class="nav-next"><a href="../reference/data-modeling-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/data-modeling-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

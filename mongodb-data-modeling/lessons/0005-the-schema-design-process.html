@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — The Schema Design Process</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 9</span><span>MongoDB Data Modeling</span></div>
+  <h1>The Schema Design Process</h1>
+  <p class="subtitle">A repeatable method: identify the workload, map relationships, apply patterns, create indexes.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>MongoDB's schema design is a four-step process — identify the workload, map relationships, apply patterns, create indexes — so you design for the app's actual operations, not from intuition.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Step 1 — Identify the workload</h2>
+<p>List the operations your app runs most, their frequency, and what they touch. MongoDB recommends a workload table:<sup><a href="#r2">2</a></sup></p>
+<table>
+  <tr><th>Action</th><th>Type</th><th>Information</th><th>Frequency</th><th>Priority</th></tr>
+  <tr><td>View an article</td><td>Read</td><td>id, text, comments</td><td>1,000,000/day</td><td>High</td></tr>
+  <tr><td>Submit a comment</td><td>Write</td><td>user, text</td><td>1,000/day</td><td>Medium</td></tr>
+  <tr><td>View analytics</td><td>Read</td><td>id, clicks</td><td>10/hour</td><td>Low</td></tr>
+</table>
+<p>Frequently-run operations deserve the optimized shape and an index; the frequent <em>read</em> is what tells you what to embed.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Step 2 — Map relationships</h2>
+<p>For each relationship decide embed or reference (Lesson 2), yielding document shapes that serve the reads (Lesson 3).<sup><a href="#r1">1</a></sup></p>
+
+<h2>Step 3 — Apply design patterns</h2>
+<p>Reach for established patterns to optimize specific reads/writes:<sup><a href="#r3">3</a></sup></p>
+<ul>
+  <li><strong>Computed values</strong> — precompute totals so results are ready at read time.</li>
+  <li><strong>Group / bucket</strong> — group data into series and account for outliers.</li>
+  <li><strong>Polymorphic</strong> — variable fields/types in one collection.</li>
+  <li><strong>Schema versioning</strong> — coexist old/new shapes during rollout.</li>
+  <li><strong>Archive</strong> — move old data out of the hot working set.</li>
+  <li><strong>Single collection</strong> — reference to group related doc types.</li>
+</ul>
+
+<h2>Step 4 — Create indexes</h2>
+<p>Support the frequent query patterns from step 1 with indexes (e.g. an index on the field used by the high-frequency read). Indexes are a deliverable of the design, not an afterthought.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Design, don't drift</h2>
+<p>The flexible model lets you change the schema later — but change at production scale is costly. Plan early, keep a simple schema to start, and optimize deliberately.<sup><a href="#r4">4</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> The workload table is the anchor. Every later choice — embed or reference, which index, which pattern — should trace back to a row in that table.</aside>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. The first step of the schema design process is…</h4>
+  <button class="opt" data-fb="Correct — you identify the workload before designing anything.">identify the application workload</button>
+  <button class="opt" data-fb="No — indexes come last, after the model and patterns.">create indexes</button>
+  <button class="opt" data-fb="No — relationships are mapped second, not first.">map relationships</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. A workload table's most revealing column for embedding is…</h4>
+  <button class="opt" data-fb="No — priority ranks importance but the read pattern decides embedding.">Priority</button>
+  <button class="opt" data-fb="No — Type alone doesn't show what is read together.">Type</button>
+  <button class="opt" data-fb="Correct — the frequent read shows what must be co-located.">Frequency</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. Which pattern precomputes totals so reads are instant?</h4>
+  <button class="opt" data-fb="No — bucket groups data into series; it does not precompute totals.">Group / bucket</button>
+  <button class="opt" data-fb="Correct — computed values store ready results for fast reads.">Computed values</button>
+  <button class="opt" data-fb="No — polymorphic handles variable fields, not totals.">Polymorphic</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://www.mongodb.com/docs/manual/data-modeling/schema-design-process.md">Schema Design Process</a> and the <a href="https://www.mongodb.com/docs/manual/data-modeling/schema-design-process/identify-workload.md">Identify Application Workload</a> page for the full workload-table example.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Build a workload table for a screen in your own app (three to four operations). Then say which read row most strongly suggests an embed, and which index your step-4 would create for the highest-frequency read.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/data-modeling/schema-design-process.md">MongoDB — Schema Design Process</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/data-modeling/schema-design-process/identify-workload.md">MongoDB — Identify Application Workload</a></li>
+    <li id="r3"><a href="https://www.mongodb.com/docs/manual/data-modeling/design-patterns.md">MongoDB — Schema Design Patterns</a></li>
+    <li id="r4"><a href="https://www.mongodb.com/docs/manual/data-modeling/best-practices.md">MongoDB — Best Practices (plan early)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-the-16mb-and-atomicity-rules.html">← Lesson 4: 16 MiB &amp; atomicity</a></span>
+  <span class="nav-next"><a href="0006-schema-validation.html">Lesson 6: Schema validation →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/data-modeling-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

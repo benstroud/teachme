@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — Embed vs Reference</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 9</span><span>MongoDB Data Modeling</span></div>
+  <h1>Embed vs Reference</h1>
+  <p class="subtitle">The decision that decides everything else. Learn the triggers that push you one way or the other.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p><strong>Embed</strong> related data when you read it together and keep it together; use <strong>references</strong> when the related data is large, unbounded, independently queried, or written at different times.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<h2>Embed: denormalized, fast, atomic</h2>
+<p>An <em>embedded</em> model copies related data into one document. It's denormalized — the same value may appear in several documents — and in return you get:</p>
+<ul>
+  <li>Reads served in a single database operation.<sup><a href="#r1">1</a></sup></li>
+  <li>Related data updated in a single atomic write.<sup><a href="#r1">1</a></sup></li>
+  <li>Simpler code: no join, no second query.</li>
+</ul>
+<pre><code>// embed a "contains" relationship
+{ _id: 1, customerId: 55, items: [ { sku: "pen", qty: 3 }, ... ] }</code></pre>
+
+<h2>Reference: normalized, no duplication</h2>
+<p>A <em>reference</em> model splits related data into separate collections and links them (often by storing the other document's <code>_id</code>). It's normalized — the source of truth lives once — and you resolve it with an application join or a query.</p>
+<pre><code>// reference the "many" that can exist on its own
+order:  { _id: 10, customerId: 55, total: 40 }
+customer: { _id: 55, email: "ada@x.dev" }   // referenced, not duplicated</code></pre>
+
+<h2>The decision table (memorize this)</h2>
+<p>MongoDB's own guidance:<sup><a href="#r3">3</a></sup></p>
+<table>
+  <tr><th>Scenario</th><th>Linking method</th></tr>
+  <tr><td>Keeping related data together simplifies model and code</td><td><strong>Embed</strong></td></tr>
+  <tr><td>"Has-a" / "contains" relationship</td><td><strong>Embed</strong></td></tr>
+  <tr><td>Application reads the pieces together</td><td><strong>Embed</strong></td></tr>
+  <tr><td>Data is updated together</td><td><strong>Embed</strong></td></tr>
+  <tr><td>Data is archived together</td><td><strong>Embed</strong></td></tr>
+  <tr><td>Child side has high cardinality / unbounded</td><td><strong>Reference</strong></td></tr>
+  <tr><td>Duplication is too costly to manage</td><td><strong>Reference</strong></td></tr>
+  <tr><td>Combined size is too large / too much bandwidth</td><td><strong>Reference</strong></td></tr>
+  <tr><td>Embedded data grows without bound</td><td><strong>Reference</strong></td></tr>
+  <tr><td>Write-heavy, data written at different times</td><td><strong>Reference</strong></td></tr>
+  <tr><td>Child can exist without its parent</td><td><strong>Reference</strong></td></tr>
+</table>
+
+<h2>The hidden tension</h2>
+<p>Embedding "rolls up" the many into the one. That's great for one big read and atomic updates, but every change to the many (say, editing a shared author's name) means updating every document that embeds it. When related data <em>changes often and is shared</em>, references keep the duplication manageable.<sup><a href="#r2">2</a></sup><sup><a href="#r3">3</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Ask two questions per relationship: <em>do I read the child with the parent?</em> (embed) and <em>does the child grow without bound or stand alone / mutate often?</em> (reference). The answers are usually one-sided.</aside>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. A "contains" relationship, read and updated together, should…</h4>
+  <button class="opt" data-fb="No — co-read, co-update data is the very case for embedding.">link with a reference to avoid copying</button>
+  <button class="opt" data-fb="Correct — co-read, co-update data belongs embedded in one doc.">embed the related data in the document</button>
+  <button class="opt" data-fb="No — embedding is the simpler model here, not extra collections.">split into two collections and join</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. An embedded child array that grows without bound should…</h4>
+  <button class="opt" data-fb="No — avoiding duplication is a reason to reference, not to embed more.">be embedded to keep reads fast</button>
+  <button class="opt" data-fb="No — this is a reference trigger, not a size-tuning detail.">be kept embedded but capped at 16 MiB</button>
+  <button class="opt" data-fb="Correct — unbounded growth is the classic reference trigger.">be moved to a referenced collection</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. Embedding a shared value that changes often…</h4>
+  <button class="opt" data-fb="Correct — you'd rewrite every document that embeds it.">forces updating every document that embeds it</button>
+  <button class="opt" data-fb="No — embedding copies it, so it appears in many places.">keeps a single source of truth</button>
+  <button class="opt" data-fb="No — shared, often-changing data points to references.">is always the right modeling choice</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://www.mongodb.com/docs/manual/data-modeling/best-practices.md">Best Practices for Data Modeling</a> for the full embed-vs-reference table, then <a href="https://www.mongodb.com/docs/manual/data-modeling/referencing.md">Reference Data</a> for the use cases on the reference side.</p>
+
+<div class="ask"><strong>Ask the agent</strong> For each of these, decide embed or reference and defend it: (a) an order's line items, (b) a user's 100,000 post comments, (c) a product's category name that admins rename, (d) a patient's medical record viewed with their profile.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/data-modeling/embedding.md">MongoDB — Embedded Data</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/data-modeling/referencing.md">MongoDB — Reference Data</a></li>
+    <li id="r3"><a href="https://www.mongodb.com/docs/manual/data-modeling/best-practices.md">MongoDB — Best Practices (link related data)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-why-data-modeling.html">← Lesson 1: Why data modeling</a></span>
+  <span class="nav-next"><a href="0003-modeling-relationships.html">Lesson 3: Relationship shapes →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/data-modeling-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

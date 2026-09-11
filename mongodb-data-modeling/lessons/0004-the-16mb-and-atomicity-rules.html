@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — The 16 MiB &amp; Atomicity Rules</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 9</span><span>MongoDB Data Modeling</span></div>
+  <h1>The 16 MiB &amp; Atomicity Rules</h1>
+  <p class="subtitle">Two constraints shape every model: how big a document may be, and what a single write may promise.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A document may not exceed <strong>16 MiB</strong>, and every write to a <em>single</em> document is <strong>atomic</strong> — model so the hot path fits one bounded document and mutates it in one operation.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<h2>The 16 MiB wall</h2>
+<p>Documents in MongoDB must be smaller than 16 MiB.<sup><a href="#r1">1</a></sup> The classic violation is an <em>unbounded embedded array</em>: the more you push into it, the bigger the document — until one day it errors. Symptoms:</p>
+<ul>
+  <li>A comments/events array that grows with every write.</li>
+  <li>Accumulating logs or version history embedded forever.</li>
+  <li>Writes that rewrite an ever-larger document each time (the <em>massive unbounded document</em> anti-pattern).</li>
+</ul>
+<p>Fix: cap the array (keep the most recent N, archive the rest), or move the unbounded child to its own collection with a reference.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Atomicity: write to one document</h2>
+<p>MongoDB writes are atomic at the <em>single-document</em> level — even when you modify multiple fields at once, they all commit together or not at all.<sup><a href="#r2">2</a></sup> But <code>updateMany</code> touching many documents is <em>not</em> atomic as a whole: each document is, the operation isn't. Cross-document guarantees need transactions (and the manual's advice is to prefer good modeling over transactions).<sup><a href="#r2">2</a></sup></p>
+<pre><code>// atomic: one document, several fields, all or nothing
+db.orders.updateOne(
+  { _id: 10 },
+  { $set: { status: "fulfilled", fulfilledAt: new Date() } }
+)</code></pre>
+
+<h2>Avoiding lost updates</h2>
+<p>Two concurrent updates to the same document can silently overwrite each other. Protect the value:<sup><a href="#r2">2</a></sup></p>
+<pre><code>// filter on the expected current value — second update won't match
+db.movies.updateOne({ _id: 1, score: 80 }, { $set: { score: 90 } })
+
+// or use $inc so updates compose instead of overwrite
+db.movies.updateOne({ _id: 1 }, { $inc: { score: 20 } })</code></pre>
+
+<h2>Why these two rules change your model</h2>
+<p>Embedding is great — until it violates one of these. The <em>bounded, atomic</em> test is your guardrail: if an embedded array can grow without bound, or if a flow needs to change several documents at once, the model is telling you to reference instead.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Think of each document as <em>one unit of integrity</em>: small enough to be bounded, and fully updatable in a single atomic write. If either condition breaks, split and reference.</aside>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. A single MongoDB document may be at most…</h4>
+  <button class="opt" data-fb="No — that is not the document cap MongoDB enforces.">64 MB</button>
+  <button class="opt" data-fb="No — intermediate docs may be larger, but stored results cap at 16 MiB.">4 GiB</button>
+  <button class="opt" data-fb="Correct — documents must stay under 16 MiB.">16 MiB</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>2. MongoDB's atomicity guarantee applies…</h4>
+  <button class="opt" data-fb="No — updateMany is atomic per document, not across them.">across all documents in an updateMany</button>
+  <button class="opt" data-fb="Correct — writes to a single document are atomic.">to a single document write</button>
+  <button class="opt" data-fb="No — atomicity is per document, not per entire collection.">to an entire collection at once</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. An unbounded, ever-growing embedded array should…</h4>
+  <button class="opt" data-fb="Correct — unbounded growth is exactly when you split to a reference.">be moved to its own referenced collection</button>
+  <button class="opt" data-fb="No — it will eventually exceed the size limit.">be kept embedded to keep reads atomic</button>
+  <button class="opt" data-fb="No — this is a modeling problem, not a compression one.">be compressed to fit in 16 MiB</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://www.mongodb.com/docs/manual/core/write-operations-atomicity.md">Atomicity and Transactions</a> for the lost-update examples and transactions guidance.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Your app logs one event per order into an <code>events</code> array embedded in the order doc. Explain why this will fail, and rewrite the model so the hot path still reads order + recent events in one call without ever hitting 16 MiB.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/data-modeling/embedding.md">MongoDB — Embedded Data (16 MiB note)</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/core/write-operations-atomicity.md">MongoDB — Atomicity and Transactions</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-modeling-relationships.html">← Lesson 3: Relationship shapes</a></span>
+  <span class="nav-next"><a href="0005-the-schema-design-process.html">Lesson 5: Schema design process →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/data-modeling-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

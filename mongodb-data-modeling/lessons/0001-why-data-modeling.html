@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — Why Data Modeling</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 9</span><span>MongoDB Data Modeling</span></div>
+  <h1>Why Data Modeling</h1>
+  <p class="subtitle">The document model rewards a different instinct than a relational one: design for how your app reads and writes.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>MongoDB has a <em>flexible</em> document model: documents in a collection don't have to share fields, and a field's type can differ between documents. So a data model isn't "normalize the tables" — it's "arrange data so one document holds everything the app needs in one trip."<sup><a href="#r1">1</a></sup></p>
+
+<h2>Document vs relational: what changes</h2>
+<table>
+  <tr><th>Relational behavior</th><th>Document behavior</th></tr>
+  <tr><td>Schema fixed before you insert; planning-heavy.</td><td>Schema evolves as the app evolves.</td></tr>
+  <tr><td>You often join tables to reassemble related data.</td><td>You store related data together so reads need no join.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Universal normal forms guide the design.</td><td>Your application's read/write patterns guide the design.</td></tr>
+</table>
+<p>This is the single idea that undoes SQL habits: <strong>data accessed together should be stored together</strong>.<sup><a href="#r1">1</a></sup></p>
+
+<h2>A concrete shift: embedding instead of a join</h2>
+<p>Say an app shows a patron and both their addresses on one page. A relational model puts addresses in a separate table and joins. A document model puts them inside the patron, so one query returns the whole page:</p>
+<pre><code>// relational habit: patrons table + addresses table, JOIN
+// document habit:  one document, addresses embedded
+{
+  _id: "joe",
+  name: "Joe Bookreader",
+  addresses: [
+    { street: "123 Fake Street", city: "Faketon", state: "MA" },
+    { street: "1 Some Other Street", city: "Boston", state: "MA" }
+  ]
+}</code></pre>
+<p>The <em>same</em> document, read once, gives the app everything for that page.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Why this earns senior attention</h2>
+<ul>
+  <li><strong>Fewer round trips.</strong> A well-modeled document serves a page in one read instead of a query plus joins (or a second query for the array-of-ids).</li>
+  <li><strong>Atomic updates.</strong> Because related data is in one document, an update to it is a single atomic write.<sup><a href="#r2">2</a></sup></li>
+  <li><strong>Fewer indexes/loads.</strong> Rolling related small documents up means fewer documents and fewer index entries (Lesson 2 discusses the flip side).</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> Before writing a single document, answer two questions about the app: <em>what does it read together?</em> and <em>what does it write together?</em> Those two answers drive the whole model.</aside>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. MongoDB's flexible document model means…</h4>
+  <button class="opt" data-fb="Correct — documents in a collection need not share fields or types.">documents in a collection need not have the same fields</button>
+  <button class="opt" data-fb="No — analogous to relational tables, which this model deliberately is not.">a fixed schema must be set before any insert</button>
+  <button class="opt" data-fb="No — joins are used far less because data is stored together.">you must normalize and join like SQL</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. The core data-modeling principle is…</h4>
+  <button class="opt" data-fb="No — the model follows the app, not an abstract normal form.">always normalize to third normal form</button>
+  <button class="opt" data-fb="No — uniqueness of _id is true but is not the modeling principle.">give every document a unique ObjectId</button>
+  <button class="opt" data-fb="Correct — related data should live together for one read.">data accessed together should be stored together</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. Embedding a patron's addresses gives you…</h4>
+  <button class="opt" data-fb="No — a well-modeled doc serves the page in one read, not many.">one query plus a join for each address</button>
+  <button class="opt" data-fb="Correct — one read returns the whole page, and updates are atomic.">one read for all addresses, with an atomic write</button>
+  <button class="opt" data-fb="No — embedding avoids the join entirely.">a required separate addresses collection</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://www.mongodb.com/docs/manual/data-modeling.md">Data Modeling in MongoDB</a> for the flexible-model framing and the relational-vs-document comparison table, and <a href="https://www.mongodb.com/docs/manual/data-modeling/embedding.md">Embedded Data</a> for the one-to-many address example.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Take one screen in your own app that shows a parent object plus several related pieces (e.g. an order with line items, a user with profiles). Sketch it as one embedded document, then note what the app reads and writes together on that screen.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/data-modeling.md">MongoDB — Data Modeling in MongoDB</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/data-modeling/embedding.md">MongoDB — Embedded Data</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="0002-embed-vs-reference.html">Lesson 2: Embed vs reference →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/data-modeling-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MongoDB Data Modeling — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  .two-col { display: flex; flex-wrap: wrap; gap: 1.4rem; }
+  .two-col > div { flex: 1 1 46%; min-width: 18rem; }
+  code i { color: var(--accent); font-style: normal; }
+  td code, .q code { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>MongoDB Data Modeling</span></div>
+  <h1>Data Modeling Cheat Sheet</h1>
+  <p class="subtitle">The compressed essence of the course. Skim before a lesson, study it fully before an interview.</p>
+</header>
+
+<section>
+<h2>1. The one principle</h2>
+<p><strong>Data that's accessed together should be stored together.</strong> Shape documents around the application's read/write patterns, not relational normal forms.<sup><a href="#r1">1</a></sup> The model is: documents are flexible and polymorphic; there is no mandatory fixed schema.</p>
+</section>
+
+<section>
+<h2>2. Embed vs reference (the core decision)</h2>
+<table>
+  <tr><th>Scenario</th><th>Choose</th></tr>
+  <tr><td>"Contains"/has-a, one-to-one</td><td><strong>Embed</strong></td></tr>
+  <tr><td>Data read together, updated together</td><td><strong>Embed</strong></td></tr>
+  <tr><td>Data archived together</td><td><strong>Embed</strong></td></tr>
+  <tr><td>Simpler model / fewer operations</td><td><strong>Embed</strong></td></tr>
+  <tr><td>High-cardinality or unbounded child</td><td><strong>Reference</strong></td></tr>
+  <tr><td>Child queried/used independently</td><td><strong>Reference</strong></td></tr>
+  <tr><td>Write-heavy, written at different times</td><td><strong>Reference</strong></td></tr>
+  <tr><td>Duplication too costly to manage</td><td><strong>Reference</strong></td></tr>
+  <tr><td>Complex many-to-many / large hierarchy</td><td><strong>Reference</strong></td></tr>
+</table>
+<p>Source table: the MongoDB "link related data" decision table.<sup><a href="#r2">2</a></sup><sup><a href="#r3">3</a></sup></p>
+</section>
+
+<section>
+<h2>3. Relationship shapes</h2>
+<pre><code>// one-to-one: embed the "one" inside the owner
+{ _id, email, profile: { name, avatar } }
+
+// one-to-many (embed the many, bounded, always shown with parent)
+{ _id, author, addresses: [ { street, city }, { street, city } ] }
+
+// one-to-many (reference the many, large/independent) — reverse ref
+// post:      { _id, author, title }
+// user:      { _id, name, postIds: [...] }        // array of ids
+
+// many-to-many: references on both sides
+// student: { _id, name, courseIds: [...] }
+// course:  { _id, title, studentIds: [...] }</code></pre>
+<p>Embeds the many when it is bounded and co-displayed; falls back to references when the child side grows without bound or stands alone.<sup><a href="#r4">4</a></sup></p>
+</section>
+
+<section>
+<h2>4. The two hard rules</h2>
+<ul>
+  <li><strong>16 MiB</strong> per document — an unbounded embedded array will break this.<sup><a href="#r2">2</a></sup></li>
+  <li><strong>Single-document atomicity</strong> — writes to one document are atomic; cross-document needs transactions. Model so the hot path touches one document.<sup><a href="#r5">5</a></sup></li>
+  <li>Avoid lost updates: filter on the expected current value, or use <code>$inc</code>.<sup><a href="#r5">5</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>5. The schema design process</h2>
+<ol>
+  <li><strong>Identify workload</strong> — fill a table: Action | Query Type | Info | Frequency | Priority (reads and writes).<sup><a href="#r6">6</a></sup></li>
+  <li><strong>Map relationships</strong> — embed or reference per relationship.</li>
+  <li><strong>Apply patterns</strong> — computed values, bucketing, polymorphism, versioning, etc.</li>
+  <li><strong>Create indexes</strong> — support the frequent query patterns.</li>
+</ol>
+</section>
+
+<section>
+<h2>6. Lock it down: $jsonSchema</h2>
+<pre><code>db.createCollection("students", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: [ "name", "year", "major" ],
+      properties: {
+        name: { bsonType: "string" },
+        year: { bsonType: "int", minimum: 2017, maximum: 3017 },
+        gpa:  { bsonType: "double" }
+      }
+    }
+  }
+})</code></pre>
+<ul>
+  <li>Validation runs on <strong>insert and update</strong>; invalid docs are rejected by default.<sup><a href="#r7">7</a></sup></li>
+  <li>Combine with <code>$expr</code> rules (e.g. discounted price &lt; price) via an <code>$and</code> validator.</li>
+</ul>
+</section>
+
+<section>
+<h2>7. Evolve safely</h2>
+<pre><code>// additive + back-compatible, with a version marker
+db.orders.updateMany({}, { $set: { schema_version: 2, discount: 0 } })
+
+// read-time: route by version
+if (doc.schema_version &lt;= 1) { ... } else { ... }</code></pre>
+<ul>
+  <li>Prefer additive, backward-compatible field additions; keep a schema-version field; migrate reads before dropping old fields.<sup><a href="#r8">8</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>8. Trees (pick by query)</h2>
+<table>
+  <tr><th>Pattern</th><th>Best when you query…</th></tr>
+  <tr><td>Parent references</td><td>…immediate parent/children.</td></tr>
+  <tr><td>Child references</td><td>…children of a node directly.</td></tr>
+  <tr><td>Ancestors array</td><td>…all ancestors/descendants.</td></tr>
+  <tr><td>Materialized paths</td><td>…subtrees via a path string prefix.</td></tr>
+  <tr><td>Nested sets</td><td>…subtrees fast, mutate rarely.</td></tr>
+</table>
+</section>
+
+<section>
+<h2>9. Anti-patterns to avoid</h2>
+<ul>
+  <li><strong>Massive unbounded document</strong> — an embedded array that never stops growing (16 MiB + hot-write rewriting the whole doc).</li>
+  <li><strong>Massive array field</strong> — the same idea; cap or reference it.</li>
+  <li><strong>Embedding what should stand alone</strong> — data that changes often and is read separately belongs in its own collection.</li>
+  <li><strong>Over-fragmenting</strong> into needless collections (e.g. one-per-type logs) without a payoff.</li>
+</ul>
+</section>
+<footer class="citation">
+  Primary sources: <a href="https://www.mongodb.com/docs/manual/data-modeling.md">Data Modeling</a>,
+  <a href="https://www.mongodb.com/docs/manual/data-modeling/best-practices.md">Best Practices</a>,
+  <a href="https://www.mongodb.com/docs/manual/data-modeling/design-patterns.md">Design Patterns</a>.
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/data-modeling.md">MongoDB — Data Modeling in MongoDB</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/data-modeling/embedding.md">MongoDB — Embedded Data</a></li>
+    <li id="r3"><a href="https://www.mongodb.com/docs/manual/data-modeling/referencing.md">MongoDB — Reference Data</a></li>
+    <li id="r4"><a href="https://www.mongodb.com/docs/manual/data-modeling/best-practices.md">MongoDB — Best Practices (link related data)</a></li>
+    <li id="r5"><a href="https://www.mongodb.com/docs/manual/core/write-operations-atomicity.md">MongoDB — Atomicity and Transactions</a></li>
+    <li id="r6"><a href="https://www.mongodb.com/docs/manual/data-modeling/schema-design-process/identify-workload.md">MongoDB — Identify Application Workload</a></li>
+    <li id="r7"><a href="https://www.mongodb.com/docs/manual/core/schema-validation/specify-json-schema.md">MongoDB — Specify JSON Schema Validation</a></li>
+    <li id="r8"><a href="https://www.mongodb.com/docs/manual/data-modeling/design-patterns.md">MongoDB — Schema Design Patterns</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="../lessons/0001-why-data-modeling.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

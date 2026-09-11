@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — Modeling Tree Data</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 9</span><span>MongoDB Data Modeling</span></div>
+  <h1>Modeling Tree Data</h1>
+  <p class="subtitle">Hierarchies have five documented shapes in MongoDB — pick the one that matches the queries.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>MongoDB documents five tree models — parent references, child references, ancestors array, materialized paths, and nested sets — each trading read simplicity against write cost.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The five patterns</h2>
+<pre><code>// 1. Parent references — each node stores its parent _id
+{ _id: "Electronics", parent: null }
+{ _id: "Computers",   parent: "Electronics" }
+
+// 2. Child references — each node stores its children _id array
+{ _id: "Catalog", children: ["Electronics", "Books"] }
+
+// 3. Ancestors array — each node stores all ancestors
+{ _id: "Laptops", parent: "Computers",
+  ancestors: ["Electronics", "Computers"] }
+
+// 4. Materialized paths — each node stores the path string
+{ _id: "Laptops", path: "Electronics,Computers,Laptops" }
+
+// 5. Nested sets — left/right numbers enclose a subtree
+{ _id: "Electronics", left: 1, right: 8 }</code></pre>
+
+<h2>Which query shapes each serves</h2>
+<table>
+  <tr><th>Pattern</th><th>Best when you…</th><th>Weakness</th></tr>
+  <tr><td>Parent references</td><td>…query immediate parent / children</td><td>Whole-subtree reads need many steps</td></tr>
+  <tr><td>Child references</td><td>…get a node's direct children fast</td><td>Deep/subtree walks are multiple queries</td></tr>
+  <tr><td>Ancestors array</td><td>…need all ancestors or descendants of a node</td><td>Maintain the array on each insert</td></tr>
+  <tr><td>Materialized paths</td><td>…want subtrees by a path-prefix regex</td><td>Regex query, path must be maintained</td></tr>
+  <tr><td>Nested sets</td><td>…read subtrees extremely fast</td><td>Reordering moves many nodes (low mutability)</td></tr>
+</table>
+
+<h2>Reading a subtree, pattern by pattern</h2>
+<ul>
+  <li><strong>Ancestors array:</strong> find all descendants of <code>"Electronics"</code> with <code>{ ancestors: "Electronics" }</code> — one query, an entry-class use of an array of <em>references</em>.</li>
+  <li><strong>Materialized paths:</strong> find a subtree with a prefix regex on the path field.</li>
+  <li><strong>Nested sets:</strong> every node with <code>left</code>/<code>right</code> inside the parent's range — a single range query.<sup><a href="#r1">1</a></sup></li>
+</ul>
+<p>Choose based on the dominant operation: frequent "give me this whole subtree" leans to ancestors array or nested sets; light parent-child browsing favors the simple reference patterns. Nested sets famously "optimize discovering subtrees at the expense of tree mutability."<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Trees are the one case where a pure "embed vs reference" instinct is too blunt. Name the real query ("parent-child?" "whole subtree?") and pick the pattern that answers it in one cheap read without making writes painful.</aside>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. To fetch an entire subtree in one query, best of these…</h4>
+  <button class="opt" data-fb="No — parent references need many steps to walk a whole subtree.">parent references</button>
+  <button class="opt" data-fb="Correct — an ancestors array returns all descendants in one match.">ancestors array</button>
+  <button class="opt" data-fb="No — plain child references also require following many hops.">child references</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. Nested sets are best when…</h4>
+  <button class="opt" data-fb="No — preserving it through many moves is exactly its weakness.">the tree changes very frequently</button>
+  <button class="opt" data-fb="No — its range numbers are read-optimized, not write-friendly.">writes must be trivial</button>
+  <button class="opt" data-fb="Correct — subtree reads are fast but mutability suffers.">subtree reads dominate and writes are rare</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. If you only ever query a node's immediate children…</h4>
+  <button class="opt" data-fb="Correct — child references answer direct children in one read.">child references are the simplest fit</button>
+  <button class="opt" data-fb="No — that is overkill for direct children.">nested sets are required</button>
+  <button class="opt" data-fb="No — materialized paths shines on subtree queries, not just children.">materialized paths is the only option</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://www.mongodb.com/docs/manual/applications/data-models-tree-structures.md">Model Tree Structures</a> for the index of all five patterns, then each linked tutorial (parent references, child references, ancestors array, materialized paths, nested sets).</p>
+
+<div class="ask"><strong>Ask the agent</strong> You're modeling an org chart where a manager frequently needs their entire reporting subtree, and the tree changes rarely. Pick an ancestors-array or nested-sets approach, justify it, and sketch the document for one node. Then say which pattern you'd choose instead if the tree were reorganized constantly.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/applications/data-models-tree-structures.md">MongoDB — Model Tree Structures</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-schema-versioning-and-evolution.html">← Lesson 7: Versioning &amp; evolution</a></span>
+  <span class="nav-next"><a href="0009-putting-it-together.html">Lesson 9: Putting it together →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/data-modeling-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

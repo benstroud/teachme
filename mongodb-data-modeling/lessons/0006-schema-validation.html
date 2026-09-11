@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — Schema Validation</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 9</span><span>MongoDB Data Modeling</span></div>
+  <h1>Schema Validation</h1>
+  <p class="subtitle">MongoDB is schema-flexible by default — lock it down with $jsonSchema where your app needs guarantees.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>MongoDB's default is no enforced schema, but you can attach a <code>validator</code> to a collection so every insert and update must match; by default invalid documents are rejected.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Attaching a JSON Schema validator</h2>
+<pre><code>db.createCollection("students", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      title: "Student Object Validation",
+      required: [ "name", "year", "major" ],
+      properties: {
+        name: { bsonType: "string" },
+        year: { bsonType: "int", minimum: 2017, maximum: 3017 },
+        gpa:  { bsonType: "double" }
+      }
+    }
+  }
+})</code></pre>
+<ul>
+  <li><code>bsonType</code> enforces the type; <code>required</code> lists mandatory fields; <code>properties</code> describes each.<sup><a href="#r2">2</a></sup></li>
+  <li><code>minimum</code>/<code>maximum</code> bound numbers; <code>enum</code> restricts allowed values.</li>
+</ul>
+
+<h2>When validation runs</h2>
+<ul>
+  <li>Every <strong>insert</strong> must match, or it is rejected.</li>
+  <li><strong>Updates</strong> are also checked — an update that would produce an invalid document is rejected.<sup><a href="#r1">1</a></sup></li>
+  <li>Existing documents are only subject to the rules you choose (via the validation level), and you can configure MongoDB to warn instead of reject.<sup><a href="#r1">1</a></sup></li>
+</ul>
+
+<h2>Beyond types: cross-field rules</h2>
+<p>Combine <code>$jsonSchema</code> with query-operator rules to assert relationships between fields:</p>
+<pre><code>db.createCollection("sales", {
+  validator: {
+    $and: [
+      { $expr: { $lt: [ "$discountedPrice", "$price" ] } },
+      { $jsonSchema: { properties: { items: { bsonType: "array" } } } }
+    ]
+  }
+})</code></pre>
+<p>This guarantees the discounted price is always below the list price, and items is an array — enforced by the database.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Why it matters for a senior dev</h2>
+<ul>
+  <li>Flexible ≠ shapeless: after your model matures, validation prevents <em>unintended schema drift</em> and type bugs at the data layer instead of in code.<sup><a href="#r1">1</a></sup></li>
+  <li>You can start flexible and add validation only where strict control is needed — the flexible model supports iterative schemas.<sup><a href="#r3">3</a></sup></li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> Add validation <em>after</em> the model is stable, targeting the fields that matter — type correctness on critical fields, and cross-field invariants — rather than trying to describe every field.</aside>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. When does MongoDB check schema validation?</h4>
+  <button class="opt" data-fb="No — it also checks on update, not just insert.">only when the collection is created</button>
+  <button class="opt" data-fb="Correct — it validates on every insert and update.">on every insert and update</button>
+  <button class="opt" data-fb="No — validation is production enforcement, checked live.">only during read operations</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. By default, a document that fails validation…</h4>
+  <button class="opt" data-fb="Correct — the invalid insert or update is rejected.">is rejected</button>
+  <button class="opt" data-fb="No — warn-only is an opt-in configuration, not the default.">is stored with a warning</button>
+  <button class="opt" data-fb="No — MongoDB enforces it, it does not silently fix types.">is automatically converted</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. $jsonSchema enforces a field's…</h4>
+  <button class="opt" data-fb="No — required lists which fields must exist.">presence but never its type</button>
+  <button class="opt" data-fb="No — you still need bsonType for type checks.">name alone</button>
+  <button class="opt" data-fb="Correct — bsonType enforces the allowed data type.">data type via bsonType</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://www.mongodb.com/docs/manual/core/schema-validation.md">Schema Validation</a> and the complete <a href="https://www.mongodb.com/docs/manual/core/schema-validation/specify-json-schema.md">Specify JSON Schema Validation</a> example.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Add validation to your <code>orders</code> collection: <code>total</code> is a non-negative double, <code>status</code> is one of pending/fulfilled/cancelled, and <code>discount</code>, when present, is less than <code>total</code>. Write both the <code>$jsonSchema</code> and the cross-field rule.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/core/schema-validation.md">MongoDB — Schema Validation</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/core/schema-validation/specify-json-schema.md">MongoDB — Specify JSON Schema Validation</a></li>
+    <li id="r3"><a href="https://www.mongodb.com/docs/manual/data-modeling.md">MongoDB — Data Modeling flexibility</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-the-schema-design-process.html">← Lesson 5: Schema design process</a></span>
+  <span class="nav-next"><a href="0007-schema-versioning-and-evolution.html">Lesson 7: Versioning &amp; evolution →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/data-modeling-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
