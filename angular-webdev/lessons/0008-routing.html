@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — Routing</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 9</span><span>Angular Web Development</span></div>
+  <h1>Routing</h1>
+  <p class="subtitle">Change the view client-side as the URL changes — Routes, Outlets, and Links.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Angular's Router maps URLs to components, renders the active component in a <code>&lt;router-outlet&gt;</code>, and navigates without a full page reload.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Define routes</h2>
+<pre><code>import { provideRouter, Routes } from '@angular/router';
+import { HomeComponent } from './home.component';
+
+export const routes: Routes = [
+  { path: '', component: HomeComponent },
+  { path: 'users', component: UsersComponent },
+  { path: 'users/:id', component: UserDetailComponent },   // route param
+];
+// app config: providers: [provideRouter(routes)]</code></pre>
+<p>The <code>Routes</code> array maps path patterns to components. Params are written with a colon (<code>:id</code>).<sup><a href="#r1">1</a></sup></p>
+
+<h2>Outlets and links</h2>
+<pre><code>// where the active route renders (usually in AppComponent)
+&lt;router-outlet /&gt;
+
+// client-side links — no full page reload
+&lt;a routerLink=&quot;/users&quot;&gt;Users&lt;/a&gt;
+&lt;a [routerLink]=&quot;['/users', user.id]&quot;&gt;{{ user.name }}&lt;/a&gt;</code></pre>
+<table>
+  <tr><th>Part</th><th>Role</th></tr>
+  <tr><td>Routes</td><td>Map URL → component.</td></tr>
+  <tr><td>Outlet</td><td>Placeholder that renders the active component.</td></tr>
+  <tr><td>Links</td><td>Navigate without a page reload.<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+
+<h2>Programmatic navigation &amp; lazy loading</h2>
+<pre><code>// in a component
+private router = inject(Router);
+go() { this.router.navigate(['/users']); }
+
+// lazy-load a feature's routes
+{ path: 'users', loadChildren: () =&gt; import('./users.routes').then(m =&gt; m.routes) }</code></pre>
+<ul>
+  <li><code>router.navigate([...])</code> navigates in code.</li>
+  <li><code>loadChildren</code> lazy-loads a routes file — code-splitting the app by feature.<sup><a href="#r1">1</a></sup></li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> Routing is what turns a component tree into a navigable app. Keep one <code>&lt;router-outlet&gt;</code> at the top, define routes per feature, and lazy-load each feature's routes for performance.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. The Routes array maps…</h4>
+  <button class="opt" data-fb="Correct — URL patterns to components to render.">URL patterns to components</button>
+  <button class="opt" data-fb="No — that's the outlet's job.">routes to other routes</button>
+  <button class="opt" data-fb="No — links navigate; routes define what renders.">links to events</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>2. The active route's component renders inside…</h4>
+  <button class="opt" data-fb="No — that's the navigation element, not the placeholder.">&lt;a routerLink&gt;</button>
+  <button class="opt" data-fb="Correct — &lt;router-outlet&gt;.">&lt;router-outlet&gt;</button>
+  <button class="opt" data-fb="No — directives don't render route components.">a route directive</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. Lazy loading a feature uses…</h4>
+  <button class="opt" data-fb="No — loadChildren lazy-loads; that is eager.">component inline</button>
+  <button class="opt" data-fb="No — routerLink is for linking, not code-splitting.">routerLink</button>
+  <button class="opt" data-fb="Correct — loadChildren with a dynamic import.">loadChildren with dynamic import</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://angular.dev/guide/routing">Routing</a> guide for params, guards, and route data.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Add two routes (<code>/home</code>, <code>/about</code>), a nav with <code>routerLink</code>, and a top-level <code>&lt;router-outlet&gt;</code>. Then lazy-load the about route with <code>loadChildren</code>. Watch the network tab — the feature chunk loads only when navigated to.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://angular.dev/guide/routing">Angular — Routing</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-http-client-and-data.html">← Lesson 7: HTTP &amp; data</a></span>
+  <span class="nav-next"><a href="0009-putting-it-together.html">Lesson 9: Putting it together →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/angular-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Angular Web Development — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Angular Web Development</span></div>
+  <h1>Angular Glossary</h1>
+  <p class="subtitle">Every term in this course, in one place. Return here when a lesson uses a word you do not fully own.</p>
+</header>
+
+<section>
+<h2>Components &amp; templates</h2>
+<dl>
+  <dt><strong>Component</strong></dt>
+  <dd>A TypeScript class with behavior, an HTML template (the DOM it renders), and a CSS selector, configured via <code>@Component</code>.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>Standalone component</strong></dt>
+  <dd>An Angular component usable directly via the <code>imports</code> array of another component, without a wrapping NgModule. The default today.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>Selector</strong></dt>
+  <dd>The CSS that defines how a component's host element is written in templates (e.g. <code>'profile-photo'</code>).<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>Template</strong></dt>
+  <dd>The component's HTML that renders onto the page; Angular compiles it to update the DOM as data changes.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>Host element</strong></dt>
+  <dd>The DOM element that matches a component's selector; the template renders inside it, and the result is that component's <em>view</em>.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>Component tree</strong></dt>
+  <dd>How components compose: parent components render child components, forming an app-wide tree.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>imports</strong></dt>
+  <dd>The <code>@Component</code> array listing components/directives/pipes usable in that template.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>@Input / @Output</strong></dt>
+  <dd>Decorators for data flowing in to a component and events flowing out.</dd>
+</dl>
+</section>
+
+<section>
+<h2>Binding, control flow &amp; reactivity</h2>
+<dl>
+  <dt><strong>Interpolation</strong></dt>
+  <dd><code>{{ expr }}</code> — renders a value into text in the template.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>Property binding</strong></dt>
+  <dd><code>[prop]="expr"</code> — binds a value to an element/component property.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>Event binding</strong></dt>
+  <dd><code>(event)="handler($event)"</code> — listens to an event and calls a method.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>Two-way binding</strong></dt>
+  <dd><code>[(ngModel)]="prop"</code> — bind a value and update it on input; the "banana in a box".<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>Control flow blocks</strong></dt>
+  <dd>Angular's built-in template control flow: <code>@if</code>, <code>@else</code>, <code>@for</code> (with <code>track</code>), <code>@switch</code>.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>Signal</strong></dt>
+  <dd>A wrapper around a value that notifies consumers when it changes; read by calling it (<code>count()</code>).<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>computed()</strong></dt>
+  <dd>Creates a read-only signal whose value derives from other signals.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>effect()</strong></dt>
+  <dd>Schedules a side effect that re-runs when the signals it reads change.<sup><a href="#r3">3</a></sup></dd>
+</dl>
+</section>
+
+<section>
+<h2>Services, DI, forms &amp; routing</h2>
+<dl>
+  <dt><strong>Service</strong></dt>
+  <dd>A TypeScript class sharing data/functionality, decorated with <code>@Service</code> (i.e. <code>@Injectable({providedIn:'root'})</code>).<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>Dependency injection (DI)</strong></dt>
+  <dd>Supplying dependencies to a class from the outside instead of it creating them; components/directives/services participate automatically.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>inject()</strong></dt>
+  <dd>The function used to obtain an injected dependency in a class field initializer or constructor, route guard, etc.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>Reactive form</strong></dt>
+  <dd>Forms whose model (<code>FormGroup</code>/<code>FormControl</code>) is created explicitly in the class; synchronous, function-based validation, scalable.<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>Template-driven form</strong></dt>
+  <dd>Forms whose model is built implicitly by directives (<code>ngModel</code>); simple but less scalable.<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>Router</strong></dt>
+  <dd><code>@angular/router</code>; manages SPA navigation via Routes, Outlets, and Links.<sup><a href="#r6">6</a></sup></dd>
+
+  <dt><strong>Routes</strong></dt>
+  <dd>The configuration mapping URL patterns to components to render.<sup><a href="#r6">6</a></sup></dd>
+
+  <dt><strong>RouterOutlet / RouterLink</strong></dt>
+  <dd><code>&lt;router-outlet&gt;</code> is the placeholder where the active route component renders; <code>routerLink</code> navigates without a page reload.<sup><a href="#r6">6</a></sup></dd>
+
+  <dt><strong>HttpClient</strong></dt>
+  <dd><code>@angular/common/http</code> client for typed HTTP requests; set up with <code>provideHttpClient()</code>.<sup><a href="#r7">7</a></sup></dd>
+</dl>
+</section>
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://angular.dev/guide/components">Angular — Components</a></li>
+    <li id="r2"><a href="https://angular.dev/guide/templates">Angular — Templates</a></li>
+    <li id="r3"><a href="https://angular.dev/guide/signals">Angular — Signals</a></li>
+    <li id="r4"><a href="https://angular.dev/guide/di">Angular — Dependency Injection</a></li>
+    <li id="r5"><a href="https://angular.dev/guide/forms">Angular — Forms</a></li>
+    <li id="r6"><a href="https://angular.dev/guide/routing">Angular — Routing</a></li>
+    <li id="r7"><a href="https://angular.dev/guide/http">Angular — HTTP Client</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Mission &amp; notes</span>
+  <span class="nav-next"><a href="../lessons/0001-why-angular.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../NOTES.md">Notes</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

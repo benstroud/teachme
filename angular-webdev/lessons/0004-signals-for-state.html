@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — Signals for State</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 9</span><span>Angular Web Development</span></div>
+  <h1>Signals for State</h1>
+  <p class="subtitle">A signal wraps a value and notifies Angular when it changes — the framework's reactive state model.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A <strong>signal</strong> is a wrapper around a value that notifies interested consumers when it changes; reading it lets Angular track and re-render automatically.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Writable signals</h2>
+<pre><code>import { signal } from '@angular/core';
+
+const count = signal(0);          // initial value
+console.log(count());             // read by calling the getter
+count.set(3);                     // set a new value directly
+count.update(v =&gt; v + 1);         // derive from the previous value</code></pre>
+<p>In a template, read it the same way — <code>{{ count() }}</code> — and Angular re-renders whenever it changes.<sup><a href="#r1">1</a></sup></p>
+
+<h2>computed: derived, read-only</h2>
+<pre><code>import { signal, computed } from '@angular/core';
+
+const count = signal(0);
+const double = computed(() =&gt; count() * 2);  // depends on count
+
+// double is read-only; when count changes, Angular updates double lazily
+console.log(double());</code></pre>
+<p><code>computed()</code> derives a read-only signal from others; it's lazy and cached until a dependency changes.<sup><a href="#r1">1</a></sup></p>
+
+<h2>effect: reactions outside the template</h2>
+<pre><code>import { signal, effect } from '@angular/core';
+
+const cart = signal&lt;string[]&gt;([]);
+effect(() =&gt; console.log('cart has', cart().length));  // runs on change</code></pre>
+<p><code>effect()</code> schedules a side effect that re-runs when the signals it reads change — useful for logging, syncing, and non-template reactions.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Exposing state safely</h2>
+<pre><code>@Service()
+export class CartState {
+  private readonly _count = signal(0);
+  readonly count = this._count.asReadonly();   // consumers can't set it
+  add() { this._count.update(v =&gt; v + 1); }
+}</code></pre>
+<p><code>asReadonly()</code> exposes a read-only view so consumers can read but not mutate.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Signals make state explicit and reactive: components read signals in templates, Angular tracks them, and the DOM stays correct with no manual bookkeeping. Model app state as signals, derive views with <code>computed</code>.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. You read a signal's value by…</h4>
+  <button class="opt" data-fb="No — setters and getters are not the signal API.">accessing .value</button>
+  <button class="opt" data-fb="Correct — calling it as a function.">calling it as a function</button>
+  <button class="opt" data-fb="No — you call it; .set writes, it doesn't read.">using .set()</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. computed() produces…</h4>
+  <button class="opt" data-fb="No — it derives from others, it does not create state.">a new writable signal</button>
+  <button class="opt" data-fb="No — that is effect(); computed is pure derivation.">a side-effect runner</button>
+  <button class="opt" data-fb="Correct — a read-only signal derived from others.">a read-only derived signal</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. To expose state without letting consumers mutate it, use…</h4>
+  <button class="opt" data-fb="Correct — asReadonly() hides the setters.">asReadonly()</button>
+  <button class="opt" data-fb="No — asSignal is not the readonly accessor.">asSignal()</button>
+  <button class="opt" data-fb="No — effect() runs side effects, not read-only access.">effect()</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://angular.dev/guide/signals">Signals</a> guide for computed laziness, equality, and RxJS interop.</p>
+
+<div class="ask"><strong>Ask the agent</strong> In a component, hold a <code>signal(0)</code> counter, render <code>{{ counter() }}</code>, and add a button that calls <code>.update(v =&gt; v + 1)</code>. Then add a <code>computed</code> that doubles it and render both — confirm the DOM updates without any manual refresh.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://angular.dev/guide/signals">Angular — Signals</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-binding-and-control-flow.html">← Lesson 3: Binding &amp; control flow</a></span>
+  <span class="nav-next"><a href="0005-services-and-dependency-injection.html">Lesson 5: Services &amp; DI →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/angular-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>

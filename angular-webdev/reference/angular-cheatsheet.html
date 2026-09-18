@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Angular Web Development — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  .two-col { display: flex; flex-wrap: wrap; gap: 1.4rem; }
+  .two-col > div { flex: 1 1 46%; min-width: 18rem; }
+  code i { color: var(--accent); font-style: normal; }
+  td code, .q code { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Angular Web Development</span></div>
+  <h1>Angular Cheat Sheet</h1>
+  <p class="subtitle">The compressed essence of the course. Skim before a lesson, study it fully before an interview.</p>
+</header>
+
+<section>
+<h2>1. Start a project</h2>
+<pre><code>npm i -g @angular/cli      # or: npx @angular/cli
+ng new my-app              # scaffold (standalone by default)
+ng serve                  # dev server on localhost:4200
+ng generate component hero</code></pre>
+<p><code>ng new</code> creates a CLI project with <code>src/</code>, and components are standalone by default.<sup><a href="#r1">1</a></sup></p>
+</section>
+<section>
+<h2>2. A component</h2>
+<pre><code>import { Component, Input, Output, EventEmitter } from '@angular/core';
+
+@Component({
+  selector: 'app-user',                       // host element name
+  template: `&lt;h2&gt;{{ name }}&lt;/h2&gt;&lt;button (click)=&quot;vote()&quot;&gt;up&lt;/button&gt;`,
+  styles: [`h2 { color: var(--accent); }`],   // scoped to this component
+})
+export class UserComponent {
+  @Input() name = 'anon';                     // data in
+  @Output() voted = new EventEmitter&lt;number&gt;();  // event out
+  vote() { this.voted.emit(1); }
+}</code></pre>
+<ul>
+  <li>Standalone by default; <code>imports: [OtherComponent]</code> to use others.<sup><a href="#r2">2</a></sup></li>
+  <li><code>template</code>/<code>styles</code> inline, or <code>templateUrl</code>/<code>styleUrl</code>.</li>
+</ul>
+</section>
+
+<section>
+<h2>3. Template bindings &amp; control flow</h2>
+<pre><code>&lt;p&gt;{{ user.name }}&lt;/p&gt;                                  &lt;!-- interpolation --&gt;
+&lt;img [src]=&quot;picUrl&quot; /&gt;                                  &lt;!-- property binding --&gt;
+&lt;button (click)=&quot;save($event)&quot;&gt;Save&lt;/button&gt;             &lt;!-- event binding --&gt;
+&lt;input [(ngModel)]=&quot;name&quot; /&gt;                            &lt;!-- two-way --&gt;
+
+@if (user.tier &gt; 5) { &lt;b&gt;VIP&lt;/b&gt; } @else { &lt;i&gt;regular&lt;/i&gt; }
+
+@for (item of items; track item.id) { &lt;li&gt;{{ item.name }}&lt;/li&gt; }</code></pre>
+<ul>
+  <li><code>@for</code> requires a <code>track</code> expression.<sup><a href="#r3">3</a></sup></li>
+  <li>Two-way is "banana in a box" <code>[(ngModel)]</code>.<sup><a href="#r3">3</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>4. Signals for state</h2>
+<pre><code>import { signal, computed, effect } from '@angular/core';
+
+const count = signal(0);            // writable
+count.set(3);  count.update(v =&gt; v + 1);
+const double = computed(() =&gt; count() * 2);   // derived, readonly
+
+// in a template you read them directly: {{ count() }}
+effect(() =&gt; console.log('count', count()));</code></pre>
+<ul>
+  <li>Read a signal by calling it; Angular tracks it and re-renders on change.<sup><a href="#r4">4</a></sup></li>
+  <li><code>asReadonly()</code> exposes a read-only view to consumers.</li>
+</ul>
+</section>
+
+<section>
+<h2>5. Services &amp; DI</h2>
+<pre><code>import { Service, inject } from '@angular/core';
+
+@Service()                                // = @Injectable({providedIn:'root'})
+export class CartService {
+  items = signal&lt;string[]&gt;([]);
+  add(s: string) { this.items.update(list =&gt; [...list, s]); }
+}
+
+@Component({ /* ... */ })
+export class Navbar {
+  private cart = inject(CartService);     // dependency injection
+}</code></pre>
+<ul>
+  <li><code>@Service</code> is a root singleton shorthand.<sup><a href="#r5">5</a></sup></li>
+  <li>Inject with <code>inject()</code> in field initializers or constructors.<sup><a href="#r5">5</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>6. Forms</h2>
+<pre><code>// Reactive — explicit model in the class
+import { FormControl, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+
+profile = new FormGroup({
+  name: new FormControl('', [Validators.required]),
+});
+
+// template:
+// &lt;form [formGroup]=&quot;profile&quot;&gt;
+//   &lt;input formControlName=&quot;name&quot; /&gt;
+// &lt;/form&gt;</code></pre>
+<ul>
+  <li>Reactive forms: model in the class, synchronous, function-based validation, scalable.<sup><a href="#r6">6</a></sup></li>
+  <li>Template-driven: directives (<code>ngModel</code>) build the model implicitly — fine for tiny forms.<sup><a href="#r6">6</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>7. HTTP &amp; data</h2>
+<pre><code>import { provideHttpClient, withFetch } from '@angular/common/http';
+// app config: providers: [provideHttpClient()]
+
+import { HttpClient } from '@angular/common/http';
+import { inject } from '@angular/core';
+
+interface User { id: number; name: string; }
+const http = inject(HttpClient);
+users = http.get&lt;User[]&gt;('/api/users');   // Observable (or httpResource for signals)</code></pre>
+<ul>
+  <li>Provide via <code>provideHttpClient()</code>.<sup><a href="#r7">7</a></sup></li>
+  <li>Request typed responses; <code>httpResource</code> bridges to signals for async data.<sup><a href="#r7">7</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>8. Routing</h2>
+<pre><code>import { provideRouter, Routes } from '@angular/router';
+import { HomeComponent } from './home.component';
+
+export const routes: Routes = [
+  { path: '', component: HomeComponent },
+  { path: 'users', loadChildren: () =&gt; import('./users.routes').then(m =&gt; m.routes) }, // lazy
+];
+// app config: providers: [provideRouter(routes)]
+
+// template:  &lt;router-outlet /&gt;
+// nav:       &lt;a routerLink=&quot;/users&quot;&gt;Users&lt;/a&gt;
+// go():      this.router.navigate(['/users'])</code></pre>
+<p>Routes map a URL to a component; the outlet renders it; links navigate client-side.<sup><a href="#r8">8</a></sup></p>
+</section>
+
+<section>
+<h2>9. Design checklist</h2>
+<ul>
+  <li><strong>Split into components</strong> — a component per concern; keep templates small.</li>
+  <li><strong>Own state in signals</strong> in services; expose <code>asReadonly()</code>; derive with <code>computed()</code>.</li>
+  <li><strong>Pass data down</strong> with <code>@Input</code>, raise events with <code>@Output</code>, not via direct child access.</li>
+  <li><strong>Use reactive forms</strong> for any real form; template-driven for trivial ones.</li>
+  <li><strong>Route by feature</strong> and lazy-load with <code>loadChildren</code>.</li>
+  <li><strong>Keep components dumb</strong>; put data + HTTP in injectable services.</li>
+</ul>
+</section>
+
+<footer class="citation">
+  Primary sources: <a href="https://angular.dev/guide/components">Components</a>,
+  <a href="https://angular.dev/guide/signals">Signals</a>,
+  <a href="https://angular.dev/guide/routing">Routing</a>.
+  <ol>
+    <li id="r1"><a href="https://angular.dev/tools/cli">Angular — CLI</a></li>
+    <li id="r2"><a href="https://angular.dev/guide/components">Angular — Components</a></li>
+    <li id="r3"><a href="https://angular.dev/guide/templates">Angular — Templates</a></li>
+    <li id="r4"><a href="https://angular.dev/guide/signals">Angular — Signals</a></li>
+    <li id="r5"><a href="https://angular.dev/guide/di">Angular — Dependency Injection</a></li>
+    <li id="r6"><a href="https://angular.dev/guide/forms">Angular — Forms</a></li>
+    <li id="r7"><a href="https://angular.dev/guide/http">Angular — HTTP Client</a></li>
+    <li id="r8"><a href="https://angular.dev/guide/routing">Angular — Routing</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="../lessons/0001-why-angular.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

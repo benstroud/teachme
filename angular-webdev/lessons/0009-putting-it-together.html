@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 9 — Putting It Together</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 9 of 9</span><span>Angular Web Development</span></div>
+  <h1>Putting It Together</h1>
+  <p class="subtitle">A small, routed, reactive SPA — components, signals, services, forms, and HTTP composed.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Everything composes into one coherent app: a routed component tree that renders views from signals held by injected services that talk to the backend.</p>
+
+<h2>A mini todo app</h2>
+<pre><code>@Service()
+export class TodoService {
+  private http = inject(HttpClient);
+  todos = signal&lt;Todo[]&gt;([]);
+
+  load() {
+    this.http.get&lt;Todo[]&gt;('/api/todos').subscribe(all =&gt; this.todos.set(all));
+  }
+  add(text: string) {
+    this.todos.update(list =&gt; [...list, { id: Date.now(), text, done: false }]);
+  }
+}
+
+@Component({
+  selector: 'app-todo',
+  imports: [FormsModule],
+  template: `
+    &lt;input [(ngModel)]=&quot;text&quot; /&gt;
+    &lt;button (click)=&quot;add()&quot;&gt;Add&lt;/button&gt;
+    @for (t of todos(); track t.id) { &lt;p [class.done]=&quot;t.done&quot;&gt;{{ t.text }}&lt;/p&gt; }
+  `,
+})
+export class TodoComponent {
+  private service = inject(TodoService);
+  todos = this.service.todos;   // read the signal in the template
+  text = '';
+  constructor() { this.service.load(); }
+  add() { this.service.add(this.text); }
+}</code></pre>
+<ul>
+  <li>State lives in the service as a signal; the component reads it in the template.<sup><a href="#r1">1</a></sup></li>
+  <li>HTTP lives in the service; the component triggers and renders.<sup><a href="#r2">2</a></sup></li>
+  <li><code>@for ... track</code> renders the list; <code>[(ngModel)]</code> captures input.</li>
+</ul>
+
+<h2>Route it and go</h2>
+<pre><code>export const routes: Routes = [
+  { path: '', component: TodoComponent },
+  { path: 'archive', loadChildren: () =&gt; import('./archive.routes').then(m =&gt; m.routes) },
+];
+// AppComponent:  &lt;router-outlet /&gt;</code></pre>
+
+<h2>The senior recap</h2>
+<ul>
+  <li><strong>Components render</strong> — templates + bindings + control flow (Lessons 2–3).</li>
+  <li><strong>Signals own state</strong> — reactive, computed, exposed readonly (Lesson 4).</li>
+  <li><strong>Services own data</strong> — injected with DI, HTTP behind an interface (Lessons 5, 7).</li>
+  <li><strong>Forms capture input</strong> — reactive for real forms (Lesson 6).</li>
+  <li><strong>Routing navigates</strong> — routes, outlet, lazy-loaded features (Lesson 8).</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> The architecture is the point: dumb components, reactive signals, injectable services, and lazy routes. Build each piece small, and assemble a large app from the same five patterns.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Where does app state (the todo list) live?</h4>
+  <button class="opt" data-fb="No — that localizes it and breaks sharing; services hold it.">in the component itself</button>
+  <button class="opt" data-fb="Correct — in a service as a signal.">in a service as a signal</button>
+  <button class="opt" data-fb="No — HTML is for rendering, not state.">in the template HTML</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. The component reads the shared state by…</h4>
+  <button class="opt" data-fb="No — components don't get a fresh copy; they share.">copying it into a local variable</button>
+  <button class="opt" data-fb="No — that constructs a whole new service.">injecting a new service</button>
+  <button class="opt" data-fb="Correct — inheriting the service's signal reference.">reading the injected service's signal</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The five patterns that recur are…</h4>
+  <button class="opt" data-fb="Correct — components, signals, services, forms, routes.">components, signals, services, forms, routes</button>
+  <button class="opt" data-fb="No — HTTP is in services; this is the broad split.">services, HTTP, pipes, guards</button>
+  <button class="opt" data-fb="No — directives are separate; this is the architecture split.">components, directives, pipes, modules</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Work the end of the <a href="https://angular.dev/essentials">Essentials</a> and re-read the component/signal/routing guides, then build the todo app to reinforce everything.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Build the mini todo app (or extend your running project): a <code>TodoService</code> with a signal, a component with <code>[(ngModel)]</code> + <code>@for</code>, and a route. Run it and confirm add + render + (optional) lazy archive route all work.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://angular.dev/guide/signals">Angular — Signals</a></li>
+    <li id="r2"><a href="https://angular.dev/guide/http">Angular — HTTP Client</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0008-routing.html">← Lesson 8: Routing</a></span>
+  <span class="nav-next"><a href="../reference/angular-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/angular-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>

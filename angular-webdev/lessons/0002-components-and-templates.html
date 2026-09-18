@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — Components &amp; Templates</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 9</span><span>Angular Web Development</span></div>
+  <h1>Components &amp; Templates</h1>
+  <p class="subtitle">The unit of UI: a class, a template, and a selector composed into a component tree.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Every Angular component pairs a TypeScript class (behavior) with an HTML template (what renders) and a CSS selector (how it's used).<sup><a href="#r1">1</a></sup></p>
+
+<h2>A component</h2>
+<pre><code>import { Component } from '@angular/core';
+
+@Component({
+  selector: 'profile-photo',
+  template: `&lt;img src=&quot;photo.jpg&quot; alt=&quot;Your photo&quot; /&gt;`,
+  styles: [`img { border-radius: 50%; }`],   // scoped to this component
+})
+export class ProfilePhoto {}</code></pre>
+<ul>
+  <li>Metadata lives in the <code>@Component</code> decorator: <code>selector</code>, <code>template</code>, <code>styles</code>.<sup><a href="#r1">1</a></sup></li>
+  <li>Use <code>templateUrl</code>/<code>styleUrl</code> to point at separate files.</li>
+  <li>Styles are scoped to the component by default.</li>
+</ul>
+
+<h2>Using a component (standalone + imports)</h2>
+<pre><code>import { Component } from '@angular/core';
+import { ProfilePhoto } from './profile-photo';
+
+@Component({
+  selector: 'user-profile',
+  imports: [ProfilePhoto],            // make the child usable here
+  template: `&lt;profile-photo /&gt;`,
+})
+export class UserProfile {}</code></pre>
+<p>Components are standalone by default; to use another component, directive, or pipe in a template, list it in <code>imports</code>.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The component tree</h2>
+<p>Each component's rendered template is its <em>view</em>, shown inside its <em>host element</em>. Parent components render children, growing into an app-wide <strong>component tree</strong> — the mental model behind DI and queries.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Template basics</h2>
+<p>Templates are HTML plus Angular syntax. Two quick rules:</p>
+<ul>
+  <li><code>@</code> introduces control flow; <code>[]</code> and <code>()</code> have special binding meaning.<sup><a href="#r2">2</a></sup></li>
+  <li><code>&lt;script&gt;</code> is not allowed in templates (security).</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> Think of a component as a reusable, self-contained "widget": inputs come in, it renders a view, events go out. Compose widgets, not pages.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. A component's metadata lives in…</h4>
+  <button class="opt" data-fb="No — that's where the selector template CSS go.">the template file only</button>
+  <button class="opt" data-fb="Correct — the @Component decorator.">the @Component decorator</button>
+  <button class="opt" data-fb="No — imports is where child components are listed.">the imports array</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. To use another component in a template, you…</h4>
+  <button class="opt" data-fb="No — that's how this component is used, not how it uses others.">add its selector to the styles</button>
+  <button class="opt" data-fb="No — you import the class and list it in imports.">rename it to match</button>
+  <button class="opt" data-fb="Correct — import its class and add it to imports.">list it in the imports array</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. Component styles by default are…</h4>
+  <button class="opt" data-fb="Correct — scoped to that component's template.">scoped to that component</button>
+  <button class="opt" data-fb="No — CSS is scoped, not global, by default.">global to the whole app</button>
+  <button class="opt" data-fb="No — you opt into global styling if you need it.">always inline only</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://angular.dev/guide/components">Components</a> guide for the full selector and imports rules.</p>
+
+<div class="ask"><strong>Ask the agent</strong> In your <code>ng new</code> project, generate a second component (<code>ng generate component profile</code>) and render it inside the root AppComponent's template by adding it to <code>imports</code>. Watch <code>ng serve</code> pick it up.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://angular.dev/guide/components">Angular — Components</a></li>
+    <li id="r2"><a href="https://angular.dev/guide/templates">Angular — Templates</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-why-angular.html">← Lesson 1: Why Angular</a></span>
+  <span class="nav-next"><a href="0003-binding-and-control-flow.html">Lesson 3: Binding &amp; control flow →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/angular-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>

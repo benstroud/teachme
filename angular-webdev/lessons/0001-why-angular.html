@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — Why Angular &amp; the CLI</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 9</span><span>Angular Web Development</span></div>
+  <h1>Why Angular &amp; the CLI</h1>
+  <p class="subtitle">A batteries-included, structured SPA framework — and the command that starts a whole project.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Angular is an opinionated, structure-first framework: one component tree, a CLI to scaffold it, and built-in DI, routing, forms, and HTTP — so the architecture is consistent across every app.</p>
+
+<h2>What Angular gives you out of the box</h2>
+<ul>
+  <li><strong>A component model</strong> — the UI is a tree of self-contained components.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>The Angular CLI</strong> — <code>ng new</code> scaffolds a whole buildable project; <code>ng serve</code> runs a dev server.<sup><a href="#r2">2</a></sup></li>
+  <li><strong>Built-in features</strong> — dependency injection, routing, forms, and an HTTP client are part of the framework, not add-ons.</li>
+  <li><strong>TypeScript-first</strong> — the whole framework is typed; templates are type-checked.</li>
+</ul>
+<p>For an experienced TypeScript developer, the appeal is "structure without decisions": the framework chooses the architecture so teams stay consistent.</p>
+
+<h2>Your first project</h2>
+<pre><code>npm i -g @angular/cli        # one-time; or use npx @angular/cli
+ng new my-app                # creates a standalone, runnable app
+cd my-app
+ng serve                    # dev server at http://localhost:4200</code></pre>
+<p><code>ng new</code> generates a project with an <code>src/</code> folder, a root <code>AppComponent</code>, and everything wired to build and run. Modern Angular projects are <em>standalone</em> by default (no NgModules).<sup><a href="#r2">2</a></sup></p>
+
+<h2>What you'll build toward</h2>
+<p>The rest of this course assembles that project: components and templates (2–3), signals (4), services &amp; DI (5), forms (6), HTTP (7), routing (8), and a full app (9).</p>
+
+<aside class="note"><strong>Key idea</strong> Angular rewards consistency: learn the one idiomatic way (standalone components, signals, inject-able services) and it scales from a hello world to a large team app without a rewrite.</aside>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Modern Angular components are, by default…</h4>
+  <button class="opt" data-fb="No — standalone is the default; NgModule only when needed.">wrapped in NgModules</button>
+  <button class="opt" data-fb="Correct — standalone, usable directly via imports.">standalone</button>
+  <button class="opt" data-fb="No — they are framework-managed, not independent.">not part of the framework</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Which command creates a runnable Angular project?</h4>
+  <button class="opt" data-fb="Correct — ng new scaffolds and wires the app.">ng new my-app</button>
+  <button class="opt" data-fb="No — that runs the dev server, needing a project first.">ng serve</button>
+  <button class="opt" data-fb="No — that generates one component, not a project.">ng generate component</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. Angular's philosophy is best described as…</h4>
+  <button class="opt" data-fb="No — Angular is opinionated, not minimalist.">minimal, unopinionated core</button>
+  <button class="opt" data-fb="No — those are built into the framework, not add-ons.">micro-libraries stitched together</button>
+  <button class="opt" data-fb="Correct — structured and bundled with routing, DI, forms.">structured, batteries-included</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://angular.dev/essentials">Angular Essentials</a> and the <a href="https://angular.dev/tools/cli">CLI</a> page, then run <code>ng new</code> for yourself as one step.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Run <code>ng new my-app</code> in a scratch directory (accept defaults) and then <code>ng serve</code>. Open the generated <code>src/app</code> folder — name the files Angular created for the root component and what the CLI wired so it builds.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://angular.dev/essentials">Angular — Essentials</a></li>
+    <li id="r2"><a href="https://angular.dev/tools/cli">Angular — CLI</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="0002-components-and-templates.html">Lesson 2: Components &amp; templates →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/angular-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

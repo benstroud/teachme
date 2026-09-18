@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — HTTP Client &amp; Data</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 9</span><span>Angular Web Development</span></div>
+  <h1>HTTP Client &amp; Data</h1>
+  <p class="subtitle">Talk to a backend with typed requests — from an injectable service.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Angular's <code>HttpClient</code> (<code>@angular/common/http</code>) makes typed HTTP requests, and lives in services so components stay clean.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Set it up once</h2>
+<pre><code>import { provideHttpClient } from '@angular/common/http';
+
+// in the app config providers:
+export const appConfig = {
+  providers: [provideHttpClient()],
+};</code></pre>
+<p><code>provideHttpClient()</code> enables the HTTP client for the app.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Request typed data in a service</h2>
+<pre><code>import { Service, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+
+interface User { id: number; name: string; }
+
+@Service()
+export class UserService {
+  private http = inject(HttpClient);
+
+  users = this.http.get&lt;User[]&gt;('/api/users');   // Observable&lt;User[]&gt;
+
+  create(user: User) {
+    return this.http.post&lt;User&gt;('/api/users', user);
+  }
+}</code></pre>
+<ul>
+  <li>Type the response with generics (<code>get&lt;User[]&gt;</code>).<sup><a href="#r1">1</a></sup></li>
+  <li>Inject <code>HttpClient</code> exactly like any other dependency.</li>
+  <li>Requests return Observables; for signal-friendly async data, <code>httpResource</code> bridges HTTP responses into a signal.<sup><a href="#r1">1</a></sup></li>
+</ul>
+
+<h2>Where the HTTP lives</h2>
+<p>Keep HTTP in a service (injectable), and let components read from the service. This keeps components testable and separates data access from rendering — the DI/architecture pattern from Lesson 5.</p>
+
+<aside class="note"><strong>Key idea</strong> Data access is a service concern: inject <code>HttpClient</code> in a service, type your responses, and expose them to components. Components render; services fetch.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. You enable Angular's HTTP client with…</h4>
+  <button class="opt" data-fb="No — HttpClientModule is the older NgModule approach.">HttpClientModule</button>
+  <button class="opt" data-fb="Correct — provideHttpClient() in the providers.">provideHttpClient()</button>
+  <button class="opt" data-fb="No — there is no provideHTTP function.">provideHTTP()</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. http.get&lt;User[]&gt;(url) makes it…</h4>
+  <button class="opt" data-fb="No — generics set the response type, not an untyped guess.">return completely untyped data</button>
+  <button class="opt" data-fb="No — it always returns the given type, not a signal.">return a signal of User[]</button>
+  <button class="opt" data-fb="Correct — a typed Observable of User[].">a typed Observable of User[]</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. HTTP calls belong in…</h4>
+  <button class="opt" data-fb="Correct — an injectable service, keeping components clean.">an injectable service</button>
+  <button class="opt" data-fb="No — the whole point is keeping components render-only.">the component template</button>
+  <button class="opt" data-fb="No — shared data access belongs in services, not CSS.">global styles</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://angular.dev/guide/http">HTTP Client</a> guide for typed requests and the signals-friendly <code>httpResource</code>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Create a <code>UserService</code> that injects <code>HttpClient</code> and exposes a typed <code>users</code> request. Wire a component to call it on init and render the results with <code>@for</code>.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://angular.dev/guide/http">Angular — HTTP Client</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-forms.html">← Lesson 6: Forms</a></span>
+  <span class="nav-next"><a href="0008-routing.html">Lesson 8: Routing →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/angular-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>

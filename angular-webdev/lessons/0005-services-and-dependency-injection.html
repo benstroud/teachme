@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — Services &amp; Dependency Injection</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 9</span><span>Angular Web Development</span></div>
+  <h1>Services &amp; Dependency Injection</h1>
+  <p class="subtitle">Share data and logic app-wide by providing services and injecting them where needed.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Dependency injection supplies a class with the objects it needs from the outside, instead of the class creating them — and Angular wires it up automatically.<sup><a href="#r1">1</a></sup></p>
+
+<h2>A service</h2>
+<pre><code>import { Service, signal } from '@angular/core';
+
+@Service()                       // shorthand for @Injectable({providedIn:'root'})
+export class CartService {
+  items = signal&lt;string[]&gt;([]);  // shared reactive state
+  add(item: string) {
+    this.items.update(list =&gt; [...list, item]);
+  }
+}</code></pre>
+<p><code>@Service</code> makes the class an app-wide-singleton injectable service.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Injecting with inject()</h2>
+<pre><code>import { Component, inject } from '@angular/core';
+
+@Component({ selector: 'navbar', template: '...' })
+export class Navbar {
+  private cart = inject(CartService);   // get the singleton
+}
+// or in the constructor: this.cart = inject(CartService);</code></pre>
+<p><code>inject()</code> runs in an <em>injection context</em> — component/directive/service construction, route guards, etc.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The injector hierarchy</h2>
+<p>Angular has a tree of injectors aligned with the component tree. A service provided at the root is a singleton across the app; you can also provide one at a component/route level to give that subtree its own instance.</p>
+
+<h2>Why DI matters for real apps</h2>
+<ul>
+  <li><strong>Shared state</strong> — one <code>CartService</code> instance shared by every component that injects it.</li>
+  <li><strong>Testability</strong> — tests can provide a fake implementation in place of the real one.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>Separation</strong> — components stay "dumb"; data + HTTP live in services (Lesson 7).</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> Put app-wide state and logic in <code>@Service</code> classes and inject them with <code>inject()</code>. Components render; services own data and behavior — the backbone of Angular architecture.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. @Service on a class makes it…</h4>
+  <button class="opt" data-fb="Correct — an app-wide singleton injectable.">an app-wide injectable singleton</button>
+  <button class="opt" data-fb="No — @Service is root-singleton by default.">a new instance per component</button>
+  <button class="opt" data-fb="No — that's what @Component is for.">a component</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>2. You obtain an injected dependency with…</h4>
+  <button class="opt" data-fb="No — new() bypasses the injector entirely.">new Service()</button>
+  <button class="opt" data-fb="Correct — inject(Service).">inject(Service)</button>
+  <button class="opt" data-fb="No — useInject is not an Angular function.">useInject(Service)</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. A benefit of DI is that…</h4>
+  <button class="opt" data-fb="No — it tests better with fakes; it's not about raw runtime speed.">faster runtime than plain code</button>
+  <button class="opt" data-fb="No — DI is about sharing and testability.">smaller bundle sizes</button>
+  <button class="opt" data-fb="Correct — tests can provide a fake implementation.">tests can provide fakes</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://angular.dev/guide/di">Dependency Injection</a> guide for the injector hierarchy and injection contexts.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Create a <code>CartService</code> holding a signal of items, inject it into two different components, and add an item from each — confirm both see the same shared state (the root-singleton in action).</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://angular.dev/guide/di">Angular — Dependency Injection</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-signals-for-state.html">← Lesson 4: Signals</a></span>
+  <span class="nav-next"><a href="0006-forms.html">Lesson 6: Forms →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/angular-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>

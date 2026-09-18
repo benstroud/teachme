@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — Binding &amp; Control Flow</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 9</span><span>Angular Web Development</span></div>
+  <h1>Binding &amp; Control Flow</h1>
+  <p class="subtitle">Data in, events out: interpolation, bindings, and the modern template control flow.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Angular keeps the DOM in sync with your data: templates use interpolation, property/event bindings, two-way binding, and <code>@if</code>/<code>@for</code> control flow blocks.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The four binding forms</h2>
+<pre><code>&lt;p&gt;Hello, {{ user.name }}!&lt;/p&gt;              &lt;!-- interpolation --&gt;
+&lt;img [src]=&quot;picUrl&quot; /&gt;                       &lt;!-- property binding --&gt;
+&lt;button (click)=&quot;save($event)&quot;&gt;Save&lt;/button&gt;   &lt;!-- event binding --&gt;
+&lt;input [(ngModel)]=&quot;name&quot; /&gt;                 &lt;!-- two-way binding --&gt;</code></pre>
+<ul>
+  <li><code>[prop]</code> sends a value into the element/component; <code>(event)</code> listens.<sup><a href="#r1">1</a></sup></li>
+  <li><code>[(ngModel)]</code> is the "banana in a box" — bind and update together (needs the <code>FormsModule</code>).<sup><a href="#r1">1</a></sup></li>
+</ul>
+
+<h2>Passing data with @Input / @Output</h2>
+<pre><code>import { Component, Input, Output, EventEmitter } from '@angular/core';
+
+@Component({ selector: 'counter', template: `...` })
+export class Counter {
+  @Input() start = 0;                          // data in from parent
+  @Output() changed = new EventEmitter&lt;number&gt;();   // event out to parent
+  bump() { this.changed.emit(this.start + 1); }
+}
+// parent:  &lt;counter [start]=&quot;3&quot; (changed)=&quot;onChanged($event)&quot; /&gt;</code></pre>
+<p><code>@Input</code> lets a parent feed data in; <code>@Output</code> raises events the parent listens to — this is how components communicate down-and-up.</p>
+
+<h2>Control flow blocks</h2>
+<pre><code>@if (user.tier &gt; 5) { &lt;b&gt;VIP&lt;/b&gt; } @else { &lt;i&gt;regular&lt;/i&gt; }
+
+@for (item of items; track item.id) {
+  &lt;li&gt;{{ item.name }}&lt;/li&gt;
+} @empty { &lt;p&gt;Nothing here&lt;/p&gt; }
+
+@switch (status) {
+  @case ('on') { &lt;p&gt;Running&lt;/p&gt; }
+  @default { &lt;p&gt;Off&lt;/p&gt; }
+}</code></pre>
+<ul>
+  <li><code>@if</code>/<code>@else</code> are real blocks (not hidden elements).<sup><a href="#r1">1</a></sup></li>
+  <li><code>@for</code> needs a <code>track</code> key; <code>@empty</code> handles the no-items case.</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> Learn the shape once and it explains how Angular stays in sync: bindings express "when this data changes, update that part of the DOM," and control flow expresses the structure conditionally and repeatedly.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. The syntax for property binding is…</h4>
+  <button class="opt" data-fb="No — single brackets bind properties; double do two-way.">((prop))</button>
+  <button class="opt" data-fb="Correct — [prop]=&quot;expr&quot; sends a value in.">[prop]=&quot;expr&quot;</button>
+  <button class="opt" data-fb="No — parentheses are event binding.">(prop)</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. Two-way binding with ngModel looks like…</h4>
+  <button class="opt" data-fb="No — one pair of brackets is property binding only.">[ngModel]=&quot;name&quot;</button>
+  <button class="opt" data-fb="No — parentheses alone listen, they don't write back.">(ngModel)=&quot;name&quot;</button>
+  <button class="opt" data-fb="Correct — the banana-in-a-box form.">[(ngModel)]=&quot;name&quot;</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. @for requires a…</h4>
+  <button class="opt" data-fb="Correct — a track key so Angular can identify items.">track key</button>
+  <button class="opt" data-fb="No — @if is conditional; @empty is the list case.">else block</button>
+  <button class="opt" data-fb="No — swipe is unrelated to list rendering.">swipe gesture</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://angular.dev/guide/templates">Templates</a> overview for the full binding and control-flow reference.</p>
+
+<div class="ask"><strong>Ask the agent</strong> In your app, add a <code>@for</code> over an array with a <code>track item.id</code>, plus an <code>@empty</code> fallback. Then bind a click that increments a counter shown with interpolation — the whole binding cycle in action.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://angular.dev/guide/templates">Angular — Templates</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-components-and-templates.html">← Lesson 2: Components &amp; templates</a></span>
+  <span class="nav-next"><a href="0004-signals-for-state.html">Lesson 4: Signals →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/angular-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>
