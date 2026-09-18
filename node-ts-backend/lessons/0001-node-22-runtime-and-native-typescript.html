@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Lesson 1: Node.js 22 Runtime & Native TypeScript</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 24px; color: #111; line-height: 1.6; background: #fafafa; }
+  h1 { font-size: 2.2rem; border-bottom: 2px solid #111; padding-bottom: 10px; margin-bottom: 8px; }
+  .subtitle { font-size: 1.1rem; color: #555; margin-bottom: 32px; font-style: italic; }
+  h2 { font-size: 1.4rem; margin-top: 36px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+  pre { background: #f4f4f4; padding: 16px; border-radius: 6px; overflow-x: auto; font-size: 0.95rem; border: 1px solid #e1e1e8; }
+  code { font-family: Menlo, Monaco, Consolas, "Courier New", monospace; }
+  .callout { background: #eef5fb; border-left: 4px solid #0056b3; padding: 16px; margin: 24px 0; border-radius: 0 6px 6px 0; }
+  .quiz { background: #fff; border: 1px solid #d1d5db; padding: 24px; border-radius: 8px; margin-top: 40px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  .quiz h3 { margin-top: 0; }
+  .quiz label { display: block; margin: 12px 0; cursor: pointer; }
+  button { background: #0056b3; color: #fff; border: none; padding: 10px 20px; font-size: 1rem; border-radius: 4px; cursor: pointer; margin-top: 12px; }
+  button:hover { background: #003d82; font-weight: bold; }
+  #result { margin-top: 16px; font-weight: bold; }
+  nav { margin-bottom: 24px; font-size: 0.95rem; }
+  nav a { color: #0056b3; text-decoration: none; margin-right: 16px; }
+  nav a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+  <nav>
+    <a href="../reference/glossary.html">Glossary</a>
+    <a href="0002-syntax-and-primitives-in-unison.html">Next Lesson &rarr;</a>
+  </nav>
+
+  <h1>Lesson 1: Node.js 22 Runtime & Native TypeScript</h1>
+  <div class="subtitle">Mission: Build robust backend services with unified JavaScript and TypeScript on Node 22.</div>
+
+  <p>Welcome to your backend engineering journey. As an experienced programmer, you understand control flow, memory, and concurrency. Traditionally, learning TypeScript meant configuring complex build tools like <code>tsc</code> and Webpack separately from JavaScript. In <strong>Node.js 22</strong>, that friction is eliminated.</p>
+
+  <p>Node.js 22 introduces experimental native <a href="https://nodejs.org/docs/latest-v22.x/api/cli.html#--experimental-strip-types" target="_blank">type stripping</a>. This allows the runtime to execute TypeScript files directly by stripping out type annotations on the fly.</p>
+
+  <h2>Your First Unified Backend Script</h2>
+  <p>Create a file named <code>server.ts</code>. Notice how we combine JavaScript runtime logic (ESM <code>import</code> and built-in modules) with static TypeScript type annotations in a single cohesive file:</p>
+
+  <pre><code>import http from "node:http";
+
+interface ServerConfig {
+  port: number;
+  host: string;
+}
+
+const config: ServerConfig = {
+  port: 3000,
+  host: "127.0.0.1",
+};
+
+const server = http.createServer((req, res) => {
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ status: "healthy", timestamp: Date.now() }));
+});
+
+server.listen(config.port, config.host, () => {
+  console.log(`Server running at http://${config.host}:${config.port}`);
+});
+</code></pre>
+
+  <h2>Running without a Build Step</h2>
+  <p>To execute this file directly in Node.js 22 without running a separate compilation step, use the experimental strip-types flag:</p>
+
+  <pre><code>node --experimental-strip-types server.ts</code></pre>
+
+  <div class="callout">
+    <strong>Key Takeaway:</strong> You no longer need dual mental models for JS runtime execution and TS build pipelines. Node 22 executes standard ESM TypeScript directly. Read more in the <a href="https://nodejs.org/dist/latest-v22.x/docs/api/" target="_blank">Node.js v22 Documentation</a>.
+  </div>
+
+  <div class="quiz">
+    <h3>Interactive Knowledge Check</h3>
+    <p>How does Node.js 22 execute TypeScript files without a separate compilation step?</p>
+    <form id="quiz-form">
+      <label><input type="radio" name="q1" value="a"> By compiling code to bytecode using LLVM</label>
+      <label><input type="radio" name="q1" value="b"> By stripping type annotations at runtime</label>
+      <label><input type="radio" name="q1" value="c"> By bundling dependencies via Vite engine</label>
+      <button type="submit">Submit Answer</button>
+    </form>
+    <div id="result"></div>
+  </div>
+
+  <p style="margin-top: 40px; font-size: 0.9rem; color: #666;">
+    <em>Note:</em> If anything in this lesson is unclear, remember to ask your AI teacher followup questions for instant clarification.
+  </p>
+
+  <script>
+    document.getElementById('quiz-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const selected = document.querySelector('input[name="q1"]:checked');
+      const res = document.getElementById('result');
+      if (!selected) {
+        res.style.color = '#c00';
+        res.textContent = 'Please select an option.';
+        return;
+      }
+      if (selected.value === 'b') {
+        res.style.color = '#008000';
+        res.textContent = 'Correct! Node 22 strips type annotations on the fly for direct execution.';
+      } else {
+        res.style.color = '#c00';
+        res.textContent = 'Incorrect. Review the section on type stripping above.';
+      }
+    });
+  </script>
+</body>
+</html>

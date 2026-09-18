@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 08 · Movement &amp; Screen Wrap</title>
+  <style>
+    :root {
+      --accent:       #2b4c7e;
+      --accent-light: #3a6bc4;
+      --bg:           #f8f6f1;
+      --text:         #1a1a2e;
+      --muted:        #6b7280;
+      --border:       #d4cfc6;
+      --code-bg:      #1c1c2e;
+      --code-text:    #e2e8f0;
+      --kw:           #7cb9f4;
+      --str:          #a8e6a3;
+      --cmt:          #6b7a8d;
+      --fn:           #f6c90e;
+      --op:           #89ddff;
+      --num:          #f78c6c;
+      --ty:           #c792ea;
+      --correct-bg:   #dcfce7;
+      --correct-fg:   #166534;
+      --wrong-bg:     #fee2e2;
+      --wrong-fg:     #991b1b;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif; background: var(--bg); color: var(--text); line-height: 1.75; font-size: 18px; }
+    header, main, footer { max-width: 760px; margin: 0 auto; padding-left: 2rem; padding-right: 2rem; }
+    header { padding-top: 2.5rem; padding-bottom: 1.5rem; border-bottom: 2px solid var(--accent); }
+    main   { padding-top: 2rem; padding-bottom: 4rem; }
+    footer { padding-top: 1.2rem; padding-bottom: 3rem; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted); }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    .lesson-tag { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin-bottom: 0.4rem; }
+    h1 { font-size: 2.2rem; font-weight: 700; color: var(--accent); letter-spacing: -0.02em; line-height: 1.2; }
+    .subtitle { color: var(--muted); font-size: 1rem; margin-top: 0.4rem; font-style: italic; }
+    section { margin-bottom: 2.8rem; }
+    h2 { font-size: 1.25rem; font-weight: 700; color: var(--accent); margin-bottom: 0.75rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+    h3 { font-size: 1rem; font-weight: 700; color: var(--text); margin: 1.4rem 0 0.5rem; }
+    p  { margin-bottom: 0.85rem; }
+    p:last-child { margin-bottom: 0; }
+    code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.84em; background: #e8e4de; padding: 0.1em 0.35em; border-radius: 3px; }
+    a { color: var(--accent); text-underline-offset: 2px; }
+    pre { background: var(--code-bg); color: var(--code-text); padding: 1.3rem 1.6rem; border-radius: 8px; overflow-x: auto; margin: 1rem 0; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.875rem; line-height: 1.65; position: relative; }
+    .lang-tag { position: absolute; top: 0.5rem; right: 0.8rem; font-size: 0.68rem; color: #506070; text-transform: uppercase; letter-spacing: 0.1em; }
+    .kw { color: var(--kw); } .str { color: var(--str); } .cmt { color: var(--cmt); font-style: italic; }
+    .fn { color: var(--fn); } .op { color: var(--op); } .num { color: var(--num); } .ty { color: var(--ty); }
+
+    .callout { background: #eef3fb; border-left: 4px solid var(--accent); padding: 1rem 1.2rem; border-radius: 0 6px 6px 0; margin-bottom: 2.4rem; }
+    .callout strong { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); margin-bottom: 0.35rem; }
+    .warn { background: #fff7ed; border-left: 4px solid #f59e0b; padding: 0.85rem 1.1rem; border-radius: 0 6px 6px 0; margin: 1rem 0; font-size: 0.92rem; }
+    .warn strong { display: block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; color: #b45309; margin-bottom: 0.25rem; }
+
+    .compare-table { width: 100%; border-collapse: collapse; margin: 1.1rem 0; font-size: 0.9rem; }
+    .compare-table thead th { text-align: left; padding: 0.4rem 1rem; background: #e4e0d8; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.75rem; color: var(--accent); letter-spacing: 0.05em; }
+    .compare-table td { padding: 0.6rem 1rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .compare-table tr:last-child td { border-bottom: none; }
+    .compare-table td:first-child { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.82rem; white-space: nowrap; color: var(--accent-light); }
+    .compare-table tr.highlight td { background: #f0f4fb; }
+
+    .wrap-diagram { display: flex; gap: 0; margin: 1.2rem 0; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.8rem; }
+    .wrap-side { flex: 1; background: var(--code-bg); color: var(--code-text); padding: 1rem 1.2rem; line-height: 1.9; }
+    .wrap-side:first-child { border-radius: 8px 0 0 8px; border-right: 1px solid #2e3a4a; }
+    .wrap-side:last-child  { border-radius: 0 8px 8px 0; }
+    .wrap-side .label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: #506070; margin-bottom: 0.5rem; }
+    .wrap-side .hi { color: var(--fn); }
+    .wrap-side .lo { color: var(--num); }
+
+    .quiz-question { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 1.2rem 1.4rem; margin-bottom: 1.1rem; }
+    .q-text { font-weight: 700; margin-bottom: 0.85rem; font-size: 0.97rem; }
+    .options { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+    @media (max-width: 520px) { .options { grid-template-columns: 1fr; } }
+    .opt-btn { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.87rem; padding: 0.5rem 0.85rem; border: 1.5px solid var(--border); border-radius: 5px; background: var(--bg); cursor: pointer; text-align: left; transition: background 0.12s, border-color 0.12s; color: var(--text); }
+    .opt-btn:hover:not(:disabled) { background: #ede9e0; border-color: var(--accent); }
+    .opt-btn:disabled { cursor: default; }
+    .opt-btn.correct { background: var(--correct-bg); border-color: var(--correct-fg); color: var(--correct-fg); font-weight: 700; }
+    .opt-btn.wrong   { background: var(--wrong-bg); border-color: var(--wrong-fg); color: var(--wrong-fg); }
+    .opt-btn code    { background: transparent; padding: 0; font-size: inherit; font-family: inherit; color: inherit; }
+    .explanation { display: none; margin-top: 0.85rem; font-size: 0.88rem; color: var(--muted); padding-top: 0.6rem; border-top: 1px dashed var(--border); line-height: 1.6; }
+
+    .source-box { background: #fffbeb; border: 1px solid #fbbf24; border-radius: 8px; padding: 1.1rem 1.3rem; margin-bottom: 2.8rem; }
+    .source-box .source-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; color: #92400e; font-weight: 700; margin-bottom: 0.35rem; }
+    .source-box p { font-size: 0.95rem; }
+    .ask-teacher { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 1rem 1.2rem; font-size: 0.92rem; color: #166534; margin-top: 1.5rem; }
+    .nav-prev { font-size: 0.85rem; color: var(--muted); margin-bottom: 1.8rem; }
+    .nav-prev a { color: var(--accent); text-decoration: none; }
+    .nav-prev a:hover { text-decoration: underline; }
+    .pill { display: inline-block; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.72rem; padding: 0.15em 0.55em; border-radius: 20px; font-weight: 600; letter-spacing: 0.04em; }
+    .pill-new  { background: #dcfce7; color: #166534; }
+    .pill-prev { background: #e0e7ff; color: #3730a3; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="lesson-tag">Lesson 08 &middot; Joust — Controls</div>
+  <h1>Movement &amp; Screen Wrap</h1>
+  <p class="subtitle">Arrow keys, held-key input, and flying off one edge to appear on the other</p>
+</header>
+
+<main>
+  <p class="nav-prev">&larr; <a href="0007-gravity-and-flap.html">Lesson 07: Gravity &amp; Flap</a></p>
+
+  <div class="callout">
+    <strong>Mission context</strong>
+    <p>After this lesson the player is fully airborne — gravity, flap, left, right, wrap. The arena is complete except for collision. Next lesson makes the platforms solid; this one makes the rider feel like a rider.</p>
+  </div>
+
+  <!-- ── IsKeyDown vs IsKeyPressed ── -->
+  <section>
+    <h2>Held-key input: <code>IsKeyDown</code></h2>
+
+    <p>Lesson 07 used <code>IsKeyPressed</code> for flap — it fires <em>once</em> on the frame a key transitions from up to down. Horizontal movement needs the opposite: fire <em>every frame</em> while the key is held. That is <code>IsKeyDown</code>.</p>
+
+    <table class="compare-table">
+      <thead><tr><th>Function</th><th>Returns true on…</th><th>Use for</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>IsKeyPressed(key)</td>
+          <td>the single frame the key first goes down</td>
+          <td>Flap, jump, fire — one-shot impulse</td>
+        </tr>
+        <tr class="highlight">
+          <td>IsKeyDown(key)</td>
+          <td>every frame while the key is held</td>
+          <td>Movement, scroll, charge — continuous action</td>
+        </tr>
+        <tr>
+          <td>IsKeyReleased(key)</td>
+          <td>the single frame the key comes back up</td>
+          <td>Release-triggered events</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>If you used <code>IsKeyPressed(.Left)</code> for movement, the player would nudge one pixel per tap and stop. <code>IsKeyDown</code> gives smooth continuous flight.</p>
+  </section>
+
+  <!-- ── horizontal velocity ── -->
+  <section>
+    <h2>Horizontal velocity and facing direction</h2>
+
+    <p>Add two new variables alongside the existing ones:</p>
+
+    <pre><span class="lang-tag">odin</span>player_vx:     <span class="ty">f32</span> = <span class="num">0</span>   <span class="cmt">// horizontal velocity, pixels/s</span>
+player_facing: <span class="ty">f32</span> = <span class="num">1</span>   <span class="cmt">// 1 = right, -1 = left</span></pre>
+
+    <p><code>player_facing</code> is not used for drawing yet — the player is still a white rectangle. It will control sprite flipping in Lesson 10 when you load the actual bird texture. Store it now so the variable exists when you need it, and updating it costs nothing.</p>
+
+    <p>And one new constant:</p>
+
+    <pre><span class="lang-tag">odin</span>MOVE_SPEED <span class="op">::</span> <span class="ty">f32</span>(<span class="num">200</span>)   <span class="cmt">// pixels per second horizontal</span></pre>
+
+    <h3>The input block</h3>
+
+    <pre><span class="lang-tag">odin</span><span class="kw">if</span> rl.<span class="fn">IsKeyDown</span>(.Left) {
+    player_vx     = -MOVE_SPEED
+    player_facing = -<span class="num">1</span>
+} <span class="kw">else if</span> rl.<span class="fn">IsKeyDown</span>(.Right) {
+    player_vx     = MOVE_SPEED
+    player_facing = <span class="num">1</span>
+} <span class="kw">else</span> {
+    player_vx = <span class="num">0</span>            <span class="cmt">// no key held: stop instantly</span>
+}</pre>
+
+    <p>The <code>else</code> branch stops the player the moment no key is held. The original arcade Joust did have some air resistance, but instant stop is simpler and still feels crisp — tune it later if you want. Negative <code>vx</code> is left; positive <code>vx</code> is right. Same sign convention as vertical: positive = larger X = rightward.</p>
+  </section>
+
+  <!-- ── horizontal wrap ── -->
+  <section>
+    <h2>Screen wrap — horizontal</h2>
+
+    <p>Exact same pattern as vertical wrap from Lesson 07. The only choice is the destination: when the player exits one edge, it appears just <em>off-screen</em> on the opposite side so it slides in smoothly rather than popping into view already on-screen.</p>
+
+    <div class="wrap-diagram">
+      <div class="wrap-side">
+        <div class="label">exit right → appear left</div>
+        <div>if x <span class="hi">&gt;</span> SCREEN_W {</div>
+        <div>&nbsp;&nbsp;x = <span class="lo">-PLAYER_W</span></div>
+        <div>}</div>
+        <div>&nbsp;</div>
+        <div class="cmt">// just off the left edge</div>
+        <div class="cmt">// slides in as player moves right</div>
+      </div>
+      <div class="wrap-side">
+        <div class="label">exit left → appear right</div>
+        <div>if x <span class="lo">&lt;</span> -PLAYER_W {</div>
+        <div>&nbsp;&nbsp;x = <span class="hi">f32(SCREEN_W)</span></div>
+        <div>}</div>
+        <div>&nbsp;</div>
+        <div class="cmt">// just at the right edge</div>
+        <div class="cmt">// slides in as player moves left</div>
+      </div>
+    </div>
+
+    <p>The vertical wrap from Lesson 07 stays unchanged — all four wrap conditions sit together after the position integration.</p>
+  </section>
+
+  <!-- ── integrate ── -->
+  <section>
+    <h2>Integrate horizontal position</h2>
+
+    <p>Exactly the same Euler step as vertical — this should feel familiar now:</p>
+
+    <pre><span class="lang-tag">odin</span>player_x += player_vx * dt   <span class="cmt">// same as: player_y += player_vy * dt</span></pre>
+
+    <p>Both axes integrate independently. X has no gravity (there is no horizontal gravity in Joust), so the velocity is set directly from input rather than accumulated.</p>
+  </section>
+
+  <!-- ── complete file ── -->
+  <section>
+    <h2>Complete <code>main.odin</code></h2>
+
+    <pre><span class="lang-tag">odin</span><span class="kw">package</span> main
+
+<span class="kw">import</span> rl <span class="str">"vendor:raylib"</span>
+
+SCREEN_W   <span class="op">::</span> <span class="num">800</span>
+SCREEN_H   <span class="op">::</span> <span class="num">600</span>
+GRAVITY    <span class="op">::</span> <span class="ty">f32</span>(<span class="num">800</span>)
+FLAP_FORCE <span class="op">::</span> <span class="ty">f32</span>(<span class="num">420</span>)
+MAX_FALL   <span class="op">::</span> <span class="ty">f32</span>(<span class="num">600</span>)
+MOVE_SPEED <span class="op">::</span> <span class="ty">f32</span>(<span class="num">200</span>)
+PLAYER_W   <span class="op">::</span> <span class="ty">f32</span>(<span class="num">40</span>)
+PLAYER_H   <span class="op">::</span> <span class="ty">f32</span>(<span class="num">60</span>)
+
+PLATFORMS <span class="op">::</span> [<span class="op">?</span>]rl.<span class="ty">Rectangle</span>{
+    {  <span class="num">0</span>, <span class="num">554</span>, <span class="num">280</span>, <span class="num">46</span>},
+    {<span class="num">520</span>, <span class="num">554</span>, <span class="num">280</span>, <span class="num">46</span>},
+    { <span class="num">48</span>, <span class="num">426</span>, <span class="num">176</span>, <span class="num">18</span>},
+    {<span class="num">576</span>, <span class="num">426</span>, <span class="num">176</span>, <span class="num">18</span>},
+    {<span class="num">288</span>, <span class="num">316</span>, <span class="num">224</span>, <span class="num">18</span>},
+    {<span class="num">336</span>, <span class="num">186</span>, <span class="num">128</span>, <span class="num">18</span>},
+}
+
+LAVA <span class="op">::</span> rl.<span class="ty">Rectangle</span>{<span class="num">280</span>, <span class="num">574</span>, <span class="num">240</span>, <span class="num">26</span>}
+
+main <span class="op">::</span> <span class="kw">proc</span>() {
+    rl.<span class="fn">InitWindow</span>(SCREEN_W, SCREEN_H, <span class="str">"Joust"</span>)
+    <span class="kw">defer</span> rl.<span class="fn">CloseWindow</span>()
+    rl.<span class="fn">SetTargetFPS</span>(<span class="num">60</span>)
+
+    player_x:      <span class="ty">f32</span> = <span class="num">380</span>
+    player_y:      <span class="ty">f32</span> = <span class="num">256</span>
+    player_vx:     <span class="ty">f32</span> = <span class="num">0</span>
+    player_vy:     <span class="ty">f32</span> = <span class="num">0</span>
+    player_facing: <span class="ty">f32</span> = <span class="num">1</span>
+
+    <span class="kw">for</span> !rl.<span class="fn">WindowShouldClose</span>() {
+        dt := rl.<span class="fn">GetFrameTime</span>()
+
+        <span class="cmt">// horizontal input</span>
+        <span class="kw">if</span> rl.<span class="fn">IsKeyDown</span>(.Left) {
+            player_vx     = -MOVE_SPEED
+            player_facing = -<span class="num">1</span>
+        } <span class="kw">else if</span> rl.<span class="fn">IsKeyDown</span>(.Right) {
+            player_vx     = MOVE_SPEED
+            player_facing = <span class="num">1</span>
+        } <span class="kw">else</span> {
+            player_vx = <span class="num">0</span>
+        }
+
+        <span class="cmt">// vertical physics</span>
+        player_vy += GRAVITY * dt
+        player_vy  = <span class="fn">min</span>(player_vy, MAX_FALL)
+        <span class="kw">if</span> rl.<span class="fn">IsKeyPressed</span>(.Space) {
+            player_vy -= FLAP_FORCE
+        }
+
+        <span class="cmt">// integrate</span>
+        player_x += player_vx * dt
+        player_y += player_vy * dt
+
+        <span class="cmt">// wrap all four edges</span>
+        <span class="kw">if</span> player_x > <span class="ty">f32</span>(SCREEN_W) { player_x = -PLAYER_W          }
+        <span class="kw">if</span> player_x < -PLAYER_W    { player_x = <span class="ty">f32</span>(SCREEN_W)        }
+        <span class="kw">if</span> player_y > <span class="ty">f32</span>(SCREEN_H) { player_y = -PLAYER_H           }
+        <span class="kw">if</span> player_y < -PLAYER_H    { player_y = <span class="ty">f32</span>(SCREEN_H)        }
+
+        <span class="cmt">// draw</span>
+        rl.<span class="fn">BeginDrawing</span>()
+
+            rl.<span class="fn">ClearBackground</span>(rl.BLACK)
+
+            rl.<span class="fn">DrawRectangleGradientV</span>(
+                <span class="ty">i32</span>(LAVA.x), <span class="ty">i32</span>(LAVA.y),
+                <span class="ty">i32</span>(LAVA.width), <span class="ty">i32</span>(LAVA.height),
+                rl.RED, rl.ORANGE,
+            )
+
+            <span class="kw">for</span> plat <span class="kw">in</span> PLATFORMS {
+                rl.<span class="fn">DrawRectangleRec</span>(plat, rl.DARKGRAY)
+            }
+
+            rl.<span class="fn">DrawRectangle</span>(
+                <span class="ty">i32</span>(player_x), <span class="ty">i32</span>(player_y),
+                <span class="ty">i32</span>(PLAYER_W), <span class="ty">i32</span>(PLAYER_H), rl.WHITE,
+            )
+
+            rl.<span class="fn">DrawText</span>(<span class="str">"JOUST"</span>, <span class="num">10</span>, <span class="num">10</span>, <span class="num">20</span>, rl.YELLOW)
+            rl.<span class="fn">DrawText</span>(<span class="str">"SPACE flap  \xE2\x86\x90\xE2\x86\x92 move"</span>, <span class="num">10</span>, <span class="num">34</span>, <span class="num">14</span>, rl.GRAY)
+
+        rl.<span class="fn">EndDrawing</span>()
+    }
+}</pre>
+
+    <div class="warn">
+      <strong>Platforms still not solid</strong>
+      The player passes through platforms as before. Lesson 09 fixes this with AABB collision detection. For now, practice the feel: flap up, ride the horizontal momentum, wrap across both edges.
+    </div>
+  </section>
+
+  <!-- ── Quiz ── -->
+  <section>
+    <h2>Check your understanding</h2>
+
+    <div class="quiz-question">
+      <p class="q-text">1. Which raylib function returns true every frame a key is held down?</p>
+      <div class="options">
+        <button class="opt-btn" data-q="1" data-val="a" onclick="answer(1,'a','a')">IsKeyDown</button>
+        <button class="opt-btn" data-q="1" data-val="b" onclick="answer(1,'b','a')">IsKeyHeld</button>
+        <button class="opt-btn" data-q="1" data-val="c" onclick="answer(1,'c','a')">KeyIsDown</button>
+        <button class="opt-btn" data-q="1" data-val="d" onclick="answer(1,'d','a')">IsKeyFire</button>
+      </div>
+      <div class="explanation" id="explain-1">
+        <code>IsKeyDown</code> — <code>IsKeyHeld</code>, <code>KeyIsDown</code>, and <code>IsKeyFire</code> are not raylib functions. Only <code>IsKeyDown</code> exists. The others sound plausible, which is exactly why they are worth ruling out: when you are reading unfamiliar API docs, recognising what is real versus what merely sounds familiar is a core skill.
+      </div>
+    </div>
+
+    <div class="quiz-question">
+      <p class="q-text">2. Horizontal position integration each frame (same pattern as vertical):</p>
+      <div class="options">
+        <button class="opt-btn" data-q="2" data-val="a" onclick="answer(2,'a','a')"><code>x += vx * dt</code></button>
+        <button class="opt-btn" data-q="2" data-val="b" onclick="answer(2,'b','a')"><code>x += vx / dt</code></button>
+        <button class="opt-btn" data-q="2" data-val="c" onclick="answer(2,'c','a')"><code>x += vx + dt</code></button>
+        <button class="opt-btn" data-q="2" data-val="d" onclick="answer(2,'d','a')"><code>x += vx - dt</code></button>
+      </div>
+      <div class="explanation" id="explain-2">
+        <code>x += vx * dt</code> — same Euler step as <code>y += vy * dt</code> from Lesson 07. Velocity (pixels/s) times elapsed time (s) equals displacement (pixels). Division, addition, and subtraction all produce the wrong units.
+      </div>
+    </div>
+
+    <div class="quiz-question">
+      <p class="q-text">3. When the player presses the left arrow, <code>player_facing</code> is set to:</p>
+      <div class="options">
+        <button class="opt-btn" data-q="3" data-val="a" onclick="answer(3,'a','a')">-1</button>
+        <button class="opt-btn" data-q="3" data-val="b" onclick="answer(3,'b','a')">+1</button>
+        <button class="opt-btn" data-q="3" data-val="c" onclick="answer(3,'c','a')">+2</button>
+        <button class="opt-btn" data-q="3" data-val="d" onclick="answer(3,'d','a')">-2</button>
+      </div>
+      <div class="explanation" id="explain-3">
+        <code>-1</code> — the convention of ±1 for direction matches screen-space sign: positive X is rightward, negative X is leftward. Using ±1 means you can later multiply the sprite's draw width by <code>player_facing</code> to flip it — no special case needed. ±2 carries no useful meaning here.
+      </div>
+    </div>
+
+    <div class="quiz-question">
+      <p class="q-text">4. When <code>player_x &lt; -PLAYER_W</code> (flew off the left edge), set <code>player_x</code> to:</p>
+      <div class="options">
+        <button class="opt-btn" data-q="4" data-val="a" onclick="answer(4,'a','a')"><code>f32(SCREEN_W)</code></button>
+        <button class="opt-btn" data-q="4" data-val="b" onclick="answer(4,'b','a')"><code>f32(SCREEN_H)</code></button>
+        <button class="opt-btn" data-q="4" data-val="c" onclick="answer(4,'c','a')"><code>i32(SCREEN_W)</code></button>
+        <button class="opt-btn" data-q="4" data-val="d" onclick="answer(4,'d','a')"><code>i32(SCREEN_H)</code></button>
+      </div>
+      <div class="explanation" id="explain-4">
+        <code>f32(SCREEN_W)</code> — two things to get right: the dimension (W not H, because this is a horizontal wrap) and the type (<code>f32</code> not <code>i32</code>, because <code>player_x</code> is <code>f32</code> and Odin won't silently convert). The i32 variants would be compiler errors; the SCREEN_H variants would teleport the player to Y-coordinate 600 — completely wrong axis.
+      </div>
+    </div>
+  </section>
+
+  <div class="source-box">
+    <div class="source-label">Primary source</div>
+    <p><a href="https://pkg.odin-lang.org/vendor/raylib/#IsKeyDown" target="_blank" rel="noopener">raylib package — IsKeyDown and the full input API</a><br>
+    Skim through the <code>IsKey*</code>, <code>IsGamepad*</code>, and <code>GetMousePosition</code> functions. You will reach for these constantly; knowing what exists saves time.</p>
+  </div>
+
+  <section>
+    <h2>What's next</h2>
+    <p><a href="0009-platform-collision.html">Lesson 09</a> implements AABB (axis-aligned bounding box) collision — the player lands on platforms and stops. After that, the arena is structurally complete and enemies can be added.</p>
+  </section>
+
+  <div class="ask-teacher">
+    Does the movement feel right? The instant stop in <code>else { player_vx = 0 }</code> is a design choice — ask your teacher about adding momentum (air resistance) if you want a floatier feel closer to the original.
+  </div>
+</main>
+
+<footer>
+  <span>&larr; <a href="0007-gravity-and-flap.html">Lesson 07: Gravity &amp; Flap</a></span>
+  <span>&rarr; <a href="0009-platform-collision.html">Lesson 09: Platform Collision</a></span>
+</footer>
+
+<script>
+  function answer(qId, selected, correct) {
+    const buttons = document.querySelectorAll(`[data-q="${qId}"]`);
+    buttons.forEach(btn => {
+      btn.disabled = true;
+      if (btn.dataset.val === correct) btn.classList.add('correct');
+      else if (btn.dataset.val === selected && selected !== correct) btn.classList.add('wrong');
+    });
+    document.getElementById(`explain-${qId}`).style.display = 'block';
+  }
+</script>
+
+</body>
+</html>

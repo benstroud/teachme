@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 09 · Platform Collision</title>
+  <style>
+    :root {
+      --accent:       #2b4c7e;
+      --accent-light: #3a6bc4;
+      --bg:           #f8f6f1;
+      --text:         #1a1a2e;
+      --muted:        #6b7280;
+      --border:       #d4cfc6;
+      --code-bg:      #1c1c2e;
+      --code-text:    #e2e8f0;
+      --kw:           #7cb9f4;
+      --str:          #a8e6a3;
+      --cmt:          #6b7a8d;
+      --fn:           #f6c90e;
+      --op:           #89ddff;
+      --num:          #f78c6c;
+      --ty:           #c792ea;
+      --correct-bg:   #dcfce7;
+      --correct-fg:   #166534;
+      --wrong-bg:     #fee2e2;
+      --wrong-fg:     #991b1b;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif; background: var(--bg); color: var(--text); line-height: 1.75; font-size: 18px; }
+    header, main, footer { max-width: 760px; margin: 0 auto; padding-left: 2rem; padding-right: 2rem; }
+    header { padding-top: 2.5rem; padding-bottom: 1.5rem; border-bottom: 2px solid var(--accent); }
+    main   { padding-top: 2rem; padding-bottom: 4rem; }
+    footer { padding-top: 1.2rem; padding-bottom: 3rem; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted); }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    .lesson-tag { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin-bottom: 0.4rem; }
+    h1 { font-size: 2.2rem; font-weight: 700; color: var(--accent); letter-spacing: -0.02em; line-height: 1.2; }
+    .subtitle { color: var(--muted); font-size: 1rem; margin-top: 0.4rem; font-style: italic; }
+    section { margin-bottom: 2.8rem; }
+    h2 { font-size: 1.25rem; font-weight: 700; color: var(--accent); margin-bottom: 0.75rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+    h3 { font-size: 1rem; font-weight: 700; color: var(--text); margin: 1.4rem 0 0.5rem; }
+    p  { margin-bottom: 0.85rem; }
+    p:last-child { margin-bottom: 0; }
+    code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.84em; background: #e8e4de; padding: 0.1em 0.35em; border-radius: 3px; }
+    a { color: var(--accent); text-underline-offset: 2px; }
+    pre { background: var(--code-bg); color: var(--code-text); padding: 1.3rem 1.6rem; border-radius: 8px; overflow-x: auto; margin: 1rem 0; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.875rem; line-height: 1.65; position: relative; }
+    .lang-tag { position: absolute; top: 0.5rem; right: 0.8rem; font-size: 0.68rem; color: #506070; text-transform: uppercase; letter-spacing: 0.1em; }
+    .kw { color: var(--kw); } .str { color: var(--str); } .cmt { color: var(--cmt); font-style: italic; }
+    .fn { color: var(--fn); } .op { color: var(--op); } .num { color: var(--num); } .ty { color: var(--ty); }
+
+    .callout { background: #eef3fb; border-left: 4px solid var(--accent); padding: 1rem 1.2rem; border-radius: 0 6px 6px 0; margin-bottom: 2.4rem; }
+    .callout strong { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); margin-bottom: 0.35rem; }
+    .warn { background: #fff7ed; border-left: 4px solid #f59e0b; padding: 0.85rem 1.1rem; border-radius: 0 6px 6px 0; margin: 1rem 0; font-size: 0.92rem; }
+    .warn strong { display: block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; color: #b45309; margin-bottom: 0.25rem; }
+    .note { background: #f0fdf4; border-left: 4px solid #86efac; padding: 0.85rem 1.1rem; border-radius: 0 6px 6px 0; margin: 1rem 0; font-size: 0.92rem; color: #166534; }
+    .note strong { display: block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; color: #166534; margin-bottom: 0.25rem; }
+
+    /* ASCII diagrams */
+    .diagram { background: var(--code-bg); color: var(--code-text); padding: 1.2rem 1.6rem; border-radius: 8px; margin: 1rem 0; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.82rem; line-height: 1.7; overflow-x: auto; }
+    .diagram .hi  { color: var(--fn); }
+    .diagram .lo  { color: var(--num); }
+    .diagram .dim { color: #506070; }
+    .diagram .ok  { color: var(--str); }
+
+    /* Two-column diagram layout */
+    .diag-row { display: flex; gap: 2.5rem; margin: 1rem 0; flex-wrap: wrap; }
+    .diag-col { flex: 1; min-width: 180px; }
+    .diag-col .diag-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 0.4rem; }
+
+    /* order table */
+    table.order { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.88rem; }
+    table.order td { padding: 0.45rem 0.9rem; border-bottom: 1px solid var(--border); }
+    table.order tr:last-child td { border-bottom: none; }
+    table.order td:first-child { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.8rem; color: var(--muted); width: 2rem; text-align: center; }
+    table.order tr.new td { background: #f0f4fb; font-weight: 600; }
+    table.order tr.new td:first-child { color: var(--accent); }
+
+    .quiz-question { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 1.2rem 1.4rem; margin-bottom: 1.1rem; }
+    .q-text { font-weight: 700; margin-bottom: 0.85rem; font-size: 0.97rem; }
+    .options { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+    @media (max-width: 520px) { .options { grid-template-columns: 1fr; } }
+    .opt-btn { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.87rem; padding: 0.5rem 0.85rem; border: 1.5px solid var(--border); border-radius: 5px; background: var(--bg); cursor: pointer; text-align: left; transition: background 0.12s, border-color 0.12s; color: var(--text); }
+    .opt-btn:hover:not(:disabled) { background: #ede9e0; border-color: var(--accent); }
+    .opt-btn:disabled { cursor: default; }
+    .opt-btn.correct { background: var(--correct-bg); border-color: var(--correct-fg); color: var(--correct-fg); font-weight: 700; }
+    .opt-btn.wrong   { background: var(--wrong-bg); border-color: var(--wrong-fg); color: var(--wrong-fg); }
+    .opt-btn code    { background: transparent; padding: 0; font-size: inherit; font-family: inherit; color: inherit; }
+    .explanation { display: none; margin-top: 0.85rem; font-size: 0.88rem; color: var(--muted); padding-top: 0.6rem; border-top: 1px dashed var(--border); line-height: 1.6; }
+
+    .source-box { background: #fffbeb; border: 1px solid #fbbf24; border-radius: 8px; padding: 1.1rem 1.3rem; margin-bottom: 2.8rem; }
+    .source-box .source-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; color: #92400e; font-weight: 700; margin-bottom: 0.35rem; }
+    .source-box p { font-size: 0.95rem; }
+    .ask-teacher { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 1rem 1.2rem; font-size: 0.92rem; color: #166534; margin-top: 1.5rem; }
+    .nav-prev { font-size: 0.85rem; color: var(--muted); margin-bottom: 1.8rem; }
+    .nav-prev a { color: var(--accent); text-decoration: none; }
+    .nav-prev a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="lesson-tag">Lesson 09 &middot; Joust — Physics</div>
+  <h1>Platform Collision</h1>
+  <p class="subtitle">AABB overlap detection, top-only landing, and snap resolution</p>
+</header>
+
+<main>
+  <p class="nav-prev">&larr; <a href="0008-movement-and-wrap.html">Lesson 08: Movement &amp; Wrap</a></p>
+
+  <div class="callout">
+    <strong>Mission context</strong>
+    <p>After this lesson the arena is structurally complete: the player lands on platforms, can fly up through them from below, and falls into the lava gap. Everything from this point — enemies, combat, eggs — layers on top of a working physics foundation.</p>
+  </div>
+
+  <!-- ── AABB concept ── -->
+  <section>
+    <h2>AABB: axis-aligned bounding box</h2>
+
+    <p>Every game object is wrapped in a rectangle aligned to the X/Y axes (not rotated). Two AABB rectangles overlap when they overlap on <em>both</em> axes simultaneously:</p>
+
+    <div class="diagram">
+<span class="dim">    ┌──────────────┐</span>
+<span class="dim">    │    rect A    │</span>
+<span class="dim">    │       ┌──────</span><span class="hi">┼────────────┐</span>
+<span class="dim">    └───────</span><span class="hi">┼──────</span><span class="dim">┘</span><span class="hi">            │</span>
+<span class="hi">            │  OVERLAP   rect B  │</span>
+<span class="hi">            └────────────────────┘</span>
+<span class="dim">
+    overlap on X?  a.x &lt; b.x+b.w  AND  a.x+a.w &gt; b.x   ✓
+    overlap on Y?  a.y &lt; b.y+b.h  AND  a.y+a.h &gt; b.y   ✓
+    collision?     both axes overlap                     ✓</span></div>
+
+    <p>You do not need to write this check yourself. Raylib provides <code>rl.CheckCollisionRecs(rec1, rec2: Rectangle) -> bool</code> which does exactly this — returns <code>true</code> if the two rectangles overlap.</p>
+  </section>
+
+  <!-- ── player rect ── -->
+  <section>
+    <h2>Building the player rectangle</h2>
+
+    <p>The player's state is stored as loose variables — <code>player_x, player_y</code> for position. To use <code>CheckCollisionRecs</code>, build a <code>Rectangle</code> from them each frame:</p>
+
+    <pre><span class="lang-tag">odin</span>player_rect <span class="op">:=</span> rl.<span class="ty">Rectangle</span>{player_x, player_y, PLAYER_W, PLAYER_H}</pre>
+
+    <p>This is a fresh value each frame — it costs nothing to construct. No heap allocation, no pointer, just four <code>f32</code> fields on the stack. You will use the same pattern for enemies in Lesson 11.</p>
+  </section>
+
+  <!-- ── top-only ── -->
+  <section>
+    <h2>Top-only landing</h2>
+
+    <p>Joust platforms are one-way: you can fly up <em>through</em> them from below, but you land on them when falling. Full AABB resolution (blocking from all four sides) is both harder to implement and wrong for this game.</p>
+
+    <p>The solution is a single extra condition on the velocity:</p>
+
+    <pre><span class="lang-tag">odin</span><span class="kw">for</span> plat <span class="kw">in</span> PLATFORMS {
+    <span class="kw">if</span> rl.<span class="fn">CheckCollisionRecs</span>(player_rect, plat) &amp;&amp; player_vy > <span class="num">0</span> {
+        player_y  = plat.y - PLAYER_H   <span class="cmt">// snap bottom to platform top</span>
+        player_vy = <span class="num">0</span>                   <span class="cmt">// stop falling</span>
+    }
+}</pre>
+
+    <p><code>player_vy &gt; 0</code> means the player is moving downward (positive Y is down). When the player flies upward into a platform from below, <code>vy</code> is negative — the condition is false and the collision is ignored. The bird passes through. Exactly what Joust does.</p>
+
+    <h3>The snap explained</h3>
+
+    <div class="diag-row">
+      <div class="diag-col">
+        <div class="diag-label">before (overlap detected)</div>
+        <div class="diagram" style="font-size:0.75rem">
+<span class="lo">  ┌──────┐</span>  player_y
+<span class="lo">  │player│</span>
+<span class="lo">  └──────┘</span>  player_y + PLAYER_H
+<span class="hi">  ─────────</span>  plat.y  ← inside platform
+<span class="hi">  ████████</span>  platform
+        </div>
+      </div>
+      <div class="diag-col">
+        <div class="diag-label">after (snapped)</div>
+        <div class="diagram" style="font-size:0.75rem">
+<span class="ok">  ┌──────┐</span>  player_y = plat.y − PLAYER_H
+<span class="ok">  │player│</span>
+<span class="ok">  └──────┘</span>  player_y + PLAYER_H = plat.y ✓
+<span class="hi">  ─────────</span>  plat.y
+<span class="hi">  ████████</span>  platform
+        </div>
+      </div>
+    </div>
+
+    <p>Snapping to <code>plat.y - PLAYER_H</code> places the player's bottom edge exactly on the platform's top edge — no overlap, no gap. <code>player_vy = 0</code> stops the fall so gravity does not immediately push the player back inside next frame.</p>
+  </section>
+
+  <!-- ── update order ── -->
+  <section>
+    <h2>Where collision fits in the update order</h2>
+
+    <p>Order matters. Collision must happen <em>after</em> position is integrated (so the new position can be tested) and <em>before</em> screen wrap (so a landing near the bottom edge does not trigger a vertical wrap):</p>
+
+    <table class="order">
+      <tbody>
+        <tr><td>1</td><td>Horizontal input → set <code>player_vx</code></td></tr>
+        <tr><td>2</td><td>Vertical physics: gravity, terminal velocity cap, flap</td></tr>
+        <tr><td>3</td><td>Integrate: <code>player_x += vx * dt</code>, <code>player_y += vy * dt</code></td></tr>
+        <tr class="new"><td>4</td><td>Platform collision: detect overlap, snap, zero velocity</td></tr>
+        <tr><td>5</td><td>Screen wrap: all four edges</td></tr>
+        <tr><td>6</td><td>Draw</td></tr>
+      </tbody>
+    </table>
+
+    <div class="note">
+      <strong>Tunneling is not a concern here</strong>
+      Tunneling is when an object moves so fast in one frame that it skips past a thin surface entirely. At <code>MAX_FALL = 600 px/s</code> and 60&nbsp;fps, the maximum fall per frame is 10&nbsp;px. The narrowest platform is 18&nbsp;px tall — so the player can never skip through. If you later raise MAX_FALL significantly, revisit this.
+    </div>
+  </section>
+
+  <!-- ── complete file ── -->
+  <section>
+    <h2>Complete <code>main.odin</code></h2>
+
+    <pre><span class="lang-tag">odin</span><span class="kw">package</span> main
+
+<span class="kw">import</span> rl <span class="str">"vendor:raylib"</span>
+
+SCREEN_W   <span class="op">::</span> <span class="num">800</span>
+SCREEN_H   <span class="op">::</span> <span class="num">600</span>
+GRAVITY    <span class="op">::</span> <span class="ty">f32</span>(<span class="num">800</span>)
+FLAP_FORCE <span class="op">::</span> <span class="ty">f32</span>(<span class="num">420</span>)
+MAX_FALL   <span class="op">::</span> <span class="ty">f32</span>(<span class="num">600</span>)
+MOVE_SPEED <span class="op">::</span> <span class="ty">f32</span>(<span class="num">200</span>)
+PLAYER_W   <span class="op">::</span> <span class="ty">f32</span>(<span class="num">40</span>)
+PLAYER_H   <span class="op">::</span> <span class="ty">f32</span>(<span class="num">60</span>)
+
+PLATFORMS <span class="op">::</span> [<span class="op">?</span>]rl.<span class="ty">Rectangle</span>{
+    {  <span class="num">0</span>, <span class="num">554</span>, <span class="num">280</span>, <span class="num">46</span>},
+    {<span class="num">520</span>, <span class="num">554</span>, <span class="num">280</span>, <span class="num">46</span>},
+    { <span class="num">48</span>, <span class="num">426</span>, <span class="num">176</span>, <span class="num">18</span>},
+    {<span class="num">576</span>, <span class="num">426</span>, <span class="num">176</span>, <span class="num">18</span>},
+    {<span class="num">288</span>, <span class="num">316</span>, <span class="num">224</span>, <span class="num">18</span>},
+    {<span class="num">336</span>, <span class="num">186</span>, <span class="num">128</span>, <span class="num">18</span>},
+}
+
+LAVA <span class="op">::</span> rl.<span class="ty">Rectangle</span>{<span class="num">280</span>, <span class="num">574</span>, <span class="num">240</span>, <span class="num">26</span>}
+
+main <span class="op">::</span> <span class="kw">proc</span>() {
+    rl.<span class="fn">InitWindow</span>(SCREEN_W, SCREEN_H, <span class="str">"Joust"</span>)
+    <span class="kw">defer</span> rl.<span class="fn">CloseWindow</span>()
+    rl.<span class="fn">SetTargetFPS</span>(<span class="num">60</span>)
+
+    player_x:      <span class="ty">f32</span> = <span class="num">380</span>
+    player_y:      <span class="ty">f32</span> = <span class="num">256</span>
+    player_vx:     <span class="ty">f32</span> = <span class="num">0</span>
+    player_vy:     <span class="ty">f32</span> = <span class="num">0</span>
+    player_facing: <span class="ty">f32</span> = <span class="num">1</span>
+
+    <span class="kw">for</span> !rl.<span class="fn">WindowShouldClose</span>() {
+        dt := rl.<span class="fn">GetFrameTime</span>()
+
+        <span class="cmt">// horizontal input</span>
+        <span class="kw">if</span> rl.<span class="fn">IsKeyDown</span>(.Left) {
+            player_vx     = -MOVE_SPEED
+            player_facing = -<span class="num">1</span>
+        } <span class="kw">else if</span> rl.<span class="fn">IsKeyDown</span>(.Right) {
+            player_vx     = MOVE_SPEED
+            player_facing = <span class="num">1</span>
+        } <span class="kw">else</span> {
+            player_vx = <span class="num">0</span>
+        }
+
+        <span class="cmt">// vertical physics</span>
+        player_vy += GRAVITY * dt
+        player_vy  = <span class="fn">min</span>(player_vy, MAX_FALL)
+        <span class="kw">if</span> rl.<span class="fn">IsKeyPressed</span>(.Space) {
+            player_vy -= FLAP_FORCE
+        }
+
+        <span class="cmt">// integrate</span>
+        player_x += player_vx * dt
+        player_y += player_vy * dt
+
+        <span class="cmt">// platform collision (top-only)</span>
+        player_rect <span class="op">:=</span> rl.<span class="ty">Rectangle</span>{player_x, player_y, PLAYER_W, PLAYER_H}
+        <span class="kw">for</span> plat <span class="kw">in</span> PLATFORMS {
+            <span class="kw">if</span> rl.<span class="fn">CheckCollisionRecs</span>(player_rect, plat) &amp;&amp; player_vy > <span class="num">0</span> {
+                player_y  = plat.y - PLAYER_H
+                player_vy = <span class="num">0</span>
+            }
+        }
+
+        <span class="cmt">// screen wrap</span>
+        <span class="kw">if</span> player_x > <span class="ty">f32</span>(SCREEN_W) { player_x = -PLAYER_W          }
+        <span class="kw">if</span> player_x < -PLAYER_W    { player_x = <span class="ty">f32</span>(SCREEN_W)        }
+        <span class="kw">if</span> player_y > <span class="ty">f32</span>(SCREEN_H) { player_y = -PLAYER_H           }
+        <span class="kw">if</span> player_y < -PLAYER_H    { player_y = <span class="ty">f32</span>(SCREEN_H)        }
+
+        <span class="cmt">// draw</span>
+        rl.<span class="fn">BeginDrawing</span>()
+
+            rl.<span class="fn">ClearBackground</span>(rl.BLACK)
+
+            rl.<span class="fn">DrawRectangleGradientV</span>(
+                <span class="ty">i32</span>(LAVA.x), <span class="ty">i32</span>(LAVA.y),
+                <span class="ty">i32</span>(LAVA.width), <span class="ty">i32</span>(LAVA.height),
+                rl.RED, rl.ORANGE,
+            )
+
+            <span class="kw">for</span> plat <span class="kw">in</span> PLATFORMS {
+                rl.<span class="fn">DrawRectangleRec</span>(plat, rl.DARKGRAY)
+            }
+
+            rl.<span class="fn">DrawRectangle</span>(
+                <span class="ty">i32</span>(player_x), <span class="ty">i32</span>(player_y),
+                <span class="ty">i32</span>(PLAYER_W), <span class="ty">i32</span>(PLAYER_H), rl.WHITE,
+            )
+
+            rl.<span class="fn">DrawText</span>(<span class="str">"JOUST"</span>, <span class="num">10</span>, <span class="num">10</span>, <span class="num">20</span>, rl.YELLOW)
+            rl.<span class="fn">DrawText</span>(<span class="str">"SPACE flap  \xE2\x86\x90\xE2\x86\x92 move"</span>, <span class="num">10</span>, <span class="num">34</span>, <span class="num">14</span>, rl.GRAY)
+
+        rl.<span class="fn">EndDrawing</span>()
+    }
+}</pre>
+
+    <p>Run it. Stand on every platform. Fly up into them from below — you pass through. Walk off an edge — you fall. Walk into the lava gap — you fall through and wrap to the top. The arena now behaves correctly.</p>
+  </section>
+
+  <!-- ── quiz ── -->
+  <section>
+    <h2>Check your understanding</h2>
+
+    <div class="quiz-question">
+      <p class="q-text">1. The raylib function that checks whether two rectangles overlap is:</p>
+      <div class="options">
+        <button class="opt-btn" data-q="1" data-val="a" onclick="answer(1,'a','a')">CheckCollisionRecs</button>
+        <button class="opt-btn" data-q="1" data-val="b" onclick="answer(1,'b','a')">CollisionRectCheck</button>
+        <button class="opt-btn" data-q="1" data-val="c" onclick="answer(1,'c','a')">RectCollisionCheck</button>
+        <button class="opt-btn" data-q="1" data-val="d" onclick="answer(1,'d','a')">CheckRectCollision</button>
+      </div>
+      <div class="explanation" id="explain-1">
+        <code>CheckCollisionRecs</code> — the others are not raylib functions. This is exactly the kind of question where fluency matters: all four names convey the same concept, but only one is in the API. When reading docs, look for the exact name; when typing from memory, look it up rather than guess.
+      </div>
+    </div>
+
+    <div class="quiz-question">
+      <p class="q-text">2. The guard <code>player_vy &gt; 0</code> enables top-only landing because it means the player is:</p>
+      <div class="options">
+        <button class="opt-btn" data-q="2" data-val="a" onclick="answer(2,'a','a')">player is falling down</button>
+        <button class="opt-btn" data-q="2" data-val="b" onclick="answer(2,'b','a')">player is moving left.</button>
+        <button class="opt-btn" data-q="2" data-val="c" onclick="answer(2,'c','a')">player has zero speed.</button>
+        <button class="opt-btn" data-q="2" data-val="d" onclick="answer(2,'d','a')">player just got input.</button>
+      </div>
+      <div class="explanation" id="explain-2">
+        <em>Player is falling down</em> — positive <code>vy</code> means moving toward larger Y, which is downward in screen space. When the player rises (<code>vy &lt; 0</code>), the guard is false and the collision is skipped — the player flies through the platform. This is the entire mechanism for one-way platforms in under one line of code.
+      </div>
+    </div>
+
+    <div class="quiz-question">
+      <p class="q-text">3. To snap the player's bottom edge flush with the platform's top, set <code>player_y</code> to:</p>
+      <div class="options">
+        <button class="opt-btn" data-q="3" data-val="a" onclick="answer(3,'a','a')"><code>plat.y - PLAYER_H</code></button>
+        <button class="opt-btn" data-q="3" data-val="b" onclick="answer(3,'b','a')"><code>plat.y + PLAYER_H</code></button>
+        <button class="opt-btn" data-q="3" data-val="c" onclick="answer(3,'c','a')"><code>plat.y - PLAYER_W</code></button>
+        <button class="opt-btn" data-q="3" data-val="d" onclick="answer(3,'d','a')"><code>plat.y + PLAYER_W</code></button>
+      </div>
+      <div class="explanation" id="explain-3">
+        <code>plat.y - PLAYER_H</code> — <code>player_y</code> is the player's <em>top</em> edge. The player's <em>bottom</em> edge is <code>player_y + PLAYER_H</code>. Setting that equal to <code>plat.y</code> gives <code>player_y = plat.y - PLAYER_H</code>. Adding PLAYER_H instead would push the player <em>below</em> the platform. Using PLAYER_W (width) is the wrong dimension entirely.
+      </div>
+    </div>
+
+    <div class="quiz-question">
+      <p class="q-text">4. After snapping position, you must also:</p>
+      <div class="options">
+        <button class="opt-btn" data-q="4" data-val="a" onclick="answer(4,'a','a')"><code>player_vy = 0</code></button>
+        <button class="opt-btn" data-q="4" data-val="b" onclick="answer(4,'b','a')"><code>player_vx = 0</code></button>
+        <button class="opt-btn" data-q="4" data-val="c" onclick="answer(4,'c','a')"><code>player_vy = 1</code></button>
+        <button class="opt-btn" data-q="4" data-val="d" onclick="answer(4,'d','a')"><code>player_vx = 1</code></button>
+      </div>
+      <div class="explanation" id="explain-4">
+        <code>player_vy = 0</code> — without this, gravity keeps adding to <code>vy</code> every frame. On the next frame the player would have a positive <code>vy</code> again, immediately re-trigger the collision, and jitter in place. Zeroing <code>vy</code> on landing is what makes the player stay put. Horizontal velocity (<code>vx</code>) is controlled by input and should not be cleared by landing.
+      </div>
+    </div>
+  </section>
+
+  <div class="source-box">
+    <div class="source-label">Primary source</div>
+    <p><a href="https://pkg.odin-lang.org/vendor/raylib/#CheckCollisionRecs" target="_blank" rel="noopener">raylib package — CheckCollisionRecs and the full collision API</a><br>
+    Scan the other <code>CheckCollision*</code> functions: <code>CheckCollisionCircles</code>, <code>CheckCollisionPointRec</code>, <code>GetCollisionRec</code> (returns the overlap rectangle itself). You will reach for <code>CheckCollisionPointRec</code> once you add mouse interaction or lava-touch detection.</p>
+  </div>
+
+  <section>
+    <h2>What's next</h2>
+    <p><a href="0010-sprites.html">Lesson 10</a> replaces the white rectangle with an actual sprite texture — loading a PNG, drawing it with <code>DrawTextureRec</code>, and using <code>player_facing</code> to flip it when moving left.</p>
+  </section>
+
+  <div class="ask-teacher">
+    Does the player feel like it's landing cleanly, or does it occasionally clip through a platform edge? Ask your teacher — the snap approach handles most cases at 60&nbsp;fps but the exact constants (GRAVITY, MAX_FALL) affect how reliably it works.
+  </div>
+</main>
+
+<footer>
+  <span>&larr; <a href="0008-movement-and-wrap.html">Lesson 08: Movement &amp; Wrap</a></span>
+  <span>&rarr; <a href="0010-sprites.html">Lesson 10: Sprites</a></span>
+</footer>
+
+<script>
+  function answer(qId, selected, correct) {
+    const buttons = document.querySelectorAll(`[data-q="${qId}"]`);
+    buttons.forEach(btn => {
+      btn.disabled = true;
+      if (btn.dataset.val === correct) btn.classList.add('correct');
+      else if (btn.dataset.val === selected && selected !== correct) btn.classList.add('wrong');
+    });
+    document.getElementById(`explain-${qId}`).style.display = 'block';
+  }
+</script>
+
+</body>
+</html>

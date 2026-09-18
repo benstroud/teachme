@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 07 · Gravity &amp; Flap</title>
+  <style>
+    :root {
+      --accent:       #2b4c7e;
+      --accent-light: #3a6bc4;
+      --bg:           #f8f6f1;
+      --text:         #1a1a2e;
+      --muted:        #6b7280;
+      --border:       #d4cfc6;
+      --code-bg:      #1c1c2e;
+      --code-text:    #e2e8f0;
+      --kw:           #7cb9f4;
+      --str:          #a8e6a3;
+      --cmt:          #6b7a8d;
+      --fn:           #f6c90e;
+      --op:           #89ddff;
+      --num:          #f78c6c;
+      --ty:           #c792ea;
+      --correct-bg:   #dcfce7;
+      --correct-fg:   #166534;
+      --wrong-bg:     #fee2e2;
+      --wrong-fg:     #991b1b;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif; background: var(--bg); color: var(--text); line-height: 1.75; font-size: 18px; }
+    header, main, footer { max-width: 760px; margin: 0 auto; padding-left: 2rem; padding-right: 2rem; }
+    header { padding-top: 2.5rem; padding-bottom: 1.5rem; border-bottom: 2px solid var(--accent); }
+    main   { padding-top: 2rem; padding-bottom: 4rem; }
+    footer { padding-top: 1.2rem; padding-bottom: 3rem; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted); }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    .lesson-tag { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin-bottom: 0.4rem; }
+    h1 { font-size: 2.2rem; font-weight: 700; color: var(--accent); letter-spacing: -0.02em; line-height: 1.2; }
+    .subtitle { color: var(--muted); font-size: 1rem; margin-top: 0.4rem; font-style: italic; }
+    section { margin-bottom: 2.8rem; }
+    h2 { font-size: 1.25rem; font-weight: 700; color: var(--accent); margin-bottom: 0.75rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+    h3 { font-size: 1rem; font-weight: 700; color: var(--text); margin: 1.4rem 0 0.5rem; }
+    p  { margin-bottom: 0.85rem; }
+    p:last-child { margin-bottom: 0; }
+    code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.84em; background: #e8e4de; padding: 0.1em 0.35em; border-radius: 3px; }
+    a { color: var(--accent); text-underline-offset: 2px; }
+    pre { background: var(--code-bg); color: var(--code-text); padding: 1.3rem 1.6rem; border-radius: 8px; overflow-x: auto; margin: 1rem 0; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.875rem; line-height: 1.65; position: relative; }
+    .lang-tag { position: absolute; top: 0.5rem; right: 0.8rem; font-size: 0.68rem; color: #506070; text-transform: uppercase; letter-spacing: 0.1em; }
+    .kw { color: var(--kw); } .str { color: var(--str); } .cmt { color: var(--cmt); font-style: italic; }
+    .fn { color: var(--fn); } .op { color: var(--op); } .num { color: var(--num); } .ty { color: var(--ty); }
+
+    .callout { background: #eef3fb; border-left: 4px solid var(--accent); padding: 1rem 1.2rem; border-radius: 0 6px 6px 0; margin-bottom: 2.4rem; }
+    .callout strong { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); margin-bottom: 0.35rem; }
+    .warn { background: #fff7ed; border-left: 4px solid #f59e0b; padding: 0.85rem 1.1rem; border-radius: 0 6px 6px 0; margin: 1rem 0; font-size: 0.92rem; }
+    .warn strong { display: block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; color: #b45309; margin-bottom: 0.25rem; }
+
+    /* Physics diagram */
+    .phys-diagram {
+      display: flex;
+      gap: 2rem;
+      margin: 1.2rem 0;
+      flex-wrap: wrap;
+    }
+    .phys-box {
+      flex: 1;
+      min-width: 200px;
+      background: var(--code-bg);
+      border-radius: 8px;
+      padding: 1.1rem 1.4rem;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.82rem;
+      color: var(--code-text);
+      line-height: 1.8;
+    }
+    .phys-box .box-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #506070;
+      margin-bottom: 0.6rem;
+    }
+    .phys-box .up   { color: #7cb9f4; }
+    .phys-box .down { color: #f78c6c; }
+    .phys-box .zero { color: #a8e6a3; }
+
+    table.breakdown { width: 100%; border-collapse: collapse; margin: 1.1rem 0; font-size: 0.9rem; }
+    table.breakdown thead th { text-align: left; padding: 0.35rem 0.9rem; background: #e4e0d8; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.75rem; color: var(--accent); letter-spacing: 0.05em; }
+    table.breakdown td { padding: 0.55rem 0.9rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    table.breakdown tr:last-child td { border-bottom: none; }
+    table.breakdown td:first-child { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.82rem; white-space: nowrap; color: var(--accent-light); }
+
+    .quiz-question { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 1.2rem 1.4rem; margin-bottom: 1.1rem; }
+    .q-text { font-weight: 700; margin-bottom: 0.85rem; font-size: 0.97rem; }
+    .options { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+    @media (max-width: 520px) { .options { grid-template-columns: 1fr; } }
+    .opt-btn { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.87rem; padding: 0.5rem 0.85rem; border: 1.5px solid var(--border); border-radius: 5px; background: var(--bg); cursor: pointer; text-align: left; transition: background 0.12s, border-color 0.12s; color: var(--text); }
+    .opt-btn:hover:not(:disabled) { background: #ede9e0; border-color: var(--accent); }
+    .opt-btn:disabled { cursor: default; }
+    .opt-btn.correct { background: var(--correct-bg); border-color: var(--correct-fg); color: var(--correct-fg); font-weight: 700; }
+    .opt-btn.wrong   { background: var(--wrong-bg); border-color: var(--wrong-fg); color: var(--wrong-fg); }
+    .opt-btn code    { background: transparent; padding: 0; font-size: inherit; font-family: inherit; color: inherit; }
+    .explanation { display: none; margin-top: 0.85rem; font-size: 0.88rem; color: var(--muted); padding-top: 0.6rem; border-top: 1px dashed var(--border); line-height: 1.6; }
+
+    .source-box { background: #fffbeb; border: 1px solid #fbbf24; border-radius: 8px; padding: 1.1rem 1.3rem; margin-bottom: 2.8rem; }
+    .source-box .source-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; color: #92400e; font-weight: 700; margin-bottom: 0.35rem; }
+    .source-box p { font-size: 0.95rem; }
+    .ask-teacher { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 1rem 1.2rem; font-size: 0.92rem; color: #166534; margin-top: 1.5rem; }
+    .nav-prev { font-size: 0.85rem; color: var(--muted); margin-bottom: 1.8rem; }
+    .nav-prev a { color: var(--accent); text-decoration: none; }
+    .nav-prev a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="lesson-tag">Lesson 07 &middot; Joust — Physics</div>
+  <h1>Gravity &amp; Flap</h1>
+  <p class="subtitle">Delta time, Euler integration, and the mechanic that makes Joust feel like Joust</p>
+</header>
+
+<main>
+  <p class="nav-prev">&larr; <a href="0006-platforms.html">Lesson 06: Platforms</a></p>
+
+  <div class="callout">
+    <strong>Mission context</strong>
+    <p>The white rectangle falls. Press Space and it climbs. This is the core loop that defines Joust — everything else is layered on top of it. After this lesson the game is playable in the sense that matters: it <em>feels</em> right.</p>
+  </div>
+
+  <!-- ── Screen space ── -->
+  <section>
+    <h2>Screen space: Y points down</h2>
+
+    <p>Before touching code, one conceptual shift. In screen coordinates, <strong>(0,&nbsp;0) is the top-left corner and Y increases downward.</strong> This inverts your physical intuition:</p>
+
+    <div class="phys-diagram">
+      <div class="phys-box">
+        <div class="box-label">vy and what it means</div>
+        <div class="up">vy &lt; 0  → moving UP   ↑</div>
+        <div class="zero">vy = 0  → stationary  —</div>
+        <div class="down">vy &gt; 0  → moving DOWN ↓</div>
+      </div>
+      <div class="phys-box">
+        <div class="box-label">consequence for forces</div>
+        <div class="down">GRAVITY adds to vy   (+)</div>
+        <div class="up">FLAP subtracts from vy (−)</div>
+        <div class="zero">terminal velocity caps vy</div>
+      </div>
+    </div>
+
+    <p>Gravity is a positive constant because it accelerates things <em>downward</em> — toward larger Y. A flap impulse subtracts from <code>vy</code>, making it more negative — toward smaller Y, which is up the screen. This will feel backwards once and then become permanent intuition.</p>
+  </section>
+
+  <!-- ── dt ── -->
+  <section>
+    <h2>Delta time — frame-rate independence</h2>
+
+    <p><code>rl.GetFrameTime()</code> returns the time in seconds since the last frame completed. At a steady 60&nbsp;fps this is about 0.016&nbsp;s. At 30&nbsp;fps it is 0.033&nbsp;s.</p>
+
+    <p>If you write <code>vy += GRAVITY</code> without <code>dt</code>, the player falls twice as fast on a 120&nbsp;fps machine as on a 60&nbsp;fps one. Multiplying by <code>dt</code> converts units to <em>pixels per second</em>, independent of frame rate:</p>
+
+    <pre><span class="lang-tag">odin</span><span class="cmt">// Without dt — frame-rate dependent (wrong)</span>
+player_vy += GRAVITY          <span class="cmt">// adds some arbitrary amount per frame</span>
+
+<span class="cmt">// With dt — frame-rate independent (correct)</span>
+player_vy += GRAVITY * dt     <span class="cmt">// adds (pixels/s²) × s = pixels/s per frame</span></pre>
+
+    <p>Define physics constants in real-world units — pixels per second or pixels per second squared — and the multiplication makes the units work out.</p>
+
+    <pre><span class="lang-tag">odin</span>GRAVITY    <span class="op">::</span> <span class="ty">f32</span>(<span class="num">800</span>)   <span class="cmt">// pixels per second²</span>
+FLAP_FORCE <span class="op">::</span> <span class="ty">f32</span>(<span class="num">420</span>)   <span class="cmt">// pixels per second (subtracted from vy per flap)</span>
+MAX_FALL   <span class="op">::</span> <span class="ty">f32</span>(<span class="num">600</span>)   <span class="cmt">// terminal velocity cap, pixels per second</span></pre>
+  </section>
+
+  <!-- ── Physics loop ── -->
+  <section>
+    <h2>The physics update</h2>
+
+    <p>Four lines handle all of Joust's vertical physics. Order matters:</p>
+
+    <pre><span class="lang-tag">odin</span>dt := rl.<span class="fn">GetFrameTime</span>()
+
+<span class="cmt">// 1. Gravity accelerates the player downward each frame</span>
+player_vy += GRAVITY * dt
+
+<span class="cmt">// 2. Cap falling speed — without this, long falls become uncontrollable</span>
+player_vy  = <span class="fn">min</span>(player_vy, MAX_FALL)
+
+<span class="cmt">// 3. Flap: each Space press subtracts a fixed upward impulse</span>
+<span class="kw">if</span> rl.<span class="fn">IsKeyPressed</span>(.Space) {
+    player_vy -= FLAP_FORCE
+}
+
+<span class="cmt">// 4. Integrate: move position by velocity × time elapsed</span>
+player_y += player_vy * dt</pre>
+
+    <p>Step 4 is <em>Euler integration</em> — the simplest way to advance a physics simulation. Each frame, position moves by velocity multiplied by elapsed time. It is not perfectly accurate for all physics problems, but it is more than sufficient for a 2D arcade game.</p>
+
+    <p><code>min()</code> is a built-in Odin procedure — no import needed. <code>min(vy, MAX_FALL)</code> returns <code>MAX_FALL</code> when <code>vy</code> exceeds it, clamping terminal velocity.</p>
+
+    <h3><code>IsKeyPressed</code> vs <code>IsKeyDown</code></h3>
+
+    <p>This distinction shapes the entire feel of the flap mechanic:</p>
+
+    <table class="breakdown">
+      <thead><tr><th>Function</th><th>Returns true…</th><th>Use for</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>IsKeyPressed(.Space)</td>
+          <td>on the single frame the key transitions from up to down</td>
+          <td>Flap — one impulse per press, regardless of how long you hold</td>
+        </tr>
+        <tr>
+          <td>IsKeyDown(.Space)</td>
+          <td>every frame the key is held</td>
+          <td>Thrust rockets, held-fire weapons — continuous force while held</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>Using <code>IsKeyDown</code> for flap would make the player accelerate infinitely upward while the key is held — nothing like Joust. <code>IsKeyPressed</code> gives one impulse per tap, which rewards rapid flapping to climb and punishes holding still.</p>
+  </section>
+
+  <!-- ── Vertical wrap ── -->
+  <section>
+    <h2>Vertical wrap</h2>
+
+    <p>In the original arcade game, flying off the top or bottom of the screen wraps you to the other side. Add this after the position update:</p>
+
+    <pre><span class="lang-tag">odin</span><span class="kw">if</span> player_y > SCREEN_H            { player_y = -PLAYER_H  }   <span class="cmt">// fell off bottom → appear at top</span>
+<span class="kw">if</span> player_y < -PLAYER_H          { player_y = <span class="ty">f32</span>(SCREEN_H) }  <span class="cmt">// flew off top → appear at bottom</span></pre>
+
+    <p>The player will still pass through platforms — collision detection comes in Lesson 09. For now, the arena is decoration. That is fine: the physics already feel correct and the platforms give visual context.</p>
+  </section>
+
+  <!-- ── Complete file ── -->
+  <section>
+    <h2>The complete <code>main.odin</code></h2>
+
+    <pre><span class="lang-tag">odin</span><span class="kw">package</span> main
+
+<span class="kw">import</span> rl <span class="str">"vendor:raylib"</span>
+
+SCREEN_W   <span class="op">::</span> <span class="num">800</span>
+SCREEN_H   <span class="op">::</span> <span class="num">600</span>
+GRAVITY    <span class="op">::</span> <span class="ty">f32</span>(<span class="num">800</span>)
+FLAP_FORCE <span class="op">::</span> <span class="ty">f32</span>(<span class="num">420</span>)
+MAX_FALL   <span class="op">::</span> <span class="ty">f32</span>(<span class="num">600</span>)
+PLAYER_W   <span class="op">::</span> <span class="ty">f32</span>(<span class="num">40</span>)
+PLAYER_H   <span class="op">::</span> <span class="ty">f32</span>(<span class="num">60</span>)
+
+PLATFORMS <span class="op">::</span> [<span class="op">?</span>]rl.<span class="ty">Rectangle</span>{
+    {  <span class="num">0</span>, <span class="num">554</span>, <span class="num">280</span>, <span class="num">46</span>},
+    {<span class="num">520</span>, <span class="num">554</span>, <span class="num">280</span>, <span class="num">46</span>},
+    { <span class="num">48</span>, <span class="num">426</span>, <span class="num">176</span>, <span class="num">18</span>},
+    {<span class="num">576</span>, <span class="num">426</span>, <span class="num">176</span>, <span class="num">18</span>},
+    {<span class="num">288</span>, <span class="num">316</span>, <span class="num">224</span>, <span class="num">18</span>},
+    {<span class="num">336</span>, <span class="num">186</span>, <span class="num">128</span>, <span class="num">18</span>},
+}
+
+LAVA <span class="op">::</span> rl.<span class="ty">Rectangle</span>{<span class="num">280</span>, <span class="num">574</span>, <span class="num">240</span>, <span class="num">26</span>}
+
+main <span class="op">::</span> <span class="kw">proc</span>() {
+    rl.<span class="fn">InitWindow</span>(SCREEN_W, SCREEN_H, <span class="str">"Joust"</span>)
+    <span class="kw">defer</span> rl.<span class="fn">CloseWindow</span>()
+    rl.<span class="fn">SetTargetFPS</span>(<span class="num">60</span>)
+
+    player_x:  <span class="ty">f32</span> = <span class="num">380</span>
+    player_y:  <span class="ty">f32</span> = <span class="num">256</span>
+    player_vy: <span class="ty">f32</span> = <span class="num">0</span>
+
+    <span class="kw">for</span> !rl.<span class="fn">WindowShouldClose</span>() {
+        dt := rl.<span class="fn">GetFrameTime</span>()
+
+        <span class="cmt">// physics</span>
+        player_vy += GRAVITY * dt
+        player_vy  = <span class="fn">min</span>(player_vy, MAX_FALL)
+
+        <span class="cmt">// input</span>
+        <span class="kw">if</span> rl.<span class="fn">IsKeyPressed</span>(.Space) {
+            player_vy -= FLAP_FORCE
+        }
+
+        <span class="cmt">// integrate</span>
+        player_y += player_vy * dt
+
+        <span class="cmt">// vertical wrap</span>
+        <span class="kw">if</span> player_y  > <span class="ty">f32</span>(SCREEN_H) { player_y = -PLAYER_H          }
+        <span class="kw">if</span> player_y  < -PLAYER_H    { player_y = <span class="ty">f32</span>(SCREEN_H)        }
+
+        <span class="cmt">// draw</span>
+        rl.<span class="fn">BeginDrawing</span>()
+
+            rl.<span class="fn">ClearBackground</span>(rl.BLACK)
+
+            rl.<span class="fn">DrawRectangleGradientV</span>(
+                <span class="ty">i32</span>(LAVA.x), <span class="ty">i32</span>(LAVA.y),
+                <span class="ty">i32</span>(LAVA.width), <span class="ty">i32</span>(LAVA.height),
+                rl.RED, rl.ORANGE,
+            )
+
+            <span class="kw">for</span> plat <span class="kw">in</span> PLATFORMS {
+                rl.<span class="fn">DrawRectangleRec</span>(plat, rl.DARKGRAY)
+            }
+
+            rl.<span class="fn">DrawRectangle</span>(
+                <span class="ty">i32</span>(player_x), <span class="ty">i32</span>(player_y),
+                <span class="ty">i32</span>(PLAYER_W),  <span class="ty">i32</span>(PLAYER_H), rl.WHITE,
+            )
+
+            rl.<span class="fn">DrawText</span>(<span class="str">"JOUST"</span>, <span class="num">10</span>, <span class="num">10</span>, <span class="num">20</span>, rl.YELLOW)
+            rl.<span class="fn">DrawText</span>(<span class="str">"SPACE to flap"</span>, <span class="num">10</span>, <span class="num">34</span>, <span class="num">14</span>, rl.GRAY)
+
+        rl.<span class="fn">EndDrawing</span>()
+    }
+}</pre>
+
+    <p>Run it with <code>odin run .</code>. The player falls immediately and Space sends it upward. Spam Space quickly to climb; hold back and it falls. That rhythm is Joust.</p>
+
+    <div class="warn">
+      <strong>Platforms are not solid yet</strong>
+      The player passes through every platform. This is expected — collision detection is Lesson 09. Tune the feel now: try adjusting <code>GRAVITY</code>, <code>FLAP_FORCE</code>, and <code>MAX_FALL</code> until it matches the weight you want.
+    </div>
+  </section>
+
+  <!-- ── Quiz ── -->
+  <section>
+    <h2>Check your understanding</h2>
+
+    <div class="quiz-question">
+      <p class="q-text">1. <code>player_vy += GRAVITY * dt</code> each frame updates the player's:</p>
+      <div class="options">
+        <button class="opt-btn" data-q="1" data-val="a" onclick="answer(1,'a','a')">velocity</button>
+        <button class="opt-btn" data-q="1" data-val="b" onclick="answer(1,'b','a')">position</button>
+        <button class="opt-btn" data-q="1" data-val="c" onclick="answer(1,'c','a')">rotation</button>
+        <button class="opt-btn" data-q="1" data-val="d" onclick="answer(1,'d','a')">friction</button>
+      </div>
+      <div class="explanation" id="explain-1">
+        <em>Velocity</em> — <code>vy</code> is velocity, not position. Gravity is an acceleration (pixels per second²), so multiplying by <code>dt</code> gives a velocity change (pixels per second). Position only moves on the separate line <code>player_y += player_vy * dt</code>. Conflating velocity and position is the most common physics beginner mistake.
+      </div>
+    </div>
+
+    <div class="quiz-question">
+      <p class="q-text">2. A flap impulse pushes the player upward. In screen space (Y&nbsp;increases downward), that is applied as:</p>
+      <div class="options">
+        <button class="opt-btn" data-q="2" data-val="a" onclick="answer(2,'a','a')"><code>vy -= FLAP_FORCE</code></button>
+        <button class="opt-btn" data-q="2" data-val="b" onclick="answer(2,'b','a')"><code>vy += FLAP_FORCE</code></button>
+        <button class="opt-btn" data-q="2" data-val="c" onclick="answer(2,'c','a')"><code>vy = -FLAP_FORCE</code></button>
+        <button class="opt-btn" data-q="2" data-val="d" onclick="answer(2,'d','a')"><code>vy *= FLAP_FORCE</code></button>
+      </div>
+      <div class="explanation" id="explain-2">
+        <code>vy -= FLAP_FORCE</code> — subtracting makes <code>vy</code> more negative, which means moving upward (smaller Y). <code>+=</code> would add downward force. <code>vy = -FLAP_FORCE</code> also moves up but discards any existing velocity — it feels snappy rather than additive. <code>*=</code> multiplies, which makes no physical sense as an impulse.
+      </div>
+    </div>
+
+    <div class="quiz-question">
+      <p class="q-text">3. Euler integration: position is advanced each frame by:</p>
+      <div class="options">
+        <button class="opt-btn" data-q="3" data-val="a" onclick="answer(3,'a','a')"><code>y += vy * dt</code></button>
+        <button class="opt-btn" data-q="3" data-val="b" onclick="answer(3,'b','a')"><code>y += vy / dt</code></button>
+        <button class="opt-btn" data-q="3" data-val="c" onclick="answer(3,'c','a')"><code>y += vy + dt</code></button>
+        <button class="opt-btn" data-q="3" data-val="d" onclick="answer(3,'d','a')"><code>y += vy - dt</code></button>
+      </div>
+      <div class="explanation" id="explain-3">
+        <code>y += vy * dt</code> — position changes by velocity (pixels/s) multiplied by elapsed time (s), yielding pixels. Dividing would give pixels/s², which has the wrong units. Adding or subtracting <code>dt</code> mixes units incompatibly (pixels/s ± seconds = nonsense).
+      </div>
+    </div>
+
+    <div class="quiz-question">
+      <p class="q-text">4. To cap the player's maximum fall speed to <code>MAX_FALL</code>, write:</p>
+      <div class="options">
+        <button class="opt-btn" data-q="4" data-val="a" onclick="answer(4,'a','a')"><code>vy = min(vy, MAX_FALL)</code></button>
+        <button class="opt-btn" data-q="4" data-val="b" onclick="answer(4,'b','a')"><code>vy = max(vy, MAX_FALL)</code></button>
+        <button class="opt-btn" data-q="4" data-val="c" onclick="answer(4,'c','a')"><code>vy = abs(vy, MAX_FALL)</code></button>
+        <button class="opt-btn" data-q="4" data-val="d" onclick="answer(4,'d','a')"><code>vy = cap(vy, MAX_FALL)</code></button>
+      </div>
+      <div class="explanation" id="explain-4">
+        <code>min(vy, MAX_FALL)</code> — when <code>vy</code> exceeds <code>MAX_FALL</code> (e.g. 700 &gt; 600), <code>min</code> returns the smaller value (600), capping the speed. <code>max</code> would do the opposite: enforce a <em>minimum</em> fall speed, which is wrong. <code>abs</code> takes one argument. <code>cap</code> is not an Odin built-in.
+      </div>
+    </div>
+  </section>
+
+  <div class="source-box">
+    <div class="source-label">Primary source</div>
+    <p><a href="https://pkg.odin-lang.org/vendor/raylib/#IsKeyPressed" target="_blank" rel="noopener">raylib package — IsKeyPressed / IsKeyDown</a><br>
+    Scan all the <code>IsKey*</code> and <code>GetKey*</code> functions. There are a handful — <code>IsKeyReleased</code>, <code>IsKeyUp</code>, <code>GetKeyPressed</code> (returns the key code of the most recently pressed key). You will use most of them before Joust is done.</p>
+  </div>
+
+  <section>
+    <h2>What's next</h2>
+    <p><a href="0008-movement-and-wrap.html">Lesson 08</a> adds horizontal movement and screen wrapping — left and right arrow keys, and flying off one edge to appear on the other. After that, Lesson 09 makes the platforms solid.</p>
+  </section>
+
+  <div class="ask-teacher">
+    Does the flap feel too floaty, too heavy, too snappy? Ask your teacher — adjusting <code>GRAVITY</code>, <code>FLAP_FORCE</code>, and <code>MAX_FALL</code> is a feel problem, not a code problem, and there is no single right answer.
+  </div>
+</main>
+
+<footer>
+  <span>&larr; <a href="0006-platforms.html">Lesson 06: Platforms</a></span>
+  <span>&rarr; <a href="0008-movement-and-wrap.html">Lesson 08: Movement &amp; Wrap</a></span>
+</footer>
+
+<script>
+  function answer(qId, selected, correct) {
+    const buttons = document.querySelectorAll(`[data-q="${qId}"]`);
+    buttons.forEach(btn => {
+      btn.disabled = true;
+      if (btn.dataset.val === correct) btn.classList.add('correct');
+      else if (btn.dataset.val === selected && selected !== correct) btn.classList.add('wrong');
+    });
+    document.getElementById(`explain-${qId}`).style.display = 'block';
+  }
+</script>
+
+</body>
+</html>

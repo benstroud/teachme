@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Node.js & TypeScript Backend Glossary</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #111; line-height: 1.6; background: #fdfdfd; }
+  h1 { font-size: 2rem; border-bottom: 2px solid #111; padding-bottom: 8px; margin-bottom: 24px; }
+  h2 { font-size: 1.5rem; margin-top: 32px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+  dt { font-weight: bold; font-size: 1.1rem; margin-top: 16px; color: #0056b3; }
+  dd { margin-left: 0; margin-bottom: 12px; }
+  .avoid { font-size: 0.9rem; color: #c00; font-style: italic; }
+  nav { margin-bottom: 24px; font-size: 0.95rem; }
+  nav a { color: #0056b3; text-decoration: none; }
+  nav a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+  <nav><a href="../lessons/0001-node-22-runtime-and-native-typescript.html">&larr; Back to Lesson 1</a></nav>
+  <h1>Node.js & TypeScript Glossary</h1>
+  <p>Canonical terminology for backend engineering with Node.js 22 and TypeScript in this workspace.</p>
+
+  <h2>Runtime & Modules</h2>
+  <dl>
+    <dt>ESM (ECMAScript Modules)</dt>
+    <dd>The standard official module system for JavaScript using <code>import</code> and <code>export</code> statements, natively supported in Node.js.</dd>
+    <dd class="avoid">Avoid: CommonJS, require, module.exports</dd>
+
+    <dt>Type Stripping</dt>
+    <dd>The Node.js 22 capability (`--experimental-strip-types`) to execute TypeScript files directly by stripping type annotations at runtime without a separate build compilation step.</dd>
+    <dd class="avoid">Avoid: transpilation, manual tsc build</dd>
+  </dl>
+
+  <h2>Types & Contracts</h2>
+  <dl>
+    <dt>Type Narrowing</dt>
+    <dd>The process of refining a broad type (like <code>string | null</code>) to a more specific type using runtime control flow checks (e.g., <code>typeof</code>, <code>if</code> guards).</dd>
+    <dd class="avoid">Avoid: type casting, forced assertion</dd>
+
+    <dt>Discriminated Union</dt>
+    <dd>A union type where each member has a common literal property (the discriminant) enabling exhaustive type narrowing in switch or if statements.</dd>
+    <dd class="avoid">Avoid: tagged union, variant record</dd>
+  </dl>
+
+  <h2>Backend & I/O</h2>
+  <dl>
+    <dt>Asynchronous I/O</dt>
+    <dd>Non-blocking input/output operations managed via the Node.js event loop using Promises and <code>async/await</code> syntax.</dd>
+    <dd class="avoid">Avoid: callback hell, blocking threads</dd>
+
+    <dt>Runtime Validation</dt>
+    <dd>Validating untrusted external input (such as HTTP request bodies) against a schema at execution time while automatically inferring static TypeScript types.</dd>
+    <dd class="avoid">Avoid: loose parsing, manual type casting</dd>
+  </dl>
+</body>
+</html>

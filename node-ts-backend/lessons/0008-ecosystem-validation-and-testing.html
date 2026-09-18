@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Lesson 8: Ecosystem, Validation & Testing</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 24px; color: #111; line-height: 1.6; background: #fafafa; }
+  h1 { font-size: 2.2rem; border-bottom: 2px solid #111; padding-bottom: 10px; margin-bottom: 8px; }
+  .subtitle { font-size: 1.1rem; color: #555; margin-bottom: 32px; font-style: italic; }
+  h2 { font-size: 1.4rem; margin-top: 36px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+  pre { background: #f4f4f4; padding: 16px; border-radius: 6px; overflow-x: auto; font-size: 0.95rem; border: 1px solid #e1e1e8; }
+  code { font-family: Menlo, Monaco, Consolas, "Courier New", monospace; }
+  .callout { background: #eef5fb; border-left: 4px solid #0056b3; padding: 16px; margin: 24px 0; border-radius: 0 6px 6px 0; }
+  .quiz { background: #fff; border: 1px solid #d1d5db; padding: 24px; border-radius: 8px; margin-top: 40px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  .quiz h3 { margin-top: 0; }
+  .quiz label { display: block; margin: 12px 0; cursor: pointer; }
+  button { background: #0056b3; color: #fff; border: none; padding: 10px 20px; font-size: 1rem; border-radius: 4px; cursor: pointer; margin-top: 12px; }
+  button:hover { background: #003d82; font-weight: bold; }
+  #result { margin-top: 16px; font-weight: bold; }
+  nav { margin-bottom: 24px; font-size: 0.95rem; }
+  nav a { color: #0056b3; text-decoration: none; margin-right: 16px; }
+  nav a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+  <nav>
+    <a href="0007-generics-and-reusable-utilities.html">&larr; Previous Lesson</a>
+    <a href="../reference/glossary.html">Glossary</a>
+  </nav>
+
+  <h1>Lesson 8: Ecosystem, Validation & Testing</h1>
+  <div class="subtitle">Mission: Perform runtime payload validation with Zod and test with Node 22 built-in test runner.</div>
+
+  <p>Static typing protects code during development, but backend services ingest untrusted external payloads at runtime. Using <a href="../reference/glossary.html">Runtime Validation</a> libraries like Zod alongside Node 22's built-in test runner completes your production backend toolkit.</p>
+
+  <h2>Runtime Validation & Native Testing</h2>
+  <p>Consider validating user registration payloads and testing them with <code>node:test</code>:</p>
+
+  <pre><code>import { z } from "zod";
+import test from "node:test";
+import assert from "node:assert";
+
+// Zod schema definition with automatic static type inference
+const UserSchema = z.object({
+  username: z.string().min(3),
+  age: z.number().int().positive(),
+});
+
+type CreateUserDto = z.infer&lt;typeof UserSchema&gt;;
+
+// Native test using Node 22 test runner
+test("UserSchema validates correct payloads", () => {
+  const input = { username: "bob", age: 30 };
+  const parsed = UserSchema.parse(input);
+  assert.strictEqual(parsed.username, "bob");
+});
+</code></pre>
+
+  <div class="callout">
+    <strong>Key Takeaway:</strong> Combining Zod runtime validation with Node 22's built-in test runner (`node --test`) provides complete test and validation coverage without third-party test runners. See <a href="https://zod.dev/" target="_blank">Zod Documentation</a> and <a href="https://nodejs.org/docs/latest-v22.x/api/test.html" target="_blank">Node.js Test Runner Documentation</a>.
+  </div>
+
+  <div class="quiz">
+    <h3>Interactive Knowledge Check</h3>
+    <p>What is the primary role of a runtime validation library like Zod in a TypeScript backend?</p>
+    <form id="quiz-form">
+      <label><input type="radio" name="q8" value="a"> To validate untrusted incoming data and infer static types automatically</label>
+      <label><input type="radio" name="q8" value="b"> To compile TypeScript files directly to native machine binaries</label>
+      <label><input type="radio" name="q8" value="c"> To manage database connection pooling and automatic migrations</label>
+      <button type="submit">Submit Answer</button>
+    </form>
+    <div id="result"></div>
+  </div>
+
+  <p style="margin-top: 40px; font-size: 0.9rem; color: #666;">
+    <em>Note:</em> Congratulations on completing the unified Node.js 22 & TypeScript lesson set! Ask your AI teacher any followup questions.
+  </p>
+
+  <script>
+    document.getElementById('quiz-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const selected = document.querySelector('input[name="q8"]:checked');
+      const res = document.getElementById('result');
+      if (!selected) {
+        res.style.color = '#c00';
+        res.textContent = 'Please select an option.';
+        return;
+      }
+      if (selected.value === 'a') {
+        res.style.color = '#008000';
+        res.textContent = 'Correct! Zod validates runtime input while inferring static types.';
+      } else {
+        res.style.color = '#c00';
+        res.textContent = 'Incorrect. Review runtime validation vs compilation tools.';
+      }
+    });
+  </script>
+</body>
+</html>

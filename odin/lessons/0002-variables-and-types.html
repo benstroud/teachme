@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 02 · Variables &amp; Types</title>
+  <style>
+    :root {
+      --accent:       #2b4c7e;
+      --accent-light: #3a6bc4;
+      --bg:           #f8f6f1;
+      --text:         #1a1a2e;
+      --muted:        #6b7280;
+      --border:       #d4cfc6;
+      --code-bg:      #1c1c2e;
+      --code-text:    #e2e8f0;
+      --kw:           #7cb9f4;
+      --str:          #a8e6a3;
+      --cmt:          #6b7a8d;
+      --fn:           #f6c90e;
+      --op:           #89ddff;
+      --num:          #f78c6c;
+      --correct-bg:   #dcfce7;
+      --correct-fg:   #166534;
+      --wrong-bg:     #fee2e2;
+      --wrong-fg:     #991b1b;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.75;
+      font-size: 18px;
+    }
+
+    header, main, footer { max-width: 760px; margin: 0 auto; padding-left: 2rem; padding-right: 2rem; }
+
+    header {
+      padding-top: 2.5rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 2px solid var(--accent);
+    }
+
+    main  { padding-top: 2rem; padding-bottom: 4rem; }
+
+    footer {
+      padding-top: 1.2rem;
+      padding-bottom: 3rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    .lesson-tag {
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 1rem;
+      margin-top: 0.4rem;
+      font-style: italic;
+    }
+
+    section { margin-bottom: 2.8rem; }
+
+    h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 0.75rem;
+      padding-bottom: 0.3rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    p { margin-bottom: 0.85rem; }
+    p:last-child { margin-bottom: 0; }
+
+    ul { margin: 0.5rem 0 0.85rem 1.4rem; }
+    ul li { margin-bottom: 0.3rem; }
+
+    code {
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.84em;
+      background: #e8e4de;
+      padding: 0.1em 0.35em;
+      border-radius: 3px;
+    }
+
+    a { color: var(--accent); text-underline-offset: 2px; }
+
+    pre {
+      background: var(--code-bg);
+      color: var(--code-text);
+      padding: 1.3rem 1.6rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 1rem 0;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.875rem;
+      line-height: 1.65;
+      position: relative;
+    }
+
+    .lang-tag {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.8rem;
+      font-size: 0.68rem;
+      color: #506070;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .kw  { color: var(--kw); }
+    .str { color: var(--str); }
+    .cmt { color: var(--cmt); font-style: italic; }
+    .fn  { color: var(--fn); }
+    .op  { color: var(--op); }
+    .num { color: var(--num); }
+    .ty  { color: #c792ea; }
+
+    .callout {
+      background: #eef3fb;
+      border-left: 4px solid var(--accent);
+      padding: 1rem 1.2rem;
+      border-radius: 0 6px 6px 0;
+      margin-bottom: 2.4rem;
+    }
+    .callout strong {
+      display: block;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      margin-bottom: 0.35rem;
+    }
+
+    .warn {
+      background: #fff7ed;
+      border-left: 4px solid #f59e0b;
+      padding: 0.85rem 1.1rem;
+      border-radius: 0 6px 6px 0;
+      margin: 1rem 0;
+      font-size: 0.92rem;
+    }
+    .warn strong {
+      display: block;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #b45309;
+      margin-bottom: 0.25rem;
+    }
+
+    table.breakdown {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.1rem 0;
+      font-size: 0.9rem;
+    }
+    table.breakdown thead th {
+      text-align: left;
+      padding: 0.35rem 0.9rem;
+      background: #e4e0d8;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.75rem;
+      color: var(--accent);
+      letter-spacing: 0.05em;
+    }
+    table.breakdown td {
+      padding: 0.55rem 0.9rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    table.breakdown tr:last-child td { border-bottom: none; }
+    table.breakdown td:first-child {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.82rem;
+      white-space: nowrap;
+      color: var(--accent-light);
+    }
+    table.breakdown td.center { text-align: center; }
+
+    /* Quiz */
+    .quiz-question {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.2rem 1.4rem;
+      margin-bottom: 1.1rem;
+    }
+    .q-text {
+      font-weight: 700;
+      margin-bottom: 0.85rem;
+      font-size: 0.97rem;
+    }
+    .options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+    }
+    @media (max-width: 520px) { .options { grid-template-columns: 1fr; } }
+    .opt-btn {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.87rem;
+      padding: 0.5rem 0.85rem;
+      border: 1.5px solid var(--border);
+      border-radius: 5px;
+      background: var(--bg);
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.12s, border-color 0.12s;
+      color: var(--text);
+    }
+    .opt-btn:hover:not(:disabled) {
+      background: #ede9e0;
+      border-color: var(--accent);
+    }
+    .opt-btn:disabled { cursor: default; }
+    .opt-btn.correct {
+      background: var(--correct-bg);
+      border-color: var(--correct-fg);
+      color: var(--correct-fg);
+      font-weight: 700;
+    }
+    .opt-btn.wrong {
+      background: var(--wrong-bg);
+      border-color: var(--wrong-fg);
+      color: var(--wrong-fg);
+    }
+    .opt-btn code {
+      background: transparent;
+      padding: 0;
+      font-size: inherit;
+      font-family: inherit;
+      color: inherit;
+    }
+    .explanation {
+      display: none;
+      margin-top: 0.85rem;
+      font-size: 0.88rem;
+      color: var(--muted);
+      padding-top: 0.6rem;
+      border-top: 1px dashed var(--border);
+      line-height: 1.6;
+    }
+
+    .source-box {
+      background: #fffbeb;
+      border: 1px solid #fbbf24;
+      border-radius: 8px;
+      padding: 1.1rem 1.3rem;
+      margin-bottom: 2.8rem;
+    }
+    .source-box .source-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #92400e;
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+    }
+    .source-box p { font-size: 0.95rem; }
+
+    .ask-teacher {
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      border-radius: 8px;
+      padding: 1rem 1.2rem;
+      font-size: 0.92rem;
+      color: #166534;
+      margin-top: 1.5rem;
+    }
+
+    .nav-prev {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 1.8rem;
+    }
+    .nav-prev a { color: var(--accent); text-decoration: none; }
+    .nav-prev a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="lesson-tag">Lesson 02 &middot; Odin Foundations</div>
+  <h1>Variables &amp; Types</h1>
+  <p class="subtitle">Declaration syntax, the numeric tower, and structs as game entities</p>
+</header>
+
+<main>
+
+  <p class="nav-prev">&larr; <a href="0001-hello-odin.html">Lesson 01: Hello, Odin</a></p>
+
+  <div class="callout">
+    <strong>Mission context</strong>
+    <p>Every game object — player position, velocity, health, alive state — is a struct. Every smooth movement calculation uses <code>f32</code>. This lesson is the vocabulary you will reach for every time you write game logic.</p>
+  </div>
+
+  <!-- ── Section 1: Declaration forms ── -->
+  <section>
+    <h2>Three ways to declare a variable</h2>
+
+    <p>Odin has distinct syntax for each combination of "do I know the type?" and "do I have an initial value?"</p>
+
+    <pre><span class="lang-tag">odin</span><span class="cmt">// 1. Inferred type — most common in practice</span>
+score  <span class="op">:=</span> <span class="num">0</span>
+speed  <span class="op">:=</span> <span class="num">2.5</span>
+alive  <span class="op">:=</span> <span class="kw">true</span>
+
+<span class="cmt">// 2. Explicit type with initial value — when inference picks the wrong type</span>
+x: <span class="ty">f32</span> = <span class="num">0</span>       <span class="cmt">// without the f32, Odin infers f64 for 0.0 and int for 0</span>
+health: <span class="ty">i32</span> = <span class="num">100</span>
+
+<span class="cmt">// 3. Type only — zero-initialised, no explicit value required</span>
+frame_count: <span class="ty">int</span>   <span class="cmt">// guaranteed to be 0</span>
+is_paused:   <span class="ty">bool</span>  <span class="cmt">// guaranteed to be false</span></pre>
+
+    <p>Unlike C, <strong>Odin zero-initialises everything by default</strong>. A declared variable with no value is <em>always</em> safe to read — it will be <code>0</code>, <code>false</code>, or <code>""</code> depending on its type. This eliminates an entire class of bugs.</p>
+
+    <div class="warn">
+      <strong>Footnote: uninitialized memory</strong>
+      Odin does provide <code>---</code> to opt into uninitialized memory (<code>x: int = ---</code>), which skips the zero-write for performance. You will not need it until you are optimizing hot paths. Ignore it for now.
+    </div>
+
+    <p>And a reminder from Lesson 01 — the fourth form is a <em>constant</em>, not a variable. It cannot be reassigned:</p>
+
+    <pre><span class="lang-tag">odin</span>GRAVITY <span class="op">::</span> <span class="num">9.8</span>        <span class="cmt">// compile-time constant — immutable forever</span>
+TILE_SIZE <span class="op">::</span> <span class="num">32</span>       <span class="cmt">// cannot be changed at runtime</span></pre>
+  </section>
+
+  <!-- ── Section 2: Numeric types ── -->
+  <section>
+    <h2>Numeric types — what you will actually use</h2>
+
+    <p>Odin's numeric tower is large, but in practice four types cover nearly all game programming:</p>
+
+    <table class="breakdown">
+      <thead><tr><th>Type</th><th>Size</th><th>Use for</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>f32</td>
+          <td>32-bit float</td>
+          <td>Position, velocity, angle, lerp — anything that needs decimals. raylib's API is built around <code>f32</code>.</td>
+        </tr>
+        <tr>
+          <td>int</td>
+          <td>pointer-width (64-bit on modern machines)</td>
+          <td>Loop counters, array indices, counts. The default integer.</td>
+        </tr>
+        <tr>
+          <td>i32</td>
+          <td>32-bit signed</td>
+          <td>When you need to match a C API or cap memory use. Common in file formats.</td>
+        </tr>
+        <tr>
+          <td>bool</td>
+          <td>8-bit</td>
+          <td>Flags — <code>is_alive</code>, <code>is_grounded</code>, <code>game_over</code>.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Important:</strong> <code>int</code> is <em>pointer-sized</em>, not always 32-bit. On a 64-bit machine it is 64 bits. This matters if you are reading binary formats or passing sizes to C APIs — use <code>i32</code> explicitly in those cases.</p>
+
+    <h2 style="margin-top:2rem;">No implicit conversions — ever</h2>
+
+    <p>This will bite you. Odin never silently converts between numeric types. Mixing <code>f32</code> and <code>int</code> in an expression is a compile error:</p>
+
+    <pre><span class="lang-tag">odin</span>frame: <span class="ty">int</span> = <span class="num">60</span>
+delta: <span class="ty">f32</span> = <span class="num">1.0</span> / frame   <span class="cmt">// ✗ compile error: cannot mix f32 and int</span></pre>
+
+    <p>Convert explicitly using <code>TargetType(value)</code>:</p>
+
+    <pre><span class="lang-tag">odin</span>frame: <span class="ty">int</span> = <span class="num">60</span>
+delta: <span class="ty">f32</span> = <span class="num">1.0</span> / <span class="ty">f32</span>(frame)  <span class="cmt">// ✓ explicit cast</span>
+
+speed: <span class="ty">f32</span> = <span class="num">3.7</span>
+tiles: <span class="ty">int</span> = <span class="ty">int</span>(speed)         <span class="cmt">// ✓ truncates — 3</span></pre>
+
+    <p>The conversion syntax is <code>Type(value)</code>, just like a procedure call. There is no cast keyword required for basic numeric conversions.</p>
+  </section>
+
+  <!-- ── Section 3: Structs ── -->
+  <section>
+    <h2>Structs — modelling game entities</h2>
+
+    <p>Structs are declared as constants with <code>::</code> (they are compile-time type definitions). Fields can share a type by listing names with a comma:</p>
+
+    <pre><span class="lang-tag">odin</span>Player <span class="op">::</span> <span class="kw">struct</span> {
+    x, y:   <span class="ty">f32</span>,    <span class="cmt">// position</span>
+    vx, vy: <span class="ty">f32</span>,    <span class="cmt">// velocity</span>
+    health: <span class="ty">int</span>,
+    alive:  <span class="ty">bool</span>,
+}</pre>
+
+    <p>To create a value, use a <em>struct literal</em> with curly braces. You can initialise positionally or by name:</p>
+
+    <pre><span class="lang-tag">odin</span><span class="cmt">// Named fields — preferred: order doesn't matter, omitted fields are zero</span>
+p := Player{x = <span class="num">100</span>, y = <span class="num">200</span>, health = <span class="num">3</span>, alive = <span class="kw">true</span>}
+
+<span class="cmt">// Positional — must match field declaration order exactly</span>
+p2 := Player{<span class="num">100</span>, <span class="num">200</span>, <span class="num">0</span>, <span class="num">0</span>, <span class="num">3</span>, <span class="kw">true</span>}
+
+<span class="cmt">// Zero-initialised — all fields are 0 / false</span>
+p3: Player
+p4 := Player{}   <span class="cmt">// equivalent</span></pre>
+
+    <p>Access fields with <code>.</code>. If you have a pointer to a struct, Odin auto-dereferences — no <code>-&gt;</code>:</p>
+
+    <pre><span class="lang-tag">odin</span>p := Player{x = <span class="num">10</span>, health = <span class="num">3</span>, alive = <span class="kw">true</span>}
+p.x += <span class="num">2.5</span>        <span class="cmt">// direct access</span>
+
+ptr := &amp;p
+ptr.health -= <span class="num">1</span>   <span class="cmt">// pointer field access — no -> needed</span></pre>
+
+    <p>Named init is strongly preferred in practice: it documents intent, survives field reordering, and leaves unspecified fields at their zero value rather than requiring you to fill every position.</p>
+  </section>
+
+  <!-- ── Quiz ── -->
+  <section>
+    <h2>Check your understanding</h2>
+
+    <div class="quiz-question">
+      <p class="q-text">1. Which declares a zero-initialised, mutable <code>int</code> named <code>hp</code> without providing an explicit value?</p>
+      <div class="options">
+        <button class="opt-btn" data-q="1" data-val="a" onclick="answer(1,'a','a')"><code>hp: int</code></button>
+        <button class="opt-btn" data-q="1" data-val="b" onclick="answer(1,'b','a')"><code>hp := 0</code></button>
+        <button class="opt-btn" data-q="1" data-val="c" onclick="answer(1,'c','a')"><code>hp :: 0</code></button>
+        <button class="opt-btn" data-q="1" data-val="d" onclick="answer(1,'d','a')"><code>hp =: 0</code></button>
+      </div>
+      <div class="explanation" id="explain-1">
+        <code>hp: int</code> declares a mutable variable of type <code>int</code>, zero-initialised by the compiler guarantee (no value needed). <code>hp := 0</code> is also valid but provides an explicit value. <code>hp :: 0</code> declares a constant — immutable. <code>hp =: 0</code> is not valid Odin syntax.
+      </div>
+    </div>
+
+    <div class="quiz-question">
+      <p class="q-text">2. Which expression converts an <code>int</code> variable <code>n</code> to the <code>f32</code> type?</p>
+      <div class="options">
+        <button class="opt-btn" data-q="2" data-val="a" onclick="answer(2,'a','a')"><code>f32(n)</code></button>
+        <button class="opt-btn" data-q="2" data-val="b" onclick="answer(2,'b','a')"><code>f64(n)</code></button>
+        <button class="opt-btn" data-q="2" data-val="c" onclick="answer(2,'c','a')"><code>int(n)</code></button>
+        <button class="opt-btn" data-q="2" data-val="d" onclick="answer(2,'d','a')"><code>u32(n)</code></button>
+      </div>
+      <div class="explanation" id="explain-2">
+        In Odin, <code>Type(value)</code> is the conversion syntax. <code>f32(n)</code> converts <code>n</code> to a 32-bit float. <code>f64(n)</code> converts to a 64-bit float (too wide for most raylib calls). <code>int(n)</code> is a no-op (already <code>int</code>). <code>u32(n)</code> converts to an unsigned 32-bit integer — different type entirely.
+      </div>
+    </div>
+
+    <div class="quiz-question">
+      <p class="q-text">3. Given <code>Vec2 :: struct &#x7B; x, y: f32 &#x7D;</code>, which initialises a value at point (1, 2)?</p>
+      <div class="options">
+        <button class="opt-btn" data-q="3" data-val="a" onclick="answer(3,'a','a')"><code>Vec2{1, 2}</code></button>
+        <button class="opt-btn" data-q="3" data-val="b" onclick="answer(3,'b','a')"><code>Vec2(1, 2)</code></button>
+        <button class="opt-btn" data-q="3" data-val="c" onclick="answer(3,'c','a')"><code>Vec2[1, 2]</code></button>
+        <button class="opt-btn" data-q="3" data-val="d" onclick="answer(3,'d','a')"><code>Vec2&lt;1, 2&gt;</code></button>
+      </div>
+      <div class="explanation" id="explain-3">
+        Struct literals in Odin use <strong>curly braces</strong>: <code>Vec2{1, 2}</code>. Parentheses are for procedure calls. Square brackets are for array indexing. Angle brackets are not valid Odin syntax (no generics in the angle-bracket sense).
+      </div>
+    </div>
+
+    <div class="quiz-question">
+      <p class="q-text">4. For a game object's <code>x</code> position (sub-pixel movement, used with raylib), the best type is:</p>
+      <div class="options">
+        <button class="opt-btn" data-q="4" data-val="a" onclick="answer(4,'a','a')"><code>f32</code></button>
+        <button class="opt-btn" data-q="4" data-val="b" onclick="answer(4,'b','a')"><code>f64</code></button>
+        <button class="opt-btn" data-q="4" data-val="c" onclick="answer(4,'c','a')"><code>int</code></button>
+        <button class="opt-btn" data-q="4" data-val="d" onclick="answer(4,'d','a')"><code>i32</code></button>
+      </div>
+      <div class="explanation" id="explain-4">
+        <code>f32</code> is correct for three reasons: positions are fractional (smooth movement requires decimals), <code>f32</code> has more than enough precision for screen coordinates, and raylib's entire API is built around <code>f32</code> — using <code>f64</code> would require constant downcasting. <code>int</code> and <code>i32</code> can't represent fractions.
+      </div>
+    </div>
+  </section>
+
+  <div class="source-box">
+    <div class="source-label">Primary source</div>
+    <p><a href="https://odin-lang.org/docs/overview/#values-variables-and-type-system" target="_blank" rel="noopener">Odin Overview &mdash; Values, Variables, and Type System</a><br>
+    Read the "Values, Variables and Type System" and "Struct types" sections of the official overview. Pay special attention to the note on explicit conversions — it will catch you off guard if you are used to C's implicit arithmetic promotions.</p>
+  </div>
+
+  <section>
+    <h2>What's next</h2>
+    <p><a href="0003-control-flow.html">Lesson 03</a> covers Odin's control flow: <code>if</code>, the single <code>for</code> loop that handles everything, and <code>switch</code>. After that, one more lesson on procedures, and then we open a window.</p>
+  </section>
+
+  <div class="ask-teacher">
+    Unclear on anything? Ask your teacher — type your question in the chat and get an immediate explanation tailored to what you already know.
+  </div>
+
+</main>
+
+<footer>
+  <span>&larr; <a href="0001-hello-odin.html">Lesson 01: Hello, Odin</a></span>
+  <span>&rarr; <a href="0003-control-flow.html">Lesson 03: Control Flow</a></span>
+</footer>
+
+<script>
+  function answer(qId, selected, correct) {
+    const buttons = document.querySelectorAll(`[data-q="${qId}"]`);
+    buttons.forEach(btn => {
+      btn.disabled = true;
+      if (btn.dataset.val === correct) {
+        btn.classList.add('correct');
+      } else if (btn.dataset.val === selected && selected !== correct) {
+        btn.classList.add('wrong');
+      }
+    });
+    document.getElementById(`explain-${qId}`).style.display = 'block';
+  }
+</script>
+
+</body>
+</html>

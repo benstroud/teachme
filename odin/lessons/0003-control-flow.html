@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 03 · Control Flow</title>
+  <style>
+    :root {
+      --accent:       #2b4c7e;
+      --accent-light: #3a6bc4;
+      --bg:           #f8f6f1;
+      --text:         #1a1a2e;
+      --muted:        #6b7280;
+      --border:       #d4cfc6;
+      --code-bg:      #1c1c2e;
+      --code-text:    #e2e8f0;
+      --kw:           #7cb9f4;
+      --str:          #a8e6a3;
+      --cmt:          #6b7a8d;
+      --fn:           #f6c90e;
+      --op:           #89ddff;
+      --num:          #f78c6c;
+      --ty:           #c792ea;
+      --correct-bg:   #dcfce7;
+      --correct-fg:   #166534;
+      --wrong-bg:     #fee2e2;
+      --wrong-fg:     #991b1b;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.75;
+      font-size: 18px;
+    }
+
+    header, main, footer { max-width: 760px; margin: 0 auto; padding-left: 2rem; padding-right: 2rem; }
+    header { padding-top: 2.5rem; padding-bottom: 1.5rem; border-bottom: 2px solid var(--accent); }
+    main   { padding-top: 2rem; padding-bottom: 4rem; }
+    footer {
+      padding-top: 1.2rem; padding-bottom: 3rem;
+      border-top: 1px solid var(--border);
+      display: flex; justify-content: space-between;
+      font-size: 0.85rem; color: var(--muted);
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    .lesson-tag {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.72rem; letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--accent);
+      font-weight: 600; margin-bottom: 0.4rem;
+    }
+    h1 { font-size: 2.2rem; font-weight: 700; color: var(--accent); letter-spacing: -0.02em; line-height: 1.2; }
+    .subtitle { color: var(--muted); font-size: 1rem; margin-top: 0.4rem; font-style: italic; }
+
+    section { margin-bottom: 2.8rem; }
+    h2 { font-size: 1.25rem; font-weight: 700; color: var(--accent); margin-bottom: 0.75rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+    h3 { font-size: 1rem; font-weight: 700; color: var(--text); margin: 1.4rem 0 0.4rem; }
+    p  { margin-bottom: 0.85rem; }
+    p:last-child { margin-bottom: 0; }
+
+    code {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.84em; background: #e8e4de;
+      padding: 0.1em 0.35em; border-radius: 3px;
+    }
+    a { color: var(--accent); text-underline-offset: 2px; }
+
+    pre {
+      background: var(--code-bg); color: var(--code-text);
+      padding: 1.3rem 1.6rem; border-radius: 8px;
+      overflow-x: auto; margin: 1rem 0;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.875rem; line-height: 1.65; position: relative;
+    }
+    .lang-tag { position: absolute; top: 0.5rem; right: 0.8rem; font-size: 0.68rem; color: #506070; text-transform: uppercase; letter-spacing: 0.1em; }
+    .kw  { color: var(--kw); }
+    .str { color: var(--str); }
+    .cmt { color: var(--cmt); font-style: italic; }
+    .fn  { color: var(--fn); }
+    .op  { color: var(--op); }
+    .num { color: var(--num); }
+    .ty  { color: var(--ty); }
+
+    .callout { background: #eef3fb; border-left: 4px solid var(--accent); padding: 1rem 1.2rem; border-radius: 0 6px 6px 0; margin-bottom: 2.4rem; }
+    .callout strong { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); margin-bottom: 0.35rem; }
+
+    .warn { background: #fff7ed; border-left: 4px solid #f59e0b; padding: 0.85rem 1.1rem; border-radius: 0 6px 6px 0; margin: 1rem 0; font-size: 0.92rem; }
+    .warn strong { display: block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; color: #b45309; margin-bottom: 0.25rem; }
+
+    table.breakdown { width: 100%; border-collapse: collapse; margin: 1.1rem 0; font-size: 0.9rem; }
+    table.breakdown thead th { text-align: left; padding: 0.35rem 0.9rem; background: #e4e0d8; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.75rem; color: var(--accent); letter-spacing: 0.05em; }
+    table.breakdown td { padding: 0.55rem 0.9rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    table.breakdown tr:last-child td { border-bottom: none; }
+    table.breakdown td:first-child { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.82rem; white-space: nowrap; color: var(--accent-light); }
+
+    .quiz-question { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 1.2rem 1.4rem; margin-bottom: 1.1rem; }
+    .q-text { font-weight: 700; margin-bottom: 0.85rem; font-size: 0.97rem; }
+    .options { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+    @media (max-width: 520px) { .options { grid-template-columns: 1fr; } }
+    .opt-btn { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.87rem; padding: 0.5rem 0.85rem; border: 1.5px solid var(--border); border-radius: 5px; background: var(--bg); cursor: pointer; text-align: left; transition: background 0.12s, border-color 0.12s; color: var(--text); }
+    .opt-btn:hover:not(:disabled) { background: #ede9e0; border-color: var(--accent); }
+    .opt-btn:disabled { cursor: default; }
+    .opt-btn.correct { background: var(--correct-bg); border-color: var(--correct-fg); color: var(--correct-fg); font-weight: 700; }
+    .opt-btn.wrong   { background: var(--wrong-bg); border-color: var(--wrong-fg); color: var(--wrong-fg); }
+    .opt-btn code    { background: transparent; padding: 0; font-size: inherit; font-family: inherit; color: inherit; }
+    .explanation { display: none; margin-top: 0.85rem; font-size: 0.88rem; color: var(--muted); padding-top: 0.6rem; border-top: 1px dashed var(--border); line-height: 1.6; }
+
+    .source-box { background: #fffbeb; border: 1px solid #fbbf24; border-radius: 8px; padding: 1.1rem 1.3rem; margin-bottom: 2.8rem; }
+    .source-box .source-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; color: #92400e; font-weight: 700; margin-bottom: 0.35rem; }
+    .source-box p { font-size: 0.95rem; }
+
+    .ask-teacher { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 1rem 1.2rem; font-size: 0.92rem; color: #166534; margin-top: 1.5rem; }
+    .nav-prev { font-size: 0.85rem; color: var(--muted); margin-bottom: 1.8rem; }
+    .nav-prev a { color: var(--accent); text-decoration: none; }
+    .nav-prev a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="lesson-tag">Lesson 03 &middot; Odin Foundations</div>
+  <h1>Control Flow</h1>
+  <p class="subtitle"><code>if</code>, one loop to rule them all, and <code>switch</code> for state machines</p>
+</header>
+
+<main>
+
+  <p class="nav-prev">&larr; <a href="0002-variables-and-types.html">Lesson 02: Variables &amp; Types</a></p>
+
+  <div class="callout">
+    <strong>Mission context</strong>
+    <p>The Joust game loop is a <code>for</code>. The enemy AI is a <code>switch</code>. The lava check is an <code>if</code>. By the end of this lesson you can sketch the skeleton of the entire game.</p>
+  </div>
+
+  <!-- ── if ── -->
+  <section>
+    <h2><code>if</code> / <code>else if</code> / <code>else</code></h2>
+
+    <p>No parentheses around the condition — that is the only Odin-specific rule. Everything else is familiar:</p>
+
+    <pre><span class="lang-tag">odin</span><span class="kw">if</span> player.health &lt;= <span class="num">0</span> {
+    player.alive = <span class="kw">false</span>
+} <span class="kw">else if</span> player.health == <span class="num">1</span> {
+    flash_warning()
+} <span class="kw">else</span> {
+    <span class="cmt">// still fighting</span>
+}</pre>
+
+    <p>An <em>init statement</em> can run before the condition. Variables declared there are scoped to the entire <code>if</code>/else chain — useful for avoiding a name that leaks into the surrounding scope:</p>
+
+    <pre><span class="lang-tag">odin</span><span class="kw">if</span> egg := find_nearest_egg(); egg != <span class="kw">nil</span> {
+    collect(egg)
+}</pre>
+  </section>
+
+  <!-- ── for ── -->
+  <section>
+    <h2><code>for</code> — Odin's only loop</h2>
+
+    <p>Odin has <strong>one</strong> loop keyword: <code>for</code>. It covers every loop pattern you know from other languages. No <code>while</code>, no <code>do</code>, no <code>loop</code>.</p>
+
+    <h3>Infinite loop — the game loop</h3>
+    <p>A bare <code>for</code> with no condition runs forever. This is how every game loop is structured:</p>
+
+    <pre><span class="lang-tag">odin</span>main <span class="op">::</span> <span class="kw">proc</span>() {
+    <span class="cmt">// setup ...</span>
+
+    <span class="kw">for</span> {                          <span class="cmt">// runs until an explicit break</span>
+        <span class="fn">update</span>()
+        <span class="fn">draw</span>()
+
+        <span class="kw">if</span> <span class="fn">should_quit</span>() { <span class="kw">break</span> }
+    }
+}</pre>
+
+    <h3>Condition loop — the while form</h3>
+    <p>Add a condition and you have a <code>while</code> loop:</p>
+
+    <pre><span class="lang-tag">odin</span><span class="kw">for</span> game_running {
+    <span class="fn">update</span>()
+    <span class="fn">draw</span>()
+}</pre>
+
+    <h3>C-style loop — counted iterations</h3>
+    <p>Three-part form for when you need a counter. Note: Odin has no <code>++</code> operator — increment with <code>i += 1</code>:</p>
+
+    <pre><span class="lang-tag">odin</span><span class="kw">for</span> i := <span class="num">0</span>; i &lt; enemy_count; i += <span class="num">1</span> {
+    <span class="fn">spawn_enemy</span>(i)
+}</pre>
+
+    <div class="warn">
+      <strong>Gotcha for C / Go / JS programmers</strong>
+      Odin has no <code>++</code> or <code>--</code> operators. Always write <code>i += 1</code> and <code>i -= 1</code>.
+    </div>
+
+    <h3>Range over a slice</h3>
+    <p>Iterate every element of an array or slice. <strong>Value comes first, index second</strong> — the opposite of Go:</p>
+
+    <pre><span class="lang-tag">odin</span><span class="kw">for</span> enemy <span class="kw">in</span> enemies {
+    <span class="fn">update_enemy</span>(enemy)
+}
+
+<span class="cmt">// With index — value first, index second</span>
+<span class="kw">for</span> enemy, i <span class="kw">in</span> enemies {
+    fmt.<span class="fn">println</span>(i, enemy.x)
+}</pre>
+
+    <h3>Integer range</h3>
+    <p>Two range operators: <code>..<</code> (exclusive upper bound) and <code>..=</code> (inclusive). You will use <code>..<</code> almost always:</p>
+
+    <pre><span class="lang-tag">odin</span><span class="kw">for</span> i <span class="kw">in</span> <span class="num">0</span>..&lt;<span class="num">5</span> {  <span class="cmt">// 0 1 2 3 4</span>
+    fmt.<span class="fn">println</span>(i)
+}
+
+<span class="kw">for</span> i <span class="kw">in</span> <span class="num">0</span>..=<span class="num">4</span> {  <span class="cmt">// 0 1 2 3 4 — same result, inclusive</span>
+    fmt.<span class="fn">println</span>(i)
+}</pre>
+
+    <p><code>break</code> exits the loop. <code>continue</code> skips to the next iteration — use it to skip dead enemies without nesting:</p>
+
+    <pre><span class="lang-tag">odin</span><span class="kw">for</span> enemy <span class="kw">in</span> enemies {
+    <span class="kw">if</span> !enemy.alive { <span class="kw">continue</span> }  <span class="cmt">// skip dead ones</span>
+    <span class="fn">update_enemy</span>(enemy)
+}</pre>
+  </section>
+
+  <!-- ── switch ── -->
+  <section>
+    <h2><code>switch</code> — the enemy state machine</h2>
+
+    <p>Unlike C, <code>switch</code> in Odin does <strong>not</strong> fall through. Each case is independent — no <code>break</code> required. An empty <code>case:</code> is the default branch.</p>
+
+    <p>Here is the Joust enemy state machine. The <code>.Flying</code> shorthand works because the type can be inferred from the <code>switch</code> expression:</p>
+
+    <pre><span class="lang-tag">odin</span><span class="ty">EnemyState</span> <span class="op">::</span> <span class="kw">enum</span> { Flying, Egg, Hatching }
+
+<span class="ty">Enemy</span> <span class="op">::</span> <span class="kw">struct</span> {
+    x, y:  <span class="ty">f32</span>,
+    state: <span class="ty">EnemyState</span>,
+}
+
+<span class="fn">update_enemy</span> <span class="op">::</span> <span class="kw">proc</span>(e: <span class="ty">Enemy</span>) {
+    <span class="kw">switch</span> e.state {
+    <span class="kw">case</span> .Flying:
+        <span class="cmt">// patrol back and forth across platform</span>
+    <span class="kw">case</span> .Egg:
+        <span class="cmt">// sit still; hatch timer ticking</span>
+    <span class="kw">case</span> .Hatching:
+        <span class="cmt">// emerge animation; become a harder enemy</span>
+    <span class="kw">case</span>:
+        <span class="cmt">// default — should never happen</span>
+    }
+}</pre>
+
+    <p>You can match multiple values in one case with a comma:</p>
+
+    <pre><span class="lang-tag">odin</span><span class="kw">switch</span> e.state {
+<span class="kw">case</span> .Egg, .Hatching:
+    <span class="fn">draw_egg</span>(e)
+<span class="kw">case</span> .Flying:
+    <span class="fn">draw_enemy</span>(e)
+}</pre>
+
+    <p>A <code>switch</code> without an expression works as an <code>if/else if</code> chain — useful when conditions don't share a single value to switch on:</p>
+
+    <pre><span class="lang-tag">odin</span><span class="kw">switch</span> {
+<span class="kw">case</span> player.y &gt; LAVA_Y:
+    <span class="fn">player_dies</span>()
+<span class="kw">case</span> player.y &gt; SCREEN_H:
+    player.y = <span class="num">0</span>
+<span class="kw">case</span>:
+    <span class="cmt">// normal flight</span>
+}</pre>
+
+    <p>If you genuinely need a case to fall through, use the explicit <code>fallthrough</code> keyword at the end of the case body.</p>
+  </section>
+
+  <!-- ── Quiz ── -->
+  <section>
+    <h2>Check your understanding</h2>
+
+    <div class="quiz-question">
+      <p class="q-text">1. How many distinct loop keywords does Odin have?</p>
+      <div class="options">
+        <button class="opt-btn" data-q="1" data-val="a" onclick="answer(1,'a','a')">1</button>
+        <button class="opt-btn" data-q="1" data-val="b" onclick="answer(1,'b','a')">2</button>
+        <button class="opt-btn" data-q="1" data-val="c" onclick="answer(1,'c','a')">3</button>
+        <button class="opt-btn" data-q="1" data-val="d" onclick="answer(1,'d','a')">4</button>
+      </div>
+      <div class="explanation" id="explain-1">
+        Just one: <code>for</code>. It covers every pattern — infinite, condition-only, C-style counted, range over slice, range over integers. There is no <code>while</code>, <code>do</code>, <code>loop</code>, or <code>repeat</code> in Odin.
+      </div>
+    </div>
+
+    <div class="quiz-question">
+      <p class="q-text">2. Iterating a slice <code>s</code> binding each element to <code>v</code> and its index to <code>i</code>:</p>
+      <div class="options">
+        <button class="opt-btn" data-q="2" data-val="a" onclick="answer(2,'a','a')"><code>for v, i in s</code></button>
+        <button class="opt-btn" data-q="2" data-val="b" onclick="answer(2,'b','a')"><code>for i, v in s</code></button>
+        <button class="opt-btn" data-q="2" data-val="c" onclick="answer(2,'c','a')"><code>for v in s, i</code></button>
+        <button class="opt-btn" data-q="2" data-val="d" onclick="answer(2,'d','a')"><code>for [v,i] in s</code></button>
+      </div>
+      <div class="explanation" id="explain-2">
+        <code>for v, i in s</code> — <strong>value comes first, index second</strong>. This is the opposite of Go and a common gotcha. <code>for i, v in s</code> compiles but silently swaps what you think <code>v</code> and <code>i</code> are.
+      </div>
+    </div>
+
+    <div class="quiz-question">
+      <p class="q-text">3. After a <code>switch</code> case body completes in Odin (no <code>fallthrough</code>):</p>
+      <div class="options">
+        <button class="opt-btn" data-q="3" data-val="a" onclick="answer(3,'a','a')">exits the switch</button>
+        <button class="opt-btn" data-q="3" data-val="b" onclick="answer(3,'b','a')">runs next case</button>
+        <button class="opt-btn" data-q="3" data-val="c" onclick="answer(3,'c','a')">loops the switch</button>
+        <button class="opt-btn" data-q="3" data-val="d" onclick="answer(3,'d','a')">exits the program</button>
+      </div>
+      <div class="explanation" id="explain-3">
+        Execution jumps to after the closing brace of the entire <code>switch</code> — no fallthrough, no <code>break</code> needed. This is the opposite of C. If you need the next case to also run, put <code>fallthrough</code> at the end of the case body explicitly.
+      </div>
+    </div>
+
+    <div class="quiz-question">
+      <p class="q-text">4. In a <code>switch e.state</code> on an <code>EnemyState</code> enum, matching the <code>.Egg</code> value is written:</p>
+      <div class="options">
+        <button class="opt-btn" data-q="4" data-val="a" onclick="answer(4,'a','a')"><code>case .Egg:</code></button>
+        <button class="opt-btn" data-q="4" data-val="b" onclick="answer(4,'b','a')"><code>case "Egg":</code></button>
+        <button class="opt-btn" data-q="4" data-val="c" onclick="answer(4,'c','a')"><code>when .Egg:</code></button>
+        <button class="opt-btn" data-q="4" data-val="d" onclick="answer(4,'d','a')"><code>type .Egg:</code></button>
+      </div>
+      <div class="explanation" id="explain-4">
+        <code>case .Egg:</code> — the dot prefix is shorthand for the enum type name when it can be inferred from context (<code>EnemyState.Egg</code> also works but is verbose). <code>"Egg"</code> would be a string literal, <code>when</code> and <code>type</code> are not case keywords.
+      </div>
+    </div>
+  </section>
+
+  <div class="source-box">
+    <div class="source-label">Primary source</div>
+    <p><a href="https://odin-lang.org/docs/overview/#control-flow" target="_blank" rel="noopener">Odin Overview — Control Flow</a><br>
+    Read the "Control Flow" section. Pay particular attention to the range-for examples — the value-before-index order catches almost everyone the first time.</p>
+  </div>
+
+  <section>
+    <h2>What's next</h2>
+    <p><a href="0004-procedures.html">Lesson 04</a> covers procedures — parameters, multiple return values, and <code>or_return</code> for error handling. That is the last foundational lesson before Lesson 05 opens a window with raylib.</p>
+  </section>
+
+  <div class="ask-teacher">
+    Unclear on anything? Ask your teacher — type your question in the chat and get an immediate explanation tailored to what you already know.
+  </div>
+
+</main>
+
+<footer>
+  <span>&larr; <a href="0002-variables-and-types.html">Lesson 02: Variables &amp; Types</a></span>
+  <span>&rarr; <a href="0004-procedures.html">Lesson 04: Procedures</a></span>
+</footer>
+
+<script>
+  function answer(qId, selected, correct) {
+    const buttons = document.querySelectorAll(`[data-q="${qId}"]`);
+    buttons.forEach(btn => {
+      btn.disabled = true;
+      if (btn.dataset.val === correct) btn.classList.add('correct');
+      else if (btn.dataset.val === selected && selected !== correct) btn.classList.add('wrong');
+    });
+    document.getElementById(`explain-${qId}`).style.display = 'block';
+  }
+</script>
+
+</body>
+</html>

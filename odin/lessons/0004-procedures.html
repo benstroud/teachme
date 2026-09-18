@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 04 · Procedures</title>
+  <style>
+    :root {
+      --accent:       #2b4c7e;
+      --accent-light: #3a6bc4;
+      --bg:           #f8f6f1;
+      --text:         #1a1a2e;
+      --muted:        #6b7280;
+      --border:       #d4cfc6;
+      --code-bg:      #1c1c2e;
+      --code-text:    #e2e8f0;
+      --kw:           #7cb9f4;
+      --str:          #a8e6a3;
+      --cmt:          #6b7a8d;
+      --fn:           #f6c90e;
+      --op:           #89ddff;
+      --num:          #f78c6c;
+      --ty:           #c792ea;
+      --correct-bg:   #dcfce7;
+      --correct-fg:   #166534;
+      --wrong-bg:     #fee2e2;
+      --wrong-fg:     #991b1b;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+      background: var(--bg); color: var(--text); line-height: 1.75; font-size: 18px;
+    }
+
+    header, main, footer { max-width: 760px; margin: 0 auto; padding-left: 2rem; padding-right: 2rem; }
+    header { padding-top: 2.5rem; padding-bottom: 1.5rem; border-bottom: 2px solid var(--accent); }
+    main   { padding-top: 2rem; padding-bottom: 4rem; }
+    footer {
+      padding-top: 1.2rem; padding-bottom: 3rem;
+      border-top: 1px solid var(--border);
+      display: flex; justify-content: space-between;
+      font-size: 0.85rem; color: var(--muted);
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    .lesson-tag { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin-bottom: 0.4rem; }
+    h1 { font-size: 2.2rem; font-weight: 700; color: var(--accent); letter-spacing: -0.02em; line-height: 1.2; }
+    .subtitle { color: var(--muted); font-size: 1rem; margin-top: 0.4rem; font-style: italic; }
+
+    section { margin-bottom: 2.8rem; }
+    h2 { font-size: 1.25rem; font-weight: 700; color: var(--accent); margin-bottom: 0.75rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+    h3 { font-size: 1rem; font-weight: 700; color: var(--text); margin: 1.4rem 0 0.5rem; }
+    p  { margin-bottom: 0.85rem; }
+    p:last-child { margin-bottom: 0; }
+
+    code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.84em; background: #e8e4de; padding: 0.1em 0.35em; border-radius: 3px; }
+    a { color: var(--accent); text-underline-offset: 2px; }
+
+    pre { background: var(--code-bg); color: var(--code-text); padding: 1.3rem 1.6rem; border-radius: 8px; overflow-x: auto; margin: 1rem 0; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.875rem; line-height: 1.65; position: relative; }
+    .lang-tag { position: absolute; top: 0.5rem; right: 0.8rem; font-size: 0.68rem; color: #506070; text-transform: uppercase; letter-spacing: 0.1em; }
+    .kw  { color: var(--kw); }
+    .str { color: var(--str); }
+    .cmt { color: var(--cmt); font-style: italic; }
+    .fn  { color: var(--fn); }
+    .op  { color: var(--op); }
+    .num { color: var(--num); }
+    .ty  { color: var(--ty); }
+
+    .callout { background: #eef3fb; border-left: 4px solid var(--accent); padding: 1rem 1.2rem; border-radius: 0 6px 6px 0; margin-bottom: 2.4rem; }
+    .callout strong { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); margin-bottom: 0.35rem; }
+
+    .warn { background: #fff7ed; border-left: 4px solid #f59e0b; padding: 0.85rem 1.1rem; border-radius: 0 6px 6px 0; margin: 1rem 0; font-size: 0.92rem; }
+    .warn strong { display: block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; color: #b45309; margin-bottom: 0.25rem; }
+
+    .preview { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 1.1rem 1.3rem; margin: 1.5rem 0; }
+    .preview strong { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; color: #166534; margin-bottom: 0.4rem; }
+    .preview p { font-size: 0.95rem; margin-bottom: 0.5rem; }
+    .preview p:last-child { margin-bottom: 0; }
+
+    table.breakdown { width: 100%; border-collapse: collapse; margin: 1.1rem 0; font-size: 0.9rem; }
+    table.breakdown thead th { text-align: left; padding: 0.35rem 0.9rem; background: #e4e0d8; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.75rem; color: var(--accent); letter-spacing: 0.05em; }
+    table.breakdown td { padding: 0.55rem 0.9rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    table.breakdown tr:last-child td { border-bottom: none; }
+    table.breakdown td:first-child { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.82rem; white-space: nowrap; color: var(--accent-light); }
+
+    .quiz-question { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 1.2rem 1.4rem; margin-bottom: 1.1rem; }
+    .q-text { font-weight: 700; margin-bottom: 0.85rem; font-size: 0.97rem; }
+    .options { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+    @media (max-width: 520px) { .options { grid-template-columns: 1fr; } }
+    .opt-btn { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.87rem; padding: 0.5rem 0.85rem; border: 1.5px solid var(--border); border-radius: 5px; background: var(--bg); cursor: pointer; text-align: left; transition: background 0.12s, border-color 0.12s; color: var(--text); }
+    .opt-btn:hover:not(:disabled) { background: #ede9e0; border-color: var(--accent); }
+    .opt-btn:disabled { cursor: default; }
+    .opt-btn.correct { background: var(--correct-bg); border-color: var(--correct-fg); color: var(--correct-fg); font-weight: 700; }
+    .opt-btn.wrong   { background: var(--wrong-bg); border-color: var(--wrong-fg); color: var(--wrong-fg); }
+    .opt-btn code    { background: transparent; padding: 0; font-size: inherit; font-family: inherit; color: inherit; }
+    .explanation { display: none; margin-top: 0.85rem; font-size: 0.88rem; color: var(--muted); padding-top: 0.6rem; border-top: 1px dashed var(--border); line-height: 1.6; }
+
+    .source-box { background: #fffbeb; border: 1px solid #fbbf24; border-radius: 8px; padding: 1.1rem 1.3rem; margin-bottom: 2.8rem; }
+    .source-box .source-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; color: #92400e; font-weight: 700; margin-bottom: 0.35rem; }
+    .source-box p { font-size: 0.95rem; }
+
+    .ask-teacher { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 1rem 1.2rem; font-size: 0.92rem; color: #166534; margin-top: 1.5rem; }
+    .nav-prev { font-size: 0.85rem; color: var(--muted); margin-bottom: 1.8rem; }
+    .nav-prev a { color: var(--accent); text-decoration: none; }
+    .nav-prev a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="lesson-tag">Lesson 04 &middot; Odin Foundations</div>
+  <h1>Procedures</h1>
+  <p class="subtitle">Parameters, pointer mutation, multiple returns, and <code>defer</code></p>
+</header>
+
+<main>
+
+  <p class="nav-prev">&larr; <a href="0003-control-flow.html">Lesson 03: Control Flow</a></p>
+
+  <div class="callout">
+    <strong>Mission context</strong>
+    <p>Every frame of Joust calls <code>update_player</code>, <code>update_enemy</code>, <code>check_joust</code>. These are the procedures you will write. This lesson covers the mechanics behind them — and by the end you will see the skeleton of the entire game loop.</p>
+  </div>
+
+  <!-- ── Parameters ── -->
+  <section>
+    <h2>Parameters and return types</h2>
+
+    <p>You have seen the basic form. A quick recap with the full syntax, since the details matter:</p>
+
+    <pre><span class="lang-tag">odin</span><span class="cmt">// Single return type after -></span>
+<span class="fn">is_grounded</span> <span class="op">::</span> <span class="kw">proc</span>(p: <span class="ty">Player</span>, ground_y: <span class="ty">f32</span>) -> <span class="ty">bool</span> {
+    <span class="kw">return</span> p.y >= ground_y
+}
+
+<span class="cmt">// Consecutive params sharing a type — x, y: f32 instead of x: f32, y: f32</span>
+<span class="fn">distance</span> <span class="op">::</span> <span class="kw">proc</span>(x1, y1, x2, y2: <span class="ty">f32</span>) -> <span class="ty">f32</span> {
+    dx := x2 - x1
+    dy := y2 - y1
+    <span class="kw">return</span> <span class="fn">math.sqrt</span>(dx*dx + dy*dy)
+}</pre>
+  </section>
+
+  <!-- ── Pointer params ── -->
+  <section>
+    <h2>Pointer parameters — how to mutate a struct</h2>
+
+    <p>This is the most important concept in this lesson. Odin passes values by copy. If you pass a <code>Player</code> to a procedure and modify its fields, the original is unchanged. To mutate, pass a <strong>pointer</strong>.</p>
+
+    <p>Odin's pointer syntax uses <code>^</code> for the type and <code>&amp;</code> for address-of — distinct symbols, distinct jobs:</p>
+
+    <table class="breakdown">
+      <thead><tr><th>Syntax</th><th>Position</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>^Player</td><td>type</td><td>"a pointer to a Player value"</td></tr>
+        <tr><td>&amp;p</td><td>expression</td><td>"take the address of p" — produces a <code>^Player</code></td></tr>
+        <tr><td>p^</td><td>expression</td><td>"dereference p" — produces the <code>Player</code> value</td></tr>
+      </tbody>
+    </table>
+
+    <p>In practice you rarely need the explicit dereference <code>p^</code>. Field access auto-dereferences — <code>p.x</code> works whether <code>p</code> is a <code>Player</code> or a <code>^Player</code>:</p>
+
+    <pre><span class="lang-tag">odin</span><span class="cmt">// Takes a pointer — can modify the original Player</span>
+<span class="fn">update_player</span> <span class="op">::</span> <span class="kw">proc</span>(p: <span class="ty">^Player</span>, dt: <span class="ty">f32</span>) {
+    p.vy  += GRAVITY * dt     <span class="cmt">// auto-deref: no p^.vy needed</span>
+    p.y   += p.vy * dt
+    p.x   += p.vx * dt
+}
+
+<span class="cmt">// Caller takes address with &</span>
+player: <span class="ty">Player</span>
+<span class="fn">update_player</span>(&amp;player, dt)</pre>
+
+    <div class="warn">
+      <strong>Value vs pointer — the rule of thumb</strong>
+      If the procedure reads but does not modify: pass by value (<code>Player</code>).<br>
+      If the procedure modifies: pass by pointer (<code>^Player</code>).<br>
+      In game code, update procedures almost always take pointers.
+    </div>
+  </section>
+
+  <!-- ── Multiple returns ── -->
+  <section>
+    <h2>Multiple return values</h2>
+
+    <p>Odin procedures can return any number of values. Wrap them in parentheses in the return type. The canonical Joust example — <code>check_joust</code> needs to return a result <em>and</em> whether a collision even happened:</p>
+
+    <pre><span class="lang-tag">odin</span><span class="cmt">// Returns: did they collide, and if so who won</span>
+<span class="fn">check_joust</span> <span class="op">::</span> <span class="kw">proc</span>(a, b: <span class="ty">^Enemy</span>) -> (<span class="ty">bool</span>, <span class="ty">bool</span>) {
+    colliding := <span class="fn">rects_overlap</span>(a.rect, b.rect)
+    a_wins    := a.y < b.y                  <span class="cmt">// higher lance wins</span>
+    <span class="kw">return</span> colliding, a_wins
+}
+
+<span class="cmt">// Caller unpacks with multiple assignment</span>
+hit, a_wins := <span class="fn">check_joust</span>(&amp;enemy_a, &amp;enemy_b)
+<span class="kw">if</span> hit {
+    <span class="cmt">// resolve combat</span>
+}</pre>
+
+    <h3>Named return values</h3>
+    <p>Name the returns to make intent clear. The names become local variables; a bare <code>return</code> sends them back:</p>
+
+    <pre><span class="lang-tag">odin</span><span class="fn">spawn_position</span> <span class="op">::</span> <span class="kw">proc</span>(wave: <span class="ty">int</span>) -> (x, y: <span class="ty">f32</span>) {
+    x = <span class="ty">f32</span>(wave % <span class="num">3</span>) * <span class="num">200</span> + <span class="num">100</span>
+    y = <span class="num">50</span>
+    <span class="kw">return</span>                          <span class="cmt">// returns x and y</span>
+}
+
+sx, sy := <span class="fn">spawn_position</span>(<span class="num">2</span>)</pre>
+
+    <p>Use named returns when the meaning of each return value isn't obvious from the types alone — <code>(x, y: f32)</code> is far clearer than <code>(f32, f32)</code> for a position.</p>
+  </section>
+
+  <!-- ── defer ── -->
+  <section>
+    <h2><code>defer</code> — the cleanup guarantee</h2>
+
+    <p><code>defer</code> schedules a statement to run when the enclosing scope exits — regardless of how it exits (normal return, early return, or error). It is the Odin idiom for pairing setup with teardown.</p>
+
+    <p>Multiple defers in the same scope run in <strong>reverse order</strong> — last declared, first executed.</p>
+
+    <div class="preview">
+      <strong>Preview: the raylib game loop scaffold</strong>
+      <p>This is the exact pattern you will write in Lesson 05. <code>defer</code> guarantees <code>CloseWindow</code> runs even if the game crashes during setup:</p>
+    </div>
+
+    <pre><span class="lang-tag">odin</span><span class="kw">import</span> <span class="str">rl "vendor:raylib"</span>
+
+main <span class="op">::</span> <span class="kw">proc</span>() {
+    rl.<span class="fn">InitWindow</span>(<span class="num">800</span>, <span class="num">600</span>, <span class="str">"Joust"</span>)
+    <span class="kw">defer</span> rl.<span class="fn">CloseWindow</span>()          <span class="cmt">// always runs when main returns</span>
+
+    rl.<span class="fn">SetTargetFPS</span>(<span class="num">60</span>)
+
+    <span class="kw">for</span> !rl.<span class="fn">WindowShouldClose</span>() {    <span class="cmt">// loop until × or Escape</span>
+        <span class="fn">update</span>()
+        <span class="fn">draw</span>()
+    }
+}                                    <span class="cmt">// ← CloseWindow() fires here</span></pre>
+
+    <p>The import alias <code>rl</code> shortens every raylib call. This is the pattern the Odin community uses — you will see it everywhere.</p>
+  </section>
+
+  <!-- ── Putting it together ── -->
+  <section>
+    <h2>The Joust skeleton</h2>
+
+    <p>With four lessons of Odin behind you, here is what the skeleton of the game looks like. Nothing in here is new — it is just the pieces assembled:</p>
+
+    <pre><span class="lang-tag">odin</span><span class="kw">package</span> main
+
+<span class="kw">import</span> rl <span class="str">"vendor:raylib"</span>
+
+<span class="ty">EnemyState</span> <span class="op">::</span> <span class="kw">enum</span> { Flying, Egg, Hatching }
+
+<span class="ty">Entity</span> <span class="op">::</span> <span class="kw">struct</span> {
+    x, y:   <span class="ty">f32</span>,
+    vx, vy: <span class="ty">f32</span>,
+    alive:  <span class="ty">bool</span>,
+}
+
+<span class="ty">Enemy</span> <span class="op">::</span> <span class="kw">struct</span> {
+    using entity: <span class="ty">Entity</span>,    <span class="cmt">// inherit Entity fields directly</span>
+    state: <span class="ty">EnemyState</span>,
+}
+
+<span class="fn">update_player</span> <span class="op">::</span> <span class="kw">proc</span>(p: <span class="ty">^Entity</span>, dt: <span class="ty">f32</span>) { <span class="cmt">/* gravity, input */</span> }
+<span class="fn">update_enemy</span>  <span class="op">::</span> <span class="kw">proc</span>(e: <span class="ty">^Enemy</span>,  dt: <span class="ty">f32</span>) { <span class="cmt">/* state machine */</span> }
+
+main <span class="op">::</span> <span class="kw">proc</span>() {
+    rl.<span class="fn">InitWindow</span>(<span class="num">800</span>, <span class="num">600</span>, <span class="str">"Joust"</span>)
+    <span class="kw">defer</span> rl.<span class="fn">CloseWindow</span>()
+
+    player: <span class="ty">Entity</span>
+    enemies: [<span class="num">8</span>]<span class="ty">Enemy</span>
+
+    <span class="kw">for</span> !rl.<span class="fn">WindowShouldClose</span>() {
+        dt := rl.<span class="fn">GetFrameTime</span>()
+
+        <span class="fn">update_player</span>(&amp;player, dt)
+        <span class="kw">for</span> &amp;e <span class="kw">in</span> enemies { <span class="fn">update_enemy</span>(&amp;e, dt) }
+    }
+}</pre>
+
+    <p>One new thing here: <code>for &amp;e in enemies</code> — the <code>&amp;</code> in a range loop gives you a pointer to each element rather than a copy, so modifications stick. And <code>using</code> embeds one struct's fields into another — <code>Enemy</code> gets <code>x</code>, <code>y</code>, <code>alive</code> directly. You do not need to memorise these now; they will appear naturally in Lesson 05.</p>
+  </section>
+
+  <!-- ── Quiz ── -->
+  <section>
+    <h2>Check your understanding</h2>
+
+    <div class="quiz-question">
+      <p class="q-text">1. Which is the correct Odin type for "a pointer to a <code>Player</code>"?</p>
+      <div class="options">
+        <button class="opt-btn" data-q="1" data-val="a" onclick="answer(1,'a','a')"><code>^Player</code></button>
+        <button class="opt-btn" data-q="1" data-val="b" onclick="answer(1,'b','a')"><code>*Player</code></button>
+        <button class="opt-btn" data-q="1" data-val="c" onclick="answer(1,'c','a')"><code>&amp;Player</code></button>
+        <button class="opt-btn" data-q="1" data-val="d" onclick="answer(1,'d','a')"><code>@Player</code></button>
+      </div>
+      <div class="explanation" id="explain-1">
+        <code>^Player</code> — Odin uses <code>^</code> for pointer types (borrowed from Pascal). <code>*Player</code> is C/Go syntax and won't compile. <code>&amp;Player</code> looks like a C++ reference; in Odin, <code>&amp;</code> is the address-of <em>operator</em> used in expressions, not a type sigil. <code>@Player</code> is not valid Odin.
+      </div>
+    </div>
+
+    <div class="quiz-question">
+      <p class="q-text">2. To pass a <code>Player</code> variable <code>p</code> as a <code>^Player</code> parameter, you write:</p>
+      <div class="options">
+        <button class="opt-btn" data-q="2" data-val="a" onclick="answer(2,'a','a')"><code>&amp;p</code></button>
+        <button class="opt-btn" data-q="2" data-val="b" onclick="answer(2,'b','a')"><code>^p</code></button>
+        <button class="opt-btn" data-q="2" data-val="c" onclick="answer(2,'c','a')"><code>*p</code></button>
+        <button class="opt-btn" data-q="2" data-val="d" onclick="answer(2,'d','a')"><code>@p</code></button>
+      </div>
+      <div class="explanation" id="explain-2">
+        <code>&amp;p</code> takes the address of <code>p</code>, yielding a <code>^Player</code>. In Odin, <code>^</code> used as a <em>prefix</em> in expressions is not the address-of operator — it is the <em>postfix</em> dereference: <code>p^</code> reads the value a pointer points to. <code>*p</code> is C syntax and won't compile.
+      </div>
+    </div>
+
+    <div class="quiz-question">
+      <p class="q-text">3. A procedure returning two <code>f32</code> values (x and y) declares its return type as:</p>
+      <div class="options">
+        <button class="opt-btn" data-q="3" data-val="a" onclick="answer(3,'a','a')"><code>-> (f32, f32)</code></button>
+        <button class="opt-btn" data-q="3" data-val="b" onclick="answer(3,'b','a')"><code>-> [f32, f32]</code></button>
+        <button class="opt-btn" data-q="3" data-val="c" onclick="answer(3,'c','a')"><code>-> {f32, f32}</code></button>
+        <button class="opt-btn" data-q="3" data-val="d" onclick="answer(3,'d','a')"><code>-> &lt;f32, f32&gt;</code></button>
+      </div>
+      <div class="explanation" id="explain-3">
+        Multiple return values are wrapped in <strong>parentheses</strong>: <code>-> (f32, f32)</code>. Square brackets are for arrays, curly braces for struct literals, and angle brackets are not valid return-type syntax in Odin.
+      </div>
+    </div>
+
+    <div class="quiz-question">
+      <p class="q-text">4. When multiple <code>defer</code> statements exist in one scope, they execute in:</p>
+      <div class="options">
+        <button class="opt-btn" data-q="4" data-val="a" onclick="answer(4,'a','a')">reverse order</button>
+        <button class="opt-btn" data-q="4" data-val="b" onclick="answer(4,'b','a')">forward order</button>
+        <button class="opt-btn" data-q="4" data-val="c" onclick="answer(4,'c','a')">natural order</button>
+        <button class="opt-btn" data-q="4" data-val="d" onclick="answer(4,'d','a')">default order</button>
+      </div>
+      <div class="explanation" id="explain-4">
+        Reverse order — LIFO (last declared, first executed). If you <code>defer CloseWindow()</code> then <code>defer UnloadTexture(t)</code>, the texture is unloaded first and the window is closed second. This matches the natural "undo in reverse" teardown pattern.
+      </div>
+    </div>
+  </section>
+
+  <div class="source-box">
+    <div class="source-label">Primary source</div>
+    <p><a href="https://odin-lang.org/docs/overview/#procedures" target="_blank" rel="noopener">Odin Overview — Procedures</a><br>
+    Read the "Procedures" and "Defer Statement" sections. Focus on the pointer examples — the <code>^</code> / <code>&amp;</code> / <code>p^</code> triad takes a few readings to fully absorb.</p>
+  </div>
+
+  <section>
+    <h2>What's next</h2>
+    <p><a href="0005-first-window.html">Lesson 05</a> — a window opens. You will install Odin, add the raylib vendor library, and get the game loop scaffold from this lesson running on screen. After four lessons of foundations, something finally appears.</p>
+  </section>
+
+  <div class="ask-teacher">
+    Unclear on anything? Ask your teacher — type your question in the chat and get an immediate explanation tailored to what you already know.
+  </div>
+
+</main>
+
+<footer>
+  <span>&larr; <a href="0003-control-flow.html">Lesson 03: Control Flow</a></span>
+  <span>&rarr; <a href="0005-first-window.html">Lesson 05: First Window</a></span>
+</footer>
+
+<script>
+  function answer(qId, selected, correct) {
+    const buttons = document.querySelectorAll(`[data-q="${qId}"]`);
+    buttons.forEach(btn => {
+      btn.disabled = true;
+      if (btn.dataset.val === correct) btn.classList.add('correct');
+      else if (btn.dataset.val === selected && selected !== correct) btn.classList.add('wrong');
+    });
+    document.getElementById(`explain-${qId}`).style.display = 'block';
+  }
+</script>
+
+</body>
+</html>

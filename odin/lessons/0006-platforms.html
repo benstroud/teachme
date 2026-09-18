@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 06 · Platforms</title>
+  <style>
+    :root {
+      --accent:       #2b4c7e;
+      --accent-light: #3a6bc4;
+      --bg:           #f8f6f1;
+      --text:         #1a1a2e;
+      --muted:        #6b7280;
+      --border:       #d4cfc6;
+      --code-bg:      #1c1c2e;
+      --code-text:    #e2e8f0;
+      --kw:           #7cb9f4;
+      --str:          #a8e6a3;
+      --cmt:          #6b7a8d;
+      --fn:           #f6c90e;
+      --op:           #89ddff;
+      --num:          #f78c6c;
+      --ty:           #c792ea;
+      --correct-bg:   #dcfce7;
+      --correct-fg:   #166534;
+      --wrong-bg:     #fee2e2;
+      --wrong-fg:     #991b1b;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif; background: var(--bg); color: var(--text); line-height: 1.75; font-size: 18px; }
+    header, main, footer { max-width: 760px; margin: 0 auto; padding-left: 2rem; padding-right: 2rem; }
+    header { padding-top: 2.5rem; padding-bottom: 1.5rem; border-bottom: 2px solid var(--accent); }
+    main   { padding-top: 2rem; padding-bottom: 4rem; }
+    footer { padding-top: 1.2rem; padding-bottom: 3rem; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted); }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    .lesson-tag { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin-bottom: 0.4rem; }
+    h1 { font-size: 2.2rem; font-weight: 700; color: var(--accent); letter-spacing: -0.02em; line-height: 1.2; }
+    .subtitle { color: var(--muted); font-size: 1rem; margin-top: 0.4rem; font-style: italic; }
+    section { margin-bottom: 2.8rem; }
+    h2 { font-size: 1.25rem; font-weight: 700; color: var(--accent); margin-bottom: 0.75rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+    h3 { font-size: 1rem; font-weight: 700; color: var(--text); margin: 1.4rem 0 0.5rem; }
+    p  { margin-bottom: 0.85rem; }
+    p:last-child { margin-bottom: 0; }
+    code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.84em; background: #e8e4de; padding: 0.1em 0.35em; border-radius: 3px; }
+    a { color: var(--accent); text-underline-offset: 2px; }
+    pre { background: var(--code-bg); color: var(--code-text); padding: 1.3rem 1.6rem; border-radius: 8px; overflow-x: auto; margin: 1rem 0; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.875rem; line-height: 1.65; position: relative; }
+    .lang-tag { position: absolute; top: 0.5rem; right: 0.8rem; font-size: 0.68rem; color: #506070; text-transform: uppercase; letter-spacing: 0.1em; }
+    .kw  { color: var(--kw); }
+    .str { color: var(--str); }
+    .cmt { color: var(--cmt); font-style: italic; }
+    .fn  { color: var(--fn); }
+    .op  { color: var(--op); }
+    .num { color: var(--num); }
+    .ty  { color: var(--ty); }
+    .callout { background: #eef3fb; border-left: 4px solid var(--accent); padding: 1rem 1.2rem; border-radius: 0 6px 6px 0; margin-bottom: 2.4rem; }
+    .callout strong { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); margin-bottom: 0.35rem; }
+    .warn { background: #fff7ed; border-left: 4px solid #f59e0b; padding: 0.85rem 1.1rem; border-radius: 0 6px 6px 0; margin: 1rem 0; font-size: 0.92rem; }
+    .warn strong { display: block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; color: #b45309; margin-bottom: 0.25rem; }
+    table.breakdown { width: 100%; border-collapse: collapse; margin: 1.1rem 0; font-size: 0.9rem; }
+    table.breakdown thead th { text-align: left; padding: 0.35rem 0.9rem; background: #e4e0d8; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.75rem; color: var(--accent); letter-spacing: 0.05em; }
+    table.breakdown td { padding: 0.55rem 0.9rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    table.breakdown tr:last-child td { border-bottom: none; }
+    table.breakdown td:first-child { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.82rem; white-space: nowrap; color: var(--accent-light); }
+
+    /* Arena preview */
+    .arena {
+      background: #000;
+      border-radius: 8px;
+      border: 2px solid #333;
+      position: relative;
+      width: 100%;
+      aspect-ratio: 800 / 600;
+      margin: 1.2rem 0;
+      overflow: hidden;
+    }
+    .arena .label {
+      position: absolute; top: 6px; right: 10px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.6rem; color: #444; text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .arena .r {
+      position: absolute;
+      background: #555;
+    }
+    .arena .r.ground { background: #666; }
+    .arena .r.lava   { background: linear-gradient(to bottom, #ff4400, #ff8800); }
+    .arena .r.player { background: #fff; }
+    .arena .hud {
+      position: absolute;
+      top: 1.5%;
+      left: 1%;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.7rem;
+      color: #ffd700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+    .arena .plat-label {
+      position: absolute;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.45rem;
+      color: #aaa;
+      white-space: nowrap;
+    }
+
+    .quiz-question { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 1.2rem 1.4rem; margin-bottom: 1.1rem; }
+    .q-text { font-weight: 700; margin-bottom: 0.85rem; font-size: 0.97rem; }
+    .options { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+    @media (max-width: 520px) { .options { grid-template-columns: 1fr; } }
+    .opt-btn { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.87rem; padding: 0.5rem 0.85rem; border: 1.5px solid var(--border); border-radius: 5px; background: var(--bg); cursor: pointer; text-align: left; transition: background 0.12s, border-color 0.12s; color: var(--text); }
+    .opt-btn:hover:not(:disabled) { background: #ede9e0; border-color: var(--accent); }
+    .opt-btn:disabled { cursor: default; }
+    .opt-btn.correct { background: var(--correct-bg); border-color: var(--correct-fg); color: var(--correct-fg); font-weight: 700; }
+    .opt-btn.wrong   { background: var(--wrong-bg); border-color: var(--wrong-fg); color: var(--wrong-fg); }
+    .opt-btn code    { background: transparent; padding: 0; font-size: inherit; font-family: inherit; color: inherit; }
+    .explanation { display: none; margin-top: 0.85rem; font-size: 0.88rem; color: var(--muted); padding-top: 0.6rem; border-top: 1px dashed var(--border); line-height: 1.6; }
+    .source-box { background: #fffbeb; border: 1px solid #fbbf24; border-radius: 8px; padding: 1.1rem 1.3rem; margin-bottom: 2.8rem; }
+    .source-box .source-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; color: #92400e; font-weight: 700; margin-bottom: 0.35rem; }
+    .source-box p { font-size: 0.95rem; }
+    .ask-teacher { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 1rem 1.2rem; font-size: 0.92rem; color: #166534; margin-top: 1.5rem; }
+    .nav-prev { font-size: 0.85rem; color: var(--muted); margin-bottom: 1.8rem; }
+    .nav-prev a { color: var(--accent); text-decoration: none; }
+    .nav-prev a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="lesson-tag">Lesson 06 &middot; Joust — First Steps</div>
+  <h1>Platforms</h1>
+  <p class="subtitle">Drawing the Joust arena — <code>rl.Rectangle</code>, fixed arrays, and layered rendering</p>
+</header>
+
+<main>
+  <p class="nav-prev">&larr; <a href="0005-first-window.html">Lesson 05: First Window</a></p>
+
+  <div class="callout">
+    <strong>Mission context</strong>
+    <p>Joust is played on platforms. Before anything moves, the arena must exist. This lesson draws all six platforms, the lava gap, and positions the player rectangle on a ledge. After this, the stage is set — Lesson 07 makes it fall.</p>
+  </div>
+
+  <!-- ── rl.Rectangle ── -->
+  <section>
+    <h2><code>rl.Rectangle</code> — the workhorse type</h2>
+
+    <p>Nearly everything in raylib that describes a 2D region uses this struct:</p>
+
+    <pre><span class="lang-tag">odin</span><span class="cmt">// from vendor:raylib — all fields are f32</span>
+<span class="ty">Rectangle</span> <span class="op">::</span> <span class="kw">struct</span> {
+    x:      <span class="ty">f32</span>,
+    y:      <span class="ty">f32</span>,
+    width:  <span class="ty">f32</span>,
+    height: <span class="ty">f32</span>,
+}</pre>
+
+    <p>Because all fields are <code>f32</code>, you can pass your game-world coordinates directly. No <code>i32</code> cast. The four exact field names — <code>x</code>, <code>y</code>, <code>width</code>, <code>height</code> — matter: you will use them by name when reading and writing collision logic starting in Lesson 09.</p>
+
+    <table class="breakdown">
+      <thead><tr><th>Function</th><th>When to use</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>DrawRectangleRec(rec, color)</td>
+          <td>Draw a filled rectangle from an <code>rl.Rectangle</code>. Takes f32 coords — the standard choice for game objects.</td>
+        </tr>
+        <tr>
+          <td>DrawRectangle(x, y, w, h, color)</td>
+          <td>Takes separate <code>i32</code> arguments. From Lesson 05. Only reach for this when you don't already have a Rectangle.</td>
+        </tr>
+        <tr>
+          <td>DrawRectangleLinesEx(rec, thick, color)</td>
+          <td>Outline only — no fill. Useful for debug overlays (drawing hitboxes).</td>
+        </tr>
+        <tr>
+          <td>DrawRectangleGradientV(x, y, w, h, c1, c2)</td>
+          <td>Filled rectangle with a vertical gradient from <code>c1</code> (top) to <code>c2</code> (bottom). Uses <code>i32</code> coords. Good for lava.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ── Platform data ── -->
+  <section>
+    <h2>Platform data — fixed arrays and <code>[?]</code></h2>
+
+    <p>Platforms never move. They are a perfect fit for a compile-time constant array. Odin's <code>[?]</code> syntax infers the length from the literal so you do not need to count manually:</p>
+
+    <pre><span class="lang-tag">odin</span>PLATFORMS <span class="op">::</span> [<span class="op">?</span>]rl.<span class="ty">Rectangle</span>{
+    <span class="cmt">// ground sections — thick, span the sides</span>
+    {  <span class="num">0</span>, <span class="num">554</span>, <span class="num">280</span>, <span class="num">46</span>},   <span class="cmt">// left ground</span>
+    {<span class="num">520</span>, <span class="num">554</span>, <span class="num">280</span>, <span class="num">46</span>},   <span class="cmt">// right ground</span>
+    <span class="cmt">// lower platforms</span>
+    { <span class="num">48</span>, <span class="num">426</span>, <span class="num">176</span>, <span class="num">18</span>},   <span class="cmt">// lower left</span>
+    {<span class="num">576</span>, <span class="num">426</span>, <span class="num">176</span>, <span class="num">18</span>},   <span class="cmt">// lower right</span>
+    <span class="cmt">// upper platforms</span>
+    {<span class="num">288</span>, <span class="num">316</span>, <span class="num">224</span>, <span class="num">18</span>},   <span class="cmt">// centre middle</span>
+    {<span class="num">336</span>, <span class="num">186</span>, <span class="num">128</span>, <span class="num">18</span>},   <span class="cmt">// top centre</span>
+}
+
+LAVA <span class="op">::</span> rl.<span class="ty">Rectangle</span>{<span class="num">280</span>, <span class="num">574</span>, <span class="num">240</span>, <span class="num">26</span>}  <span class="cmt">// the gap between the ground sections</span></pre>
+
+    <p>The initialiser syntax <code>{x, y, width, height}</code> is positional — field names in order. You could also write <code>{x=0, y=554, width=280, height=46}</code> for clarity, but positional is standard for data tables like this.</p>
+
+    <div class="warn">
+      <strong>Screen coordinates</strong>
+      Y increases <em>downward</em> — (0,0) is top-left. A platform near the bottom of a 600-pixel screen has a large Y value (554). This is standard 2D screen space and what raylib uses throughout.
+    </div>
+  </section>
+
+  <!-- ── Draw order ── -->
+  <section>
+    <h2>Draw order — back to front</h2>
+
+    <p>Raylib draws calls in the exact order you make them. Each call paints <em>over</em> everything drawn before it. The rule: draw the background first, then things on top of it, then things on top of those.</p>
+
+    <p>For the Joust arena the order is:</p>
+
+    <pre><span class="lang-tag">odin</span>rl.<span class="fn">BeginDrawing</span>()
+
+    rl.<span class="fn">ClearBackground</span>(rl.BLACK)         <span class="cmt">// 1. erase everything</span>
+
+    rl.<span class="fn">DrawRectangleGradientV</span>(            <span class="cmt">// 2. lava — drawn first, behind platforms</span>
+        <span class="ty">i32</span>(LAVA.x), <span class="ty">i32</span>(LAVA.y),
+        <span class="ty">i32</span>(LAVA.width), <span class="ty">i32</span>(LAVA.height),
+        rl.RED, rl.ORANGE,
+    )
+
+    <span class="kw">for</span> plat <span class="kw">in</span> PLATFORMS {              <span class="cmt">// 3. platforms — on top of lava</span>
+        rl.<span class="fn">DrawRectangleRec</span>(plat, rl.DARKGRAY)
+    }
+
+    rl.<span class="fn">DrawRectangle</span>(                    <span class="cmt">// 4. player — on top of everything</span>
+        <span class="ty">i32</span>(player_x), <span class="ty">i32</span>(player_y), <span class="num">40</span>, <span class="num">60</span>, rl.WHITE,
+    )
+
+    rl.<span class="fn">DrawText</span>(<span class="str">"JOUST"</span>, <span class="num">10</span>, <span class="num">10</span>, <span class="num">20</span>, rl.YELLOW)  <span class="cmt">// 5. HUD — always on top</span>
+
+rl.<span class="fn">EndDrawing</span>()</pre>
+
+    <p>Notice <code>for plat in PLATFORMS</code> — this range loop gives you a <em>copy</em> of each rectangle, which is all you need for drawing. (To mutate elements you would write <code>for &amp;plat in platforms</code> with a mutable slice, but that is not needed here.)</p>
+  </section>
+
+  <!-- ── Complete file ── -->
+  <section>
+    <h2>The complete <code>main.odin</code></h2>
+
+    <p>Replace your <code>main.odin</code> from Lesson 05 with this. The player is positioned on the centre-middle platform — <code>player_y = 316 - 60 = 256</code>, sitting on its top edge:</p>
+
+    <pre><span class="lang-tag">odin</span><span class="kw">package</span> main
+
+<span class="kw">import</span> rl <span class="str">"vendor:raylib"</span>
+
+SCREEN_W <span class="op">::</span> <span class="num">800</span>
+SCREEN_H <span class="op">::</span> <span class="num">600</span>
+
+PLATFORMS <span class="op">::</span> [<span class="op">?</span>]rl.<span class="ty">Rectangle</span>{
+    {  <span class="num">0</span>, <span class="num">554</span>, <span class="num">280</span>, <span class="num">46</span>},
+    {<span class="num">520</span>, <span class="num">554</span>, <span class="num">280</span>, <span class="num">46</span>},
+    { <span class="num">48</span>, <span class="num">426</span>, <span class="num">176</span>, <span class="num">18</span>},
+    {<span class="num">576</span>, <span class="num">426</span>, <span class="num">176</span>, <span class="num">18</span>},
+    {<span class="num">288</span>, <span class="num">316</span>, <span class="num">224</span>, <span class="num">18</span>},
+    {<span class="num">336</span>, <span class="num">186</span>, <span class="num">128</span>, <span class="num">18</span>},
+}
+
+LAVA <span class="op">::</span> rl.<span class="ty">Rectangle</span>{<span class="num">280</span>, <span class="num">574</span>, <span class="num">240</span>, <span class="num">26</span>}
+
+main <span class="op">::</span> <span class="kw">proc</span>() {
+    rl.<span class="fn">InitWindow</span>(SCREEN_W, SCREEN_H, <span class="str">"Joust"</span>)
+    <span class="kw">defer</span> rl.<span class="fn">CloseWindow</span>()
+    rl.<span class="fn">SetTargetFPS</span>(<span class="num">60</span>)
+
+    player_x: <span class="ty">f32</span> = <span class="num">380</span>
+    player_y: <span class="ty">f32</span> = <span class="num">256</span>   <span class="cmt">// resting on centre platform (316 - 60)</span>
+
+    <span class="kw">for</span> !rl.<span class="fn">WindowShouldClose</span>() {
+        rl.<span class="fn">BeginDrawing</span>()
+
+            rl.<span class="fn">ClearBackground</span>(rl.BLACK)
+
+            rl.<span class="fn">DrawRectangleGradientV</span>(
+                <span class="ty">i32</span>(LAVA.x), <span class="ty">i32</span>(LAVA.y),
+                <span class="ty">i32</span>(LAVA.width), <span class="ty">i32</span>(LAVA.height),
+                rl.RED, rl.ORANGE,
+            )
+
+            <span class="kw">for</span> plat <span class="kw">in</span> PLATFORMS {
+                rl.<span class="fn">DrawRectangleRec</span>(plat, rl.DARKGRAY)
+            }
+
+            rl.<span class="fn">DrawRectangle</span>(
+                <span class="ty">i32</span>(player_x), <span class="ty">i32</span>(player_y), <span class="num">40</span>, <span class="num">60</span>, rl.WHITE,
+            )
+
+            rl.<span class="fn">DrawText</span>(<span class="str">"JOUST"</span>, <span class="num">10</span>, <span class="num">10</span>, <span class="num">20</span>, rl.YELLOW)
+
+        rl.<span class="fn">EndDrawing</span>()
+    }
+}</pre>
+
+    <p>Run it with <code>odin run .</code>. You should see this:</p>
+
+    <!-- Arena CSS preview -->
+    <div class="arena">
+      <div class="label">800 × 600</div>
+      <div class="hud">JOUST</div>
+      <!-- lava -->
+      <div class="r lava" style="left:35%;top:95.7%;width:30%;height:4.3%;"></div>
+      <!-- ground left -->
+      <div class="r ground" style="left:0;top:92.3%;width:35%;height:7.7%;"></div>
+      <!-- ground right -->
+      <div class="r ground" style="left:65%;top:92.3%;width:35%;height:7.7%;"></div>
+      <!-- lower left -->
+      <div class="r" style="left:6%;top:71%;width:22%;height:3%;"></div>
+      <!-- lower right -->
+      <div class="r" style="left:72%;top:71%;width:22%;height:3%;"></div>
+      <!-- centre middle -->
+      <div class="r" style="left:36%;top:52.7%;width:28%;height:3%;"></div>
+      <!-- top centre -->
+      <div class="r" style="left:42%;top:31%;width:16%;height:3%;"></div>
+      <!-- player on centre platform -->
+      <div class="r player" style="left:47.5%;top:42.7%;width:5%;height:10%;"></div>
+    </div>
+
+    <p>Six platforms in dark grey, a red-to-orange lava glow between the ground sections, and a white player rectangle sitting on the centre platform. Nothing moves yet — that changes in the next lesson.</p>
+  </section>
+
+  <!-- ── Quiz ── -->
+  <section>
+    <h2>Check your understanding</h2>
+
+    <div class="quiz-question">
+      <p class="q-text">1. The four field types in <code>rl.Rectangle</code> (<code>x</code>, <code>y</code>, <code>width</code>, <code>height</code>) are all:</p>
+      <div class="options">
+        <button class="opt-btn" data-q="1" data-val="a" onclick="answer(1,'a','a')"><code>f32</code></button>
+        <button class="opt-btn" data-q="1" data-val="b" onclick="answer(1,'b','a')"><code>i32</code></button>
+        <button class="opt-btn" data-q="1" data-val="c" onclick="answer(1,'c','a')"><code>int</code></button>
+        <button class="opt-btn" data-q="1" data-val="d" onclick="answer(1,'d','a')"><code>f64</code></button>
+      </div>
+      <div class="explanation" id="explain-1">
+        All <code>f32</code> — which is why <code>DrawRectangleRec</code> requires no casting. You can pass your <code>f32</code> game positions directly. This is the key advantage over <code>DrawRectangle</code>, which takes separate <code>i32</code> arguments.
+      </div>
+    </div>
+
+    <div class="quiz-question">
+      <p class="q-text">2. In raylib, each draw call paints:</p>
+      <div class="options">
+        <button class="opt-btn" data-q="2" data-val="a" onclick="answer(2,'a','a')">above prior calls</button>
+        <button class="opt-btn" data-q="2" data-val="b" onclick="answer(2,'b','a')">below prior calls</button>
+        <button class="opt-btn" data-q="2" data-val="c" onclick="answer(2,'c','a')">before prior calls</button>
+        <button class="opt-btn" data-q="2" data-val="d" onclick="answer(2,'d','a')">merged with prior calls</button>
+      </div>
+      <div class="explanation" id="explain-2">
+        Each call paints <em>above</em> (on top of) everything drawn before it. This is why <code>ClearBackground</code> goes first, then background elements (lava), then midground (platforms), then foreground (player), then HUD. Reverse the order and you erase things you just drew.
+      </div>
+    </div>
+
+    <div class="quiz-question">
+      <p class="q-text">3. In a <code>for plat in PLATFORMS</code> range loop, <code>plat</code> is a:</p>
+      <div class="options">
+        <button class="opt-btn" data-q="3" data-val="a" onclick="answer(3,'a','a')">copy</button>
+        <button class="opt-btn" data-q="3" data-val="b" onclick="answer(3,'b','a')">view</button>
+        <button class="opt-btn" data-q="3" data-val="c" onclick="answer(3,'c','a')">link</button>
+        <button class="opt-btn" data-q="3" data-val="d" onclick="answer(3,'d','a')">move</button>
+      </div>
+      <div class="explanation" id="explain-3">
+        A <em>copy</em> — Odin's range loop gives you a value copy of each element, which is fine for read-only use like drawing. If you needed to mutate elements (e.g. animate a platform), you would write <code>for &amp;plat in platforms</code> on a mutable slice to get a pointer instead.
+      </div>
+    </div>
+
+    <div class="quiz-question">
+      <p class="q-text">4. Which function draws a filled rectangle directly from an <code>rl.Rectangle</code> (no <code>i32</code> cast)?</p>
+      <div class="options">
+        <button class="opt-btn" data-q="4" data-val="a" onclick="answer(4,'a','a')"><code>DrawRectangleRec</code></button>
+        <button class="opt-btn" data-q="4" data-val="b" onclick="answer(4,'b','a')"><code>DrawRectangle</code></button>
+        <button class="opt-btn" data-q="4" data-val="c" onclick="answer(4,'c','a')"><code>DrawRectangleV</code></button>
+        <button class="opt-btn" data-q="4" data-val="d" onclick="answer(4,'d','a')"><code>DrawRectanglePro</code></button>
+      </div>
+      <div class="explanation" id="explain-4">
+        <code>DrawRectangleRec</code> — takes an <code>rl.Rectangle</code> directly, all <code>f32</code>. <code>DrawRectangle</code> takes four separate <code>i32</code> args. <code>DrawRectangleV</code> takes two <code>Vector2</code> values (position + size). <code>DrawRectanglePro</code> adds rotation and a custom origin point — useful later for spinning enemies.
+      </div>
+    </div>
+  </section>
+
+  <div class="source-box">
+    <div class="source-label">Primary source</div>
+    <p><a href="https://www.raylib.com/cheatsheet/cheatsheet.html" target="_blank" rel="noopener">raylib Cheatsheet — raylib.com/cheatsheet/cheatsheet.html</a><br>
+    All raylib functions on one page. Bookmark it — you will refer to it every lesson from here on. Scan the "SHAPES" section now; that is everything available for drawing rectangles, circles, lines, and triangles.</p>
+  </div>
+
+  <section>
+    <h2>What's next</h2>
+    <p><a href="0007-gravity-and-flap.html">Lesson 07</a> — gravity. The white rectangle gains velocity, falls toward the lava, and a keypress sends it upward. The core Joust physics loop in under 20 lines.</p>
+  </section>
+
+  <div class="ask-teacher">
+    Unclear on anything? Ask your teacher — type your question in the chat and get an immediate explanation tailored to what you already know.
+  </div>
+</main>
+
+<footer>
+  <span>&larr; <a href="0005-first-window.html">Lesson 05: First Window</a></span>
+  <span>&rarr; <a href="0007-gravity-and-flap.html">Lesson 07: Gravity &amp; Flap</a></span>
+</footer>
+
+<script>
+  function answer(qId, selected, correct) {
+    const buttons = document.querySelectorAll(`[data-q="${qId}"]`);
+    buttons.forEach(btn => {
+      btn.disabled = true;
+      if (btn.dataset.val === correct) btn.classList.add('correct');
+      else if (btn.dataset.val === selected && selected !== correct) btn.classList.add('wrong');
+    });
+    document.getElementById(`explain-${qId}`).style.display = 'block';
+  }
+</script>
+
+</body>
+</html>
