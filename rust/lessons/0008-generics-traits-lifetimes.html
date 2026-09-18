@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — Generics, Traits &amp; Lifetimes</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 9</span><span>Rust Programming</span></div>
+  <h1>Generics, Traits &amp; Lifetimes</h1>
+  <p class="subtitle">Write code that works across types, define shared behavior, and keep references valid.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p><strong>Generics</strong> abstract over types, <strong>traits</strong> define shared behavior ("an interface"), and <strong>lifetimes</strong> tell the compiler how references relate so they stay valid.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Generics: one function, many types</h2>
+<pre><code>fn largest&lt;T&gt;(list: &amp;[T]) -&gt; &amp;T {
+    let mut max = &amp;list[0];
+    for item in list {
+        if item &gt; max { max = item; }
+    }
+    max
+}</code></pre>
+<p><code>&lt;T&gt;</code> is a placeholder type. You've already used generics: <code>Vec&lt;T&gt;</code>, <code>Option&lt;T&gt;</code>, <code>Result&lt;T, E&gt;</code>.<sup><a href="#r1">1</a></sup> (This example actually needs <code>T: PartialOrd</code> — see traits below.)</p>
+
+<h2>Traits: shared behavior</h2>
+<pre><code>trait Shape {
+    fn area(&amp;self) -&gt; f64;
+}
+
+struct Circle { r: f64 }
+impl Shape for Circle {
+    fn area(&amp;self) -&gt; f64 { 3.14159 * self.r * self.r }
+}</code></pre>
+<p>A trait declares methods a type must implement, letting different types share an interface.<sup><a href="#r1">1</a></sup></p>
+<p>Combine with bounds to constrain generics:</p>
+<pre><code>fn biggest&lt;T: PartialOrd + Copy&gt;(list: &amp;[T]) -&gt; T { ... }</code></pre>
+<p>Common std traits: <code>Copy</code>, <code>Clone</code>, <code>Debug</code> (for <code>{:?}</code>), <code>Display</code> (for <code>{}</code>), and <code>PartialOrd</code>/<code>Ord</code> for comparisons.</p>
+
+<h2>Lifetimes: keep references valid</h2>
+<pre><code>fn first_word&lt;'a&gt;(s: &amp;'a str) -&gt; &amp;'a str {
+    s.split_whitespace().next().unwrap_or("")
+}</code></pre>
+<p>The <code>'a</code> annotation says "the returned reference is valid as long as the input <code>s</code> is" — so the compiler can prove no dangling reference.<sup><a href="#r1">1</a></sup></p>
+<p>Lifetimes appear when a function returns a reference tied to a parameter. Structs that hold references also need one: <code>struct User&lt;'a&gt; { name: &amp;'a str }</code>.</p>
+
+<h2>The three in combination</h2>
+<p>Generics make code type-flexible; trait bounds constrain which types are allowed (so <code>largest</code> only works on orderable, copyable types); lifetimes ensure any references involved are safe. Together they're how Rust stays safe <em>and</em> reusable.</p>
+
+<aside class="note"><strong>Key idea</strong> If ownership is what makes Rust memory-safe, traits are what make it expressive: they let you say "this generic thing must support these operations," turning compile-time safety into a breadcrumbs of capabilities.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. Generics let one function…</h4>
+  <button class="opt" data-fb="No — generics abstract over types, not one field.">operate on only one concrete type</button>
+  <button class="opt" data-fb="No — they need trait bounds to order values.">work only on numeric values</button>
+  <button class="opt" data-fb="Correct — work across many different types.">work across many types</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A trait is Rust's way of defining…</h4>
+  <button class="opt" data-fb="Correct — shared behavior, like an interface.">shared behavior across types</button>
+  <button class="opt" data-fb="No — that is what a struct defines.">a set of data fields</button>
+  <button class="opt" data-fb="No — a module organizes code, not behavior.">a collection hierarchy</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. A lifetime annotation ties…</h4>
+  <button class="opt" data-fb="No — lifetimes relate references, not storage.">a value to the heap permanently</button>
+  <button class="opt" data-fb="Correct — one reference's validity to another's.">a reference to a scope's validity</button>
+  <button class="opt" data-fb="No — that is ownership, resolved at compile time.">a type to its generic parameter</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://doc.rust-lang.org/book/ch10-00-generics.html">Chapter 10</a> for generics, traits (and common std traits like <code>Debug</code>/<code>Display</code>), and lifetimes.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Write a <code>sum_of&lt;T: std::iter::Sum&lt;T&gt;&gt;(slice: &amp;[T]) -&gt; T</code> generic function and verify it works on <code>i32</code>. Then add a <code>Debug</code> requirement and an <code>assert</code> on the result to confirm.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://doc.rust-lang.org/book/ch10-00-generics.html">The Rust Book — Generics, Traits, &amp; Lifetimes</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-error-handling.html">← Lesson 7: Error handling</a></span>
+  <span class="nav-next"><a href="0009-putting-it-together.html">Lesson 9: Putting it together →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/rust-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>

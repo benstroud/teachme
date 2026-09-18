@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rust Programming — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Rust Programming</span></div>
+  <h1>Rust Glossary</h1>
+  <p class="subtitle">Every term in this course, in one place. Return here when a lesson uses a word you do not fully own.</p>
+</header>
+
+<section>
+<h2>Ownership &amp; memory</h2>
+<dl>
+  <dt><strong>Ownership</strong></dt>
+  <dd>Rust's memory-management model: a set of compiler-enforced rules, in place of a garbage collector or manual free. Zero runtime cost from the rules themselves.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>Stack / heap</strong></dt>
+  <dd>The stack stores fixed-size values in LIFO order (fast, no allocation search). The heap holds values of unknown or variable size, reached through a pointer. <code>String</code> lives on the heap.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>Owner</strong></dt>
+  <dd>The single variable that owns a value. When the owner goes out of scope, the value is dropped (memory freed).<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>Move</strong></dt>
+  <dd>Transferring ownership of a heap value (e.g. a <code>String</code>) to another variable; the original binding becomes invalid. Assignment and function arguments move.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>Copy</strong></dt>
+  <dd>A trait for types that copy on assignment instead of moving (integers, <code>bool</code>, <code>float</code>, <code>char</code>).<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>Clone</strong></dt>
+  <dd>A trait for an explicit deep copy of a value when you need both copies to remain usable.</dd>
+
+  <dt><strong>Reference</strong></dt>
+  <dd>A <code>&amp;</code> pointer that borrows a value without owning it; creating one is <em>borrowing</em>.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>Borrowing</strong></dt>
+  <dd>Using a value through a reference so the owner keeps it. Governed by the two reference rules.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>Dangling reference</strong></dt>
+  <dd>A reference to memory that has already been freed. Rust prevents these at compile time.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>Slice</strong></dt>
+  <dd>A borrowed view into a contiguous sequence (<code>&amp;str</code>, <code>&amp;[T]</code>).<sup><a href="#r3">3</a></sup></dd>
+</dl>
+</section>
+
+<section>
+<h2>Language &amp; types</h2>
+<dl>
+  <dt><strong>immutable / mut</strong></dt>
+  <dd>Variables are immutable by default; adding <code>mut</code> lets you reassign the binding.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>Shadowing</strong></dt>
+  <dd>Declaring a new <code>let</code> with an existing name, which takes over until its scope ends. Unlike <code>mut</code>, it can change the type.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>Scalar types</strong></dt>
+  <dd>Single values: integers (<code>i32</code>, <code>u64</code>, …), floating-point, <code>bool</code>, <code>char</code>.</dd>
+
+  <dt><strong>Struct</strong></dt>
+  <dd>A named group of typed fields; instances use <code>Name { field: value }</code>.<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>impl</strong></dt>
+  <dd>A block that adds methods to a struct (or enum).<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>Enum</strong></dt>
+  <dd>A type whose value is one of a set of variants, each able to carry data.<sup><a href="#r6">6</a></sup></dd>
+
+  <dt><strong>match</strong></dt>
+  <dd>An exhaustive control-flow construct that runs an arm per pattern; forces you to handle every case.<sup><a href="#r6">6</a></sup></dd>
+
+  <dt><strong>Option&lt;T&gt;</strong></dt>
+  <dd>Rust's null-safety enum: <code>Some(T)</code> or <code>None</code>. Distinct from <code>T</code>, so you can't use it as a definite value without handling <code>None</code>.<sup><a href="#r6">6</a></sup></dd>
+
+  <dt><strong>Result&lt;T, E&gt;</strong></dt>
+  <dd>The type for recoverable errors: <code>Ok(T)</code> or <code>Err(E)</code>.<sup><a href="#r7">7</a></sup></dd>
+
+  <dt><strong>panic!</strong></dt>
+  <dd>A macro that stops execution on an unrecoverable error.<sup><a href="#r7">7</a></sup></dd>
+
+  <dt><strong>Generic</strong></dt>
+  <dd>A placeholder type (<code>T</code>) so functions/types work across many types; used by <code>Vec&lt;T&gt;</code>, <code>Option&lt;T&gt;</code>, <code>Result&lt;T, E&gt;</code>.<sup><a href="#r8">8</a></sup></dd>
+
+  <dt><strong>Trait</strong></dt>
+  <dd>A set of shared behaviors — Rust's "interface"; includes <code>Copy</code>, <code>Clone</code>, <code>Debug</code>, <code>Display</code>.<sup><a href="#r8">8</a></sup></dd>
+
+  <dt><strong>Lifetime</strong></dt>
+  <dd>Information about how references relate so the compiler can keep them valid (annotated <code>'a</code>).<sup><a href="#r8">8</a></sup></dd>
+</dl>
+</section>
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html">The Rust Book — What Is Ownership?</a></li>
+    <li id="r2"><a href="https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html">The Rust Book — Move semantics &amp; Copy/Clone</a></li>
+    <li id="r3"><a href="https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html">The Rust Book — References &amp; Borrowing</a></li>
+    <li id="r4"><a href="https://doc.rust-lang.org/book/ch03-01-variables-and-mutability.html">The Rust Book — Variables &amp; Mutability</a></li>
+    <li id="r5"><a href="https://doc.rust-lang.org/book/ch05-01-defining-structs.html">The Rust Book — Defining Structs</a></li>
+    <li id="r6"><a href="https://doc.rust-lang.org/book/ch06-01-defining-an-enum.html">The Rust Book — Defining an Enum</a></li>
+    <li id="r7"><a href="https://doc.rust-lang.org/book/ch09-00-error-handling.html">The Rust Book — Error Handling</a></li>
+    <li id="r8"><a href="https://doc.rust-lang.org/book/ch10-00-generics.html">The Rust Book — Generics, Traits, &amp; Lifetimes</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Mission &amp; notes</span>
+  <span class="nav-next"><a href="../lessons/0001-why-rust.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../NOTES.md">Notes</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — Common Collections</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 9</span><span>Rust Programming</span></div>
+  <h1>Common Collections</h1>
+  <p class="subtitle"><code>Vec</code>, <code>String</code>, <code>HashMap</code> — the standard containers you reach for daily.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Rust's standard collections store data on the heap and follow the same ownership rules you already know — a vector drops its elements when it goes out of scope.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Vec&lt;T&gt;: a growable list</h2>
+<pre><code>let v = vec![1, 2, 3];            // Vec&lt;i32&gt;, inferred
+let mut w = Vec::new();
+w.push(5);                        // mut needed to push
+
+let third: &amp;i32 = &amp;v[2];          // index → panics if out of bounds
+let maybe: Option&lt;&amp;i32&gt; = v.get(2); // get → safe, returns Option
+
+for i in &amp;v { println!("{i}"); }  // iterate by reference
+for i in &amp;mut w { *i += 10; }     // mutate through ref</code></pre>
+<p>Use <code>v.get(i)</code> when the index might be invalid; use <code>&amp;v[i]</code> when it's guaranteed — indexing a non-existent element panics.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Storing different types</h2>
+<p>A <code>Vec</code> holds one type. To store mixed values, wrap them in an enum whose variants hold the different types:<sup><a href="#r1">1</a></sup></p>
+<pre><code>enum Cell { Int(i32), Float(f64), Text(String) }
+let row = vec![Cell::Int(3), Cell::Text(String::from("blue"))];</code></pre>
+
+<h2>String: growable UTF-8 text</h2>
+<pre><code>let mut s = String::from("hello");
+s.push_str(", world");
+let len = s.len();                 // bytes, not characters
+let first = &amp;s[0..4];              // slicing by byte range</code></pre>
+<p><code>String</code> and the borrowed <code>&amp;str</code> are different types; <code>String::from</code> creates an owner.<sup><a href="#r2">2</a></sup></p>
+
+<h2>HashMap&lt;K, V&gt;: key-value pairs</h2>
+<pre><code>use std::collections::HashMap;
+
+let mut scores = HashMap::new();
+scores.insert(String::from("Blue"), 10);
+let v = scores.get(&amp;"Blue");          // Option&lt;&amp;i32&gt;
+for (key, value) in &amp;scores { println!("{key}: {value}"); }</code></pre>
+<p><code>get</code> returns an <code>Option</code>; <code>insert</code> needs the map to be <code>mut</code>.</p>
+
+<aside class="note"><strong>Key idea</strong> The collections are generic (<code>Vec&lt;T&gt;</code>, <code>HashMap&lt;K,V&gt;</code>) and obey the move/copy/borrow rules you've learned — remember that pushing a <code>String</code> into a vector moves it.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. v.get(2) on a Vec returns…</h4>
+  <button class="opt" data-fb="No — v[2] would panic, but get is the safe one.">the element, or it panics</button>
+  <button class="opt" data-fb="Correct — an Option, handling out-of-range safely.">an Option of the element</button>
+  <button class="opt" data-fb="No — get never panics; it returns None when absent.">always an error</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. To store mixed types in one Vec, use…</h4>
+  <button class="opt" data-fb="No — typing each element differently isn't allowed.">several parallel vectors</button>
+  <button class="opt" data-fb="No — a Vec holds exactly one element type.">an untyped array</button>
+  <button class="opt" data-fb="Correct — an enum whose variants hold the types.">an enum of the types</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. A Vec drops its elements when…</h4>
+  <button class="opt" data-fb="Correct — it goes out of scope and is freed.">it goes out of scope</button>
+  <button class="opt" data-fb="No — it drops as one unit at scope end.">each push happens</button>
+  <button class="opt" data-fb="No — the borrow checker ties it to scope, not each read.">you call a get method</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://doc.rust-lang.org/book/ch08-01-vectors.html">Vectors</a> and the rest of <a href="https://doc.rust-lang.org/book/ch08-00-common-collections.html">Chapter 8</a> for String and HashMap specifics.</p>
+
+<div class="ask"><strong>Ask the agent</strong> In a scratch project, build a <code>Vec&lt;String&gt;</code>, push a <code>String</code>, then try to use the original <code>String</code> afterward to observe the move. Then read an element with both <code>&amp;v[i]</code> and <code>v.get(i)</code>.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://doc.rust-lang.org/book/ch08-01-vectors.html">The Rust Book — Vectors</a></li>
+    <li id="r2"><a href="https://doc.rust-lang.org/book/ch08-00-common-collections.html">The Rust Book — Common Collections</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-structs-and-enums.html">← Lesson 5: Structs &amp; enums</a></span>
+  <span class="nav-next"><a href="0007-error-handling.html">Lesson 7: Error handling →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/rust-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rust Programming — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  .two-col { display: flex; flex-wrap: wrap; gap: 1.4rem; }
+  .two-col > div { flex: 1 1 46%; min-width: 18rem; }
+  code i { color: var(--accent); font-style: normal; }
+  td code, .q code { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Rust Programming</span></div>
+  <h1>Rust Cheat Sheet</h1>
+  <p class="subtitle">The compressed essence of the course. Skim before a lesson, study it fully before an interview.</p>
+</header>
+
+<section>
+<h2>1. Hello, Rust</h2>
+<pre><code>cargo new hello && cd hello   # creates src/main.rs + Cargo.toml
+cargo run                     # build and run
+cargo build                   # build only (debug)
+cargo test                    # run tests
+
+// src/main.rs
+fn main() {
+    println!("Hello, world!");
+}</code></pre>
+<p><code>cargo</code> is the build tool and package manager; <code>println!</code> is a macro (hence the <code>!</code>).<sup><a href="#r1">1</a></sup></p>
+</section>
+<section>
+<h2>2. Variables &amp; expressions</h2>
+<pre><code>let x = 5;              // immutable by default
+let mut y = 5;          // mutable
+const MAX: u32 = 100;   // const, type required
+
+// shadowing — new let, can change type
+let spaces = "   ";
+let spaces = spaces.len();        // now usize
+
+let z = if x &gt; 0 { 1 } else { 0 };   // if is an expression</code></pre>
+<ul>
+  <li>Integers: <code>i8..i128</code>, <code>u8..u128</code>; default <code>i32</code>. <code>f32</code>/<code>f64</code>, <code>bool</code>, <code>char</code>.<sup><a href="#r2">2</a></sup></li>
+  <li>Reassigning an immutable yields error E0384; shadowing with <code>let</code> can retype.</li>
+</ul>
+</section>
+
+<section>
+<h2>3. Ownership &amp; move</h2>
+<pre><code>let s1 = String::from("hello");
+let s2 = s1;            // s1 MOVES into s2 — s1 unusable
+// println!("{s1}");     // error: value borrowed after move
+
+let a = 5; let b = a;   // i32 is Copy — both usable</code></pre>
+<ul>
+  <li>Three rules: each value has one owner; one owner at a time; drop when owner goes out of scope.<sup><a href="#r3">3</a></sup></li>
+  <li>Heap values (String) move; <code>Copy</code> types (int/bool/float/char) copy.</li>
+  <li>Need both copies? Use <code>.clone()</code>.</li>
+</ul>
+</section>
+
+<section>
+<h2>4. References &amp; borrowing</h2>
+<pre><code>fn len(s: &amp;String) -&gt; usize { s.len() }   // borrow, not own
+fn change(s: &amp;mut String) { s.push_str("!"); }
+
+let r1 = &amp;s; let r2 = &amp;s;      // many immutable  — OK
+let r3 = &amp;mut s;               // one mutable     — OK
+// mixing them after use ends is fine; overlapping is not</code></pre>
+<ul>
+  <li>Rules: one mutable ref OR any number of immutable refs; references must be valid (never dangling).<sup><a href="#r4">4</a></sup></li>
+  <li>Slices: <code>&amp;str</code>, <code>&amp;[T]</code> — borrowed views without owning.</li>
+</ul>
+</section>
+<section>
+<h2>5. Structs, enums, match</h2>
+<pre><code>struct User { active: bool, username: String }
+
+impl User {
+    fn new(name: String) -&gt; User {
+        User { active: true, username: name }
+    }
+}
+
+enum Status { Active, Disabled, Pending(String) }   // variant can hold data
+
+let u = User { active: true, username: String::from("ada") };
+match &amp;u.username {
+    Status // (enum shown elsewhere)
+}</code></pre>
+<pre><code>enum Coin { Penny, Quarter }
+fn value(c: Coin) -&gt; u8 {
+    match c { Coin::Penny =&gt; 1, Coin::Quarter =&gt; 25 }   // exhaustive match
+}</code></pre>
+<ul>
+  <li>Enums model "one of a set"; variants namespaced <code>Type::Variant</code>.<sup><a href="#r5">5</a></sup><sup><a href="#r6">6</a></sup></li>
+  <li><code>match</code> must cover every variant — the compiler enforces exhaustiveness.</li>
+  <li><code>Option&lt;T&gt;</code> = <code>Some(T)</code> or <code>None</code>; distinct from <code>T</code>; use <code>match</code> or methods to get the inner value.<sup><a href="#r6">6</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>6. Collections</h2>
+<pre><code>let v = vec![1, 2, 3];           // Vec&lt;i32&gt;
+let mut v = Vec::new(); v.push(5);
+let n: &amp;i32 = &amp;v[2];             // panics if out of bounds
+let n2: Option&lt;&amp;i32&gt; = v.get(2); // safe; Option
+for i in &amp;v { println!("{i}"); }
+
+// String: growable UTF-8 text
+let mut s = String::new();
+s.push_str("hi");
+
+// HashMap
+use std::collections::HashMap;
+let mut scores = HashMap::new();
+scores.insert(String::from("Blue"), 10);
+scores.get(&"Blue")              // Option</code></pre>
+<p>Vectors hold one type; store mixed values via an enum variant instead.<sup><a href="#r7">7</a></sup></p>
+</section>
+
+<section>
+<h2>7. Error handling</h2>
+<pre><code>use std::fs::File;
+fn open() -&gt; Result&lt;File, std::io::Error&gt; {
+    let f = File::open("x.txt")?;   // returns Err early, or the value
+    Ok(f)
+}
+// unwrap: extract value or panic
+let f = File::open("x.txt").expect("file missing");</code></pre>
+<ul>
+  <li>Recoverable = <code>Result&lt;T,E&gt;</code>; unrecoverable = <code>panic!</code>.<sup><a href="#r8">8</a></sup></li>
+  <li><code>?</code> propagates errors; <code>unwrap</code>/<code>expect</code> panic instead.</li>
+</ul>
+</section>
+<section>
+<h2>8. Generics, traits, lifetimes</h2>
+<pre><code>fn largest&lt;T&gt;(list: &amp;[T]) -&gt; &amp;T { ... }      // generic over T
+
+trait Shape { fn area(&amp;self) -&gt; f64; }        // interface
+impl Shape for Circle { fn area(&amp;self) -&gt; f64 { ... } }
+
+// lifetime: ties an output reference to an input
+fn first_word&lt;'a&gt;(s: &amp;'a str) -&gt; &amp;'a str { ... }</code></pre>
+<ul>
+  <li>Generics: abstract stand-in for a type, so code runs on many types.<sup><a href="#r9">9</a></sup></li>
+  <li>Traits: shared behavior (like an interface); examples <code>Copy</code>, <code>Clone</code>, <code>Debug</code>, <code>Display</code>.</li>
+  <li>Lifetimes (<code>'a</code>) let the compiler prove references stay valid.</li>
+</ul>
+</section>
+
+<section>
+<h2>9. Design checklist</h2>
+<ul>
+  <li><strong>Prefer ownership by default</strong> — use owned <code>String</code>/<code>Vec</code> in structs; borrow (<code>&amp;</code>) in function params when you don't need ownership.</li>
+  <li><strong>One mutable or many immutable</strong> references — never overlap <code>&amp;mut</code> with <code>&amp;</code>.</li>
+  <li><strong>Model optionality</strong> with <code>Option</code>, errors with <code>Result</code>; avoid <code>unwrap</code> in library paths.</li>
+  <li><strong>Use <code>match</code></strong> for exhaustive handling of enums.</li>
+  <li><strong>Read the compiler</strong> — errors like E0502 (borrow), E0384 (immutable) point exactly at the fix.</li>
+</ul>
+</section>
+
+<footer class="citation">
+  Primary sources: <a href="https://doc.rust-lang.org/book/ch04-00-understanding-ownership.html">The Rust Book (Ownership)</a>,
+  <a href="https://doc.rust-lang.org/book/ch09-00-error-handling.html">(Error Handling)</a>,
+  <a href="https://doc.rust-lang.org/book/ch10-00-generics.html">(Generics)</a>.
+  <ol>
+    <li id="r1"><a href="https://doc.rust-lang.org/book/ch01-00-getting-started.html">The Rust Book — Getting Started</a></li>
+    <li id="r2"><a href="https://doc.rust-lang.org/book/ch03-01-variables-and-mutability.html">The Rust Book — Variables &amp; Mutability</a></li>
+    <li id="r3"><a href="https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html">The Rust Book — What Is Ownership?</a></li>
+    <li id="r4"><a href="https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html">The Rust Book — References &amp; Borrowing</a></li>
+    <li id="r5"><a href="https://doc.rust-lang.org/book/ch05-01-defining-structs.html">The Rust Book — Defining Structs</a></li>
+    <li id="r6"><a href="https://doc.rust-lang.org/book/ch06-01-defining-an-enum.html">The Rust Book — Defining an Enum</a></li>
+    <li id="r7"><a href="https://doc.rust-lang.org/book/ch08-01-vectors.html">The Rust Book — Vectors</a></li>
+    <li id="r8"><a href="https://doc.rust-lang.org/book/ch09-00-error-handling.html">The Rust Book — Error Handling</a></li>
+    <li id="r9"><a href="https://doc.rust-lang.org/book/ch10-00-generics.html">The Rust Book — Generics, Traits &amp; Lifetimes</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="../lessons/0001-why-rust.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

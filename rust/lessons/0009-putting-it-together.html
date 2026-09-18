@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 9 — Putting It Together</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 9 of 9</span><span>Rust Programming</span></div>
+  <h1>Putting It Together</h1>
+  <p class="subtitle">A small, real program that uses ownership, structs, enums, collections, errors, and a test.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Everything you've learned composes: define data with structs and enums, collect it, model failure with <code>Result</code>, and prove behavior with a test.</p>
+
+<h2>A tiny library</h2>
+<pre><code>use std::collections::HashMap;
+
+struct Cart {
+    items: HashMap&lt;String, u32&gt;,   // item name -> quantity
+}
+
+#[derive(Debug)]
+enum CartError { Empty }
+
+impl Cart {
+    fn new() -&gt; Cart { Cart { items: HashMap::new() } }
+
+    fn add(&amp;mut self, name: &amp;str, qty: u32) {
+        let entry = self.items.entry(String::from(name)).or_insert(0);
+        *entry += qty;
+    }
+
+    fn total_items(&amp;self) -&gt; u32 {
+        self.items.values().sum()
+    }
+
+    fn biggest(&amp;self) -&gt; Result&lt;&amp;str, CartError&gt; {
+        let mut best: Option&lt;(&amp;String, &amp;u32)&gt; = None;
+        for (name, qty) in &amp;self.items {
+            if best.map_or(true, |(_, b)| qty &gt; b) {
+                best = Some((name, qty));
+            }
+        }
+        best.map(|(n, _)| n.as_str()).ok_or(CartError::Empty)
+    }
+}</code></pre>
+<ul>
+  <li>Field shorthand, <code>entry(...).or_insert(0)</code> to accumulate counts.</li>
+  <li><code>map_or</code> handles <code>None</code> without a new <code>match</code>.</li>
+  <li>Returns <code>Result</code> to model the "no items" error rather than panic.</li>
+</ul>
+
+<h2>A test</h2>
+<pre><code>#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn adds_and_totals() {
+        let mut cart = Cart::new();
+        cart.add("apple", 2);
+        cart.add("pear", 1);
+        assert_eq!(cart.total_items(), 3);
+    }
+
+    #[test]
+    fn empty_cart_is_an_error() {
+        let cart = Cart::new();
+        assert!(matches!(cart.biggest(), Err(CartError::Empty)));
+    }
+}</code></pre>
+<pre><code>cargo test   // runs the tests</code></pre>
+<p><code>#[test]</code> marks test fns, <code>assert_eq!</code>/<code>assert!</code> check outcomes, and <code>cargo test</code> runs them.</p>
+
+<h2>The senior recap</h2>
+<ul>
+  <li><strong>Shape data</strong> with structs (records) and enums (one-of) + <code>match</code>.</li>
+  <li><strong>Own data</strong> by default; borrow (<code>&amp;</code>) or pass <code>&amp;mut</code> when you don't need to own.</li>
+  <li><strong>Handle failures</strong> with <code>Result</code> and <code>?</code>; reserve <code>panic!</code> for true bugs.</li>
+  <li><strong>Make it generic</strong> with traits; tie references with lifetimes.</li>
+  <li><strong>Let the compiler teach you</strong> — every error names the rule you tripped.</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> Rust rewards a small set of mental tools, reused relentlessly. When stuck, trace who <em>owns</em> each value and which operation is borrowing vs moving — ownership answers most design questions.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. A struct that owns its data usually stores…</h4>
+  <button class="opt" data-fb="No — fn-main stores framed values; the field does not.">fn pointers</button>
+  <button class="opt" data-fb="Correct — owned types like String, not &amp;str.">owned String, not &amp;str</button>
+  <button class="opt" data-fb="No — that requires a lifetime on the struct.">borrowed &amp;str everywhere</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. An error that callers should handle is best returned as…</h4>
+  <button class="opt" data-fb="Correct — recoverable errors return Result.">Result, not panic</button>
+  <button class="opt" data-fb="No — unwrap would panic when the caller forgot.">an unwrap on the value</button>
+  <button class="opt" data-fb="No — panic is for unrecoverable bugs, not expected cases.">a panic!</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. cargo test runs functions marked…</h4>
+  <button class="opt" data-fb="No — that is for the main binary, not tests.">#[main]</button>
+  <button class="opt" data-fb="No — assert_eq! checks, it does not run tests.">#[assert_eq]</button>
+  <button class="opt" data-fb="Correct — #[test] functions.">#[test]</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Re-read the Ownership chapter's end and skim <a href="https://doc.rust-lang.org/book/ch11-00-testing.html">Chapter 11 — Testing</a> for <code>#[test]</code>, then run the example's <code>cargo test</code>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> In a fresh <code>cargo new</code> project, paste the <code>Cart</code> example, add a test that <code>add</code> merges quantities for the same item, and run <code>cargo test</code>. Observe <code>add</code> taking <code>&amp;mut self</code> — why can't it borrow safely otherwise?</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://doc.rust-lang.org/book/ch11-00-testing.html">The Rust Book — Testing</a></li>
+    <li id="r2"><a href="https://doc.rust-lang.org/book/ch08-03-hash-maps.html">The Rust Book — Hash Maps</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0008-generics-traits-lifetimes.html">← Lesson 8: Generics &amp; traits</a></span>
+  <span class="nav-next"><a href="../reference/rust-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/rust-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>

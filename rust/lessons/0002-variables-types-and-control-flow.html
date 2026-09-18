@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — Variables, Types &amp; Control Flow</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 9</span><span>Rust Programming</span></div>
+  <h1>Variables, Types &amp; Control Flow</h1>
+  <p class="subtitle">Immutability by default, shadowing, and expressions — Rust's liberal-but-controlled grammar.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Rust favors clarity and safety: variables are <em>immutable by default</em>, types are explicit, and most constructs are expressions that produce values.<sup><a href="#r1">1</a></sup></p>
+
+<h2>immutable vs mut vs shadowing</h2>
+<pre><code>let x = 5;            // immutable — cannot reassign
+let mut y = 5;        // mutable
+y = 6;                // OK
+
+let spaces = "   ";         // &str
+let spaces = spaces.len();  // shadow: now usize — type can change</code></pre>
+<ul>
+  <li>Reassigning an immutable produces error E0384; add <code>mut</code> to opt in.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>Shadowing</strong> re-binds a name with a new <code>let</code>; unlike <code>mut</code>, it can change the type.<sup><a href="#r1">1</a></sup></li>
+  <li><code>const</code> is a compile-time constant with an explicit type, never reassigned.</li>
+</ul>
+
+<h2>Scalar types</h2>
+<table>
+  <tr><th>Kind</th><th>Examples</th></tr>
+  <tr><td>Integers</td><td><code>i8..i128</code>, <code>u8..u128</code> (default <code>i32</code>)</td></tr>
+  <tr><td>Floating-point</td><td><code>f32</code>, <code>f64</code></td></tr>
+  <tr><td>Boolean</td><td><code>bool</code></td></tr>
+  <tr><td>Character</td><td><code>char</code></td></tr>
+</table>
+<p>Annotate types where the compiler can't infer a default: <code>let x: u64 = 5;</code>.</p>
+
+<h2>Control flow as expressions</h2>
+<pre><code>let kind = if x &gt; 0 { "positive" } else { "non-positive" };
+
+loop { break; }                      // infinite loop with break
+while y &gt; 0 { y -= 1; }
+for n in 1..=5 { println!("{n}"); }  // range, inclusive when '..='</code></pre>
+<p>In Rust, <code>if</code> is an expression — both branches must yield the same type, and the value flows into the binding.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Functions</h2>
+<pre><code>fn main() {
+    let total = add(2, 3);
+}
+
+fn add(a: i32, b: i32) -&gt; i32 {   // return type after ->
+    a + b                        // last expression is the return value
+}</code></pre>
+<p>The last expression (no semicolon) is returned implicitly — a Rust idiom you'll see constantly.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> The <code>mut</code> vs <code>let</code>-shadowing distinction is a classic interview trap: <code>mut</code> cannot change a variable's type; shadowing can, because it's a brand-new binding.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. Reassigning an immutable variable produces…</h4>
+  <button class="opt" data-fb="Correct — E0384, fixed by adding mut.">a compile error, E0384</button>
+  <button class="opt" data-fb="No — Rust forbids it at compile time, not runtime.">a runtime panic</button>
+  <button class="opt" data-fb="No — immutability is enforced, not a warning.">a warning only</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. Shadowing differs from mut because…</h4>
+  <button class="opt" data-fb="No — shadowing does not change values in place like mut.">it mutates the original</button>
+  <button class="opt" data-fb="No — mut cannot change a variable's type.">it works only on integers</button>
+  <button class="opt" data-fb="Correct — it makes a new binding, so the type can change.">it creates a new binding, so type can change</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. In Rust, <code>if</code> is…</h4>
+  <button class="opt" data-fb="No — the last expression is returned implicitly.">a statement with no value</button>
+  <button class="opt" data-fb="Correct — an expression whose value can bind to a variable.">an expression producing a value</button>
+  <button class="opt" data-fb="No — if can produce a value in most Rust code.">only allowed inside loops</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://doc.rust-lang.org/book/ch03-01-variables-and-mutability.html">Variables &amp; Mutability</a> and the rest of <a href="https://doc.rust-lang.org/book/ch03-00-common-programming-concepts.html">Chapter 3</a> for data types and control flow.</p>
+
+<div class="ask"><strong>Ask the agent</strong> In a scratch <code>cargo</code> project, declare <code>let x = 5;</code> then <code>let x = x + 1;</code> (shadow) and separately try reassigning without <code>let</code> — read the two different error messages Rust gives.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://doc.rust-lang.org/book/ch03-01-variables-and-mutability.html">The Rust Book — Variables &amp; Mutability</a></li>
+    <li id="r2"><a href="https://doc.rust-lang.org/book/ch03-00-common-programming-concepts.html">The Rust Book — Common Programming Concepts</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-why-rust.html">← Lesson 1: Why Rust</a></span>
+  <span class="nav-next"><a href="0003-ownership-and-move-semantics.html">Lesson 3: Ownership →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/rust-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>

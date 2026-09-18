@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — Error Handling</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 9</span><span>Rust Programming</span></div>
+  <h1>Error Handling</h1>
+  <p class="subtitle">No exceptions. Instead: <code>Result</code> for recoverable errors and <code>panic!</code> for the unrecoverable.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Rust splits errors into <strong>recoverable</strong> (returned as <code>Result&lt;T, E&gt;</code>) and <strong>unrecoverable</strong> (signalled by <code>panic!</code>) — and usually <em>requires</em> you to handle the recoverable kind before the code compiles.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Recoverable errors: Result&lt;T, E&gt;</h2>
+<pre><code>use std::fs::File;
+
+let f_result = File::open("hello.txt");
+// match is exhaustive:
+match f_result {
+    Ok(file)   =&gt; println!("opened {file:?}"),
+    Err(error) =&gt; println!("failed: {error}"),
+}</code></pre>
+<p><code>Ok(T)</code> carries success, <code>Err(E)</code> the error.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Propagating with ?</h2>
+<pre><code>use std::fs::File;
+use std::io::{self, Read};
+
+fn read_username() -&gt; Result&lt;String, io::Error&gt; {
+    let mut f = File::open("user.txt")?;   // Err is returned early
+    let mut s = String::new();
+    f.read_to_string(&amp;mut s)?;
+    Ok(s)
+}</code></pre>
+<p><code>?</code> unwraps <code>Ok</code> or returns the <code>Err</code> from the enclosing <code>Result</code> function — the clean way to bubble errors up.<sup><a href="#r2">2</a></sup></p>
+
+<h2>unwrap and expect</h2>
+<pre><code>let f = File::open("x.txt").expect("missing x.txt"); // panic w/ message
+let g = File::open("y.txt").unwrap();                 // panic, no message</code></pre>
+<p>Both extract the value or panic. Fine for prototypes and cases where failure truly means a bug; in library code, prefer propagating with <code>?</code>.</p>
+
+<h2>Unrecoverable: panic!</h2>
+<pre><code>panic!("this is unrecoverable");   // stops the program</code></pre>
+<p><code>panic!</code> halts execution — appropriate for bugs like indexing out of range, not for expected outcomes like "file not found" that callers should handle.</p>
+
+<h2>Deciding recoverable vs unrecoverable</h2>
+<ul>
+  <li>Expected, retryable, or user-facing problems → <code>Result</code>.</li>
+  <li>Invariants broken / code that can't continue correctly → <code>panic!</code>.<sup><a href="#r1">1</a></sup></li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> The absence of exceptions means error handling is <em>explicit</em>. A function that might fail says so in its return type, and callers must acknowledge it — no silent, catch-less failures.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Recoverable errors in Rust use…</h4>
+  <button class="opt" data-fb="No — Rust has no exceptions; Result handles this.">exceptions thrown anywhere</button>
+  <button class="opt" data-fb="Correct — Result&lt;T, E&gt;, with Ok or Err.">Result&lt;T, E&gt;</button>
+  <button class="opt" data-fb="No — that is for unrecoverable errors.">panic!</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. The ? operator, inside a Result function, …</h4>
+  <button class="opt" data-fb="No — ? returns Err from the function; it does not give up generally.">halts the whole program</button>
+  <button class="opt" data-fb="No — unwrap/expect do that; ? propagates cleanly.">always panics on failure</button>
+  <button class="opt" data-fb="Correct — returns the Err and frees the success value.">returns Err, or unwraps the Ok</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. unwrap() is best avoided in…</h4>
+  <button class="opt" data-fb="Correct — library paths should propagate, not panic.">library code that returns Result</button>
+  <button class="opt" data-fb="No — it is expressly designed to extract a value.">on expected-success values</button>
+  <button class="opt" data-fb="No — that's an unrecoverable case where panic is fine.">on genuine bugs</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://doc.rust-lang.org/book/ch09-00-error-handling.html">Error Handling</a> for the recoverable vs unrecoverable framing and the <code>?</code> details.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Write a function <code>read_number() -&gt; Result&lt;u32, std::io::Error&gt;</code> that opens a file and parses its first line, using <code>?</code> for both failure points. Then call it and print an error-friendly message via match.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://doc.rust-lang.org/book/ch09-00-error-handling.html">The Rust Book — Error Handling</a></li>
+    <li id="r2"><a href="https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html">The Rust Book — Recoverable Errors with Result</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-common-collections.html">← Lesson 6: Collections</a></span>
+  <span class="nav-next"><a href="0008-generics-traits-lifetimes.html">Lesson 8: Generics &amp; traits →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/rust-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>

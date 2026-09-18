@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — Why Rust &amp; Getting Started</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 9</span><span>Rust Programming</span></div>
+  <h1>Why Rust &amp; Getting Started</h1>
+  <p class="subtitle">A systems language that gives you C-level performance with memory safety the compiler guarantees.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Rust manages memory with a compiler-enforced <em>ownership</em> system — no garbage collector, no manual free — so it's fast and safe at the same time.<sup><a href="#r1">1</a></sup></p>
+
+<h2>What makes Rust distinctive</h2>
+<ul>
+  <li><strong>Memory safety without a GC.</strong> Ownership rules run at compile time; the program isn't slowed at runtime by the ownership features.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>Zero-cost abstractions.</strong> High-level constructs compile down to efficient machine code with no runtime overhead.</li>
+  <li><strong>Fearless safety.</strong> The compiler catches whole classes of bugs (use-after-free, data races, null derefs) before the code runs.</li>
+</ul>
+<p>For a TypeScript developer, the shift is: JavaScript lets almost anything fly at runtime; Rust refuses to compile code that isn't provably safe — and tells you exactly why.</p>
+
+<h2>Your first program with cargo</h2>
+<pre><code>cargo new hello
+cd hello
+cargo run</code></pre>
+<p><code>src/main.rs</code>:</p>
+<pre><code>fn main() {
+    println!("Hello, world!");
+}</code></pre>
+<ul>
+  <li><code>cargo</code> is Rust's build tool + package manager; it scaffolds a project and runs it.<sup><a href="#r2">2</a></sup></li>
+  <li><code>main</code> is the entry point; <code>println!</code> is a <em>macro</em> — the <code>!</code> marks it.</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> Almost everything in Rust is an expression, types are explicit, and the compiler is your safety net. When code won't compile, read the error — it points at the exact rule you tripped over.</aside>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Rust guarantees memory safety by…</h4>
+  <button class="opt" data-fb="No — that would cost runtime performance, which Rust avoids.">a running garbage collector</button>
+  <button class="opt" data-fb="Correct — compiler-enforced ownership rules, no GC.">compiler-enforced ownership rules</button>
+  <button class="opt" data-fb="No — the programmer still calls free by hand in safe code.">manual memory freeing everywhere</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. The ownership features affect the running program by…</h4>
+  <button class="opt" data-fb="No — the safety checks resolve at compile time.">slowing it down significantly</button>
+  <button class="opt" data-fb="No — abstractions are zero-cost, not paid at runtime.">adding a runtime license fee</button>
+  <button class="opt" data-fb="Correct — the rules are checked at compile time, not runtime.">adding no runtime cost to it</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. The <code>!</code> in <code>println!</code> indicates…</h4>
+  <button class="opt" data-fb="Correct — it marks a macro, not a plain function call.">it's a macro invocation</button>
+  <button class="opt" data-fb="No — that would be a language-level keyword, not this.">an error-throwing function</button>
+  <button class="opt" data-fb="No — the exclamation points to a macro, not importance.">it's an important line</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Work the <a href="https://doc.rust-lang.org/book/ch01-00-getting-started.html">Getting Started</a> chapter of the Rust Book to install/verify Rust and run hello world yourself.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Run <code>cargo new hello</code> and <code>cargo run</code> in a scratch directory as one step. Then change the message printed and run <code>cargo run</code> again — observe how the compiler reports the rebuild.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html">The Rust Book — What Is Ownership?</a></li>
+    <li id="r2"><a href="https://doc.rust-lang.org/book/ch01-00-getting-started.html">The Rust Book — Getting Started</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="0002-variables-types-and-control-flow.html">Lesson 2: Variables &amp; types →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/rust-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — Structs &amp; Enums</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 9</span><span>Rust Programming</span></div>
+  <h1>Structs &amp; Enums</h1>
+  <p class="subtitle">Named bundles of data, and types that model "one of a set" — the two main ways to shape data.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A <strong>struct</strong> groups named, typed fields into a record; an <strong>enum</strong> says a value is <em>one of</em> a set of variants (which can each carry data).<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<h2>Structs: defining and building</h2>
+<pre><code>struct User {
+    active: bool,
+    username: String,
+    email: String,
+}
+
+let user1 = User {
+    active: true,
+    username: String::from("ada"),
+    email: String::from("ada@x.dev"),
+};
+user1.email       // dot notation reads a field
+// the whole instance must be mut to change a field</code></pre>
+<p>Structs own their data — they use <code>String</code>, not <code>&amp;str</code>, unless you add lifetimes.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Methods with impl</h2>
+<pre><code>impl User {
+    fn greeting(&amp;self) -&gt; String {
+        format!("Hi, {}", self.username)
+    }
+}
+println!("{}", user1.greeting());</code></pre>
+<p>Methods live in an <code>impl</code> block and take <code>&amp;self</code> for the instance.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Enums: one of a set</h2>
+<pre><code>enum IpAddrKind { V4, V6 }
+
+enum Status {
+    Active,
+    Disabled,
+    Pending(String),   // a variant can carry data
+}
+
+let s = Status::Pending(String::from("review"));</code></pre>
+<p>Variants are namespaced with <code>::</code> and are all the same enum type, so a function takes any variant.<sup><a href="#r2">2</a></sup></p>
+
+<h2>match: exhaustive control flow</h2>
+<pre><code>fn label(status: &amp;Status) -&gt; &amp;'static str {
+    match status {
+        Status::Active   =&gt; "live",
+        Status::Disabled =&gt; "off",
+        Status::Pending(_) =&gt; "awaiting",
+    }
+}</code></pre>
+<p><code>match</code> can't return without covering every variant — the compiler forces completeness. Use <code>_</code> as a catch-all if you only care about some cases.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Option: null, made safe</h2>
+<pre><code>let a = Some(5);      // Option&lt;i32&gt;
+let b: Option&lt;i32&gt; = None;
+
+match b {
+    Some(v) =&gt; println!("{v}"),
+    None    =&gt; println!("nothing"),
+}</code></pre>
+<p><code>Option&lt;T&gt;</code> is <em>distinct</em> from <code>T</code> — the compiler won't let you use it as a definite value until you handle both variants.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Structs are for "contains all of these"; enums are for "is exactly one of these." Paired with <code>match</code>, enums give you compile-time-checked handling of every case — no missing-branch surprises.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. A struct is best for data that…</h4>
+  <button class="opt" data-fb="No — that is the enum&rsquo;s one-of job.">is exactly one of several kinds</button>
+  <button class="opt" data-fb="No — a struct holds named fields of varied types.">only holds one field type</button>
+  <button class="opt" data-fb="Correct — groups named, typed fields into a record.">groups named fields into a record</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>2. Methods for User live inside…</h4>
+  <button class="opt" data-fb="No — methods go in impl, not the struct body.">the struct definition</button>
+  <button class="opt" data-fb="Correct — an impl block for the struct.">an impl block</button>
+  <button class="opt" data-fb="No — that's where you define the data fields.">a separate crate</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. match is exhaustive, meaning…</h4>
+  <button class="opt" data-fb="Correct — every variant must be handled or use _.">every variant must be covered</button>
+  <button class="opt" data-fb="No — match forces you to handle all variants.">only some variants need arms</button>
+  <button class="opt" data-fb="No — Option requires handling the None case too.">Option ignores the None case</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://doc.rust-lang.org/book/ch05-01-defining-structs.html">Defining Structs</a> and <a href="https://doc.rust-lang.org/book/ch06-01-defining-an-enum.html">Defining an Enum</a> for the worked examples.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Define an enum <code>WebEvent</code> with variants Click {x,y}, Key(String), and Resize(w,h). Then write a <code>match</code> that prints something for each, and notice how adding a fourth variant makes old matches fail to compile — that's exhaustiveness working.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://doc.rust-lang.org/book/ch05-01-defining-structs.html">The Rust Book — Defining Structs</a></li>
+    <li id="r2"><a href="https://doc.rust-lang.org/book/ch06-01-defining-an-enum.html">The Rust Book — Defining an Enum</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-references-and-borrowing.html">← Lesson 4: References</a></span>
+  <span class="nav-next"><a href="0006-common-collections.html">Lesson 6: Collections →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/rust-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>

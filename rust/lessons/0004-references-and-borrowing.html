@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — References &amp; Borrowing</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 9</span><span>Rust Programming</span></div>
+  <h1>References &amp; Borrowing</h1>
+  <p class="subtitle">Let functions use a value without taking it — the two reference rules keep it safe.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A <em>reference</em> (<code>&amp;</code>) lets code use a value without owning it; creating one is <em>borrowing</em>, and the two reference rules keep every reference valid.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Borrowing instead of moving</h2>
+<pre><code>fn main() {
+    let s1 = String::from("hello");
+    let len = calculate_length(&amp;s1);   // borrow s1, don't move it
+    println!("'{s1}' is {len} chars"); // s1 still usable!
+}
+
+fn calculate_length(s: &amp;String) -&gt; usize { s.len() }</code></pre>
+<p>The <code>&amp;</code> makes a reference; the parameter type <code>&amp;String</code> borrows. Because the reference doesn't own the value, nothing is dropped when the function returns — and the original stays usable.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The two reference rules</h2>
+<ol>
+  <li>At any given time, you can have <strong>either one mutable reference</strong> <em>or</em> <strong>any number of immutable references</strong>.</li>
+  <li>References must <strong>always be valid</strong> — never dangling.<sup><a href="#r1">1</a></sup></li>
+</ol>
+<pre><code>let mut s = String::from("hi");
+let r1 = &amp;s; let r2 = &amp;s;      // many immutable — OK
+let r3 = &amp;mut s;               // OK if r1/r2 no longer used
+println!("{r3}");</code></pre>
+<p>Trying to use <code>&amp;mut s</code> while immutable references are still live triggers a borrow error — the compiler shields you from data races.</p>
+
+<h2>A mutable reference lets you change</h2>
+<pre><code>fn change(s: &amp;mut String) { s.push_str(", world"); }</code></pre>
+<p>You must take <code>&amp;mut</code> to modify a borrowed value; a plain <code>&amp;String</code> is read-only.</p>
+
+<h2>No dangling references</h2>
+<p>Rust refuses to return a reference to a value that dies inside the function:<sup><a href="#r1">1</a></sup></p>
+<pre><code>fn dangle() -&gt; &amp;String {   // error: nothing to borrow from
+    let s = String::from("hi");
+    &amp;s                     // s is dropped here
+}</code></pre>
+<p>The fix is to return the owned <code>String</code> instead of a reference.</p>
+
+<h2>Slices: borrowed sequences</h2>
+<p>A slice is a reference to a contiguous part of a collection — <code>&amp;str</code> for strings, <code>&amp;[T]</code> for arrays. It borrows, doesn't own, so it never outlives the data it points into.</p>
+
+<aside class="note"><strong>Key idea</strong> If passing a value into a function and wanting it back afterwards is tedious (Lesson 3), the answer is a reference: borrow it, let the function look, and the owner keeps it. Just honor the two rules.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. A reference lets a function…</h4>
+  <button class="opt" data-fb="No — the owner keeps the value after the call.">take ownership of the value</button>
+  <button class="opt" data-fb="Correct — use the value without owning or moving it.">use a value without moving it</button>
+  <button class="opt" data-fb="No — borrowing preserves the owner's use.">permanently consume the value</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. The two reference rules allow…</h4>
+  <button class="opt" data-fb="No — that combination would risk a data race.">many mutable references</button>
+  <button class="opt" data-fb="No — only one mutable or many immutable, not both.">mutable and immutable together</button>
+  <button class="opt" data-fb="Correct — one mutable OR many immutable, never mixed.">one mutable or many immutable</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. A reference to a value freed inside the function is…</h4>
+  <button class="opt" data-fb="Correct — Rust rejects dangling references at compile time.">rejected as a dangling reference</button>
+  <button class="opt" data-fb="No — Rust blocks this at compile time.">allowed but risky at runtime</button>
+  <button class="opt" data-fb="No — the compiler guarantees references stay valid.">normal in Rust</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html">References &amp; Borrowing</a> for the full borrow-error walkthroughs.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Write a function that takes <code>&amp;String</code> and returns its <code>len()</code> (as in the book). Then try to <code>push_str</code> inside it and read the E0596 error — then fix it by taking <code>&amp;mut String</code>.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html">The Rust Book — References &amp; Borrowing</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-ownership-and-move-semantics.html">← Lesson 3: Ownership</a></span>
+  <span class="nav-next"><a href="0005-structs-and-enums.html">Lesson 5: Structs &amp; enums →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/rust-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>

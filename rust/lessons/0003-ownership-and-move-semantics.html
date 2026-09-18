@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — Ownership &amp; Move Semantics</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 9</span><span>Rust Programming</span></div>
+  <h1>Ownership &amp; Move Semantics</h1>
+  <p class="subtitle">The idea that makes Rust unique: every value has exactly one owner, and moving transfers it.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Ownership is a set of compiler-checked rules: each value has one owner, only one owner at a time, and when the owner goes out of scope the value is dropped.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The three ownership rules</h2>
+<ol>
+  <li>Each value in Rust has an <strong>owner</strong>.</li>
+  <li>There can be only <strong>one owner</strong> at a time.</li>
+  <li>When the owner goes out of scope, the value is <strong>dropped</strong> (freed).<sup><a href="#r1">1</a></sup></li>
+</ol>
+
+<h2>Stack vs heap</h2>
+<p>The stack holds fixed-size values in LIFO order; the heap holds data whose size isn't known at compile time, reached through a pointer. <code>String</code> is growable and heap-allocated.<sup><a href="#r1">1</a></sup></p>
+<pre><code>let s1 = String::from("hello");   // s1 owns a heap String
+let s2 = s1;                      // ownership MOVES to s2
+// println!("{s1}");               // error: value borrowed after move</code></pre>
+<p>After the move, <code>s1</code> is invalid — exactly one owner prevents two frees of the same memory.</p>
+
+<h2>Copy vs move</h2>
+<p>Simple types stored entirely on the stack <em>copy</em> on assignment instead of moving, so both variables stay usable:<sup><a href="#r2">2</a></sup></p>
+<pre><code>let a = 5; let b = a;   // i32 is Copy — a and b both valid</code></pre>
+<p><code>Copy</code> types: integers, <code>bool</code>, <code>float</code>, <code>char</code>, and tuples of those. Heap types like <code>String</code> are not <code>Copy</code>. When you want both, call <code>.clone()</code> to deep-copy explicitly.</p>
+
+<h2>Ownership transfer through functions</h2>
+<pre><code>fn main() {
+    let s = String::from("hi");
+    takes_ownership(s);   // s moves in, unusable after
+    let x = 5;
+    makes_copy(x);        // x is Copy — still usable
+}
+
+fn takes_ownership(some: String) { println!("{some}"); }</code></pre>
+<p>When a heap value is passed to a function, it moves; returning a value moves ownership back out. This "too much ceremony" is what references (Lesson 4) solve.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Move is not a copy — it's a transfer of ownership. The compiler rejects any use of the old binding afterward. This single rule eliminates double-free and use-after-free bugs at compile time.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. The three ownership rules ensure…</h4>
+  <button class="opt" data-fb="No — ownership is checked at compile time.">a faster garbage collector</button>
+  <button class="opt" data-fb="Correct — one owner, one drop, no double-free.">one owner per value, safe drops</button>
+  <button class="opt" data-fb="No — that is about references, a later lesson.">all values are immutable</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. Assigning one String to another…</h4>
+  <button class="opt" data-fb="No — String is not Copy, so it moves instead.">copies the string data</button>
+  <button class="opt" data-fb="No — only one owner, so both can't stay valid.">lets both bindings stay valid</button>
+  <button class="opt" data-fb="Correct — it moves, invalidating the source binding.">moves ownership, invalidating the source</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. Which type is Copy on assignment?</h4>
+  <button class="opt" data-fb="Correct — integers copy on assignment.">an i32</button>
+  <button class="opt" data-fb="No — String owns heap data and is not Copy.">a String</button>
+  <button class="opt" data-fb="No — Vec owns heap data and is not Copy.">a Vec</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html">What Is Ownership?</a> in full — the move/copy examples are the core of the whole model.</p>
+
+<div class="ask"><strong>Ask the agent</strong> In a scratch project, write <code>let s1 = String::from("hi"); let s2 = s1; println!("{s1}");</code> and <code>cargo run</code>. Read the exact error, then add <code>.clone()</code> and watch it compile.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html">The Rust Book — What Is Ownership?</a></li>
+    <li id="r2"><a href="https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html">The Rust Book — Move &amp; Copy</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-variables-types-and-control-flow.html">← Lesson 2: Variables &amp; types</a></span>
+  <span class="nav-next"><a href="0004-references-and-borrowing.html">Lesson 4: References &amp; borrowing →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/rust-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>
