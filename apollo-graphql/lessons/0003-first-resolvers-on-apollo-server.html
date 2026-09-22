@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — First Resolvers on Apollo Server</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 10</span><span>Apollo GraphQL</span></div>
+  <h1>First Resolvers on Apollo Server</h1>
+  <p class="subtitle">A schema plus a map of functions, and Apollo Server turns them into a running endpoint you can query.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Apollo Server takes your <code>typeDefs</code> (the SDL) and a <code>resolvers</code> map (functions that return each field's value) and serves them over HTTP as a GraphQL endpoint.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Install and the minimal server</h2>
+<p>The current package is <code>@apollo/server</code> (v4+), with <code>graphql</code> as a peer dependency — this replaced the older <code>apollo-server</code> v3 package.<sup><a href="#r1">1</a></sup></p>
+<pre><code>npm i @apollo/server graphql
+
+import { ApolloServer } from '@apollo/server';
+import { startStandaloneServer } from '@apollo/server/standalone';
+
+const typeDefs = `#graphql
+  type Book {
+    id: ID!
+    title: String!
+    author: String!
+  }
+
+  type Query {
+    books: [Book!]!
+  }
+`;
+
+const books = [
+  { id: '1', title: 'The Awakening', author: 'Kate Chopin' },
+  { id: '2', title: 'City of Glass', author: 'Paul Auster' },
+];
+
+const resolvers = {
+  Query: {
+    books: () =&gt; books,
+  },
+};
+
+const server = new ApolloServer({ typeDefs, resolvers });
+const { url } = await startStandaloneServer(server, { listen: { port: 4000 } });
+console.log('GraphQL ready at', url);</code></pre>
+
+<h2>How the pieces fit</h2>
+<ul>
+  <li><strong>typeDefs</strong> = your schema, written in SDL inside a <code>#graphql</code> template literal.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>resolvers</strong> = a plain object keyed by type, then by field. Each entry is a function returning that field's value.</li>
+  <li>The <code>Query.books</code> resolver returns an <em>array of Book objects</em>; Apollo Server then applies field resolvers (or defaults) to shape the response.</li>
+  <li><code>startStandaloneServer</code> boots a standalone HTTP server with no web framework; <code>expressMiddleware</code> is the alternative when you need Express.<sup><a href="#r1">1</a></sup></li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> A resolver is just a function. It can be <code>async</code>, call a database, call another service, or return a static array — Apollo Server only cares that it returns a value matching the field's type.</aside>
+
+<h2>Run it and query it</h2>
+<p>A readable step: start the server, open the Explorer landing page it prints, run <code>{ books { id title author } }</code>, and watch the returned JSON mirror your selection exactly. Then add a field to your query (try <code>author</code> only) and see the response change shape while the resolver stays untouched.</p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. In Apollo Server v4, the packages you install are…</h4>
+  <button class="opt" data-fb="Correct — @apollo/server is the current package and graphql is its peer.">@apollo/server and graphql</button>
+  <button class="opt" data-fb="No — that is the older v3 package name that @apollo/server replaced.">apollo-server and express</button>
+  <button class="opt" data-fb="No — graphql is required, but this misses the runtime package itself.">graphql and express</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. The <code>resolvers</code> map is keyed by…</h4>
+  <button class="opt" data-fb="No — there is no root key; execution starts at the operation fields.">a single root object with all return values</button>
+  <button class="opt" data-fb="No — resolvers are functions per field, not rows of cached data.">the name of each HTTP route the server exposes</button>
+  <button class="opt" data-fb="Correct — type name first, then the field name within that type.">type name, then the field name within that type</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. <code>startStandaloneServer</code> is used here because…</h4>
+  <button class="opt" data-fb="No — that is expressMiddleware, chosen only when you need Express.">it is the only way to run Apollo Server at all</button>
+  <button class="opt" data-fb="Correct — it boots Apollo Server on its own HTTP server without a web framework.">it boots the server on its own HTTP server with no framework</button>
+  <button class="opt" data-fb="No — it starts a dev server, not a production one.">it provides hot-reloading in development only</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Follow <a href="https://www.apollographql.com/docs/apollo-server/getting-started/">Apollo Server — Get started</a> end to end and get the sample running on your machine. That single hand-run installs the mental model for every later lesson.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Extend the sample: add a second root field, say <code>book(id: ID!): Book</code>, and a resolver that finds one book by id. Run both queries and explain why <code>books</code> returns an array while <code>book</code> returns one object.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.apollographql.com/docs/apollo-server/getting-started/">Apollo Server — Get started</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-the-schema-definition-language.html">← Lesson 2: SDL</a></span>
+  <span class="nav-next"><a href="0004-the-resolver-chain.html">Lesson 4: The resolver chain →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/apollo-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 10 — Federation and Scaling the Graph</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 10 of 10</span><span>Apollo GraphQL</span></div>
+  <h1>Federation and Scaling the Graph</h1>
+  <p class="subtitle">When many teams each own part of the data, subgraphs compose into one supergraph — and one client sees a single API.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Apollo Federation lets several GraphQL services (subgraphs) be composed into one federated schema (the supergraph) that the <strong>Apollo Router</strong> serves to clients, routing each request to whichever subgraphs can answer it.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Subgraphs and the supergraph</h2>
+<p>Each team runs its own GraphQL API as a <em>subgraph</em>, built with <code>buildSubgraphSchema</code> from <code>@apollo/subgraph</code>. A tool (Rover) composes them into the <em>supergraph</em>. Clients query only the Router, and the Router plans how to gather data across subgraphs — clients never know the graph is split.<sup><a href="#r1">1</a></sup></p>
+<pre><code>       Client / App
+            │  one GraphQL query
+      ┌─────▼─────┐
+      │  Router   │  (serves the supergraph)
+      └──┬────┬──┬┘
+         │    │  └─────────┐
+   ┌─────▼─┐ ┌▼─────┐  ┌──▼────┐
+   │orders │ │users │  │catalog│   ← subgraphs
+   └───────┘ └──────┘  └───────┘</code></pre>
+
+<h2>Entities and the @key directive</h2>
+<p>For two subgraphs to contribute fields to the same type, that type is an <em>entity</em>: the owning subgraph declares a key, and each contributing subgraph references the same key. The owner provides a <code>__resolveReference</code> resolver that loads the entity from just that key.<sup><a href="#r2">2</a></sup></p>
+<pre><code># catalog subgraph — owns the entity
+type Product @key(fields: "id") {
+  id: ID!
+  name: String!
+  price: Int
+}
+# resolver for the type
+Product: {
+  __resolveReference(ref) { return db.loadProduct(ref.id); }
+}
+
+# users subgraph — contributes a field, matches on the same key
+extend type Product @key(fields: "id") {
+  id: ID! @external
+  reviews: [Review!]!
+}</code></pre>
+<ul>
+  <li><code>@key(fields: "id")</code> picks the identity that ties a product across subgraphs.<sup><a href="#r2">2</a></sup></li>
+  <li>The non-owning subgraph marks the key field <code>@external</code> and <code>extend</code>s the type with only its own fields.</li>
+  <li><code>__resolveReference</code> turns a key (e.g. just <code>id</code>) into the full entity inside that subgraph.</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> The Router can assemble a single query like <code>product { name reviews { body } }</code> by asking the catalog subgraph for <code>name</code> and the users subgraph for <code>reviews</code> — coordinating via the shared <code>id</code> key.</aside>
+
+<h2>When to federate (and when not to)</h2>
+<ul>
+  <li><strong>Federate when</strong> multiple teams own disjoint domains and need one client-facing API, or when you must read across boundaries in a single request.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>Don't federate</strong> a two-team monolith to a split you don't need; a single subgraph (one Apollo Server) is simpler and the Router is only worth its topology when ownership genuinely divides.</li>
+  <li>Team that owns a field is its source of truth; the schema guardrails (via federation composition rules) catch duplicate or conflicting definitions.</li>
+</ul>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. In a federated architecture, clients query…</h4>
+  <button class="opt" data-fb="Correct — the supergraph is served by the Router and clients talk only to it.">the supergraph, served by the Router</button>
+  <button class="opt" data-fb="No — clients should never call subgraphs directly.\">each subgraph directly to spread the load</button>
+  <button class="opt" data-fb="No — the Router fronts the subgraphs; clients see one API.">the database via a set of REST endpoints</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. The <code>__resolveReference</code> resolver is responsible for…</h4>
+  <button class="opt" data-fb="No — that is what the Router does when planning the query.">combining responses from many subgraphs into one</button>
+  <button class="opt" data-fb="No — it loads an entity from its key, it does not authorize it.\">validating that every query is authenticated</button>
+  <button class="opt" data-fb="Correct — it loads an entity from just its key fields inside its subgraph.">loading an entity from just its key fields inside its subgraph</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. Two subgraphs contribute to one Product type by…</h4>
+  <button class="opt" data-fb="No — each subgraph still runs its own Apollo schema; they are not merged by hand.\">merging the two SDL files into a single schema by hand</button>
+  <button class="opt" data-fb="Correct — Product is an entity with a shared @key that ties the subgraphs together.">making Product an entity with a shared @key that ties them together</button>
+  <button class="opt" data-fb="No — that duplicates fields and breaks ownership, unlike a keyed entity.\">duplicating Product in each schema with identical fields</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the <a href="https://www.apollographql.com/docs/federation/v2/">Federation overview</a> for the supergraph mental model, then <a href="https://www.apollographql.com/docs/federation/v2/entities/">Entities</a> for <code>@key</code> and <code>__resolveReference</code>, and <a href="https://www.apollographql.com/docs/apollo-server/using-federation/">Using Apollo Server as a subgraph</a> for <code>buildSubgraphSchema</code>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Split the bookshop into two subgraphs (catalog owns Book; marketing owns reviews) and show Book as an entity: the SDL on each side, the @key, and the __resolveReference in the owner. Trace how the Router answers <code>book(id) { title reviews { body } }</code>.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.apollographql.com/docs/federation/v2/">Apollo Federation — Overview</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/federation/v2/entities/">Apollo Federation — Entities</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0009-apollo-client-and-caching.html">← Lesson 9: Apollo Client</a></span>
+  <span class="nav-next"><a href="../reference/apollo-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/apollo-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

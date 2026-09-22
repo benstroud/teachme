@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — Context, Authentication &amp; Authorization</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 10</span><span>Apollo GraphQL</span></div>
+  <h1>Context, Authentication &amp; Authorization</h1>
+  <p class="subtitle">Prove who the caller is once per request (context), then enforce what they may do field by field (authorization).</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>The <code>context</code> function runs once per request and builds <code>contextValue</code> — the same object injected into every resolver, which is where you put the verified user, the DB client, loaders, and tracing.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Building contextValue</h2>
+<pre><code>import { startStandaloneServer } from '@apollo/server/standalone';
+
+const { url } = await startStandaloneServer(server, {
+  context: async ({ req }) =&gt; ({
+    user: await authenticate(req.headers.authorization),
+    db: dbClient,
+    loaders: makeLoaders(),
+  }),
+});</code></pre>
+<ul>
+  <li><code>context</code> receives the incoming request and returns your per-request object.<sup><a href="#r1">1</a></sup></li>
+  <li>Read the <code>Authorization</code> header, verify the token <em>once</em>, and resolve it to a user — then every resolver gets it from <code>contextValue</code>.</li>
+  <li>Put a <em>verified user</em> in context, never a raw password or secret.</li>
+</ul>
+
+<h2>Authorization belongs in the resolvers</h2>
+<pre><code>import { GraphQLError } from 'graphql';
+
+function requireRole(ctx, role) {
+  if (ctx.user?.role !== role) {
+    throw new GraphQLError('Not allowed', { extensions: { code: 'FORBIDDEN' } });
+  }
+}
+
+const resolvers = {
+  Mutation: {
+    deleteBook: (_parent, { id }, ctx) =&gt; {
+      requireRole(ctx, 'ADMIN');
+      return db.deleteBook(id);
+    },
+  },
+  Book: {
+    price: async (book, _args, ctx) =&gt; {
+      if (!ctx.user) throw new GraphQLError('Login required', { extensions: { code: 'UNAUTHENTICATED' } });
+      return book.price;
+    },
+  },
+};</code></pre>
+<p>Throw a <code>GraphQLError</code> to surface a structured error; Apollo Server places it in the response's <code>errors</code> array with your <code>extensions</code> intact.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Authentication is "who are you?" — done in context, once. Authorization is "may you do this?" — done per field/type in resolvers (or via a directive that wraps them). Keep the two clearly separate in your head and your code.</aside>
+
+<h2>A few practical rules</h2>
+<ul>
+  <li>A small <code>require*</code> helper (or a directive) keeps checks consistent instead of copy-pasted per resolver.</li>
+  <li>Distinguish <code>UNAUTHENTICATED</code> (not logged in) from <code>FORBIDDEN</code> (logged in but not allowed).<sup><a href="#r2">2</a></sup></li>
+  <li>For web-framework integrations (Express), <code>req</code> may carry the parsed request; the same token logic applies. Flag: the exact <code>context</code> signature differs between <code>startStandaloneServer</code> and <code>expressMiddleware</code> — confirm against the installed version.</li>
+</ul>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. The <code>context</code> function's return value becomes…</h4>
+  <button class="opt" data-fb="No — it is scoped to one request, not shared across all requests.">a global object shared across every request</button>
+  <button class="opt" data-fb="No — it is per-request data, not a schema description.">the typeDefs passed to the ApolloServer constructor</button>
+  <button class="opt" data-fb="Correct — the per-request contextValue passed to every resolver.">the per-request value injected as contextValue in every resolver</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Authentication and authorization are best separated so that…</h4>
+  <button class="opt" data-fb="Correct — prove identity once in context, then enforce rules per field.">identity is proven once in context, and rules are enforced per field</button>
+  <button class="opt" data-fb="No — authorization still needs per-field checks after identity.">all checks live in one monolithic context function</button>
+  <button class="opt" data-fb="No — authentication sets identity; authorization is the per-field gate.">authorization happens first, authentication second</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. To surface a structured, typed error from a resolver you should…</h4>
+  <button class="opt" data-fb="No — that leaks internal detail into the response's errors.">return the raw database exception object</button>
+  <button class="opt" data-fb="Correct — throw a GraphQLError with extensions for codes and status.">throw a GraphQLError with extensions for the code and status</button>
+  <button class="opt" data-fb="No — a boolean can't carry error codes or a message path.">return a boolean instead of throwing</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://www.apollographql.com/docs/apollo-server/data/context/">Apollo Server — Context and contextValue</a>, then the <a href="https://www.apollographql.com/docs/apollo-server/security/authentication/">authentication</a> page for a worked example, and <a href="https://www.apollographql.com/docs/apollo-server/data/errors/">error handling</a> for <code>GraphQLError</code> details.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Add authentication and a <code>FORBIDDEN</code> check to the bookshop so only an <code>ADMIN</code> can run <code>deleteBook</code>. Sketch both the context function and the resolver guard, and explain what a non-admin sees in the response.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.apollographql.com/docs/apollo-server/data/context/">Apollo Server — Context and contextValue</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/apollo-server/data/errors/">Apollo Server — Error handling</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-arguments-input-types-and-mutations.html">← Lesson 5: Arguments &amp; mutations</a></span>
+  <span class="nav-next"><a href="0007-integrating-a-data-layer.html">Lesson 7: Data layer →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/apollo-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

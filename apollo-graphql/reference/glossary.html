@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apollo GraphQL — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Apollo GraphQL</span></div>
+  <h1>Apollo GraphQL Glossary</h1>
+  <p class="subtitle">Every term in this course, in one place. Return here when a lesson uses a word you do not fully own.</p>
+</header>
+
+<section>
+<h2>The schema language</h2>
+<dl>
+  <dt><strong>GraphQL</strong></dt>
+  <dd>A query language and a runtime contract for APIs. Clients send a <em>selection</em> of the fields they want; the server returns exactly that shape.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>SDL (Schema Definition Language)</strong></dt>
+  <dd>The textual syntax used to describe a GraphQL schema: types, fields, scalars, nullability, lists, enums, inputs, interfaces, unions.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>scalar</strong></dt>
+  <dd>A leaf type with no sub-fields. GraphQL ships five: <code>Int</code>, <code>Float</code>, <code>String</code>, <code>Boolean</code>, <code>ID</code>. Custom scalars (e.g. a <code>DateTime</code>) can be added.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>object type</strong></dt>
+  <dd>A type made of named, typed <em>fields</em>, e.g. <code>type Book { title: String }</code>. Every field ultimately resolves to scalars or other objects.</dd>
+
+  <dt><strong>field</strong></dt>
+  <dd>A named member of an object type carrying a type and (optionally) arguments. Clients select fields to include in the response.</dd>
+
+  <dt><strong>nullability / <code>!</code></strong></dt>
+  <dd>The non-null marker. <code>title: String</code> may be <code>null</code>; <code>title: String!</code> must never be <code>null</code>. If a non-null resolver throws, the error propagates to the nearest nullable parent field.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>list <code>[T]</code></strong></dt>
+  <dd>A field whose value is a list of type <code>T</code>. Combinations like <code>[Book!]!</code> (non-null list of non-null books) encode strictness.</dd>
+
+  <dt><strong>enum</strong></dt>
+  <dd>A named set of allowed string values, e.g. <code>enum OrderStatus { CREATED FULFILLED }</code>. Validated by both server (schema) and client (operation).<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>input type</strong></dt>
+  <dd>A same-shape-as-an-object type used <em>for arguments</em>, marked with the reserved <code>input</code> keyword. Can hold scalars, enums, other inputs, and lists — but not interfaces or unions directly.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>interface</strong></dt>
+  <dd>A contract of shared fields that concrete object types must implement, enabling a field to return any implementing type. Clients select with <code>... on Type</code> inline fragments.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>union</strong></dt>
+  <dd>A type listing possible object types with no shared required fields; the response must disambiguate with <code>__typename</code>/inline fragments.</dd>
+
+  <dt><strong>operation</strong></dt>
+  <dd>A named (or anonymous) request: <code>query</code>, <code>mutation</code>, or <code>subscription</code>. Queries may run in parallel; mutations run serially.<sup><a href="#r2">2</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>The runtime (Apollo Server)</h2>
+<dl>
+  <dt><strong>@apollo/server</strong></dt>
+  <dd>The current Apollo Server package (v4+). Replaced the older <code>apollo-server</code> v3 package; <code>graphql</code> is a peer dependency.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>typeDefs</strong></dt>
+  <dd>Your schema, written in SDL as a string or template literal, passed to <code>new ApolloServer({ typeDefs, resolvers })</code>.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>resolver</strong></dt>
+  <dd>A function that returns the value for a schema field. Signature: <code>(parent, args, contextValue, info)</code>. Root <code>Query</code>/<code>Mutation</code> fields have no parent.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>resolver chain</strong></dt>
+  <dd>The way execution walks an operation: it calls the root field resolver, then for each nested field calls that field's resolver with the parent's returned value, and so on, depth-first.</dd>
+
+  <dt><strong>default resolver</strong></dt>
+  <dd>The fallback Apollo Server uses when a field has no resolver: it reads <code>parent[fieldName]</code>. This is why a resolver can return a plain object.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>parent / root value</strong></dt>
+  <dd>The object the parent resolver returned, given to the child resolver as its first argument (<code>parent</code>). For root fields it is <code>undefined</code>.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>args</strong></dt>
+  <dd>The second resolver argument: the operation's arguments, validated and coerced against the schema.</dd>
+
+  <dt><strong>startStandaloneServer</strong></dt>
+  <dd>A helper from <code>@apollo/server/standalone</code> that starts Apollo Server on its own HTTP server, with no web framework required.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>GraphQLError</strong></dt>
+  <dd>The error class thrown in resolvers; carries a message, <code>extensions</code>, and an optional HTTP status code. It is how you surface typed, structured errors.<sup><a href="#r5">5</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Context &amp; data</h2>
+<dl>
+  <dt><strong>contextValue</strong></dt>
+  <dd>The third resolver argument: an object shared across every resolver <em>for a single request</em>. Built by the <code>context</code> function; the natural home for the current user, the DB client, loaders, and tracing.<sup><a href="#r6">6</a></sup></dd>
+
+  <dt><strong>context function</strong></dt>
+  <dd>A per-request function passed to Apollo Server (e.g. <code>context: async ({ req }) =&gt; ({ ... })</code>) whose return value becomes <code>contextValue</code>.<sup><a href="#r6">6</a></sup></dd>
+
+  <dt><strong>N+1 problem</strong></dt>
+  <dd>Executing one query for the list item plus one query per item (N), causing N+1 total queries to the data source for a single operation.</dd>
+
+  <dt><strong>DataLoader</strong></dt>
+  <dd>A small batching/caching utility (<code>dataloader</code> npm package) that coalesces many <code>load()</code> calls in one tick into a single batch, and caches results within the instance's lifetime — which must be one request.<sup><a href="#r7">7</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Client &amp; federation</h2>
+<dl>
+  <dt><strong>@apollo/client</strong></dt>
+  <dd>Apollo's client library (web, v4): sends operations, manages caching, and exposes hooks like <code>useQuery</code>/<code>useMutation</code> to view layers.<sup><a href="#r8">8</a></sup></dd>
+
+  <dt><strong>ApolloProvider</strong></dt>
+  <dd>The React context provider that makes a configured <code>ApolloClient</code> available to the component tree.<sup><a href="#r8">8</a></sup></dd>
+
+  <dt><strong>InMemoryCache</strong></dt>
+  <dd>Apollo Client's normalizing cache. It stores each object once, keyed by <code>__typename</code> + <code>id</code>, so returning the same entity is deduplicated and shared across queries.<sup><a href="#r9">9</a></sup></dd>
+
+  <dt><strong>supergraph</strong></dt>
+  <dd>The single, composed GraphQL schema that clients query in a federated architecture.<sup><a href="#r10">10</a></sup></dd>
+
+  <dt><strong>subgraph</strong></dt>
+  <dd>A single GraphQL service (e.g. an Apollo Server) that contributes part of the supergraph. Built with <code>buildSubgraphSchema</code> from <code>@apollo/subgraph</code>.<sup><a href="#r10">10</a></sup></dd>
+
+  <dt><strong>entity</strong></dt>
+  <dd>A type defined with <code>@key(fields: ...)</code>: an identity that multiple subgraphs can contribute fields to, matched across subgraphs.<sup><a href="#r11">11</a></sup></dd>
+
+  <dt><strong>__resolveReference</strong></dt>
+  <dd>The subgraph resolver, returned from a type's resolver row, that loads an entity from just its key fields when another subgraph references it.<sup><a href="#r11">11</a></sup></dd>
+
+  <dt><strong>Apollo Router</strong></dt>
+  <dd>The graph gateway that serves the supergraph to clients and routes each request across the subgraphs that can answer it.<sup><a href="#r10">10</a></sup></dd>
+</dl>
+</section>
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://spec.graphql.org/October2021/">GraphQL — Specification</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/apollo-server/schema/schema/">Apollo Server — Defining a schema</a></li>
+    <li id="r3"><a href="https://www.apollographql.com/docs/apollo-server/getting-started/">Apollo Server — Get started</a></li>
+    <li id="r4"><a href="https://www.apollographql.com/docs/apollo-server/data/resolvers/">Apollo Server — Resolvers</a></li>
+    <li id="r5"><a href="https://www.apollographql.com/docs/apollo-server/data/errors/">Apollo Server — Error handling</a></li>
+    <li id="r6"><a href="https://www.apollographql.com/docs/apollo-server/data/context/">Apollo Server — Context and contextValue</a></li>
+    <li id="r7"><a href="https://github.com/graphql/dataloader">dataloader — README</a></li>
+    <li id="r8"><a href="https://www.apollographql.com/docs/react/get-started/">Apollo Client — Get started</a></li>
+    <li id="r9"><a href="https://www.apollographql.com/docs/react/caching/overview/">Apollo Client — Caching overview</a></li>
+    <li id="r10"><a href="https://www.apollographql.com/docs/federation/v2/">Apollo Federation — Overview</a></li>
+    <li id="r11"><a href="https://www.apollographql.com/docs/federation/v2/entities/">Apollo Federation — Entities</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Mission &amp; notes</span>
+  <span class="nav-next"><a href="../lessons/0001-why-a-graphql-api.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../NOTES.md">Notes</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

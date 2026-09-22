@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — The Schema Definition Language</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 10</span><span>Apollo GraphQL</span></div>
+  <h1>The Schema Definition Language (SDL)</h1>
+  <p class="subtitle">Every field your clients can ask for, written down once — the single source of truth for the whole layer.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>SDL is the text a schema is written in: you name <em>types</em> (records of typed <em>fields</em>), and the <em>root Query/Mutation</em> types name the entry points clients call.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The building blocks</h2>
+<pre><code>scalar DateTime
+
+enum OrderStatus { CREATED FULFILLED CANCELLED }
+
+type Book {
+  id: ID!
+  title: String!
+  price: Float
+  tags: [String!]!
+  author: Author!
+}
+
+type Author {
+  id: ID!
+  name: String!
+  books: [Book!]!
+}
+
+input BookFilter { minPrice: Float }
+
+type Query {
+  book(id: ID!): Book
+  books(filter: BookFilter): [Book!]!
+}
+</code></pre>
+<ul>
+  <li><strong>Scalars</strong> are leaves: <code>Int</code>, <code>Float</code>, <code>String</code>, <code>Boolean</code>, <code>ID</code> (plus any <code>scalar</code> you declare, like <code>DateTime</code>).<sup><a href="#r1">1</a></sup></li>
+  <li><strong>Object types</strong> (<code>Book</code>, <code>Author</code>) are made of fields; a relationship is just a field whose type is another object.</li>
+  <li><code>!</code> after a type = <strong>non-null</strong> — the field is promised never to be <code>null</code>.</li>
+  <li><code>[T]</code> = a list of <code>T</code>. Nest them: <code>[Book!]!</code> is a non-null list whose items are each non-null.</li>
+  <li><strong>Enum</strong> = an allowed set of string values, validated on both sides.</li>
+  <li><strong>Input</strong> (<code>input BookFilter</code>) = a type used <em>for arguments</em>, not returned in responses.</li>
+</ul>
+
+<h2>Nullability is a promise</h2>
+<p>Choose <code>!</code> deliberately. A non-null field that raises means the <em>whole response path up to the nearest nullable field</em> becomes an error. Nullable fields degrade gracefully; non-null fields make the schema honest but strict.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> The same schema documents the API for humans (Explorer), validates requests, and generates typed clients. Design it before you write resolvers.</aside>
+
+<h2>Interfaces &amp; unions for polymorphic data</h2>
+<pre><code>interface Node { id: ID! }
+type User implements Node { id: ID! name: String! }
+type Review implements Node { id: ID! body: String! }
+union SearchResult = Book | Author
+
+type Query {
+  node(id: ID!): Node
+  search(term: String!): [SearchResult!]!
+}
+</code></pre>
+<p>An <strong>interface</strong> promises a shared set of fields on every implementer; a <strong>union</strong> lists possible object types with no shared fields. Clients pick concrete members with inline fragments, e.g. <code>... on Book { title }</code>.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. In <code>tags: [String!]!</code>, the type means…</h4>
+  <button class="opt" data-fb="Correct — the list is always present and each item is always a non-null string.">a non-null list whose items are each non-null strings</button>
+  <button class="opt" data-fb="No — the exclamation marks are on the list and the item type, not the other way around.">a nullable list of strings that may each be null</button>
+  <button class="opt" data-fb="No — this makes both the list and each item required.">a non-null list that may contain null items</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. The reason an <code>input</code> type is used for arguments is that…</h4>
+  <button class="opt" data-fb="No — input types are for arguments, not for responses.">object types can only appear as field returns</button>
+  <button class="opt" data-fb="No — interfaces and unions are not allowed as argument shapes here.">objects cannot be passed by reference inside a query</button>
+  <button class="opt" data-fb="Correct — arguments need a value type, distinct from the types used for returns.">arguments need a value type, distinct from the types used for returns</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. When a non-null field's resolver raises, the error…</h4>
+  <button class="opt" data-fb="No — non-null means the field itself can never hold null, so the error must go elsewhere.">is swallowed and the field is returned as null</button>
+  <button class="opt" data-fb="Correct — it propagates to the nearest nullable field boundary.">propagates to the nearest nullable field boundary</button>
+  <button class="opt" data-fb="No — it only affects that one field among its siblings.">impacts only that field and leaves siblings untouched</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Work through <a href="https://www.apollographql.com/docs/apollo-server/schema/schema/">Apollo Server — Defining a schema</a> and skim the <a href="https://spec.graphql.org/October2021/">GraphQL spec</a> type section. Write a few tiny schemas by hand until the syntax is fluent.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Write an SDL for a small domain you know (e.g. a bookshop): two or three object types, one enum, one input, a list-plus-non-null field, and a root <code>Query</code>. Read it back and justify each <code>!</code> you placed.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.apollographql.com/docs/apollo-server/schema/schema/">Apollo Server — Defining a schema</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-why-a-graphql-api.html">← Lesson 1: Why a GraphQL API</a></span>
+  <span class="nav-next"><a href="0003-first-resolvers-on-apollo-server.html">Lesson 3: First resolvers →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/apollo-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

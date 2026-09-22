@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apollo GraphQL — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  .two-col { display: flex; flex-wrap: wrap; gap: 1.4rem; }
+  .two-col > div { flex: 1 1 46%; min-width: 18rem; }
+  code i { color: var(--accent); font-style: normal; }
+  td code, .q code { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Apollo GraphQL</span></div>
+  <h1>Apollo GraphQL Cheat Sheet</h1>
+  <p class="subtitle">The compressed essence of the course. Skim before a lesson, study it fully before an interview.</p>
+</header>
+
+<section>
+<h2>1. SDL — the schema language</h2>
+<pre><code>scalar DateTime
+
+enum OrderStatus { CREATED FULFILLED CANCELLED }
+
+type Book {
+  id: ID!
+  title: String!
+  price: Float          # nullable
+  tags: [String!]!      # non-null list of non-null strings
+  author: Author!       # references another object type
+}
+
+type Author {
+  id: ID!
+  name: String!
+  books: [Book!]!
+}
+
+input BookFilter { minPrice: Float, published: Boolean }
+
+interface Node { id: ID! }
+type User implements Node { id: ID! name: String! }
+union SearchResult = Book | Author
+
+# Three root operation types (below). Multiple are allowed:
+type Query {
+  book(id: ID!): Book
+  books(filter: BookFilter): [Book!]!
+  search(term: String!): [SearchResult!]!
+  node(id: ID!): Node
+}
+
+type Mutation { createBook(input: CreateBookInput!): Book }
+type Subscription { bookChanged: Book }</code></pre>
+<ul>
+  <li>Scalars: <code>Int Float String Boolean ID</code>. Custom scalars declared with <code>scalar</code>.<sup><a href="#r1">1</a></sup></li>
+  <li><code>!</code> = non-null; a non-null resolver that throws propagates to the nearest nullable parent.<sup><a href="#r1">1</a></sup></li>
+  <li>Arguments use <code>input</code> types (never objects/interface/union). </li>
+</ul>
+</section>
+
+<section>
+<h2>2. Apollo Server v4 — minimum server</h2>
+<pre><code># install
+npm i @apollo/server graphql
+
+import { ApolloServer } from '@apollo/server';
+import { startStandaloneServer } from '@apollo/server/standalone';
+
+const server = new ApolloServer({ typeDefs, resolvers });
+const { url } = await startStandaloneServer(server, {
+  context: async ({ req }) =&gt; ({
+    user: await getUserFromToken(req.headers.authorization),
+    db: dbClient,
+    loaders: makeLoaders(),
+  }),
+});
+console.log('GraphQL ready at', url);</code></pre>
+<ul>
+  <li><code>@apollo/server</code> (v4+) replaced <code>apollo-server</code> v3; <code>graphql</code> is a peer dep.<sup><a href="#r2">2</a></sup></li>
+  <li><code>typeDefs</code> = schema (SDL); <code>resolvers</code> = map of type → field → function.</li>
+  <li>The <code>context</code> return value becomes <code>contextValue</code> for every resolver in that request.<sup><a href="#r3">3</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>3. Resolvers</h2>
+<pre><code>const resolvers = {
+  Query: {
+    book: (_parent, { id }) =&gt; db.loadBook(id),
+    books: () =&gt; db.loadAllBooks(),
+  },
+  Mutation: {
+    createBook: (_parent, { input }, ctx) =&gt; db.createBook(input),
+  },
+  Book: {
+    // parent is the object the Query.Mutation resolver returned
+    price: (parent) =&gt; parent.priceInCents / 100,
+  },
+  Author: {
+    books: (author, _args, ctx) =&gt; ctx.loaders.authorBooks.load(author.id),
+  },
+};
+
+// signature: field(obj, args, contextValue, info)</code></pre>
+<ul>
+  <li><code>parent</code> = value returned by the parent resolver (documented first arg).<sup><a href="#r4">4</a></sup></li>
+  <li>No resolver for a field? Apollo calls the <em>default resolver</em>: reads <code>parent[fieldName]</code>.<sup><a href="#r4">4</a></sup></li>
+  <li>Nested data = write field resolvers that use the parent; do not fetch the whole graph in one root resolver.</li>
+</ul>
+</section>
+
+<section>
+<h2>4. Errors &amp; auth</h2>
+<pre><code>import { GraphQLError } from 'graphql';
+
+// resolver
+function mustBeAdmin(ctx) {
+  if (ctx.user.role !== 'ADMIN') {
+    throw new GraphQLError('Forbidden', { extensions: { code: 'FORBIDDEN' } });
+  }
+}
+// context
+context: async ({ req }) =&gt; ({
+  user: await verify(req.headers.authorization),
+})</code></pre>
+<ul>
+  <li>Throw <code>GraphQLError</code> with <code>extensions</code> for structured errors; the client sees them in the <code>errors</code> array.<sup><a href="#r5">5</a></sup></li>
+  <li>Authorization lives in resolvers (or a wrapper directive) and reads <code>contextValue.user</code>.<sup><a href="#r6">6</a></sup></li>
+  <li>Never put a live password/JWT secret in <code>contextValue</code>; store the verified user.</li>
+</ul>
+</section>
+
+<section>
+<h2>5. N+1 &amp; DataLoader</h2>
+<pre><code>import DataLoader from 'dataloader';
+
+async function batchUsers(ids) {
+  const rows = await db.loadUsers(ids);          // ONE query
+  return ids.map(id =&gt; rows.find(r =&gt; r.id === id));
+}
+
+function makeLoaders() {
+  return { users: new DataLoader(batchUsers) };
+}
+// make a fresh loader per request (contextValue) — never global.</code></pre>
+<ul>
+  <li><code>load(id)</code> calls within one tick merge into a single <code>batchLoadFn</code> call; results are cached per instance.<sup><a href="#r7">7</a></sup></li>
+  <li>Create loaders per request (in <code>context</code>) so cache never leaks across users/requests.</li>
+  <li>The <code>batchLoadFn</code> returns results in the same order as the input keys.</li>
+</ul>
+</section>
+
+<section>
+<h2>6. Apollo Client (web)</h2>
+<pre><code>import { ApolloClient, InMemoryCache, gql } from '@apollo/client';
+import { ApolloProvider, useQuery } from '@apollo/client';
+
+const client = new ApolloClient({ uri: 'https://api.example/graphql', cache: new InMemoryCache() });
+// wrap tree: &lt;ApolloProvider client={client}&gt;...&lt;/ApolloProvider&gt;
+
+const BOOK = gql`query Book($id: ID!) { book(id: $id) { id title price } }`;
+function BookCard({ id }) {
+  const { loading, error, data } = useQuery(BOOK, { variables: { id } });
+  if (loading) return &lt;p&gt;loading&lt;/p&gt;;
+  if (error) return &lt;p&gt;error: {error.message}&lt;/p&gt;;
+  return data.book.title;
+}</code></pre>
+<ul>
+  <li>Wrap with <code>ApolloProvider</code>; run operations with hooks.<sup><a href="#r8">8</a></sup></li>
+  <li><code>InMemoryCache</code> normalizes each object by <code>__typename</code> + <code>id</code>, deduping the same entity across queries.<sup><a href="#r9">9</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>7. Federation</h2>
+<pre><code># subgraph: @apollo/subgraph
+import { buildSubgraphSchema } from '@apollo/subgraph';
+const server = new ApolloServer({
+  schema: buildSubgraphSchema([{ typeDefs, resolvers }]),
+});
+
+# entity: an owning type with a key + reference resolver
+type Product @key(fields: "id") {
+  id: ID!
+  name: String!
+  price: Int
+}
+Product: { __resolveReference(ref) { return db.loadProduct(ref.id); } }
+
+# another subgraph contributes fields and matches on that key
+extend type Product @key(fields: "id") {
+  id: ID! @external
+  reviews: [Review!]!
+}</code></pre>
+<ul>
+  <li>Subgraphs compose into a supergraph; Apollo Router serves it and routes queries.<sup><a href="#r10">10</a></sup></li>
+  <li>Entities use <code>@key</code>; <code>__resolveReference</code> loads an entity from its key fields alone.<sup><a href="#r11">11</a></sup></li>
+  <li>The team that owns a field is the source of truth; other subgraphs <code>extend</code> and mark fields <code>@external</code>.</li>
+</ul>
+</section>
+
+<section>
+<h2>8. Design checklist</h2>
+<ul>
+  <li><strong>Schema first:</strong> design the contract in SDL, then write resolvers to satisfy it — never the reverse.</li>
+  <li><strong>Let the default resolver work:</strong> return plain domain objects; only write a field resolver when the field needs computation or a nested fetch.</li>
+  <li><strong>Prefer nullable over crashy:</strong> put non-null where a field is promised, but remember an exception propagates up to the first nullable boundary.</li>
+  <li><strong>Keep resolvers thin:</strong> they coordinate; business logic and DB access live in a service/loader layer behind them.</li>
+  <li><strong>Scope loaders per request</strong> and use DataLoader for list-of-nested lookups to beat N+1.</li>
+  <li><strong>Authenticate in context</strong> (once per request), authorize in resolvers, raise typed <code>GraphQLError</code>s with <code>extensions</code>.</li>
+  <li><strong>Design mutation returns as payloads</strong> that stay stable as fields grow, not raw scalar echoes that break on change.</li>
+  <li><strong>Federate at the boundary:</strong> split a graph by ownership into subgraphs only when teams/lifecycles genuinely diverge.</li>
+</ul>
+</section>
+
+<footer class="citation">
+  Primary sources: <a href="https://spec.graphql.org/October2021/">GraphQL Spec</a>,
+  <a href="https://www.apollographql.com/docs/apollo-server/getting-started/">Apollo Server Get started</a>,
+  <a href="https://www.apollographql.com/docs/apollo-server/data/resolvers/">Resolvers</a>,
+  <a href="https://www.apollographql.com/docs/react/caching/overview/">Apollo Client caching</a>,
+  <a href="https://www.apollographql.com/docs/federation/v2/">Federation</a>.
+  <ol>
+    <li id="r1"><a href="https://spec.graphql.org/October2021/">GraphQL — Specification</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/apollo-server/getting-started/">Apollo Server — Get started</a></li>
+    <li id="r3"><a href="https://www.apollographql.com/docs/apollo-server/data/context/">Apollo Server — Context</a></li>
+    <li id="r4"><a href="https://www.apollographql.com/docs/apollo-server/data/resolvers/">Apollo Server — Resolvers</a></li>
+    <li id="r5"><a href="https://www.apollographql.com/docs/apollo-server/data/errors/">Apollo Server — Errors</a></li>
+    <li id="r6"><a href="https://www.apollographql.com/docs/apollo-server/security/authentication/">Apollo Server — Authentication</a></li>
+    <li id="r7"><a href="https://github.com/graphql/dataloader">dataloader — README</a></li>
+    <li id="r8"><a href="https://www.apollographql.com/docs/react/get-started/">Apollo Client — Get started</a></li>
+    <li id="r9"><a href="https://www.apollographql.com/docs/react/caching/overview/">Apollo Client — Caching overview</a></li>
+    <li id="r10"><a href="https://www.apollographql.com/docs/federation/v2/">Apollo Federation — Overview</a></li>
+    <li id="r11"><a href="https://www.apollographql.com/docs/federation/v2/entities/">Apollo Federation — Entities</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="../lessons/0001-why-a-graphql-api.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

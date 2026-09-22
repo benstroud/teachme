@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — Arguments, Input Types &amp; Mutations</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 10</span><span>Apollo GraphQL</span></div>
+  <h1>Arguments, Input Types &amp; Mutations</h1>
+  <p class="subtitle">Data enters through arguments and changes through mutations — shaped by input types so the boundary stays typed and stable.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Fields take <em>arguments</em> (grouped into <code>input</code> types), and writes go through <code>type Mutation</code> — whose resolvers run serially and return a payload the client can read back.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Arguments on a query</h2>
+<pre><code>type Query {
+  book(id: ID!): Book
+  books(filter: BookFilter): [Book!]!
+}
+
+type Mutation {
+  createBook(input: CreateBookInput!): CreateBookPayload!
+}
+
+input BookFilter { minPrice: Float, published: Boolean }
+input CreateBookInput { title: String!, authorId: ID!, price: Float }</code></pre>
+<pre><code>const resolvers = {
+  Query: {
+    book: (_parent, { id }) =&gt; db.loadBook(id),
+    books: (_parent, { filter }) =&gt; db.queryBooks(filter),
+  },
+  Mutation: {
+    createBook: async (_parent, { input }, ctx) =&gt; {
+      const book = await db.createBook(input, ctx.user.id);
+      return { code: 'OK', book };
+    },
+  },
+};
+// client: mutation CreateBook($input: CreateBookInput!) { createBook(input: $input) { code book { id title } } }</code></pre>
+
+<h2>Design decisions that matter</h2>
+<ul>
+  <li><strong>Arguments live on the field.</strong> A nested field can take arguments too (e.g. <code>author { books(first: 5) }</code>). Its resolver uses both <code>parent</code> and <code>args</code>.</li>
+  <li><strong>Group related arguments into an <code>input</code> type</strong> rather than a dozen flat arguments — it stays extensible and readable.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>Return a payload, not a bare scalar.</strong> A <code>createBook</code> that returns just <code>Book</code> breaks the moment you need to also report <code>code</code> or warnings. A payload type grows without breaking clients.<sup><a href="#r2">2</a></sup></li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> Mutations are where state changes must be explicit. Return enough (the object plus a result code) so clients can react; treat errors as structured data when practical rather than only as transport failures.</aside>
+
+<h2>Single responsibility on write paths</h2>
+<p>Keep the resolver thin: it validates against the schema (done for you), checks authorization (later lessons), calls one service function, and shapes the payload. No business logic in the resolver itself; you want it to read as a coordination call, not a program.<sup><a href="#r2">2</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. An <code>input</code> type is appropriate for…</h4>
+  <button class="opt" data-fb="No — return types are object types, which inputs are not.">the shape a query or mutation returns</button>
+  <button class="opt" data-fb="Correct — inputs group the arguments that operations pass to fields.">grouping the arguments an operation passes to a field</button>
+  <button class="opt" data-fb="No — enums are for a fixed set of allowed values, not grouped arguments.">declaring a fixed set of allowed values</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The mutation resolver reads the caller's intent from…</h4>
+  <button class="opt" data-fb="Correct — args holds the operation's coerced arguments for that field.">args, which holds the operation's arguments for the field</button>
+  <button class="opt" data-fb="No — contextValue is the shared per-request object, not the request payload.">parent, which holds the value from the caller's parent field</button>
+  <button class="opt" data-fb="No — info holds execution state, not the mutation's arguments.">info, which captures the query execution state</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. Returning a payload object instead of a bare entity is better because…</h4>
+  <button class="opt" data-fb="No — payload types are about growth, not fewer bytes.">it keeps the wire format smaller on the network</button>
+  <button class="opt" data-fb="No — a bare entity is exactly what the serializer handles most easily.">it avoids a resolver entirely for the mutation</button>
+  <button class="opt" data-fb="Correct — a payload can add result fields later without breaking clients.">it can add result fields later without breaking clients</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Confirm argument, input-type, and mutation behavior in <a href="https://graphql.org/learn/queries/">GraphQL — Queries and mutations</a>, then Apollo's <a href="https://www.apollographql.com/docs/apollo-server/schema/schema/">schema</a> page for payload/root-type guidance.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Design a <code>updateBook(id: ID!, input: UpdateBookInput!): UpdateBookPayload!</code> mutation for the bookshop. Write the input type, the payload type, and a thin resolver that calls one service function. Justify why the payload exists.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://graphql.org/learn/queries/">GraphQL — Queries and mutations</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/apollo-server/schema/schema/">Apollo Server — Defining a schema</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-the-resolver-chain.html">← Lesson 4: The resolver chain</a></span>
+  <span class="nav-next"><a href="0006-context-authentication-and-authorization.html">Lesson 6: Context &amp; auth →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/apollo-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

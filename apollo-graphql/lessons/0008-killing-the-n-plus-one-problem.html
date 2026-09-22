@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — Killing the N+1 Problem</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 10</span><span>Apollo GraphQL</span></div>
+  <h1>Killing the N+1 Problem</h1>
+  <p class="subtitle">A list of objects each loads its children per item — N+1 queries for one request. DataLoader coalesces them into one.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>When a resolver loads data per item inside a list, that's <code>N</code> extra queries; a <strong>DataLoader</strong> collects the requested keys for a tick, runs <em>one</em> batch query, and hands results back per key while caching within the request.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Seeing the problem</h2>
+<pre><code>// Given: query books { id title } { author { name } }
+const resolvers = {
+  Query: { books: () =&gt; loadBooks() },       // 1 query
+  Book: {
+    author: (book) =&gt; loadAuthor(book.authorId),  // N queries, one per book
+  },
+};</code></pre>
+<p>A <code>books</code> of 50 items triggers 1 + 50 = 51 queries. This is the N+1 problem and it is the most common GraphQL performance bug.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Batching with a DataLoader</h2>
+<pre><code>import DataLoader from 'dataloader';
+
+async function batchAuthors(ids) {
+  const rows = await loadAuthorsByIds(ids);   // ONE query with IN (ids)
+  const byId = new Map(rows.map(r =&gt; [r.id, r]));
+  return ids.map(id =&gt; byId.get(id) ?? null);
+}
+
+function makeLoaders() {
+  return { authors: new DataLoader(batchAuthors) };
+}
+
+const resolvers = {
+  Book: {
+    // inside a single tick, all these load() calls share ONE batch
+    author: (book, _args, ctx) =&gt; ctx.loaders.authors.load(book.authorId),
+  },
+};</code></pre>
+<ul>
+  <li><code>load(key)</code> calls made during one microtask drain are grouped into a single <code>batchLoadFn</code> invocation.<sup><a href="#r1">1</a></sup></li>
+  <li>The batch function must return results <em>in the same order</em> as the input keys.</li>
+  <li>Results are cached on the loader, so the same key fetched twice in a request hits the DB once.</li>
+</ul>
+
+<h2>The cache must be per-request</h2>
+<pre><code>// in the context function — a FRESH loader for THIS request only
+context: async ({ req }) =&gt; ({
+  user, db, loaders: makeLoaders(),
+})</code></pre>
+<p><strong>Never store the loader globally.</strong> Its cache would serve one user's data to the next user and would go stale across requests. Create loaders in <code>context</code>, per request, so the cache's lifetime equals the request's lifetime.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> N+1 shows up exactly where you resolved a nested field from the parent (it's a strength — the field is composable) — the cure is to batch, not to give up composition. DataLoader sits at the loader-layer boundary, not in the resolver's business logic.</aside>
+
+<h2>When batching is unnecessary</h2>
+<ul>
+  <li>If the parent already carries the children (e.g. a join fetched everything), a field resolver that re-queries is pure waste — use the default resolver.</li>
+  <li>For genuinely one-off lookups (a single <code>book(id)</code>), a loader adds little; reserve it for list-of-nested lookups.</li>
+</ul>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. The N+1 problem refers to…</h4>
+  <button class="opt" data-fb="No — it is about the per-item queries, not the response size.">sending oversized JSON payloads over the network</button>
+  <button class="opt" data-fb="Correct — one list query plus one extra query per list item.">one list query plus one extra query per list item</button>
+  <button class="opt" data-fb="No — it is a query-shape issue, not a recursive schema issue.">recursive types that resolve infinitely</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. DataLoader fixes N+1 by…</h4>
+  <button class="opt" data-fb="Correct — load() calls in one tick share a single batched query to the source.">coalescing load() calls in one tick into a single batched query</button>
+  <button class="opt" data-fb="No — it dedupes/caches; it does not push queries back into the schema layer.">deferring all queries to a background job queue</button>
+  <button class="opt" data-fb="No — DataLoader returns by key order; it does not reorder the schema.">reordering fields so lookups happen first</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. A DataLoader instance should be created per request because…</h4>
+  <button class="opt" data-fb="No — it caches, so cross-request sharing would leak stale/value data.">it is faster to reuse one shared instance forever</button>
+  <button class="opt" data-fb="No — a global cache would be shared and stale, not more consistent.">the database requires a fresh instance per connection</button>
+  <button class="opt" data-fb="Correct — its cache must not leak one user's or one request's data into another.">its cache must not leak data across requests or users</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://github.com/graphql/dataloader">dataloader</a> README in full (batching, caching, ordering, per-request scope), and Apollo's <a href="https://www.apollographql.com/docs/apollo-server/data/fetching-data/">fetching data</a> page for its N+1 guidance.</p>
+
+<div class="ask"><strong>Ask the agent</strong> For the bookshop, write a batch that loads <code>Author.books</code> (a one-to-many join: a list of books per author). Define the loader, the batch function returning arrays in the same order as keys, and how the resolver uses it. Run it mentally on <code>authors { name books { title } }</code> and count the queries before and after.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://github.com/graphql/dataloader">dataloader — README</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/apollo-server/data/fetching-data/">Apollo Server — Fetching data</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-integrating-a-data-layer.html">← Lesson 7: Data layer</a></span>
+  <span class="nav-next"><a href="0009-apollo-client-and-caching.html">Lesson 9: Apollo Client →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/apollo-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

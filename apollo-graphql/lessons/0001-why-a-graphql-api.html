@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — Why a GraphQL API</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 10</span><span>Apollo GraphQL</span></div>
+  <h1>Why a GraphQL API</h1>
+  <p class="subtitle">A client and a server agree on a shape — the client asks for exactly the fields it wants, and the server is bound to return that shape.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>GraphQL is a <em>query language and a runtime contract</em>: the client sends a selection of fields, and the server answers with <em>exactly</em> that selection — no more, no less.<sup><a href="#r1">1</a></sup> Apollo is the toolset (server library, client library, gateway, and composition tooling) for building and operating that layer in TypeScript.</p>
+
+<h2>Where it belongs: the client-facing edge</h2>
+<p>Your API sits between many clients (web, mobile) and your data or services. REST gives you <em>fixed routes per resource</em>; each screen often needs a different blend of that data, so you end up with either a fat payload (over-fetching) or several round-trips (under-fetching). A GraphQL layer lets each client state its exact needs in one request.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> GraphQL is not "one endpoint for everything". It is a typed contract: the schema names every field and its type, so a bad request fails at the type level, before a database is ever touched.</aside>
+
+<h2>What a GraphQL layer gives you</h2>
+<table>
+  <tr><th>Property</th><th>What it means in practice</th></tr>
+  <tr><td>Schema-first contract</td><td>The schema (written in SDL) is the single source of truth for every field, type, and relationship.</td></tr>
+  <tr><td>Client-driven selection</td><td>Each client fetches the exact fields it renders; over/under-fetching disappears by design.</td></tr>
+  <tr><td>Type safety &amp; validation</td><td>Queries are validated against the schema before execution; the same schema drives codegen for clients.</td></tr>
+  <tr><td>One round-trip</td><td>A single request composes many resources (author + books + reviews) into one response.</td></tr>
+  <tr><td>Strong tooling</td><td>Apollo's Explorer, Apollo Client's cache, and the Router turn the contract into a managed layer.</td></tr>
+</table>
+
+<h2>When NOT to reach for it</h2>
+<ul>
+  <li><strong>Tiny, fixed, cache-heavy public APIs</strong> — a plain REST/JSON API is simpler, and HTTP caching is easier to reason about. GraphQL's flexibility is a cost if you have one screen.<sup><a href="#r2">2</a></sup></li>
+  <li><strong>When clients are generic/unruly</strong> and you cannot count on them declaring typed selections.</li>
+  <li><strong>For server-to-server, service-to-service calls</strong> where both ends are internal and you control them — that hop needs a different, more binding protocol than a client query language.</li>
+</ul>
+
+<h2>The Apollo toolset at a glance</h2>
+<table>
+  <tr><th>Piece</th><th>Role</th></tr>
+  <tr><td>Apollo Server</td><td>The Node library that turns a schema + resolvers into a running GraphQL endpoint.</td></tr>
+  <tr><td>Apollo Client</td><td>A browser data layer: runs operations and caches results (v4).</td></tr>
+  <tr><td>Apollo Router</td><td>A high-performance graph gateway that serves a composed schema to clients.</td></tr>
+  <tr><td>Apollo Federation</td><td>The model for splitting one graph across many subgraphs and composing them into a supergraph.<sup><a href="#r3">3</a></sup></td></tr>
+</table>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. The core reason GraphQL fits a client-facing API layer is that…</h4>
+  <button class="opt" data-fb="No — that is a benefit of REST's fixed routes and shared caches.">it caches every response in shared HTTP caches</button>
+  <button class="opt" data-fb="Correct — each client declares the exact fields it needs, so it neither over- nor under-fetches.">each client asks for exactly the fields it needs in one request</button>
+  <button class="opt" data-fb="No — flexibility is a cost: a fixed one-screen API is usually simpler as REST.">it always reduces total server code versus plain REST</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The schema's role in a GraphQL layer is to…</h4>
+  <button class="opt" data-fb="Correct — the schema names every field and type and validates requests against it.">name every field and type, and validate requests before execution</button>
+  <button class="opt" data-fb="No — the schema describes data, it does not itself touch storage.">connect directly to the database and cache rows</button>
+  <button class="opt" data-fb="No — the schema is the contract, not an access-log or audit trail.">record which clients accessed which resources</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. Apollo Server's role in the toolset is to…</h4>
+  <button class="opt" data-fb="No — that is Apollo Client, which runs in the browser.">run queries in the browser and cache results</button>
+  <button class="opt" data-fb="No — that is Apollo Router, the graph gateway.">route requests across many GraphQL services</button>
+  <button class="opt" data-fb="Correct — it turns a schema and resolvers into a running GraphQL endpoint.">turn a schema and resolvers into a running GraphQL endpoint</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>The official orientation: <a href="https://graphql.org/learn/">GraphQL — Learn</a>. It walks the mental model (queries, schemas, validation) that anchors this whole course, and <a href="https://www.apollographql.com/docs/">Apollo Docs</a> shows where each tool fits.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Take one screen you have built (say, a profile page that shows a user, their recent orders, and review counts). Sketch what a REST client would have to fetch, then sketch the single GraphQL query a client would send for the same screen. Name the over- or under-fetching you spot in the REST version.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://spec.graphql.org/October2021/">GraphQL — Specification</a></li>
+    <li id="r2"><a href="https://graphql.org/learn/">GraphQL — Learn</a></li>
+    <li id="r3"><a href="https://www.apollographql.com/docs/federation/v2/">Apollo Federation — Overview</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="0002-the-schema-definition-language.html">Lesson 2: SDL →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/apollo-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

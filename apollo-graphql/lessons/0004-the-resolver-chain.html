@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — The Resolver Chain</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 10</span><span>Apollo GraphQL</span></div>
+  <h1>The Resolver Chain</h1>
+  <p class="subtitle">Execution walks parent → child: each resolver hands its returned object to the next field's resolver.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A resolver's signature is <code>field(obj, args, contextValue, info)</code> — and the first argument (<code>parent</code>) is the object the <em>parent</em> resolver returned, so nested fields can reach out and resolve against it.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The four arguments</h2>
+<table>
+  <tr><th>Argument</th><th>What it holds</th></tr>
+  <tr><td><code>parent</code></td><td>The value the parent resolver returned; <code>undefined</code> for root <code>Query</code>/<code>Mutation</code> fields.</td></tr>
+  <tr><td><code>args</code></td><td>The operation's arguments for this field, validated and coerced against the schema.</td></tr>
+  <tr><td><code>contextValue</code></td><td>A per-request object (from the <code>context</code> function) shared by every resolver.</td></tr>
+  <tr><td><code>info</code></td><td>Execution state: the query AST, path, operation name. Read it rarely.</td></tr>
+</table>
+<sup><a href="#r1">1</a></sup>
+
+<h2>Tracing a nested query</h2>
+<pre><code>const Books = [
+  { id: '1', title: 'The Awakening', authorId: 'a1' },
+  { id: '2', title: 'City of Glass', authorId: 'a2' },
+];
+const Authors = { a1: { id: 'a1', name: 'Kate Chopin' }, a2: { id: 'a2', name: 'Paul Auster' } };
+
+const resolvers = {
+  Query: { books: () =&gt; Books },
+  Book: {
+    // parent = one Book from the Query.books return
+    author: (book) =&gt; Authors[book.authorId],
+  },
+};
+// query: { books { title author { name } } }</code></pre>
+<p>Apollo Server calls <code>Query.books</code> → an array of <code>Book</code>. For each book it resolves the requested fields: <code>title</code> via the <em>default resolver</em> (it reads <code>book.title</code>), then <code>author</code> via your field resolver, which returns an <code>Author</code> — whose <code>name</code> is again resolved by default from <code>author.name</code>.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The default resolver</h2>
+<p>If no resolver is defined for a field, Apollo Server uses the default: it reads <code>parent[fieldName]</code>. This is why returning a plain object from a parent resolver often "just works" — you only write a field resolver when the field needs computation or a nested fetch that isn't already shaped in the parent.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Each level is a function of the level above it. This is why you resolve nested data <em>from the parent</em> (field resolvers), never by fetching the entire graph inside one root resolver.</aside>
+
+<h2>Reads can go parallel; mutations cannot</h2>
+<p>Within one operation, sibling query fields may resolve in parallel, but the <em>fields of a mutation</em> run serially, in order, so each sees the effect of the previous one.<sup><a href="#r2">2</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Inside a <code>Book.author</code> resolver, <code>parent</code> is…</h4>
+  <button class="opt" data-fb="No — that is info, which carries execution state and the query AST.">the full query and its variables</button>
+  <button class="opt" data-fb="Correct — it is the Book object that the Query resolver returned.">the Book object returned by the parent Query resolver</button>
+  <button class="opt" data-fb="No — contextValue is the shared per-request object provided by the context function.">the shared contextValue built for this request</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The default resolver is invoked…</h4>
+  <button class="opt" data-fb="Correct — when there is no field resolver, it reads parent[fieldName].">when no resolver is defined, reading parent[fieldName]</button>
+  <button class="opt" data-fb="No — it reads from the parent object, not from the database.">when a resolver throws, falling back to the database</button>
+  <button class="opt" data-fb="No — it is a fallback for missing resolvers, not a caching layer.">on every request to cache previous results</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. Mutations run serially while query fields may run in parallel because…</h4>
+  <button class="opt" data-fb="No — the serial rule applies to mutations, not queries.">queries cannot safely be parallelized at all</button>
+  <button class="opt" data-fb="No — it is the opposite: mutations are the serial ones.">mutations can run in parallel to speed up writes</button>
+  <button class="opt" data-fb="Correct — each mutation must observe the previous one's side effects in order.">each mutation must see the side effects of the one before it</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://www.apollographql.com/docs/apollo-server/data/resolvers/">Apollo Server — Resolvers</a> for the full resolver contract and chain semantics, and the <a href="https://spec.graphql.org/October2021/">GraphQL spec</a> section on execution for why fields resolve in this order.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Add an <code>Author.books</code> resolver to the sample above (so <code>author { name books { title } }</code> works from either direction). Trace the full chain for one author, naming which fields use field resolvers and which use the default.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.apollographql.com/docs/apollo-server/data/resolvers/">Apollo Server — Resolvers</a></li>
+    <li id="r2"><a href="https://spec.graphql.org/October2021/">GraphQL — Specification (execution)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-first-resolvers-on-apollo-server.html">← Lesson 3: First resolvers</a></span>
+  <span class="nav-next"><a href="0005-arguments-input-types-and-mutations.html">Lesson 5: Arguments &amp; mutations →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/apollo-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

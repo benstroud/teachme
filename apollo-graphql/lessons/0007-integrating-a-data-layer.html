@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — Integrating a Data Layer</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 10</span><span>Apollo GraphQL</span></div>
+  <h1>Integrating a Data Layer</h1>
+  <p class="subtitle">The schema promises a shape; the data layer holds the truth. A thin loader/service boundary maps one to the other so resolvers stay thin.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Resolvers are <em>coordinators</em>: they translate schema fields to calls on a service/loader layer, never reach into SQL/HTTP themselves — so your GraphQL layer and your storage stay decoupled.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The seam between schema and data</h2>
+<pre><code>// userLoader.ts  — the only place that knows about the table/client
+const db = postgresClient;   // Prisma, pg, whatever the project uses
+
+export function loadBook(id) {
+  return db.book.findUnique({ where: { id } });
+}
+export function queryBooks(filter) {
+  return db.book.findMany({
+    where: { price: { gte: filter?.minPrice }, published: filter?.published },
+  });
+}
+
+// resolvers.ts  — thin, only maps fields to loader calls
+const resolvers = {
+  Query: {
+    book: (_p, { id }) =&gt; loadBook(id),
+    books: (_p, { filter }) =&gt; queryBooks(filter),
+  },
+};</code></pre>
+<p>The resolver returns rows that already map 1:1 to schema fields, so the default resolver fills most of the response. You write an explicit field resolver only for computed fields or joins the row does not already carry.</p>
+
+<h2>Three integration shapes</h2>
+<table>
+  <tr><th>Source</th><th>Pattern</th></tr>
+  <tr><td>Database (Prisma, pg, DynamoDB)</td><td>A query/loader module the resolvers call; rows usually map cleanly to schema types.</td></tr>
+  <tr><td>Another service (HTTP)</td><td>A thin client that fetches the external resource; the resolver awaits it and returns mapped data.</td></tr>
+  <tr><td>Computed/derived fields</td><td>Explicit field resolvers on the type (e.g. <code>price</code> from <code>priceInCents</code>).</td></tr>
+</table>
+
+<h2>Rules of thumb</h2>
+<ul>
+  <li><strong>Keep the loader layer the only place that knows storage.</strong> If your ORM changes, resolvers don't.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>Return domain-shaped objects.</strong> Prefer rows that already carry the field names your schema expects, so the default resolver does the work for free.</li>
+  <li><strong>Watch the per-item joins.</strong> A <code>Book.author</code> resolver that queries per book is where the N+1 problem sneaks in — that is resolved next lesson.</li>
+  <li><strong>Put shared deps on context.</strong> The DB client and loaders live in <code>contextValue</code>, constructed per request (see the context lesson).</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> The schema is your contract, the data layer is your storage, and resolvers are the thin translators between them. Resist writing SQL inside a resolver — that couples today's query to tomorrow's schema changes.</aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. The main reason to keep storage behind a loader layer is that…</h4>
+  <button class="opt" data-fb="No — the decoupling is about change, not about response speed.">it always makes queries run measurably faster</button>
+  <button class="opt" data-fb="Correct — a schema change or storage swap won't force resolver rewrites.">schema or storage changes won't force resolver rewrites</button>
+  <button class="opt" data-fb="No — that is the schema's job, not the loader's.">it automatically generates the schema SDL</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. When rows map 1:1 to schema fields, you mostly…</h4>
+  <button class="opt" data-fb="No — that is for computed or join fields, not the common case.">write a field resolver for every single field</button>
+  <button class="opt" data-fb="No — resolvers still coordinate the load of each object/list.">skip the Query resolvers entirely</button>
+  <button class="opt" data-fb="Correct — rely on the default resolver to fill each field from the row.">rely on the default resolver to fill each field from the row</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. A resolver that queries per item inside a loop is a warning sign for…</h4>
+  <button class="opt" data-fb="Correct — it is the classic N+1 pattern, addressed by batching loaders.">the N+1 problem, addressed by batching loaders later</button>
+  <button class="opt" data-fb="No — this is a data-access shape, not a type-definition concern.">a nullability error in the SDL</button>
+  <button class="opt" data-fb="No — it is about data volume, not about response serialization.">oversized JSON responses on the wire</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Apollo's <a href="https://www.apollographql.com/docs/apollo-server/data/fetching-data/">Fetching data</a> overview frames this boundary, and the duplicate-key/loader packaging it links to is the foundation of the next lesson.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Outline a small bookshop data layer: a <code>userLoader</code> and a <code>bookLoader</code> (say two functions each), and the resolver maps that call them. Point out which resolver returns join data that will need a batch loader.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.apollographql.com/docs/apollo-server/data/fetching-data/">Apollo Server — Fetching data</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-context-authentication-and-authorization.html">← Lesson 6: Context &amp; auth</a></span>
+  <span class="nav-next"><a href="0008-killing-the-n-plus-one-problem.html">Lesson 8: N+1 &amp; DataLoader →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/apollo-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
