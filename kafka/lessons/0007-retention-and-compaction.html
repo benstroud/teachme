@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — Retention &amp; Log Compaction</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 9</span><span>Apache Kafka</span></div>
+  <h1>Retention &amp; Log Compaction</h1>
+  <p class="subtitle">Events don't vanish after being read — how long they stay, and two very different cleanup policies.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Kafka keeps events in the log until a cleanup policy removes them: either <strong>deletion</strong> by time/size for event streams, or <strong>compaction</strong> that keeps only the latest value per key for state.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Retention: delete by time or size</h2>
+<ul>
+  <li>By <strong>time</strong> (<code>retention.ms</code>): events older than N are removed.</li>
+  <li>By <strong>size</strong> (<code>retention.bytes</code>): drop the oldest once the partition exceeds N.</li>
+  <li>Delete-based retention is the default — good for streams of events you replay only short-term.</li>
+</ul>
+<p>Retention is <em>when data disappears</em>; the more history you keep, the longer consumers can re-read it.</p>
+
+<h2>Compaction: keep the latest per key</h2>
+<p>With <strong>log compaction</strong>, Kafka keeps, for each key, the latest value, dropping older versions. The log "compacts" to the current state of every key — like a changelog that only preserves the newest row.<sup><a href="#r1">1</a></sup></p>
+<pre><code>compacted topic:
+  key=user:1 value={name: "Ada"}
+  key=user:2 value={name: "Bob"}
+  key=user:1 value={name: "Ada Lovelace"}   // newer; old user:1 value dropped</code></pre>
+
+<h2>Choosing delete vs compact</h2>
+<ul>
+  <li><strong>Delete</strong> for event streams you want to replay for a window, then discard (click streams, logs).</li>
+  <li><strong>Compact</strong> for state-like topics where each key's current value is what matters (a service's current config, a user's latest profile) — even if consumers are far behind.<sup><a href="#r1">1</a></sup></li>
+</ul>
+
+<h2>Why this powers event sourcing</h2>
+<p>Kafka can hold the full event history (delete, long retention) and separately a compacted projection — the classic event-sourcing pair. The durable, replayable log from Lesson 1 is exactly what retention gives you.</p>
+
+<aside class="note"><strong>Key idea</strong> Pick cleanup by what the topic <em>is</em>: a stream of events → delete after a window; a set of current values → compact by key. Getting this wrong is a classic cause of "why did my history vanish" or "why does the log never shrink."</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Delete-based retention removes events…</h4>
+  <button class="opt" data-fb="No — consumers never delete; cleanup is time/size based.">as soon as they're consumed</button>
+  <button class="opt" data-fb="Correct — by age or by the partition's size.">by age or size</button>
+  <button class="opt" data-fb="No — that is compaction, not time-based deletion.">by keeping latest per key</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. Log compaction keeps…</h4>
+  <button class="opt" data-fb="No — compaction keeps one row per key, not all events.">all events forever</button>
+  <button class="opt" data-fb="No — it keeps the latest per key, discarding older versions.">only events under 1 MB</button>
+  <button class="opt" data-fb="Correct — the latest value for each key.">the latest value per key</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. A topic of current user profiles is best cleaned with…</h4>
+  <button class="opt" data-fb="Correct — you want each user's latest profile, compact.">log compaction</button>
+  <button class="opt" data-fb="No — time-delete would throw away the current state.">time-based deletion</button>
+  <button class="opt" data-fb="No — there is no auto-archive in the core log.">automatic archiving</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://kafka.apache.org/documentation/">Log Compaction</a> section of the official docs for the compact vs delete semantics.</p>
+
+<div class="ask"><strong>Ask the agent</strong> You have two topics: "clicks" and "user-settings." Decide delete vs compact for each, then explain what a consumer that starts late would see on the compacted topic versus the delete-based one.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://kafka.apache.org/documentation/">Apache Kafka — Documentation (Log Compaction)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-delivery-semantics.html">← Lesson 6: Delivery semantics</a></span>
+  <span class="nav-next"><a href="0008-the-ecosystem.html">Lesson 8: The ecosystem →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/kafka-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>

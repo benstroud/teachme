@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apache Kafka — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  .two-col { display: flex; flex-wrap: wrap; gap: 1.4rem; }
+  .two-col > div { flex: 1 1 46%; min-width: 18rem; }
+  code i { color: var(--accent); font-style: normal; }
+  td code, .q code { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Apache Kafka</span></div>
+  <h1>Kafka Cheat Sheet</h1>
+  <p class="subtitle">The compressed essence of the course. Skim before a lesson, study it fully before an interview.</p>
+</header>
+
+<section>
+<h2>1. The mental model</h2>
+<p>Kafka is a distributed, append-only <strong>commit log</strong> of events. Events are durable, replayable, <em>ordered per partition</em>, and readable by many consumers — more than a queue, less than a database.<sup><a href="#r1">1</a></sup></p>
+<pre><code>producer --&gt; topic:partitions (append-only log) --&gt; consumers (by offset)</code></pre>
+</section>
+<section>
+<h2>2. Core pieces</h2>
+<table>
+  <tr><th>Term</th><th>What it is</th></tr>
+  <tr><td>Event</td><td>An action recorded as notification + small state (JSON/Avro/Protobuf).<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Topic</td><td>A named channel events are written to and subscribed from.</td></tr>
+  <tr><td>Partition</td><td>An ordered, append-only shard of a topic; unit of parallelism.</td></tr>
+  <tr><td>Offset</td><td>Monotonic id per event in a partition, never reused.<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td>Broker</td><td>A server in the cluster storing partitions.</td></tr>
+  <tr><td>Producer / Consumer</td><td>Clients that write / read events.</td></tr>
+  <tr><td>Consumer group</td><td>Consumers splitting a topic: each partition to one member.<sup><a href="#r2">2</a></sup></td></tr>
+</table>
+</section>
+
+<section>
+<h2>3. Ordering &amp; keys</h2>
+<pre><code>// ordering is PER-PARTITION, not per-topic
+// a key routes an event to the same partition = per-key ordering
+producer.send(record(key = userId, value))  // same user, same partition, ordered</code></pre>
+<p>More partitions = more parallelism, but ordering is only within a partition. Pick partition count for scale, not "more is better."</p>
+</section>
+
+<section>
+<h2>4. Replication &amp; durability</h2>
+<table>
+  <tr><th>Setting</th><th>Meaning</th></tr>
+  <tr><td>replication.factor</td><td>Copies of each partition across brokers.</td></tr>
+  <tr><td>leader / followers</td><td>One leader serves reads/writes; followers stay in sync.</td></tr>
+  <tr><td>ISR</td><td>In-sync replicas; only these can be leader.<sup><a href="#r3">3</a></sup></td></tr>
+  <tr><td>min.insync.replicas</td><td>How many ISR must ack a write to accept it.</td></tr>
+  <tr><td>acks</td><td>Producer durability: <code>0</code> / <code>1</code> / <code>all</code>.<sup><a href="#r4">4</a></sup></td></tr>
+</table>
+</section>
+
+<section>
+<h2>5. Delivery semantics</h2>
+<ul>
+  <li><strong>At-most-once</strong> — possible loss, no duplicates (acks=0).</li>
+  <li><strong>At-least-once</strong> — no loss, possible duplicates (default).</li>
+  <li><strong>Exactly-once</strong> — idempotent producer + transactions.<sup><a href="#r4">4</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>6. Consumers &amp; offsets</h2>
+<pre><code>// consumer commits its position so it resumes after a restart
+consume() -&gt; process() -&gt; commit(offset)
+// commit AFTER processing = at-least-once (reprocess on crash);
+// commit BEFORE = at-most-once</code></pre>
+<p>Rebalancing reassigns partitions when group membership changes.</p>
+</section>
+
+<section>
+<h2>7. Retention &amp; compaction</h2>
+<ul>
+  <li><strong>Delete</strong> — drop events after retention.ms / bytes (default).</li>
+  <li><strong>Compact</strong> — keep only the latest value per key (state-like topics).<sup><a href="#r5">5</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>8. Ecosystem &amp; choosing</h2>
+<ul>
+  <li><strong>Kafka Streams</strong> — stateful processing in Java; <strong>Connect</strong> — integrations; <strong>Schema Registry</strong> — schema governance.</li>
+  <li>Use Kafka when you need <strong>replayable, ordered, multi-consumer history</strong>; a managed option on AWS is <strong>MSK</strong>.<sup><a href="#r6">6</a></sup></li>
+  <li>Prefer a queue (SQS) when one consumer does each job once; prefer Kafka when many consumers each need the same ordered events.</li>
+</ul>
+</section>
+
+<section>
+<h2>9. Design checklist</h2>
+<ul>
+  <li><strong>Keys determine ordering</strong> — choose your partition key so related events land together.</li>
+  <li><strong>Set acks + min.insync together</strong> — <code>acks=all</code> is only meaningful with a replication factor ≥ 2.</li>
+  <li><strong>Consumers: commit after processing</strong> for at-least-once; make the work idempotent.</li>
+  <li><strong>Right retention per topic</strong> — delete for raw streams, compact for state.</li>
+  <li><strong>Reach for Kafka for history</strong>, not for jobs a single consumer should do once.</li>
+</ul>
+</section>
+
+<footer class="citation">
+  Primary sources: <a href="https://kafka.apache.org/documentation/">Apache Kafka Documentation</a>,
+  <a href="https://kafka.apache.org/documentation/#semantics">Message Delivery Guarantees</a>,
+  <a href="https://kafka.apache.org/quickstart">Quickstart</a>.
+  <ol>
+    <li id="r1"><a href="https://developer.confluent.io/what-is-apache-kafka/">Confluent — Intro to Apache Kafka</a></li>
+    <li id="r2"><a href="https://developer.confluent.io/learn-kafka/architecture/">Confluent — Kafka Architecture</a></li>
+    <li id="r3"><a href="https://kafka.apache.org/documentation/">Apache Kafka — Replication</a></li>
+    <li id="r4"><a href="https://kafka.apache.org/documentation/#semantics">Apache Kafka — Delivery Semantics</a></li>
+    <li id="r5"><a href="https://kafka.apache.org/documentation/">Apache Kafka — Log Compaction</a></li>
+    <li id="r6"><a href="https://aws.amazon.com/msk/">Amazon MSK</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="../lessons/0001-why-kafka.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

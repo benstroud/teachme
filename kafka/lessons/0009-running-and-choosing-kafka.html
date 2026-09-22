@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 9 — Running &amp; Choosing Kafka</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 9 of 9</span><span>Apache Kafka</span></div>
+  <h1>Running &amp; Choosing Kafka</h1>
+  <p class="subtitle">How a Kafka cluster runs today, how to run it on AWS, and the decisions that decide when to use it.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A Kafka cluster runs on brokers coordinated by the modern <strong>KRaft</strong> controller (ZooKeeper replaced), is available fully-managed on AWS as <strong>MSK</strong>, and is worth choosing whenever you need replayable, ordered, multi-consumer event history.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Running today: KRaft</h2>
+<ul>
+  <li>Brokers form the cluster; a <strong>KRaft</strong> controller (a small number of nodes) manages cluster metadata, replacing the old ZooKeeper dependency.<sup><a href="#r1">1</a></sup></li>
+  <li>Deployment is usually orchestrated (Docker/K8s) or fully managed.</li>
+</ul>
+
+<h2>A managed option on AWS: MSK</h2>
+<p><strong>Amazon MSK</strong> (Managed Streaming for Apache Kafka) runs Kafka for you and connects to the AWS ecosystem (IAM auth, VPC, S3/Glue integration) — the same way you'd avoid running SQS/es yourself.<sup><a href="#r2">2</a></sup> For a team on AWS, MSK is the "just give me Kafka" lever.</p>
+
+<h2>Choosing: Kafka vs a queue (SQS)</h2>
+<table>
+  <tr><th>You need…</th><th>Choose</th></tr>
+  <tr><td>One consumer processes each job once</td><td><strong>Queue (SQS)</strong></td></tr>
+  <tr><td>Replayable event history</td><td><strong>Kafka</strong></td></tr>
+  <tr><td>Strict per-entity ordering at scale</td><td><strong>Kafka</strong> (partition key)</td></tr>
+  <tr><td>Many consumer groups read the same events</td><td><strong>Kafka</strong></td></tr>
+  <tr><td>Serverless, zero-infra, simple</td><td><strong>Queue / event bus</strong></td></tr>
+</table>
+<p>A queue removes a message consumed once; Kafka keeps an ordered log many consumers read — that distinction drives the choice (Lesson 1).</p>
+
+<h2>A realistic design</h2>
+<pre><code>App --produces--&gt; topic "orders" (replicated, compact-as-needed)
+                 |-- consumer group: warehouse (process once-ish, idempotent)
+                 |-- consumer group: analytics (replayable, lag-managed)
+                 `-- Kafka Streams: compute totals -&gt; topic "metrics"
+Sink Connect --&gt; warehouse DB       Schema Registry pins the event shape</code></pre>
+<p>Design right: pick a partition key for ordering, set <code>acks=all</code> + a replication factor for durability, commit offsets after idempotent processing, and set retention/compaction per topic's purpose.</p>
+
+<aside class="note"><strong>Key idea</strong> Kafka earns its place when events are a first-class, durable asset — history to replay and a stream to process. When it's just "get this job done once," a queue is simpler. Know which side you're on.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. Modern Kafka coordinates cluster metadata with…</h4>
+  <button class="opt" data-fb="No — ZooKeeper is the older mechanism being replaced.">ZooKeeper</button>
+  <button class="opt" data-fb="No — S3 is storage for tiering, not metadata.">S3</button>
+  <button class="opt" data-fb="Correct — a KRaft-based controller.">the KRaft controller</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>2. AWS's managed Kafka service is…</h4>
+  <button class="opt" data-fb="No — MSK is the managed Kafka service.">Kinesis</button>
+  <button class="opt" data-fb="Correct — Amazon MSK.">Amazon MSK</button>
+  <button class="opt" data-fb="No — SQS is a queue, not Kafka.">SQS</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>4. Choose Kafka over a queue when you need…</h4>
+  <button class="opt" data-fb="Correct — replayable, ordered, multi-consumer history.">replayable event history</button>
+  <button class="opt" data-fb="No — a queue is simpler for one-off jobs.">one consumer, one-time jobs</button>
+  <button class="opt" data-fb="No — that is the queue's strength.">dead-letter handling</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the <a href="https://kafka.apache.org/quickstart">Kafka Quickstart</a> and the <a href="https://aws.amazon.com/msk/">Amazon MSK</a> page to see real deployment shapes.</p>
+
+<div class="ask"><strong>Ask the agent</strong> For one service you've built on a queue, decide Kafka vs queue for its current use case, then describe the partition key you'd pick, the acks/durability settings, and one group that would consume the topic independently. Justify each choice from the four "You need…" rows.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://kafka.apache.org/quickstart">Apache Kafka — Quickstart</a></li>
+    <li id="r2"><a href="https://aws.amazon.com/msk/">Amazon MSK</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0008-the-ecosystem.html">← Lesson 8: The ecosystem</a></span>
+  <span class="nav-next"><a href="../reference/kafka-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/kafka-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>

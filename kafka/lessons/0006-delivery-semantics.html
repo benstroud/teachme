@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — Delivery Semantics</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 9</span><span>Apache Kafka</span></div>
+  <h1>Delivery Semantics</h1>
+  <p class="subtitle">At-most, at-least, exactly-once — and the producer + offset choices that produce each.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Kafka offers three delivery semantics — at-most-once, at-least-once, and exactly-once — and which one you get follows from your producer <code>acks</code>, your consumer offset-commits, and (for exactly-once) the idempotent producer and transactions.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The three semantics</h2>
+<table>
+  <tr><th>Semantics</th><th>Meaning</th><th>How to get it</th></tr>
+  <tr><td>At-most-once</td><td>Records processed ≤ once; possible loss.</td><td>Commit offset before processing; low-acks producer.</td></tr>
+  <tr><td>At-least-once</td><td>Records processed ≥ once; no loss, duplicates possible.</td><td>Commit after processing (the default, common choice).<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Exactly-once</td><td>Records processed exactly once.</td><td>Idempotent producer + transactions.</td></tr>
+</table>
+
+<h2>Why at-least-once is the default</h2>
+<p>Consumers commit their offset <em>after</em> processing. If the consumer crashes between processing and committing, the partition replays those events — no loss, but they can be processed again. This is why consumers are expected to handle duplicates (be idempotent).</p>
+
+<h2>Reaching exactly-once</h2>
+<p>Exactly-once requires two pieces: the <strong>idempotent producer</strong> (deduplicates a producer's own retries) and <strong>transactions</strong> (atomic writes to multiple partitions, and offsets committed together with the results). Together these prevent both duplicates and partial multi-partition effects.<sup><a href="#r1">1</a></sup> Exactly-once costs performance and complexity — use it when correctness genuinely demands it.</p>
+
+<h2>Choosing</h2>
+<ul>
+  <li><strong>At-least-once + idempotent consumers</strong> — the pragmatic standard for most pipelines.</li>
+  <li><strong>Exactly-once</strong> — when a duplicate side effect is unacceptable (e.g. financial flows) and the throughput cost is acceptable.</li>
+  <li><strong>At-most-once</strong> — telemetry/analytics where a missed sample is fine.</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> "Exactly-once" isn't free — it's built from idempotence plus transactions. For most systems, design the consumer to be idempotent and accept at-least-once; reserve exactly-once for where a duplicate truly hurts.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Committing an offset after processing gives…</h4>
+  <button class="opt" data-fb="No — committing early risks losing events on a crash.">at-most-once</button>
+  <button class="opt" data-fb="Correct — at-least-once, with possible reprocessing.">at-least-once</button>
+  <button class="opt" data-fb="No — duplicates are still possible under this semantics.">exactly-once</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. At-most-once risks…</h4>
+  <button class="opt" data-fb="No — that is at-least-once's risk.">duplicates</button>
+  <button class="opt" data-fb="No — idempotent retries avoid duplicates, not loss.">both loss and duplicates</button>
+  <button class="opt" data-fb="Correct — loss of events on a crash.">losing events</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. Exactly-once is built from…</h4>
+  <button class="opt" data-fb="Correct — an idempotent producer plus transactions.">idempotent producer + transactions</button>
+  <button class="opt" data-fb="No — that alone only removes producer retry duplicates.">just an idempotent producer</button>
+  <button class="opt" data-fb="No — ordering alone can't guarantee exactly-once delivery.">per-partition ordering</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://kafka.apache.org/documentation/#semantics">Message Delivery Guarantees</a> section in full — it's the canonical explanation of the three semantics and exactly-once.</p>
+
+<div class="ask"><strong>Ask the agent</strong> A billing consumer updates a database on each event. Walk how "commit after processing" could charge a customer twice, and what making the consumer idempotent (or using exactly-once) changes. Name the cost you'd pay for exactly-once.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://kafka.apache.org/documentation/#semantics">Apache Kafka — Message Delivery Guarantees</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-consumers-and-consumer-groups.html">← Lesson 5: Consumers &amp; groups</a></span>
+  <span class="nav-next"><a href="0007-retention-and-compaction.html">Lesson 7: Retention &amp; compaction →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/kafka-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>

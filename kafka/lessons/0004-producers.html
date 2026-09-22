@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — Producers</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 9</span><span>Apache Kafka</span></div>
+  <h1>Producers</h1>
+  <p class="subtitle">The client that writes events — choosing the partition, the key, and how hard it insists on durability.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A <strong>producer</strong> writes events to a topic, chooses a partition (usually by key for ordering), and picks an <code>acks</code> level that trades latency against durability.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Choosing the partition</h2>
+<ul>
+  <li>Let the client hash a <strong>key</strong>: same key → same partition → per-key ordering (Lesson 2).</li>
+  <li>No key → round-robin across partitions (greater parallelism, no ordering).</li>
+  <li>Explicit partition id — rare, for advanced control.</li>
+</ul>
+
+<h2>acks: the durability dial</h2>
+<table>
+  <tr><th>acks</th><th>Guarantee</th><th>Cost</th></tr>
+  <tr><td><code>0</code></td><td>None — fire and forget; may lose writes.</td><td>Fastest</td></tr>
+  <tr><td><code>1</code></td><td>Leader has appended the write.</td><td>Leader failure can lose it</td></tr>
+  <tr><td><code>all</code></td><td>All in-sync replicas appended.</td><td>Slowest, most durable</td></tr>
+</table>
+<p><code>acks=all</code> is the durable default; pair it with <code>min.insync.replicas</code> so "all" means "enough copies" (Lesson 3).<sup><a href="#r1">1</a></sup></p>
+
+<h2>Retries &amp; idempotence</h2>
+<p>Producers retry transient failures. Without care, a retry after a timeout can deliver the same event twice (<em>duplicate</em>). Making the producer <strong>idempotent</strong> (adding per-record identifying metadata) lets Kafka deduplicate retries — a step toward exactly-once (Lesson 6).<sup><a href="#r1">1</a></sup></p>
+
+<pre><code>// producer sketch (conceptual)
+producer = {
+  bootstrapServers: "broker:9092",
+  acks: "all",                     // durability
+  retries: 5,
+  enableIdempotence: true,          // dedupe retries
+}
+producer.send(topic, key = orderId, value = orderEvent)</code></pre>
+
+<aside class="note"><strong>Key idea</strong> The producer is where you decide both where an event lands (key → partition) and how certain the write is (acks). Choose the key by ordering needs, and set acks to the durability your data deserves.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. Same producer key → same partition gives…</h4>
+  <button class="opt" data-fb="No — keys route to a partition; they don't remove all ordering.">ordering across every partition</button>
+  <button class="opt" data-fb="No — that's what an absent key (round-robin) does.">maximum parallelism only</button>
+  <button class="opt" data-fb="Correct — per-key ordering within that partition.">per-key ordering</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>2. acks=all means the write is acked after…</h4>
+  <button class="opt" data-fb="No — acks=0 is fire-and-forget.">the producer sends it</button>
+  <button class="opt" data-fb="Correct — all in-sync replicas have appended it.">all in-sync replicas appended</button>
+  <button class="opt" data-fb="No — that is acks=1, the leader only.">the leader appended it</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. An idempotent producer prevents…</h4>
+  <button class="opt" data-fb="Correct — duplicates from the producer's own retries.">duplicates from retries</button>
+  <button class="opt" data-fb="No — consumers also need to be idempotent.">all consumer-side duplicates</button>
+  <button class="opt" data-fb="No — exactly-once also needs transactions.">any loss of events</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://kafka.apache.org/documentation/#semantics">Message Delivery Guarantees</a> section and the producer config docs for <code>acks</code> and idempotence.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Your order-service produces to a topic keyed by orderId with <code>acks=all</code>. A transient network error makes the producer retry and it gets a timeout. Explain the two ways a duplicate could still reach a consumer, and which one idempotence removes.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://kafka.apache.org/documentation/#semantics">Apache Kafka — Message Delivery Guarantees</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-brokers-and-replication.html">← Lesson 3: Brokers &amp; replication</a></span>
+  <span class="nav-next"><a href="0005-consumers-and-consumer-groups.html">Lesson 5: Consumers &amp; groups →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/kafka-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>

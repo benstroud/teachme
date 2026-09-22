@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — The Ecosystem</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 9</span><span>Apache Kafka</span></div>
+  <h1>The Ecosystem</h1>
+  <p class="subtitle">Streams, Connect, and Schema Registry — the tools built on top of the producer/consumer core.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>On top of the producer and consumer APIs, Kafka's compute layer adds <strong>Kafka Streams</strong> (stateful processing), <strong>Kafka Connect</strong> (external-system integration), and a <strong>Schema Registry</strong> (schema governance).<sup><a href="#r1">1</a></sup></p>
+
+<h2>Kafka Streams: process in Java</h2>
+<p>Kafka Streams is a Java API for stream processing — filtering, grouping, aggregating, joining — that keeps its state locally and in Kafka internal topics, and reassigns state when stream-processing nodes are added or removed.<sup><a href="#r2">2</a></sup> It's often embedded in a service that also exposes a REST API.</p>
+
+<h2>Kafka Connect: integrate systems</h2>
+<p>Kafka Connect moves data between Kafka and external systems. <strong>Source connectors</strong> read from an external system and produce to topics; <strong>sink connectors</strong> read topics and write to external systems.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Schema Registry: govern schemas</h2>
+<p>Because events carry structured data (JSON/Avro/Protobuf), the Schema Registry enforces schemas and compatibility on topics — so a producer can't break consumers with a silent shape change. It's the contract layer Kafka producers/consumers agree on.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Putting it together</h2>
+<pre><code>External system --&gt; [Source Connect] --&gt; topic --&gt; [Kafka Streams] --&gt; topic
+                                            |        (state, join, agg)
+                                            v          |
+topic --&gt; [Sink Connect] --&gt; External system   Schema Registry governs shapes</code></pre>
+<p>Producers and consumers are the primitives; Streams and Connect are how real systems ingest, transform, and export at scale.</p>
+
+<aside class="note"><strong>Key idea</strong> The core is small (produce, consume); the ecosystem turns that log into a platform — process it (Streams), connect it out (Connect), and keep it consistent (Schema Registry).</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Kafka Streams is best for…</h4>
+  <button class="opt" data-fb="No — Connect does that integration.">external-system integration</button>
+  <button class="opt" data-fb="Correct — stateful stream processing in Java.">stateful stream processing</button>
+  <button class="opt" data-fb="No — that is the Schema Registry's job.">schema governance</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. A sink connector…</h4>
+  <button class="opt" data-fb="No — source connectors bring data <em>in</em>.">reads external data into a topic</button>
+  <button class="opt" data-fb="No — that is an ingestion, not an export.">produces to Kafka from systems</button>
+  <button class="opt" data-fb="Correct — writes topic data into an external system.">writes topics to an external system</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. The Schema Registry prevents…</h4>
+  <button class="opt" data-fb="Correct — incompatible shape changes breaking consumers.">breaking shape changes</button>
+  <button class="opt" data-fb="No — that is a delivery semantics concern.">data loss on a crash</button>
+  <button class="opt" data-fb="No — Connect governs integration, not schema.">connector misconfiguration</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://developer.confluent.io/what-is-apache-kafka/">Intro to Apache Kafka</a> for Streams/Connect positioning, then the official <a href="https://kafka.apache.org/documentation/">Streams &amp; Connect</a> docs.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Design a flow where a database change is captured into a topic, transformed by a Kafka Streams aggregate, and delivered to a data warehouse. Name which ecosystem piece handles each leg, and where the Schema Registry sits in it.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://developer.confluent.io/learn-kafka/architecture/">Confluent — Kafka Architecture</a></li>
+    <li id="r2"><a href="https://developer.confluent.io/what-is-apache-kafka/">Confluent — Intro to Apache Kafka</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-retention-and-compaction.html">← Lesson 7: Retention &amp; compaction</a></span>
+  <span class="nav-next"><a href="0009-running-and-choosing-kafka.html">Lesson 9: Running &amp; choosing Kafka →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/kafka-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>

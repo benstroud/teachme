@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — Brokers &amp; Replication</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 9</span><span>Apache Kafka</span></div>
+  <h1>Brokers &amp; Replication</h1>
+  <p class="subtitle">A cluster of brokers stores each partition on multiple nodes, so a broker failure doesn't lose data.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Kafka runs as a <strong>cluster of brokers</strong>; each partition is <strong>replicated</strong> across brokers with one leader and follower copies, so the data survives node failures.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Brokers and clusters</h2>
+<ul>
+  <li>A <strong>broker</strong> is a Kafka server that stores partitions and serves producers/consumers.</li>
+  <li>A <strong>cluster</strong> is a group of brokers; Kafka scales out by adding brokers, with partitions spread across them.<sup><a href="#r1">1</a></sup></li>
+</ul>
+
+<h2>Replication: leader and followers</h2>
+<p>Each partition is stored on several brokers (the <strong>replication factor</strong>). One copy is the <strong>leader</strong> — it serves reads and writes. The others are <strong>followers</strong> that stay in sync and can take over if the leader fails.<sup><a href="#r1">1</a></sup></p>
+<pre><code>topic "orders" partition 0, replication factor 3:
+  broker1: partition 0 (LEADER)
+  broker2: partition 0 (follower)
+  broker3: partition 0 (follower)</code></pre>
+
+<h2>ISR: the in-sync replicas</h2>
+<p>Only replicas that are fully caught up with the leader count as <strong>in-sync</strong> (the ISR). Leadership can only move to an in-sync replica — so a stale or dead follower can't lose acknowledged data.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Making writes durable: min.insync.replicas + acks</h2>
+<ul>
+  <li>A producer with <code>acks=all</code> waits until all in-sync replicas have appended the write.</li>
+  <li><code>min.insync.replicas</code> sets how many ISR copies must acknowledge a write for it to be accepted — combine it with <code>acks=all</code> and a replication factor ≥ 2 so a broker loss still leaves a current copy.<sup><a href="#r1">1</a></sup></li>
+</ul>
+
+<h2>The durability trade-off</h2>
+<p>More replicas = better durability but higher write cost and latency. Choose the replication factor for the availability you need; <code>acks</code> and <code>min.insync.replicas</code> then decide exactly how hard a client insists before believing a write succeeded.</p>
+
+<aside class="note"><strong>Key idea</strong> Durability is a combination: the partition (how many copies) times the write policy (which copies must ack). "Replication factor ≥ 2 + acks=all + min.insync ≥ 2" is the standard safety floor.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Each partition's reads and writes are served by…</h4>
+  <button class="opt" data-fb="No — followers sync to the leader but do not serve writes.">all replicas equally</button>
+  <button class="opt" data-fb="Correct — a single elected leader.">a single leader</button>
+  <button class="opt" data-fb="No — leadership moves only among in-sync replicas.">whichever broker is fastest</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. Only _____ can be elected leader.</h4>
+  <button class="opt" data-fb="No — any out-of-sync replica would risk losing data.">any follower at all</button>
+  <button class="opt" data-fb="No — the client has no say in leadership.">the producer's first broker</button>
+  <button class="opt" data-fb="Correct — in-sync replicas (the ISR).">in-sync replicas (ISR)</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. To be durable, acks=all should be paired with…</h4>
+  <button class="opt" data-fb="Correct — a replication factor and min.insync ≥ 2 give real copies.">a replication factor &amp; min.insync</button>
+  <button class="opt" data-fb="No — replication factor is what supplies the copies to ack.">a replication factor of one</button>
+  <button class="opt" data-fb="No — min.insync ≥ 2 means at least two copies must ack.">min.insync of one</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://kafka.apache.org/documentation/">Replication</a> section of the official docs for the leader/ISR details.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Kafka has 3 brokers, topic replication factor 3, <code>acks=all</code>, <code>min.insync.replicas=2</code>. Broker A (leader) dies. Explain whether a write is still accepted, who becomes leader, and what — if anything — was at risk.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://kafka.apache.org/documentation/">Apache Kafka — Documentation (Replication)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-topics-partitions-offsets.html">← Lesson 2: Topics &amp; partitions</a></span>
+  <span class="nav-next"><a href="0004-producers.html">Lesson 4: Producers →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/kafka-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>

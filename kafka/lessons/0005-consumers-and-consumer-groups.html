@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — Consumers &amp; Consumer Groups</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 9</span><span>Apache Kafka</span></div>
+  <h1>Consumers &amp; Consumer Groups</h1>
+  <p class="subtitle">Reading partitions by offset — together with a group of peers that split the work.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A <strong>consumer</strong> reads partitions by tracking its <strong>offset</strong>; a <strong>consumer group</strong> is a set of consumers that each read a slice of a topic, the partitions assigned among them.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<h2>Reading by offset</h2>
+<pre><code>consume() -&gt; read next at offset N -&gt; process -&gt; commit(N+1)</code></pre>
+<p>The consumer remembers its committed offset so it resumes from where it left off after a restart — or restarts from the earliest/latest if it has none.</p>
+
+<h2>Consumer groups</h2>
+<p>A group of consumers cooperates to read a topic: each <strong>partition is assigned to exactly one consumer</strong> in the group. So one consumer gets partition 0's events, another gets partition 1's, and together they drain the topic in parallel.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Rebalancing</h2>
+<p>When a member joins or leaves the group, Kafka <strong>rebalances</strong> — reassigning partitions among the members. This is how scaling and failure recovery work, and why consumers should expect to occasionally lose/regain a partition.</p>
+
+<h2>Multiple groups read independently</h2>
+<p>Different <em>groups</em> each maintain their own offsets and read the full topic independently. This is the "many consumers, same events" pay-off from Lesson 1 — one topic can feed an analytics group and a notification group, each reading everything from its own position.<sup><a href="#r2">2</a></sup></p>
+
+<h2>The offset-commit semantics link</h2>
+<ul>
+  <li><strong>Commit after processing</strong> → if it crashes, events are reprocessed (at-least-once).</li>
+  <li><strong>Commit before processing</strong> → a crash loses those events (at-most-once).</li>
+</ul>
+<p>Where you commit is the lever that sets your delivery semantics (Lesson 6).</p>
+
+<aside class="note"><strong>Key idea</strong> Partition = the shared unit of state (a consumer's position). Groups let many consumers scale horizontally over a topic, and where each commits its offset decides how much each is willing to replay after a crash.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Within a consumer group, each partition is read by…</h4>
+  <button class="opt" data-fb="No — the group assigns each partition to one member.">every consumer in the group</button>
+  <button class="opt" data-fb="Correct — exactly one consumer.">exactly one consumer</button>
+  <button class="opt" data-fb="No — different groups are what read independently.">a different group</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. Rebalancing happens when…</h4>
+  <button class="opt" data-fb="No — that's a retention event, not a rebalance.">a topic's retention expires</button>
+  <button class="opt" data-fb="No — rebalancing concerns group members, not brokers alone.">a broker restarts</button>
+  <button class="opt" data-fb="Correct — a consumer joins or leaves the group.">a consumer joins or leaves</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. Two different consumer groups reading one topic…</h4>
+  <button class="opt" data-fb="Correct — each reads independently from its own offset.">each read independently</button>
+  <button class="opt" data-fb="No — they share no offsets and both see everything.">split the events between them</button>
+  <button class="opt" data-fb="No — both can read all events; nothing is exclusive.">must read the same partition</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://kafka.apache.org/documentation/">Consumers / consumer groups</a> section of the official docs for offsets and rebalancing.</p>
+
+<div class="ask"><strong>Ask the agent</strong> A topic has 4 partitions and you run 3 consumers in one group, then scale to 5. Walk what happens to partition assignment and why the 5th consumer is idle. Then say how a second group would behave differently.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://kafka.apache.org/documentation/">Apache Kafka — Documentation</a></li>
+    <li id="r2"><a href="https://developer.confluent.io/learn-kafka/architecture/">Confluent — Kafka Architecture</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-producers.html">← Lesson 4: Producers</a></span>
+  <span class="nav-next"><a href="0006-delivery-semantics.html">Lesson 6: Delivery semantics →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/kafka-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>

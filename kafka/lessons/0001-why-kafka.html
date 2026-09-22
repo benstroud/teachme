@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — Why Kafka</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 9</span><span>Apache Kafka</span></div>
+  <h1>Why Kafka</h1>
+  <p class="subtitle">A queue gives a job to one consumer once. Kafka keeps a durable, replayable, ordered log of events that many consumers can read.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Kafka is a distributed, append-only <strong>commit log</strong> — a durable, time-ordered history of events — rather than a queue that moves a message from producer to consumer and deletes it.<sup><a href="#r1">1</a></sup></p>
+
+<h2>What an event is</h2>
+<p>An event is an action, incident, or change recorded by software — a payment, a click, a temperature reading. It's a <em>notification</em> (the "when-ness" that can trigger activity) plus small state, usually JSON, Avro, or Protobuf.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Queue vs log: the key difference</h2>
+<table>
+  <tr><th></th><th>Queue (e.g. SQS)</th><th>Kafka log</th></tr>
+  <tr><td>Lifetime</td><td>Message deleted after consumed</td><td>Events kept (retention / compaction)</td></tr>
+  <tr><td>Ordering</td><td>Best-effort / none</td><td>Strict per partition</td></tr>
+  <tr><td>Re-read</td><td>No</td><td>Yes — replayable from an offset</td></tr>
+  <tr><td>Consumers</td><td>One consumer group drains</td><td>Many groups read independently
+  </td></tr>
+</table>
+<p>Because events persist and are <em>replayable</em>, Kafka is how systems build event history, event sourcing, and stream processing — things a queue isn't built for.</p>
+
+<h2>The storage + compute layering</h2>
+<p>Kafka has a distributed <strong>storage layer</strong> (stores events efficiently, scales by adding brokers) and a <strong>compute layer</strong> of APIs on top — the producer, consumer, Kafka Streams, and Connect APIs.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Ask: does this job need one consumer to process it once (queue), or do multiple consumers each need the same ordered, replayable events (log)? That single question usually picks the tool.</aside>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Kafka's fundamental model is a…</h4>
+  <button class="opt" data-fb="No — a queue deletes a message after it is consumed.">queue that deletes messages</button>
+  <button class="opt" data-fb="Correct — a durable, append-only commit log.">durable, append-only commit log</button>
+  <button class="opt" data-fb="No — it is a log of events, not a relational store.">row-oriented database</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. Because events persist, Kafka supports…</h4>
+  <button class="opt" data-fb="No — events are kept under retention, not discarded at read.">only one-time consumption</button>
+  <button class="opt" data-fb="No — ordering is the point; it is strict per partition.">best-effort reordering</button>
+  <button class="opt" data-fb="Correct — replaying and re-reading the history.">replaying the event history</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. Many consumers can each read the same events because…</h4>
+  <button class="opt" data-fb="Correct — events stay in the log and groups read independently.">events stay in the log, per group</button>
+  <button class="opt" data-fb="No — consumption does not delete from the shared log.">they delete as they read</button>
+  <button class="opt" data-fb="No — each group tracks its own offset position.">they share one offset</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://developer.confluent.io/what-is-apache-kafka/">Intro to Apache Kafka</a> for the event model, and skim the <a href="https://kafka.apache.org/documentation/">official docs</a> core concepts.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Take one flow you've built with a queue (say, an order-something pipeline) and answer the single question above: is it a "process each job once" job or a "history many services need" log? Name whether Kafka would change the design — and why or why not.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://developer.confluent.io/learn-kafka/architecture/">Confluent — Kafka Architecture</a></li>
+    <li id="r2"><a href="https://developer.confluent.io/what-is-apache-kafka/">Confluent — Intro to Apache Kafka</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="0002-topics-partitions-offsets.html">Lesson 2: Topics, partitions &amp; offsets →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/kafka-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apache Kafka — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Apache Kafka</span></div>
+  <h1>Kafka Glossary</h1>
+  <p class="subtitle">Every term in this course, in one place. Return here when a lesson uses a word you do not fully own.</p>
+</header>
+
+<section>
+<h2>Events &amp; the log</h2>
+<dl>
+  <dt><strong>Event</strong></dt>
+  <dd>An action, incident, or change recorded by software — e.g. a payment, a click, a reading. A notification (to trigger activity) plus small state, usually JSON, Avro, or Protobuf.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>Kafka event streaming</strong></dt>
+  <dd>A data streaming engine that collects, processes, stores, and integrates data at scale.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>Topic</strong></dt>
+  <dd>A named category/channel that events are written to; the unit you subscribe to.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>Partition</strong></dt>
+  <dd>A shard of a topic — an ordered, append-only log. A topic is split across one or more partitions; ordering is guaranteed <em>within</em> a partition.</dd>
+
+  <dt><strong>Offset</strong></dt>
+  <dd>A unique, monotonically increasing id per event within a partition, never reused; events are stored and delivered in offset order.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>Append-only log</strong></dt>
+  <dd>The storage model: events are appended to the end of a partition's log and read back in order — the "commit log" idea.</dd>
+</dl>
+</section>
+<section>
+<h2>Cluster &amp; reliability</h2>
+<dl>
+  <dt><strong>Broker</strong></dt>
+  <dd>A Kafka server in the cluster that stores partitions and serves producers and consumers.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>Cluster</strong></dt>
+  <dd>A group of brokers working together; the system scales by adding brokers (scale-out).</dd>
+
+  <dt><strong>Replica</strong></dt>
+  <dd>A copy of a partition stored on another broker; replication adds durability. The replication factor is the number of copies.</dd>
+
+  <dt><strong>Leader / follower</strong></dt>
+  <dd>Each partition has one leader (handles reads and writes) and follower replicas that stay in sync; the leader is elected among them.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>ISR (in-sync replicas)</strong></dt>
+  <dd>The set of replicas that are fully caught up with the leader; only ISR members can be elected leader.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>min.insync.replicas</strong></dt>
+  <dd>The minimum number of in-sync replicas that must acknowledge a write for it to be accepted with `acks=all`.</dd>
+
+  <dt><strong>KRaft</strong></dt>
+  <dd>The modern consensus-based controller for cluster metadata that replaces ZooKeeper.</dd>
+</dl>
+</section>
+
+<section>
+<h2>Clients &amp; semantics</h2>
+<dl>
+  <dt><strong>Producer</strong></dt>
+  <dd>A client that writes events to topics/partitions, choosing the partition (often by key).<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>Consumer</strong></dt>
+  <dd>A client that reads events from partitions, tracking its position by offset.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>Consumer group</strong></dt>
+  <dd>A set of consumers that cooperate: each partition is assigned to exactly one consumer in the group, splitting the work.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>Rebalance</strong></dt>
+  <dd>Reassigning partitions among consumers when a member joins/leaves the group; consumers pause and re-sync during it.</dd>
+
+  <dt><strong>Commit (offset)</strong></dt>
+  <dd>Recording the position a consumer has read/graph so the group resumes from there on restart.</dd>
+
+  <dt><strong>acks</strong></dt>
+  <dd>The producer's durability setting: <code>0</code> (fire-and-forget), <code>1</code> (leader writes), <code>all</code> (all ISR write).<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>Idempotent producer</strong></dt>
+  <dd>A producer that tags records so duplicated retries aren't redelivered — a building block of exactly-once.</dd>
+
+  <dt><strong>At-least-once / at-most-once / exactly-once</strong></dt>
+  <dd>The three delivery semantics describing whether a record is guaranteed ≥1, ≤1, or =1 times.<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>Log compaction</strong></dt>
+  <dd>Retention that keeps, per key, the latest value — a "compact" log used for state-like topics.<sup><a href="#r6">6</a></sup></dd>
+
+  <dt><strong>Kafka Streams / Connect / Schema Registry</strong></dt>
+  <dd>Streams = stateful processing in Java; Connect = external-system integration; Schema Registry = schema governance for topics.<sup><a href="#r1">1</a></sup></dd>
+</dl>
+</section>
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://developer.confluent.io/what-is-apache-kafka/">Confluent — Intro to Apache Kafka</a></li>
+    <li id="r2"><a href="https://kafka.apache.org/documentation/">Apache Kafka — Documentation</a></li>
+    <li id="r3"><a href="https://developer.confluent.io/learn-kafka/architecture/">Confluent — Kafka Architecture</a></li>
+    <li id="r4"><a href="https://kafka.apache.org/documentation/">Apache Kafka — Replication</a></li>
+    <li id="r5"><a href="https://kafka.apache.org/documentation/#semantics">Apache Kafka — Message Delivery Guarantees</a></li>
+    <li id="r6"><a href="https://kafka.apache.org/documentation/">Apache Kafka — Log Compaction</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Mission &amp; notes</span>
+  <span class="nav-next"><a href="../lessons/0001-why-kafka.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../NOTES.md">Notes</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — Topics, Partitions &amp; Offsets</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 9</span><span>Apache Kafka</span></div>
+  <h1>Topics, Partitions &amp; Offsets</h1>
+  <p class="subtitle">The shape of the log: a topic is sharded into ordered partitions, and every event in a partition has an offset.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A <strong>topic</strong> is a named channel of events, split into <strong>partitions</strong> (ordered, append-only logs), and each event in a partition carries a unique <strong>offset</strong>.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Topic → partitions</h2>
+<pre><code>topic "orders"
+  partition 0: [o1, o4, o7]     offset 0,1,2
+  partition 1: [o2, o5]         offset 0,1
+  partition 2: [o3, o6, o8, o9] offset 0,1,2,3</code></pre>
+<p>Producers append events to partitions; consumers read from partitions. The topic is the subscription unit; partitions are the unit of parallelism and of ordering.</p>
+
+<h2>Offsets</h2>
+<p>Within a partition, each event has a unique, monotonically increasing <strong>offset</strong> that is never reused — events are stored and delivered in offset order.<sup><a href="#r2">2</a></sup> The offset is what lets a consumer remember where it stopped and resume (or replay) later.</p>
+
+<pre><code>consume() -&gt; read at offset N -&gt; process -&gt; commit(N+1)</code></pre>
+
+<h2>Ordering is per-partition</h2>
+<p>Ordering is guaranteed <em>within</em> a partition, not across a topic. To keep related events in order, route them to the same partition — usually by a <strong>key</strong>:</p>
+<pre><code>// route by key: all events for the same user land in one partition
+producer.send(key = userId, value = event)</code></pre>
+<p>If you need per-entity ordering (all of one user's events in sequence), the partition key is your entity id.</p>
+
+<h2>Partition count = parallelism</h2>
+<p>More partitions mean more parallel producers/consumers — but ordering is then only within each partition, and too many partitions add overhead (more files, more leadership, more rebalances). Pick the count for the parallelism you need, not "bigger."</p>
+
+<aside class="note"><strong>Key idea</strong> Everything in Kafka maps to the partition: ordering lives there, offsets live there, parallelism lives there. Decide who shares a partition by asking what must be ordered together.</aside>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Ordering in Kafka is guaranteed…</h4>
+  <button class="opt" data-fb="No — each partition is its own ordered log.">across the whole topic</button>
+  <button class="opt" data-fb="Correct — within a single partition.">within a single partition</button>
+  <button class="opt" data-fb="No — consumers read by offset, in per-partition order.">only after compaction</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. To keep all of one user's events in order, route by…</h4>
+  <button class="opt" data-fb="Correct — the partition key sends them to one partition.">the partition key</button>
+  <button class="opt" data-fb="No — random distribution breaks ordering.">a random value</button>
+  <button class="opt" data-fb="No — keys target partitions; they do not order topics.">the topic name</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. An offset is…</h4>
+  <button class="opt" data-fb="No — it is per-partition, not per-topic, and it never repeats.">a topic-wide timestamp</button>
+  <button class="opt" data-fb="No — offsets are numbers, not consumer identities.">each consumer's name</button>
+  <button class="opt" data-fb="Correct — a unique, monotonic id per event in a partition.">a unique id per event in a partition</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://developer.confluent.io/learn-kafka/architecture/">Kafka Architecture</a> page for the partition/offset explanation, and the <a href="https://kafka.apache.org/documentation/">topics &amp; partitions</a> docs.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Sketch a topic "orders" with 3 partitions and show which partition each of these ordered events lands in under a userId key: order A (u1), order B (u2), order C (u1). Then say why u1's A and C are ordered relative to each other.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://kafka.apache.org/documentation/">Apache Kafka — Documentation</a></li>
+    <li id="r2"><a href="https://developer.confluent.io/learn-kafka/architecture/">Confluent — Kafka Architecture</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-why-kafka.html">← Lesson 1: Why Kafka</a></span>
+  <span class="nav-next"><a href="0003-brokers-and-replication.html">Lesson 3: Brokers &amp; replication →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/kafka-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</section>
