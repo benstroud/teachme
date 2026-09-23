@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — Asks Atomic Questions</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 10</span><span>Jev · TypeSafe System One</span></div>
+  <h1>Asking Atomic Questions</h1>
+  <p class="subtitle">Each question should be one well-scoped judgment; decompose the complex ones and combine the answers in code.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>System One models work best when each question asks one specific, well-scoped thing — the kind of gut-check a knowledgeable person could make in seconds given the right context.<sup><a href="#r1">1</a></sup></p>
+
+<h2>What "atomic" means</h2>
+<p>An atomic question is a single determination: <em>is this ticket urgent?</em>, <em>which team owns this?</em>, <em>how severe is this defect?</em>. The less a question asks, the more reliable the evaluation tends to be.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> If a question would require extended reasoning or weigh several independent factors, it is not atomic — decompose it. Ask each factor as its own question, then combine the results with logic in your code.<sup><a href="#r1">1</a></sup></aside>
+
+<h2>Decompose, then combine in code</h2>
+<p>Instead of one compound question, "rate this startup pitch," ask separately about market size, technical feasibility, and differentiation. Then combine the scores with your own formula:</p>
+<pre><code>const pitch = await jev.ask({
+  questions: [
+    { id: "market",      type: "score", prompt: "How large is this market?",   levels: [1,2,3,4,5] },
+    { id: "feasibility", type: "score", prompt: "How feasible technically?",   levels: [1,2,3,4,5] },
+    { id: "edge",        type: "score", prompt: "How differentiated is it?",   levels: [1,2,3,4,5] },
+  ],
+});
+const score = 0.4*pitch.market + 0.4*pitch.feasibility + 0.2*pitch.edge;</code></pre>
+<p>When priorities shift you change a coefficient in code rather than rewriting a prompt — keeping policy explicit and testable.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Why this matters for reliability</h2>
+<p>A narrow, single-factor question has a clear answer boundary and yields cleaner probabilities; a compound request muddies what any reported probability refers to. Decomposition preserves the ability to weight dimensions and to debug exactly which factor drove a result.<sup><a href="#r1">1</a></sup><sup><a href="#r4">4</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. An atomic question is best described as…</h4>
+  <button class="opt" data-fb="Correct — one well-scoped judgment a knowledgeable person could make quickly.">one well-scoped judgment a knowledgeable person could make quickly</button>
+  <button class="opt" data-fb="No — that is a compound question to be split apart.">a large prompt weighing many independent factors</button>
+  <button class="opt" data-fb="No — it is about scope, not about character count.">the shortest possible string of words</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. When a judgment weighs several factors, you should…</h4>
+  <button class="opt" data-fb="No — combining factors belongs in code, not inside one model call.">ask one big question and trust the probability</button>
+  <button class="opt" data-fb="No — that abandons control over the weighting of dimensions.">pick only the largest factor and ignore the rest</button>
+  <button class="opt" data-fb="Correct — split it into one question per factor and combine in code.">split it into one question per factor and combine in code</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. Combining answers with coefficients is preferable because…</h4>
+  <button class="opt" data-fb="No — coefficients make weights explicit, not hidden.">it hides the weighting from readers of the code</button>
+  <button class="opt" data-fb="Correct — you can retune a weight by editing a number, not a prompt.">you can retune a weight by editing a number, not a prompt</button>
+  <button class="opt" data-fb="No — coefficients are about control, they do not add text generation.">it lets the model generate more explanatory text</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Study the <a href="https://docs.typesafe.ai/introduction">atomic questions, composed in code</a> section of the TypeSafe docs, and note that the exact SDK field names (e.g. <code>id</code>, <code>type</code>, <code>levels</code>) come from the TypeSafe SDK reference you adopt.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Take the compound judgment "should we approve this purchase request?" and decompose it into at least three atomic questions. Write the combination formula, and justify one coefficient that differs from the others.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.typesafe.ai/introduction">TypeSafe Docs — Introduction</a></li>
+    <li id="r4"><a href="https://huggingface.co/blog/sora-2/what-is-jev-ai-a-practical-guide-to-system-one-and">Hugging Face — What Is Jev AI?</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-the-three-primitives.html">← Lesson 3: The three primitives</a></span>
+  <span class="nav-next"><a href="0005-preparing-state.html">Lesson 5: Preparing state →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/jev-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

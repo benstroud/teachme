@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jev &amp; TypeSafe System One — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Jev · TypeSafe System One</span></div>
+  <h1>Jev &amp; System One Glossary</h1>
+  <p class="subtitle">Every term in this course, in one place. Return here when a lesson uses a word you do not fully own.</p>
+</header>
+
+<section>
+<h2>The model &amp; the idea</h2>
+<dl>
+  <dt><strong>System One model</strong></dt>
+  <dd>A new class of frontier model built to make fast, structured decisions that software can use directly — as opposed to generating text for humans. Namesakes: Kahneman's fast/intuitive System 1 versus slow, considered System 2.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>Jev</strong></dt>
+  <dd>TypeSafe's flagship model and the first System One model. You send state and typed questions; it returns structured answers (choices, scores, booleans, probabilities) your code can branch on directly. No text generation, no parsing.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>TypeSafe</strong></dt>
+  <dd>The company behind Jev, founded by Diogo Almeida (ex-OpenAI). It builds an automation stack around calibrated decision models.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>RLCD</strong></dt>
+  <dd>Reinforcement Learning for Calibrated Decisions — TypeSafe's training method, optimizing for answers with epistemically honest probabilities on System One tasks (contrast: RLHF for human preference, RLVR for verifiable outputs).<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>state</strong></dt>
+  <dd>The context you send with a request: the application state the model judges against (structured program state, often with text). Kept within the model's context window.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>calibrated probabilities / confidence</strong></dt>
+  <dd>Every Jev answer ships with probability distributions and a confidence value, meant to be honest about uncertainty so code can decide how much to trust a result.<sup><a href="#r1">1</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>The primitives</h2>
+<dl>
+  <dt><strong>primitive</strong></dt>
+  <dd>One of the three question types Jev answers: Choice, Score, or Noul. Modular and composable like a software primitive.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>Choice</strong></dt>
+  <dd>Ask: which one of these options? Returns the selected option, a probability for each option, and a confidence value.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>Score</strong></dt>
+  <dd>Ask: where does this fall on an ordered scale (rubric)? Returns a probability-weighted position, a probability per level, and a confidence value.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>Noul</strong></dt>
+  <dd>Ask: does this condition hold / is this statement true? Returns a 0–1 probability.<sup><a href="#r1">1</a></sup><sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>atomic question</strong></dt>
+  <dd>A single, well-scoped judgment — the kind of gut-check a knowledgeable person could make in seconds. Complex judgments should be decomposed into atomic questions and combined in code.<sup><a href="#r1">1</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Calling Jev</h2>
+<dl>
+  <dt><strong>OpenRouter</strong></dt>
+  <dd>A model hub that routes requests to Jev and bills them to your OpenRouter account; no separate TypeSafe account needed for the Decisions path.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>model identifier</strong></dt>
+  <dd>How to name the model on OpenRouter: <code>typesafe/jev-1.13</code> (with a floating alias <code>~typesafe/jev-latest</code>).<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>Decisions API</strong></dt>
+  <dd>An OpenRouter HTTP surface: <code>POST https://openrouter.ai/api/alpha/decisions</code>, for calling Jev from any language.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>System One API</strong></dt>
+  <dd>An OpenRouter HTTP surface: <code>POST https://openrouter.ai/api/v1/systemone</code>, for pointing the official TypeSafe SDK at OpenRouter via a base-URL change.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>context window</strong></dt>
+  <dd>Jev's input limit — 32,000 tokens (state plus questions) as documented on OpenRouter.<sup><a href="#r3">3</a></sup></dd>
+</dl>
+</section>
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.typesafe.ai/introduction">TypeSafe Docs — Introduction</a></li>
+    <li id="r2"><a href="https://typesafe.ai/blog/introducing-system-one-models-and-jev">TypeSafe Blog — Introducing System One Models &amp; Jev</a></li>
+    <li id="r3"><a href="https://openrouter.ai/docs/guides/community/jev">OpenRouter — Jev Documentation</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Mission &amp; notes</span>
+  <span class="nav-next"><a href="../lessons/0001-why-a-decision-model.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../NOTES.md">Notes</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

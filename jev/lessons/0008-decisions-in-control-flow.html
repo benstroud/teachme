@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — Decisions in Control Flow</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 10</span><span>Jev · TypeSafe System One</span></div>
+  <h1>Decisions in Control Flow</h1>
+  <p class="subtitle">The real payoff is wiring decisions into your program: gate risky actions, cascade cheap-to-strong, route traffic, and escalate.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A Jev answer is a typed gate your code can act on immediately — so the patterns that matter are the ones that route, gate, cascade, and escalate work around that decision.<sup><a href="#r1">1</a></sup><sup><a href="#r4">4</a></sup></p>
+
+<h2>Four grounded patterns</h2>
+<table>
+  <tr><th>Pattern</th><th>What Jev decides</th><th>Action</th></tr>
+  <tr><td>Gate</td><td>Is this risky agent tool call consistent with the user's request?</td><td>run safe calls, refuse unsupported, pause only ambiguous ones for a human</td></tr>
+  <tr><td>Cascade</td><td>Does the cheap model's draft verify against the context?</td><td>draft cheap, verify with Jev, escalate to a stronger model on failure</td></tr>
+  <tr><td>Route</td><td>Which team, queue, or model should handle this?</td><td>send the work down the decided path</td></tr>
+  <tr><td>Queue / escalate</td><td>How urgent is this, or is confidence too low?</td><td>set priority; pull a human in on low confidence</td></tr>
+</table>
+
+<h2>Gate agent tool calls</h2>
+<p>The OpenRouter cookbook for gating agent tool calls checks each risky call against the user's request before it runs: safe calls proceed, unsupported or contradicted calls are refused, and only ambiguous ones pause for a human.<sup><a href="#r3">3</a></sup></p>
+
+<h2>Cut cost with a verified cascade</h2>
+<p>Another cookbook route drafts a response with a cheap model, then has Jev <em>verify</em> it against retrieved context; only when the check fails does the flow escalate to a stronger model. This keeps quality high while most requests never touch the expensive model.<sup><a href="#r3">3</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Confidence is the switch. When confidence is high, act or route automatically; when it drops, route to a human or a more expensive step. The same decision function can serve both sides of that line.</aside>
+
+<h2>Where Jev sits in a system</h2>
+<p>Common homes for these decision nodes: support-ticket classification and routing, model routing inside an agent, safety checks before tool calls, queue priority, and structured extraction — always as a bounded judgment node beside a generative model.<sup><a href="#r4">4</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. A gate pattern typically…</h4>
+  <button class="opt" data-fb="Correct — runs safe calls, refuses unsupported ones, and pauses ambiguous ones.">runs safe calls, refuses unsupported ones, and pauses ambiguous ones</button>
+  <button class="opt" data-fb="No — that describes the cascade, not the gate.">drafts output cheaply then verifies with a stronger judge</button>
+  <button class="opt" data-fb="No — a gate blocks or allows; it does not grade an outcome.">scores an outcome on an ordered quality rubric</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. In a verified cascade, the stronger model is used…</h4>
+  <button class="opt" data-fb="No — the cheap model drafts; the cascade saves the strong step.">for every request to guarantee maximum quality</button>
+  <button class="opt" data-fb="No — Jev verifies drafts, it does not author the writeup.">to write the initial draft on every request</button>
+  <button class="opt" data-fb="Correct — only when Jev's verification of the cheap draft fails.">only when Jev's verification of the cheap draft fails</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. Confidence is the natural switch for escalation because…</h4>
+  <button class="opt" data-fb="No — high confidence means act, low means hand off to a human.">high confidence is the trigger to route to a human reviewer</button>
+  <button class="opt" data-fb="Correct — high confidence runs automatically, low confidence goes to a human.">high confidence runs automatically, low confidence goes to a human</button>
+  <button class="opt" data-fb="No — confidence gates escalation, it is not a style choice.">confidence only changes the wording of the code</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Work through the <a href="https://openrouter.ai/docs/guides/community/jev">OpenRouter cookbooks</a> (gating agent tool calls and the verified cascade) and the <a href="https://huggingface.co/blog/sora-2/what-is-jev-ai-a-practical-guide-to-system-one-and">Hugging Face use-case list</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Sketch a gated tool call in your own app: the state, the Noul question, and the three branches (run, refuse, pause). Then sketch a cascade where Jev verifies a cheap draft before escalation.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.typesafe.ai/introduction">TypeSafe Docs — Introduction</a></li>
+    <li id="r3"><a href="https://openrouter.ai/docs/guides/community/jev">OpenRouter — Jev Documentation</a></li>
+    <li id="r4"><a href="https://huggingface.co/blog/sora-2/what-is-jev-ai-a-practical-guide-to-system-one-and">Hugging Face — What Is Jev AI?</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-reading-results.html">← Lesson 7: Reading results</a></span>
+  <span class="nav-next"><a href="0009-confidence-and-thresholds.html">Lesson 9: Confidence &amp; thresholds →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/jev-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

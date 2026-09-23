@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 10 — Operating &amp; Limits</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 10 of 10</span><span>Jev · TypeSafe System One</span></div>
+  <h1>Operating &amp; Limits</h1>
+  <p class="subtitle">A decision model is a maintenance burden like any component — know its limits, its cost model, and where it should never go alone.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Jev is a decision layer, not a chatbot and not a replacement for every LLM: it thrives on bounded judgments, and you operate it by curating questions, measuring latency and cost, and keeping failure paths explicit.<sup><a href="#r4">4</a></sup></p>
+
+<h2>Know what it is and is not</h2>
+<ul>
+  <li><strong>Not a chatbot.</strong> Jev does not return text, reasoning, or explanations — only typed decisions and probabilities.<sup><a href="#r3">3</a></sup></li>
+  <li><strong>Not a standalone LLM replacement.</strong> Usually it cannot replace a generative model by itself; it routes, checks, and ranks while an LLM handles open text and complex reasoning.<sup><a href="#r4">4</a></sup></li>
+  <li><strong>No explanations.</strong> Need a written justification? Make the decision with Jev, then use a chat model to explain it, or route low-confidence cases to a human.<sup><a href="#r3">3</a></sup></li>
+</ul>
+
+<h2>Design boundaries and failure paths</h2>
+<p>Treat the model call like any dependency: keep questions narrow, preprocess non-text inputs, and validate latency in your own environment at your concurrency — the demo numbers are positioning, not your SLA.<sup><a href="#r4">4</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> A reliable system designs the boundary, the thresholds, and the failure path alongside the model call. The question is not only "does it decide" but "what happens when it is uncertain or wrong."</aside>
+
+<h2>Consider the cost model</h2>
+<p>Jev bills input tokens (state + questions) with output effectively free on the OpenRouter path, and the HF guide lists a separate credit-plan snapshot — two different channels. Estimate your state size, questions per request, parallel evaluation, and how many low-confidence results will need review before comparing them.<sup><a href="#r4">4</a></sup></p>
+
+<h2>When to reach for Jev versus an LLM</h2>
+<table>
+  <tr><th>Situation</th><th>Pick</th></tr>
+  <tr><td>Bounded decision: classify, route, verify, rank, gate</td><td>Jev</td></tr>
+  <tr><td>Open-ended text, explanation, deeper reasoning</td><td>Generative LLM</td></tr>
+  <tr><td>Both in one flow (draft then verify, or act then explain)</td><td>Jev + LLM together</td></tr>
+</table>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. Jev does not provide…</h4>
+  <button class="opt" data-fb="Correct — it returns typed decisions and probabilities, not prose or reasoning.">written explanations or free-form text</button>
+  <button class="opt" data-fb="No — typed values and probabilities are exactly what it returns.">structured values and probabilities</button>
+  <button class="opt" data-fb="No — Jev does return decision values on which code can act.">typed answers that code can act on</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. To get a human-readable justification for a Jev decision, you…</h4>
+  <button class="opt" data-fb="No — Jev does not generate reasoning; add an explainer instead.">ask Jev to return its internal reasoning</button>
+  <button class="opt" data-fb="No — routing a low-confidence case still needs a writer or a human.">assume the decision itself explains everything</button>
+  <button class="opt" data-fb="Correct — pair Jev with a chat model to explain, or a human to review.">pair Jev with a chat model to explain, or a human to review</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. Before trusting Jev's latency or price, you should…</h4>
+  <button class="opt" data-fb="No — the demo figures are positioning, not your SLA.">copy the published numbers into your SLA</button>
+  <button class="opt" data-fb="Correct — validate in your own environment and confirm live pricing.">validate in your own environment and confirm live pricing</button>
+  <button class="opt" data-fb="No — compare access channels instead of mixing snapshot numbers.">sum the two pricing channels into one price</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Re-read the <a href="https://huggingface.co/blog/sora-2/what-is-jev-ai-a-practical-guide-to-system-one-and">Hugging Face guide conclusion</a> (make one small decision reliable first) and the <a href="https://openrouter.ai/docs/guides/community/jev">OpenRouter FAQ</a> on what Jev is and is not.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Design the production boundary for one Jev decision end to end: the narrow question, the threshold bands, the failure path (rate limit, timeout, low confidence), and where a generative LLM or a human fits. Write it as a short decision record for the team.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r3"><a href="https://openrouter.ai/docs/guides/community/jev">OpenRouter — Jev Documentation</a></li>
+    <li id="r4"><a href="https://huggingface.co/blog/sora-2/what-is-jev-ai-a-practical-guide-to-system-one-and">Hugging Face — What Is Jev AI?</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0009-confidence-and-thresholds.html">← Lesson 9: Confidence &amp; thresholds</a></span>
+  <span class="nav-next"><a href="../reference/jev-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/jev-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

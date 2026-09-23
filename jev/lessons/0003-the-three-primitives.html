@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — The Three Primitives</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 10</span><span>Jev · TypeSafe System One</span></div>
+  <h1>The Three Primitives</h1>
+  <p class="subtitle">Choice, Score, and Noul are the question types Jev answers — pick the right one, and read the structured result it returns.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Jev answers three kinds of typed question — <strong>Choice</strong>, <strong>Score</strong>, and <strong>Noul</strong> — and returns a different structured result for each, all evaluable in parallel in one request.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The three primitives</h2>
+<table>
+  <tr><th>Primitive</th><th>Question it answers</th><th>What comes back</th></tr>
+  <tr><td>Choice</td><td>Which one of these options?</td><td>the chosen option, a probability per option, and a confidence value</td></tr>
+  <tr><td>Score</td><td>Where does this fall on an ordered scale?</td><td>a probability-weighted position, a probability per level, and confidence</td></tr>
+  <tr><td>Noul</td><td>Does this condition hold / is this statement true?</td><td>a 0–1 probability</td></tr>
+</table>
+<sup><a href="#r1">1</a></sup><sup><a href="#r3">3</a></sup>
+
+<h2>Choosing the right one</h2>
+<ul>
+  <li>Use <strong>Choice</strong> when you need one option from a defined set (which team, which model, which category).<sup><a href="#r4">4</a></sup></li>
+  <li>Use <strong>Score</strong> when you need an ordered assessment of severity, priority, or quality on a scale.</li>
+  <li>Use <strong>Noul</strong> when you need a yes/no — does this condition actually hold?</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> The result type drives your code: a Choice branches a router, a Score sets a priority, a Noul guards a gate. Pick the primitive that matches the decision, not the one that feels most AI-like.</aside>
+
+<h2>Mix and run in parallel</h2>
+<p>All three question types can be mixed in a single API call. Every question is evaluated in parallel and in isolation against the same state, so adding questions barely increases response time and one question's answer cannot smear another's (no context-rot).<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. To route a ticket to one of several teams, the right primitive is…</h4>
+  <button class="opt" data-fb="No — Noul returns a true/false probability, not an option.">Noul against each team in turn</button>
+  <button class="opt" data-fb="Correct — Choice selects one option from a defined list.">Choice with the teams as options</button>
+  <button class="opt" data-fb="No — Score rates a scale; it does not pick a discrete team.">Score the team on a rubric</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. To decide how urgent a task is on a priority scale, use…</h4>
+  <button class="opt" data-fb="No — Choice picks from a discrete set, not an ordered level.">Choice between urgency labels</button>
+  <button class="opt" data-fb="No — Noul gives a 0-1 boolean, lacking the ordered nuance.">Noul on whether it is urgent</button>
+  <button class="opt" data-fb="Correct — Score rates where it falls on an ordered rubric.">Score to place it on an ordered rubric</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. When several questions are sent in one request, Jev…</h4>
+  <button class="opt" data-fb="Correct — evaluates them in parallel and in isolation against the state.">evaluates them in parallel and in isolation against the state</button>
+  <button class="opt" data-fb="No — each is judged alone, so later answers are not nudged.">runs them serially so later answers depend on earlier ones</button>
+  <button class="opt" data-fb="No — mixing them is supported by design, not a limitation.">refuses to mix different question types</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the <a href="https://docs.typesafe.ai/introduction">TypeSafe primitives</a> section and the <a href="https://openrouter.ai/docs/guides/community/jev">OpenRouter primer table</a> for exact return shapes per primitive.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Take one decision (e.g. triage a support ticket). Write one question for each primitive that could apply, then say which primitive you would actually use and why the other two fit less well.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.typesafe.ai/introduction">TypeSafe Docs — Introduction</a></li>
+    <li id="r3"><a href="https://openrouter.ai/docs/guides/community/jev">OpenRouter — Jev Documentation</a></li>
+    <li id="r4"><a href="https://huggingface.co/blog/sora-2/what-is-jev-ai-a-practical-guide-to-system-one-and">Hugging Face — What Is Jev AI?</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-what-is-jev.html">← Lesson 2: What is Jev</a></span>
+  <span class="nav-next"><a href="0004-asking-atomic-questions.html">Lesson 4: Atomic questions →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/jev-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

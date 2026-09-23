@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — Calling the API</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 10</span><span>Jev · TypeSafe System One</span></div>
+  <h1>Calling the API</h1>
+  <p class="subtitle">Reach Jev with a model identifier and an HTTP surface — the Decisions API for plain HTTP, or the System One API for the TypeSafe SDK.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>You call Jev with an API key and a model identifier, sending <code>state</code> plus <code>questions</code> to one of two OpenRouter endpoints, and get a typed answer back — no chat loop required.<sup><a href="#r3">3</a></sup></p>
+
+<h2>The model identifier and endpoints</h2>
+<ul>
+  <li><strong>Model id:</strong> <code>typesafe/jev-1.13</code> (or the floating alias <code>~typesafe/jev-latest</code>).<sup><a href="#r3">3</a></sup></li>
+  <li><strong>Decisions API:</strong> <code>POST https://openrouter.ai/api/alpha/decisions</code> — for calling Jev from any language with plain HTTP, or via the OpenRouter SDKs.<sup><a href="#r3">3</a></sup></li>
+  <li><strong>System One API:</strong> <code>POST https://openrouter.ai/api/v1/systemone</code> — for pointing the official TypeSafe JS/Python SDK at OpenRouter with a base-URL change.<sup><a href="#r3">3</a></sup></li>
+</ul>
+
+<pre><code>curl -X POST https://openrouter.ai/api/v1/systemone \
+  -H 'Authorization: Bearer $OPENROUTER_API_KEY' \
+  -H 'content-type: application/json' \
+  -d '{
+    "model": "typesafe/jev-1.13",
+    "state": { "ticket": { "subject": "Refund not received" } },
+    "questions": [
+      { "id": "team", "type": "choice", "options": ["billing","support","sales"] }
+    ]
+  }'</code></pre>
+
+<h2>Reach it from code</h2>
+<p>From TypeScript or Python you can call the Decisions/System One endpoints directly or use the OpenRouter SDK; if you already use the TypeSafe SDK, point it at OpenRouter by changing its base URL to the System One endpoint.<sup><a href="#r3">3</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> No separate TypeSafe account is needed for the OpenRouter path — an OpenRouter API key authenticates both the Decisions API and the TypeSafe SDK pointed at OpenRouter.<sup><a href="#r3">3</a></sup></aside>
+
+<h2>Billed per input token</h2>
+<p>Jev charges for <em>input</em> tokens (the state and questions you send); output tokens are free because answers are tiny typed values. Each response includes a <code>usage.cost</code> field in USD. Confirm the live per-token price on the Jev model page.<sup><a href="#r3">3</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. The OpenRouter model identifier for Jev is…</h4>
+  <button class="opt" data-fb="No — the identifiers use the typesafe namespace.">anthropic/claude and meta/llama</button>
+  <button class="opt" data-fb="No — the versioned name is typesafe/jev-1.13.">typesafe/system-one-latest</button>
+  <button class="opt" data-fb="Correct — typesafe/jev-1.13 (alias ~typesafe/jev-latest).">typesafe/jev-1.13 (alias ~typesafe/jev-latest)</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>2. The Decisions API endpoint is used when…</h4>
+  <button class="opt" data-fb="No — that surface is for the System One path, not Decisions.">you want to send a chat-style completion</button>
+  <button class="opt" data-fb="Correct — calling Jev from any language with plain HTTP or OpenRouter SDKs.">calling Jev from any language with plain HTTP or OpenRouter SDKs</button>
+  <button class="opt" data-fb="No — the Decisions endpoint is a POST, not a streaming read.">you want to stream generated text back</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. For an OpenRouter call, authentication is…</h4>
+  <button class="opt" data-fb="Correct — just an OpenRouter API key; no separate TypeSafe account.">just an OpenRouter API key, with no separate TypeSafe account</button>
+  <button class="opt" data-fb="No — a TypeSafe account is not required for this path.">a mandatory separate TypeSafe account and key</button>
+  <button class="opt" data-fb="No — authentication is per request with the API key, not cookies.">a browser cookie session instead of an API key</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Follow the <a href="https://openrouter.ai/docs/guides/community/jev">OpenRouter Jev guide</a> for the tutorial, the Decisions API reference, and the SDK base-URL change, and confirm the current model id and price on the Jev model page.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Make a first Choice, Noul, and Score call (curl or the SDK) against the Decisions or System One endpoint. Note both surfaces in your own words and when you would use each.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r3"><a href="https://openrouter.ai/docs/guides/community/jev">OpenRouter — Jev Documentation</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-preparing-state.html">← Lesson 5: Preparing state</a></span>
+  <span class="nav-next"><a href="0007-reading-results.html">Lesson 7: Reading results →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/jev-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

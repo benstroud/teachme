@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jev &amp; TypeSafe System One — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  code i { color: var(--accent); font-style: normal; }
+  td code { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Jev · TypeSafe System One</span></div>
+  <h1>Jev &amp; System One Cheat Sheet</h1>
+  <p class="subtitle">The compressed essence of the course. Skim before a lesson, study it fully before an interview.</p>
+</header>
+
+<section>
+<h2>1. The mental model</h2>
+<pre><code>     app state + typed questions
+                 │
+                 ▼
+      ┌─────────────────────┐
+      │     Jev (System One) │  fast, structured decisions
+      └──────────┬──────────┘
+                 ▼
+    typed answer: choice / score / noul
+    + probabilities + confidence     ──►  code branches/routes
+</code></pre>
+<p>Jev is a decision model, not an LLM: state and typed questions in, structured answers out — no text, no parsing, "no hallucination."<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>2. The three primitives</h2>
+<table>
+  <tr><th>Primitive</th><th>Question</th><th>Returns</th></tr>
+  <tr><td>Choice</td><td>Which of these options?</td><td>chosen option + probability per option + confidence</td></tr>
+  <tr><td>Score</td><td>Where on an ordered rubric?</td><td>probability-weighted position + probability per level + confidence</td></tr>
+  <tr><td>Noul</td><td>Does this condition hold?</td><td>0–1 probability</td></tr>
+</table>
+<p>Mix all three in one call; each is evaluated in parallel against the same state.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>3. Writing atomic questions</h2>
+<ul>
+  <li>One well-scoped judgment per question ("gut-check the expert can answer in seconds").<sup><a href="#r1">1</a></sup></li>
+  <li>Decompose: instead of "rate this pitch", ask market size, feasibility, differentiation separately.</li>
+  <li>Combine results with your own weights in code; change a coefficient, not a prompt.</li>
+</ul>
+</section>
+
+<section>
+<h2>4. Calling Jev (OpenRouter)</h2>
+<pre><code># model id
+typesafe/jev-1.13        (~typesafe/jev-latest alias)
+
+# Decisions API  POST https://openrouter.ai/api/alpha/decisions
+# System One API POST https://openrouter.ai/api/v1/systemone
+
+curl -X POST https://openrouter.ai/api/alpha/decisions \
+  -H 'Authorization: Bearer $OPENROUTER_API_KEY' \
+  -H 'content-type: application/json' \
+  -d '{
+    "model": "typesafe/jev-1.13",
+    "state": { "ticket": { "subject": "Refund not received", "priority": "high" } },
+    "questions": [
+      { "id": "team",   "type": "choice", "options": ["billing","support","sales"] },
+      { "id": "urgent", "type": "noul",    "statement": "This ticket is urgent" }
+    ]
+  }'</code></pre>
+<ul>
+  <li>Context window 32,000 tokens; input tokens billed, output tokens free.<sup><a href="#r3">3</a></sup></li>
+  <li>Every response includes <code>usage.cost</code> (USD).</li>
+  <li>No TypeSafe account for the OpenRouter path — an OpenRouter key is enough.<sup><a href="#r3">3</a></sup></li>
+  <li>Example request shape is illustrative; confirm field names in the current Decisions API reference.</li>
+</ul>
+</section>
+<section>
+<h2>5. Confidence &amp; thresholds</h2>
+<ul>
+  <li>Every output carries calibrated confidence/probabilities; use them to decide whether to act.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></li>
+  <li>Confidence is NOT accuracy. Measure on your own data; keep a human-review path for high-risk actions.<sup><a href="#r4">4</a></sup></li>
+  <li>Pick thresholds per decision; escalate low-confidence cases to a human.</li>
+</ul>
+</section>
+
+<section>
+<h2>6. Decision patterns in code</h2>
+<ul>
+  <li><strong>Gate:</strong> check a risky action against the user's request; run safe calls, refuse unsupported, pause ambiguous for a human.<sup><a href="#r3">3</a></sup></li>
+  <li><strong>Cascade:</strong> draft with a cheap model, verify with Jev, escalate to a stronger model only on failure.<sup><a href="#r3">3</a></sup></li>
+  <li><strong>Route:</strong> classify tickets/requests to the right team or model.</li>
+  <li><strong>Queue / escalate:</strong> set priority and pull humans in on low confidence.</li>
+</ul>
+</section>
+
+<section>
+<h2>7. Limits to respect</h2>
+<ul>
+  <li>Not a chatbot and not a standalone substitute for a generative LLM.<sup><a href="#r4">4</a></sup></li>
+  <li>Does not return reasoning/explanations — pair with an LLM or a human for justification.</li>
+  <li>Keep questions narrow; preprocess non-text inputs; validate latency in your own environment.<sup><a href="#r4">4</a></sup></li>
+  <li>Speed/pricing are moving snapshots — confirm against the live source.<sup><a href="#r2">2</a></sup><sup><a href="#r4">4</a></sup></li>
+</ul>
+</section>
+
+<footer class="citation">
+  Primary sources:
+  <a href="https://docs.typesafe.ai/introduction">TypeSafe docs</a>,
+  <a href="https://typesafe.ai/blog/introducing-system-one-models-and-jev">TypeSafe blog</a>,
+  <a href="https://openrouter.ai/docs/guides/community/jev">OpenRouter</a>,
+  <a href="https://huggingface.co/blog/sora-2/what-is-jev-ai-a-practical-guide-to-system-one-and">Hugging Face guide</a>.
+  <ol>
+    <li id="r1"><a href="https://docs.typesafe.ai/introduction">TypeSafe Docs — Introduction</a></li>
+    <li id="r2"><a href="https://typesafe.ai/blog/introducing-system-one-models-and-jev">TypeSafe Blog — Introducing System One Models &amp; Jev</a></li>
+    <li id="r3"><a href="https://openrouter.ai/docs/guides/community/jev">OpenRouter — Jev Documentation</a></li>
+    <li id="r4"><a href="https://huggingface.co/blog/sora-2/what-is-jev-ai-a-practical-guide-to-system-one-and">Hugging Face — What Is Jev AI?</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="../lessons/0001-why-a-decision-model.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

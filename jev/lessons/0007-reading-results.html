@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — Reading Results</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 10</span><span>Jev · TypeSafe System One</span></div>
+  <h1>Reading Results</h1>
+  <p class="subtitle">Jev gives you typed values, probabilities, and confidence — read them all, because the probabilities are where the signal lives.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Each question returns a <em>typed answer plus a probability signal</em> — a Choice returns its chosen option and probabilities per option, a Score a weighted position, a Noul a 0–1 probability — so your code can branch on the value and weigh the certainty.<sup><a href="#r1">1</a></sup><sup><a href="#r3">3</a></sup></p>
+
+<h2>What each primitive returns</h2>
+<table>
+  <tr><th>Primitive</th><th>Value</th><th>Probability signal</th></tr>
+  <tr><td>Choice</td><td>the selected option</td><td>a probability for each option, plus a confidence value</td></tr>
+  <tr><td>Score</td><td>a probability-weighted position</td><td>a probability per level, plus a confidence value</td></tr>
+  <tr><td>Noul</td><td>yes/no</td><td>a 0–1 probability of the condition holding</td></tr>
+</table>
+
+<h2>Branch on the typed value</h2>
+<pre><code>const res = await jev.ask({
+  questions: [
+    { id: "team",  type: "choice", options: ["billing","support","sales"] },
+    { id: "risk",  type: "score",  levels: [1,2,3,4,5] },
+    { id: "fraud", type: "noul",   statement: "This request appears fraudulent" },
+  ],
+});
+if (res.fraud.p  &gt; 0.8)           await escalate(res);
+if (res.risk.score &gt;= 4)          await queueHigh(res);
+routeToTeam(res.team.choice, res.team.probs);</code></pre>
+<p>Because the answers are typed, this code is ordinary branching — no parsing, no JSON string-splitting, no accidental schema drift.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Use the probability signals deliberately</h2>
+<p>Don't read only the top option. The probability per option and the per-question confidence tell you when to act automatically versus pause for a human — a reliable decision layer treats uncertainty as first-class data.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<h2>Also read usage.cost</h2>
+<p>Every Jev response includes a <code>usage.cost</code> field in USD, so you can see what a decision actually cost and tune batch sizes and question count against it.<sup><a href="#r3">3</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. A Noul question returns…</h4>
+  <button class="opt" data-fb="Correct — a 0-1 probability of the condition holding.">a 0-1 probability of the condition holding</button>
+  <button class="opt" data-fb="No — that is the shape of a Score answer, not Noul.">a weighted position plus probabilities per level</button>
+  <button class="opt" data-fb="No — Noul is a yes/no judgment, not a chosen option.">the single chosen option from a defined list</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. Branching on Jev's output is possible because…</h4>
+  <button class="opt" data-fb="No — there is no text to coerce; the answer is already typed.">it always returns raw chat text you must parse</button>
+  <button class="opt" data-fb="No — it returns JSON that still needs manual validation.">it returns JSON that still needs manual validation</button>
+  <button class="opt" data-fb="Correct — answers are typed values your code can branch on directly.">answers are typed values your code can branch on directly</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. The probability signal matters because…</h4>
+  <button class="opt" data-fb="No — it reflects certainty, whether near one or near zero.">it is only useful when a probability is very close to zero</button>
+  <button class="opt" data-fb="Correct — it tells code when to act automatically versus pause or escalate.">it tells code when to act automatically versus pause or escalate</button>
+  <button class="opt" data-fb="No — it does not measure business accuracy, but that is its use.">it is a guarantee the decision is factually correct</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the <a href="https://docs.typesafe.ai/introduction">primitives and confidence</a> sections, and the <a href="https://openrouter.ai/docs/guides/community/jev">OpenRouter reference</a> for the response schema including <code>usage.cost</code>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Run one Choice call and describe what the probabilities per option look like for a borderline case. Explain using the score quiz how you would branch on both the value and the confidence.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.typesafe.ai/introduction">TypeSafe Docs — Introduction</a></li>
+    <li id="r2"><a href="https://typesafe.ai/blog/introducing-system-one-models-and-jev">TypeSafe Blog — Introducing System One Models &amp; Jev</a></li>
+    <li id="r3"><a href="https://openrouter.ai/docs/guides/community/jev">OpenRouter — Jev Documentation</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-calling-the-api.html">← Lesson 6: Calling the API</a></span>
+  <span class="nav-next"><a href="0008-decisions-in-control-flow.html">Lesson 8: Control flow →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/jev-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

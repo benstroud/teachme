@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 9 — Confidence &amp; Thresholds</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 9 of 10</span><span>Jev · TypeSafe System One</span></div>
+  <h1>Confidence &amp; Thresholds</h1>
+  <p class="subtitle">Every answer carries a confidence signal — the discipline is choosing the bar at which your code acts, routes, or asks a human.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Jev reports its confidence with each decision, and your job is to set thresholds so the system decides <em>when</em> to act automatically versus escalate — calibrated confidence is the unit that makes that reliable.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<h2>Confidence is not accuracy</h2>
+<p>Confidence and probability are <em>signals</em> that help your application choose its level of automation — they are not a guarantee that the decision is correct in your business. A model can be right 95% of the time while being confidently wrong in the 5%, so the signal only helps if you act on the uncertainty, not just the answer.<sup><a href="#r4">4</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Robust automation is built on knowing when the model thinks it is on shaky ground. Treat a low-confidence answer as first-class data: its job is to route you to a human or a stronger step.</aside>
+
+<h2>Pick thresholds per decision</h2>
+<ul>
+  <li>Set a bar per decision and per risk level, not one global number.</li>
+  <li>High-confidence decisions run automatically; a band below that pauses or routes to review; the tail escalates to a human.<sup><a href="#r4">4</a></sup></li>
+  <li>Because only the ambiguous calls require human review, you can afford to be strict on riskier actions.</li>
+</ul>
+
+<h2>Evaluate on your own data</h2>
+<p>Calibration is not universal — measure it on <em>your</em> data, language, domain, and risk profile, and keep a human-review path for high-impact actions. The confidence you observed in a demo is not the confidence you will get in production at your concurrency and mix.<sup><a href="#r4">4</a></sup></p>
+
+<pre><code>// a deliberate threshold policy
+const d = await jev.ask({ questions: [ /* ... */ ] });
+if (d.risk.confidence &gt; 0.9)            return autoDecision(d);
+if (d.risk.confidence &gt; 0.6)            return reviewQueue(d);
+return humanApproval(d);</code></pre>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. Confidence is best understood as…</h4>
+  <button class="opt" data-fb="Correct — a signal for choosing the level of automation, not a truth guarantee.">a signal for choosing the level of automation, not a guarantee</button>
+  <button class="opt" data-fb="No — confidence is not accuracy in your business domain.">a guarantee that the decision is factually correct</button>
+  <button class="opt" data-fb="No — confidence describes certainty, not throughput.">a measure of how fast the model ran</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. Thresholds are best set…</h4>
+  <button class="opt" data-fb="No — different decisions and risks merit different bars.">once globally so all decisions share one bar</button>
+  <button class="opt" data-fb="No — a single fixed number cannot fit varied risk levels.">as the default model value with no tuning</button>
+  <button class="opt" data-fb="Correct — per decision and per risk level, with review for the middle band.">per decision and per risk level, with review for the middle band</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. To trust calibration in production you should…</h4>
+  <button class="opt" data-fb="No — the lab number is not your mix; measure your own.">copy the vendor's demo confidence verbatim</button>
+  <button class="opt" data-fb="Correct — evaluate confidence on your own data and risk profile.">evaluate confidence on your own data and risk profile</button>
+  <button class="opt" data-fb="No — keep a human path for high-impact actions rather than dropping it.">remove human review to cut operational cost</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the <a href="https://docs.typesafe.ai/introduction">confidence</a> topic and the Hugging Face caveat that <em>confidence is not accuracy</em>, then plan an evaluation on your own data.<sup><a href="#r4">4</a></sup></p>
+
+<div class="ask"><strong>Ask the agent</strong> Choose one high-risk decision and define three bands (auto, review, escalate) with explicit numeric thresholds. Explain how you would measure, over a real batch, whether those thresholds are well calibrated.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.typesafe.ai/introduction">TypeSafe Docs — Introduction</a></li>
+    <li id="r2"><a href="https://typesafe.ai/blog/introducing-system-one-models-and-jev">TypeSafe Blog — Introducing System One Models &amp; Jev</a></li>
+    <li id="r4"><a href="https://huggingface.co/blog/sora-2/what-is-jev-ai-a-practical-guide-to-system-one-and">Hugging Face — What Is Jev AI?</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0008-decisions-in-control-flow.html">← Lesson 8: Control flow</a></span>
+  <span class="nav-next"><a href="0010-operating-and-limits.html">Lesson 10: Operating &amp; limits →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/jev-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — What is Jev</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 10</span><span>Jev · TypeSafe System One</span></div>
+  <h1>What is Jev</h1>
+  <p class="subtitle">TypeSafe's flagship and the first System One model — a frontier-intelligence function call: unstructured state in, typed decisions out.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Jev is TypeSafe's flagship model and the first <strong>System One model</strong>: send application state and typed questions, get structured answers your code can use directly — no text generation, no parsing.<sup><a href="#r1">1</a></sup></p>
+
+<h2>What makes it different</h2>
+<ul>
+  <li><strong>Typed outputs, defined in advance.</strong> Possible answers and structure are fixed before a request; the model never makes type errors.<sup><a href="#r2">2</a></sup></li>
+  <li><strong>It gives up string generation</strong> in exchange for structure — which is why, as TypeSafe puts it, it "can't hallucinate": there is no open-ended text to go off the rails.<sup><a href="#r2">2</a></sup></li>
+  <li><strong>Calibrated probabilities and confidence</strong> accompany every output, so code can judge how much to trust a result.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>Built for speed on decisions.</strong> A parallel sampler and a training method called <em>RLCD</em> (Reinforcement Learning for Calibrated Decisions) target fast, calibrated system-one judgments.<sup><a href="#r2">2</a></sup></li>
+</ul>
+
+<blockquote>Think of Jev as a frontier-intelligence function call: unstructured state in, typed probabilistic decisions out.<cite>TypeSafe blog — Introducing System One Models &amp; Jev</cite></blockquote>
+
+<h2>Speed and cost, as stated</h2>
+<p>TypeSafe reports end-to-end responses around 70–500&nbsp;ms (compared with seconds for frontier LLMs) and claims tens-to-hundreds of times speedups on System One-shaped queries, with input tokens billed and output effectively free. Treat these as positioning you verify, not an SLA.<sup><a href="#r2">2</a></sup><sup><a href="#r3">3</a></sup></p>
+
+<h2>Where the names come from</h2>
+<p>"System One" borrows from Kahneman's fast, intuitive System 1 versus slow, considered System 2. "Jev" is named after the economist William Stanley Jevons, from the idea that each order-of-magnitude drop in the cost of intelligence unlocks far more use cases — like steam-engine efficiency did for coal.<sup><a href="#r2">2</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. Jev is best described as…</h4>
+  <button class="opt" data-fb="Correct — a System One model: state and typed questions in, structured answers out.">a System One model for fast, structured decisions</button>
+  <button class="opt" data-fb="No — Jev gives up open-ended text generation by design.">a large language model that writes fluent text</button>
+  <button class="opt" data-fb="No — that is the training method, not the model itself.">a pretraining method called Reinforcement Learning for Calibrated Decisions</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. Jev's outputs differ from an LLM's because they…</h4>
+  <button class="opt" data-fb="No — they are unrestricted strings, not the Jev model.">are unrestricted free-form strings of text</button>
+  <button class="opt" data-fb="No — probabilities accompany outputs; they are not absent.">carry no uncertainty information at all</button>
+  <button class="opt" data-fb="Correct — are typed, defined in advance, and come with calibrated probabilities.">are typed, defined in advance, and come with calibrated probabilities</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. The name "System One" draws on…</h4>
+  <button class="opt" data-fb="No — that is Jevons' economics analogy, not the class name.">William Stanley Jevons' theory of coal demand</button>
+  <button class="opt" data-fb="Correct — Kahneman's fast, intuitive System 1 thinking.">Kahneman's fast, intuitive System 1 thinking</button>
+  <button class="opt" data-fb="No — it is a type system, not a psychological reference.">a specific programming type system</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read <a href="https://typesafe.ai/blog/introducing-system-one-models-and-jev">Introducing System One Models &amp; Jev</a> for the full announcement (RLCD, speed, demos) and the <a href="https://docs.typesafe.ai/introduction">TypeSafe introduction</a> for the model's contract.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Write the one-sentence pitch for Jev in your own words, then list the three properties that make it different from an LLM. Verify each against the sources before moving on.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.typesafe.ai/introduction">TypeSafe Docs — Introduction</a></li>
+    <li id="r2"><a href="https://typesafe.ai/blog/introducing-system-one-models-and-jev">TypeSafe Blog — Introducing System One Models &amp; Jev</a></li>
+    <li id="r3"><a href="https://openrouter.ai/docs/guides/community/jev">OpenRouter — Jev Documentation</a></li>
+    <li id="r4"><a href="https://huggingface.co/blog/sora-2/what-is-jev-ai-a-practical-guide-to-system-one-and">Hugging Face — What Is Jev AI?</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-why-a-decision-model.html">← Lesson 1: Why a decision model</a></span>
+  <span class="nav-next"><a href="0003-the-three-primitives.html">Lesson 3: The three primitives →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/jev-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

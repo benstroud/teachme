@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — Preparing State</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 10</span><span>Jev · TypeSafe System One</span></div>
+  <h1>Preparing State</h1>
+  <p class="subtitle">State is the context you send; Jev evaluates every question against it — so the quality of your state sets the ceiling on the decision.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>You send <strong>state</strong> (the application context) plus typed questions, and Jev judges each question against that same state — so state is the raw material every decision is made from.<sup><a href="#r1">1</a></sup><sup><a href="#r3">3</a></sup></p>
+
+<h2>What to send</h2>
+<p>Think of state as structured program state: the ticket, the order, the user's request, the current values your code holds. TypeSafe's model emphasizes structured program state with text fields, and lets questions reference nested fields within that state.<sup><a href="#r2">2</a></sup><sup><a href="#r3">3</a></sup></p>
+
+<pre><code>{
+  "ticket": {
+    "subject": "Refund not received after 5 days",
+    "customerTier": "pro",
+    "amountUsd": 129.0,
+    "thread": ["I never got my refund…", "Please escalate"]
+  }
+}
+// questions then reference these fields to decide team and urgency</code></pre>
+
+<h2>Rules of thumb for good state</h2>
+<ul>
+  <li><strong>Send what the decision needs, not your whole database.</strong> More context is not always better; it costs tokens and can blur the judgment.</li>
+  <li><strong>Keep questions narrow</strong> and anchored in fields you actually send — an answer is only as grounded as the state behind it.<sup><a href="#r4">4</a></sup></li>
+  <li><strong>Preprocess non-text inputs</strong> (images, audio) into a textual summary or structured fields before shipping them as state.<sup><a href="#r4">4</a></sup></li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> Watch the context window. On OpenRouter, Jev's window is 32,000 tokens for the state you send plus the questions.<sup><a href="#r3">3</a></sup> Budget your state so big decisions still fit on a single request.</aside>
+
+<h2>State is not a prompt</h2>
+<p>You are not asking Jev to narrate; you are giving it facts to judge. Curate the fields, avoid redundant prose, and keep the state in the language your questions assume so probabilities stay meaningful.<sup><a href="#r2">2</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. In a Jev request, "state" refers to…</h4>
+  <button class="opt" data-fb="No — state is context, not the questions you ask.">the typed questions you want answered</button>
+  <button class="opt" data-fb="Correct — the application context every question is judged against.">the application context every question is judged against</button>
+  <button class="opt" data-fb="No — that is the model's schema, not your input.">a predefined answer schema from TypeSafe</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The best state to send is generally…</h4>
+  <button class="opt" data-fb="Correct — the fields the decision needs, not your whole database.">the fields the decision needs, not your whole database</button>
+  <button class="opt" data-fb="No — redundancy costs tokens and adds noise to the judgment.">every table joined together without any trimming</button>
+  <button class="opt" data-fb="No — images should be preprocessed into text or fields first.">raw images and audio in their native form</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. The 32,000-token figure refers to…</h4>
+  <button class="opt" data-fb="No — it covers both state and questions combined on one request.">the output answer length available from Jev</button>
+  <button class="opt" data-fb="No — Jev does not stream long text outputs at all.">the maximum tokens in a single subgraph query</button>
+  <button class="opt" data-fb="Correct — the context window for state plus questions on OpenRouter.">the context window for state plus questions on OpenRouter</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read <a href="https://docs.typesafe.ai/introduction">what to send as state</a> in the TypeSafe docs and the OpenRouter page's context-window note, plus the Hugging Face guide's limit about pre-processing non-text inputs.<sup><a href="#r4">4</a></sup></p>
+
+<div class="ask"><strong>Ask the agent</strong> For a "should we refund this order?" decision, list exactly which fields of an order you would send, which you would omit, and one field you would derive. Justify each choice.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.typesafe.ai/introduction">TypeSafe Docs — Introduction</a></li>
+    <li id="r2"><a href="https://typesafe.ai/blog/introducing-system-one-models-and-jev">TypeSafe Blog — Introducing System One Models &amp; Jev</a></li>
+    <li id="r3"><a href="https://openrouter.ai/docs/guides/community/jev">OpenRouter — Jev Documentation</a></li>
+    <li id="r4"><a href="https://huggingface.co/blog/sora-2/what-is-jev-ai-a-practical-guide-to-system-one-and">Hugging Face — What Is Jev AI?</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-asking-atomic-questions.html">← Lesson 4: Atomic questions</a></span>
+  <span class="nav-next"><a href="0006-calling-the-api.html">Lesson 6: Calling the API →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/jev-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

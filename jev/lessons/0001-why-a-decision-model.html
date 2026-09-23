@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — Why a Decision Model</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 10</span><span>Jev · TypeSafe System One</span></div>
+  <h1>Why a Decision Model</h1>
+  <p class="subtitle">When code must act on a judgment, coercing generated text into structure is a mismatch — System One models exist to fix it.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>LLMs produce text for humans; when you need a judgment your code will consume, a <strong>System One model</strong> takes state and typed questions and returns structure your code can branch on directly — no text, no parsing.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The mismatch</h2>
+<p>To make an LLM help software decide, teams add three steps: describe an output format in a prompt, parse the JSON or natural-language reply, then validate and convert it. That is flexible but fragile: formatting errors, extra parsing, and no honest signal about when the model is unsure.<sup><a href="#r4">4</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> The hard part in real products is usually not a paragraph — it is a stream of small, consistent judgments: which team gets this ticket, does this need approval, is this urgent, which model runs next.<sup><a href="#r4">4</a></sup></aside>
+
+<h2>What System One models are</h2>
+<p>System One models are a new class built to make fast, structured decisions that software can use directly. Named after Kahneman's fast, intuitive System 1 versus slow, considered System 2, they optimize for speed and calibrated, typed output rather than prose.<sup><a href="#r2">2</a></sup><sup><a href="#r3">3</a></sup></p>
+
+<h2>Where it fits</h2>
+<p>A decision model is a <em>decision layer</em>, not a chatbot and not a substitute for every LLM: it classifies, routes, verifies, ranks, and checks inside bounded answer spaces, while a generative model handles open-ended text and reasoning.<sup><a href="#r3">3</a></sup><sup><a href="#r4">4</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. The main reason to reach for a System One model is that…</h4>
+  <button class="opt" data-fb="No — that is what generative chat models do, not decision models.">it writes fluent prose for end users to read</button>
+  <button class="opt" data-fb="Correct — typed decisions beat parsing text when code must act on a judgment.">code needs typed decisions it can act on without parsing text</button>
+  <button class="opt" data-fb="No — it still returns JSON that must be validated first.">it returns JSON that still requires careful validation</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. In an LLM-plus-Jev system, the generative model typically…</h4>
+  <button class="opt" data-fb="Correct — an LLM handles open text and reasoning; Jev decides.">handles open-ended text and reasoning alongside Jev</button>
+  <button class="opt" data-fb="No — Jev is the decision layer, not the writer of prose.">is replaced entirely so only Jev answers users</button>
+  <button class="opt" data-fb="No — routing is exactly what the decision layer helps do.">routes every request before Jev runs</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. The core failure the course opens with is…</h4>
+  <button class="opt" data-fb="No — that is a sign to combine models, not the core failure.">models failing to write prose at all</button>
+  <button class="opt" data-fb="No — that is not the opening mismatch this course describes.">responses being too slow to read</button>
+  <button class="opt" data-fb="Correct — coercing text into structure then parsing and validating it.">coercing text into structure then parsing and validating it</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read <a href="https://docs.typesafe.ai/introduction">TypeSafe — Introduction</a> and the <a href="https://huggingface.co/blog/sora-2/what-is-jev-ai-a-practical-guide-to-system-one-and">Hugging Face guide</a> for the practical framing of Jev as a decision layer.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Pick three small judgments your app makes today (e.g. which team owns a ticket, whether an action needs approval). For each, write the LLM prompt-and-parse dance you would otherwise write — then name the risk of each.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.typesafe.ai/introduction">TypeSafe Docs — Introduction</a></li>
+    <li id="r2"><a href="https://typesafe.ai/blog/introducing-system-one-models-and-jev">TypeSafe Blog — Introducing System One Models &amp; Jev</a></li>
+    <li id="r3"><a href="https://openrouter.ai/docs/guides/community/jev">OpenRouter — Jev Documentation</a></li>
+    <li id="r4"><a href="https://huggingface.co/blog/sora-2/what-is-jev-ai-a-practical-guide-to-system-one-and">Hugging Face — What Is Jev AI?</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="0002-what-is-jev.html">Lesson 2: What is Jev →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/jev-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
