@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — Gateway vs Router: Two Runtimes</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 10</span><span>Apollo GraphQL Gateway &amp; Router</span></div>
+  <h1>Gateway vs Router: Two Runtimes</h1>
+  <p class="subtitle">One composes inside a Node process; the other is a standalone binary. They serve the same supergraph — the choice is operational.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p><strong>@apollo/gateway</strong> runs the graph gateway in-process with Apollo Server (Node.js), while the <strong>Apollo Router</strong> is a separate, standalone binary that Apollo recommends for production.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The Node gateway: in-process with Apollo Server</h2>
+<p>With <code>@apollo/gateway</code>, your gateway is code. You construct an <code>ApolloGateway</code>, hand it the supergraph, and pass it to <code>new ApolloServer({ gateway })</code>. Apollo Server then behaves as the graph router. Because it is a Node process, you can customize it with the usual Apollo Server plugins, service hooks, and your own middleware.<sup><a href="#r2">2</a></sup></p>
+
+<h2>The Apollo Router: a standalone binary</h2>
+<p>The <strong>Apollo Router</strong> is Apollo's execution engine for graph-based API orchestration — a binary you run next to your services, configured with a YAML file and a supergraph schema.<sup><a href="#r1">1</a></sup> It is written for throughput: query planning and routing happen in a purpose-built runtime, so it scales to high request loads without per-request Node overhead.</p>
+
+<aside class="note"><strong>Key idea</strong> Both runtimes consume the same supergraph and expose the same combined API to clients. You are not locked into different graph models — you are choosing where and how the routing layer executes.</aside>
+
+<h2>Choosing between them</h2>
+<table>
+  <tr><th>Consideration</th><th>@apollo/gateway (Node)</th><th>Apollo Router</th></tr>
+  <tr><td>Runtime</td><td>In-process with Apollo Server</td><td>Standalone binary</td></tr>
+  <tr><td>Configuration</td><td>Code + plugins</td><td>router.yaml + schema source</td></tr>
+  <tr><td>Performance</td><td>Fine for modest load</td><td>Built for high throughput</td></tr>
+  <tr><td>Custom auth logic</td><td>Easy to write in Node</td><td>Via JWT config, Rhai, or coprocessors</td></tr>
+  <tr><td>Production default</td><td>Not recommended by default</td><td>Recommended by Apollo</td></tr>
+</table>
+
+<p>Apollo's docs are explicit: in the majority of cases they recommend the Router, because it is faster to configure, more performant at high request loads, and rarely requires custom code; the <code>@apollo/gateway</code> API reference notes that all supergraphs should use it.<sup><a href="#r2">2</a></sup> The main reason to stay on the Node gateway is when you need deep, code-level integration with Apollo Server's plugin model or a custom subgraph fetcher.</p>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. The key difference between the two gateways is that…</h4>
+  <button class="opt" data-fb="No — both serve the same supergraph model to clients.">they expose different GraphQL schema formats</button>
+  <button class="opt" data-fb="Correct — one is in-process with Node, the other is a standalone binary.">one runs in-process with Node, the other is a standalone binary</button>
+  <button class="opt" data-fb="No — both serve the same supergraph; only the runtime differs.">only one can serve a supergraph at all</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Apollo's documented production recommendation is…</h4>
+  <button class="opt" data-fb="Correct — the Router, being faster to configure and more performant.">the Router, faster to configure and more performant</button>
+  <button class="opt" data-fb="No — the Router is the recommended runtime, not the Node gateway.">the Node @apollo/gateway for every deployment</button>
+  <button class="opt" data-fb="No — Apollo resolves this with guidance; both cannot be the default.">whichever gateway requires no configuration at all</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. A reason to stay on the Node gateway is…</h4>
+  <button class="opt" data-fb="No — the Node gateway is exactly where you write code-level logic.">that the Router forbids all custom code entirely</button>
+  <button class="opt" data-fb="No — the Router still needs a supergraph and a config.">that the Router cannot use a supergraph file</button>
+  <button class="opt" data-fb="Correct — deep, code-level integration with Apollo Server's plugin model.">deep, code-level integration with Apollo Server's plugin model</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://www.apollographql.com/docs/apollo-server/using-federation/apollo-gateway-setup/">Implementing a gateway with Apollo Server</a> page — note its recommendation to use the Router — and skim the <a href="https://www.apollographql.com/docs/router/">Router overview</a> to compare the two runtime stories.</p>
+
+<div class="ask"><strong>Ask the agent</strong> For a small team's two-subgraph system, argue both sides: where the Node gateway fits, and where the Router fits. State the decision rule you would use, and what would change your mind.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.apollographql.com/docs/router/">Apollo Router — Overview</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/apollo-server/using-federation/apollo-gateway-setup/">Implementing a gateway with Apollo Server</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-the-supergraph-and-entities.html">← Lesson 2: Supergraph &amp; entities</a></span>
+  <span class="nav-next"><a href="0004-running-the-node-gateway.html">Lesson 4: Run the Node gateway →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/apollo-router-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

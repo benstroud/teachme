@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — Query Planning Across Subgraphs</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 10</span><span>Apollo GraphQL Gateway &amp; Router</span></div>
+  <h1>Query Planning Across Subgraphs</h1>
+  <p class="subtitle">One client query becomes a plan: which subgraphs to call, with what, in what order — then a merged answer.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Given a client query, the gateway builds a <strong>query plan</strong> — which subgraph returns which pieces, how to sequence entity lookups across them — executes it, and merges the parts into one response.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Reading a simple plan</h2>
+<pre><code># client query
+query { product(id: 1) { name reviews { body } } }
+
+# conceptual plan
+1. products:  product(id: 1) -> Product { name }         (returns entity + key)
+2. reviews:   __resolveReference(ref: { id: 1 })
+              -> Product { reviews { body } }             (fills the rest)
+3. merge:     Product { name, reviews: [...] }</code></pre>
+<p>The gateway asks the <em>products</em> subgraph for the fields it owns (<code>name</code>), then asks the <em>reviews</em> subgraph to <em>resolve the same entity by its key</em> and fill <code>reviews</code>. It merges on the shared <code>id</code>.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Entities are the joints</h2>
+<p>Crossing a subgraph boundary requires an <strong>entity</strong>. The owning subgraph resolves it from its key fields; the other subgraph contributes additional fields. The plan chains these references so a single client query composes the whole object across services.<sup><a href="#r2">2</a></sup></p>
+
+<ul>
+  <li>Fields owned by the same subgraph stay together in one call — the plan avoids splitting them needlessly.</li>
+  <li>Entity references are batched where possible, so a list of products becomes a batch reference resolver, not one call per product.</li>
+  <li>The query planner decides shape and order; you don't hand-write the plan, but you must be able to read it.</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> Planning is why the supergraph must carry routing metadata: the gateway cannot know which subgraph owns <code>name</code> unless the composed schema tells it. Read the plan, and you understand how a query maps onto your services.</aside>
+
+<h2>The native query planner</h2>
+<p>The Apollo Router uses a native query planner tuned for throughput: it parses the operation, validates against the supergraph, chooses subgraph calls, and emits the execution schedule — work that happens on every request, so its cost is amortized across high request loads.<sup><a href="#r1">1</a></sup></p>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. A query plan is best described as…</h4>
+  <button class="opt" data-fb="Correct — the execution schedule across subgraphs for one query.">the execution schedule across subgraphs for one query</button>
+  <button class="opt" data-fb="No — the supergraph is the schema; the plan is execution.">the composed schema the gateway serves to clients</button>
+  <button class="opt" data-fb="No — each subgraph still runs its own resolvers.">the resolvers each subgraph runs internally</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. To cross a subgraph boundary, the plan relies on…</h4>
+  <button class="opt" data-fb="No — it must reference an entity by key to continue in another subgraph.">copying all fields into a shared database</button>
+  <button class="opt" data-fb="No — a plan cannot merge data without a shared identity.">serializing each service's results to JSON files</button>
+  <button class="opt" data-fb="Correct — an entity resolved by its @key across the subgraphs.">an entity resolved by its @key across the subgraphs</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. For a list of products, the planner should…</h4>
+  <button class="opt" data-fb="No — batching, not per-item calls, is the point.">call the reviews subgraph once per product</button>
+  <button class="opt" data-fb="Correct — batch the entity references into few calls.">batch the entity references into few calls</button>
+  <button class="opt" data-fb="No — one query at a time would recreate an N+1 pattern.">issue one separate plan per product</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://www.apollographql.com/docs/router/">Router overview</a> section on the request lifecycle and the native query planner, plus <a href="https://www.apollographql.com/docs/federation/v2/entities/">Entities</a> for how reference resolution stitches fields.</p>
+
+<div class="ask"><strong>Ask the agent</strong> For <code>products { id name reviews { body } }</code> across two subgraphs, write the plan by hand: which subgraph returns what, in what order, and where the entity key is used. Then say how you would confirm the real plan in the Router.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.apollographql.com/docs/router/">Apollo Router — Request lifecycle</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/federation/v2/entities/">Apollo Federation — Entities</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-router-authentication-and-security.html">← Lesson 7: Authentication &amp; security</a></span>
+  <span class="nav-next"><a href="0009-caching-and-performance.html">Lesson 9: Caching &amp; performance →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/apollo-router-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

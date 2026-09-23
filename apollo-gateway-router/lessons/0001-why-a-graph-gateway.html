@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — Why a Graph Gateway</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 10</span><span>Apollo GraphQL Gateway &amp; Router</span></div>
+  <h1>Why a Graph Gateway</h1>
+  <p class="subtitle">When a domain is split across many GraphQL services, a gateway gives clients one schema — the supergraph — and one place to route.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A <strong>graph gateway</strong> (also called a graph router) sits in front of several GraphQL services, presents them as a single composed schema — the <em>supergraph</em> — and, for each client request, plans how to gather the answer across those services.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The problem it solves</h2>
+<p>An organization rarely runs one big GraphQL API. Teams own separate services: a <em>users</em> service, a <em>products</em> service, a <em>reviews</em> service — each a <strong>subgraph</strong> with its own schema. Without a gateway, a client that needs a product and its reviews must:</p>
+<ul>
+  <li>Call several services and stitch the results by hand, and</li>
+  <li>Know every service's URL, schema, and auth model.</li>
+</ul>
+<p>That is exactly the fragmentation a gateway removes: one API in front, many services behind it.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> A gateway composes subgraphs into a supergraph, serves the supergraph to clients, and executes each request across subgraphs — so clients behave as if the domain were one monolith.</aside>
+
+<h2>What a gateway gives you</h2>
+<table>
+  <tr><th>Property</th><th>What it means</th></tr>
+  <tr><td>One endpoint, one schema</td><td>Clients query the supergraph, not N services.</td></tr>
+  <tr><td>Cross-service joins</td><td>One query can cross the <code>products</code> and <code>reviews</code> boundary.</td></tr>
+  <tr><td>Query planning</td><td>The gateway decides which services run what, and how to merge it.</td></tr>
+  <tr><td>A security edge</td><td>Authentication, CORS, and rate rules live in one place.</td></tr>
+  <tr><td>Freedom for teams</td><td>Each team evolves its subgraph without coordinating clients.</td></tr>
+</table>
+
+<h2>Two Apollo gateways</h2>
+<p>Apollo offers two ways to run this edge layer:<sup><a href="#r1">1</a></sup></p>
+<ul>
+  <li><strong>@apollo/gateway</strong> — a Node.js gateway that runs in-process with Apollo Server.</li>
+  <li><strong>Apollo Router</strong> — a standalone, high-performance binary that Apollo recommends for production.</li>
+</ul>
+<p>Both serve the same supergraph, so the choice is mostly about deployment and scale — which the next lessons explore.</p>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. The main reason to place a graph gateway in front of several services is to…</h4>
+  <button class="opt" data-fb="No — subgraphs stay private; the gateway aggregates them.">expose every subgraph independently to clients</button>
+  <button class="opt" data-fb="Correct — it composes them into one schema and routes each request.">compose them into one schema clients query as a single API</button>
+  <button class="opt" data-fb="No — the gateway plans queries; it is not a database cache.">cache every subgraph's data in one database</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The supergraph is…</h4>
+  <button class="opt" data-fb="Correct — the composed, client-facing schema the gateway serves.">the single composed schema the gateway serves to clients</button>
+  <button class="opt" data-fb="No — each GraphQL service is a subgraph within the graph.">any one GraphQL service behind the gateway</button>
+  <button class="opt" data-fb="No — that names one service, not the composed whole.">a single subgraph owned by the platform team</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. Apollo's two ways to run the edge layer are…</h4>
+  <button class="opt" data-fb="No — the router is for the edge, not GraphQL subgraph code.">the Router and a custom REST gateway</button>
+  <button class="opt" data-fb="No — ApolloClient is a browser library, not a gateway.">ApolloClient and Apollo Server running subgraphs</button>
+  <button class="opt" data-fb="Correct — a Node gateway and a standalone Router binary.">a Node gateway (@apollo/gateway) and the Apollo Router</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>The official orientation: <a href="https://www.apollographql.com/docs/router/">Apollo Router — Overview</a>, and the <a href="https://www.apollographql.com/docs/federation/federated-schemas/">Federation schemas</a> page for the subgraph-versus-supergraph model that anchors this course.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Sketch a three-service domain you know (users, products, reviews). Write two concrete failure modes a client would hit by calling those services directly, then describe how routing them through one gateway changes the client's code.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.apollographql.com/docs/router/">Apollo Router — Overview</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/federation/federated-schemas/">Apollo Federation — Federated schemas</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="0002-the-supergraph-and-entities.html">Lesson 2: Supergraph &amp; entities →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/apollo-router-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

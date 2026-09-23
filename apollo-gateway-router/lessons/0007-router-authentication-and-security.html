@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — Router Authentication &amp; Security</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 10</span><span>Apollo GraphQL Gateway &amp; Router</span></div>
+  <h1>Router Authentication &amp; Security</h1>
+  <p class="subtitle">Prove who the caller is at the router, then decide whether the subgraphs should learn who that was on the upstream hop.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>The Router can verify client tokens (JWT) before planning a request, and it can attach credentials when calling subgraphs — so authentication happens once at the edge and authorization is enforced where the gateway sits.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Authenticating clients at the router</h2>
+<p>Configure a <code>router</code> JWT block so that the Router validates the caller's token against a trusted issuer and JWKS before the query is planned and executed:<sup><a href="#r1">1</a></sup></p>
+<pre><code>authentication:
+  router:
+    jwt:
+      issuer: https://auth.example.com
+      audiences: [ "my-app" ]
+      jwks:
+        - url: https://auth.example.com/.well-known/jwks.json</code></pre>
+<ul>
+  <li><strong>issuer</strong> and <strong>audiences</strong> pin the token's claims; <strong>jwks</strong> supplies the public keys used to verify the signature.</li>
+  <li>This is authentication — identity. What the caller may <em>do</em> is a separate concern you enforce with your own checks (commonly via Rhai or coprocessors).</li>
+</ul>
+
+<h2>Secure the upstream hop</h2>
+<p>Subgraphs are usually not world-exposed; the Router should present credentials to them. Under <code>authentication.subgraph</code> you can attach headers per service (for example a fixed service token) so one trusted identity flows Router → subgraph:<sup><a href="#r1">1</a></sup></p>
+<pre><code>authentication:
+  subgraph:
+    all:
+      http:
+        headers:
+          Authorization: "Bearer a-fixed-token-placeholder"</code></pre>
+
+<aside class="note"><strong>Key idea</strong> Keep the two hops distinct. The client-to-router hop proves the end user; the router-to-subgraph hop proves the gateway. Writing the same credential into both places is a common security mistake.</aside>
+
+<h2>Also in the security toolkit</h2>
+<ul>
+  <li><strong>CORS</strong> — restrict which browser origins the Router serves (critical because the Router is the client-facing edge).<sup><a href="#r1">1</a></sup></li>
+  <li><strong>CSRF prevention</strong>, <strong>TLS</strong>, and <strong>request limits</strong> — harden the listener and cap abuse.</li>
+  <li><strong>Demand control</strong> — protect the graph from high-cost operations.</li>
+</ul>
+<p>Because the Router fronts every subgraph, locking it down once protects the whole graph behind it.<sup><a href="#r2">2</a></sup></p>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. The router JWT block is used to…</h4>
+  <button class="opt" data-fb="Correct — verify client tokens before a request is planned.">verify client tokens before the request is planned</button>
+  <button class="opt" data-fb="No — authorization rules are your own policy, not JWT verification.">enforce field-level authorization rules directly</button>
+  <button class="opt" data-fb="No — subgraph auth attaches credentials to the upstream hop.">attach credentials when calling subgraphs</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. The upstream (subgraph) auth block exists because…</h4>
+  <button class="opt" data-fb="No — subgraphs should not see the raw client JWT by default.">clients should always reach subgraphs directly</button>
+  <button class="opt" data-fb="No — the Router fronts the subgraphs, so they stay private.">the Router is removed from the request path entirely</button>
+  <button class="opt" data-fb="Correct — the Router presents its own credentials to subgraphs.">the Router presents its own credentials to subgraphs</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. CORS matters so much on the Router because…</h4>
+  <button class="opt" data-fb="No — CORS is about browser origins, not subgraph scale.">subgraphs share one giant origin pool</button>
+  <button class="opt" data-fb="Correct — the Router is the browser-facing edge for the whole graph.">the Router is the browser-facing edge for the whole graph</button>
+  <button class="opt" data-fb="No — each subgraph sets its own CORS, not the Router.">each subgraph must expose its own CORS rules</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://www.apollographql.com/docs/router/security/">Apollo Router — Security overview</a> (JWT, CORS, CSRF) and note that the release notes/flags can change the exact jwks cache keys, so verify with your version.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Configure the Router to verify a test JWT (issuer + audience + JWKS from a public signer), attach a service token to subgraph calls, and attempt a query with and without a valid token. Describe exactly where each failure surfaces.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.apollographql.com/docs/router/security/">Apollo Router — Security overview</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/router/">Apollo Router — Overview</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-configuring-the-router-router-yaml.html">← Lesson 6: router.yaml</a></span>
+  <span class="nav-next"><a href="0008-query-planning-across-subgraphs.html">Lesson 8: Query planning →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/apollo-router-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

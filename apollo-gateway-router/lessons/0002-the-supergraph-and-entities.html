@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — The Supergraph &amp; Entities</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 10</span><span>Apollo GraphQL Gateway &amp; Router</span></div>
+  <h1>The Supergraph &amp; Entities</h1>
+  <p class="subtitle">The gateway reads one composed schema; entities are how multiple subgraphs share a single type across that schema.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Each <strong>subgraph</strong> publishes its own schema; those schemas are <em>composed</em> into a <strong>supergraph</strong>, and an <strong>entity</strong> is a type that several subgraphs contribute fields to by agreeing on a key.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Subgraph versus supergraph versus API schema</h2>
+<table>
+  <tr><th>Schema</th><th>What it is</th></tr>
+  <tr><td>Subgraph schema</td><td>One service's schema, e.g. <code>products</code>, with its resolvers and entities.</td></tr>
+  <tr><td>Supergraph schema</td><td>The composed whole, produced from all subgraphs; includes routing metadata.</td></tr>
+  <tr><td>API schema</td><td>The client-facing view the gateway serves, after composition resolves ownership.<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+
+<h2>Composing the supergraph</h2>
+<p>Apollo's <strong>Rover</strong> CLI composes a supergraph from a subgraph list. You feed Rover a small config naming each subgraph's schema location, and it outputs a supergraph file the gateway loads.<sup><a href="#r2">2</a></sup></p>
+<pre><code># supergraph.yaml
+subgraphs:
+  products:
+    routing_url: http://products:4000
+    schema:
+      file: ./products.graphql
+  reviews:
+    routing_url: http://reviews:4000
+    schema:
+      file: ./reviews.graphql
+
+# rover supergraph compose --config ./supergraph.yaml --output ./supergraph.graphql</code></pre>
+
+<h2>Entities tie subgraphs together</h2>
+<p>A <code>Product</code> lives in <code>products</code> but the <code>reviews</code> subgraph wants to add review data to it. They agree <code>Product</code> is an <strong>entity</strong> identified by a <code>@key</code>. Each contributing subgraph declares the same key; the owner resolves the entity by that key.<sup><a href="#r3">3</a></sup></p>
+<pre><code># products subgraph — owns the entity
+type Product @key(fields: "id") {
+  id: ID!
+  name: String!
+  price: Int
+}
+
+# reviews subgraph — contributes a field
+extend type Product @key(fields: "id") {
+  id: ID! @external
+  reviews: [Review!]!
+}</code></pre>
+<ul>
+  <li><code>@key(fields: "id")</code> names the identity the gateway uses to match a product across subgraphs.<sup><a href="#r3">3</a></sup></li>
+  <li>The non-owning subgraph <code>extend</code>s the type and marks the shared key field <code>@external</code>.</li>
+  <li>The owning subgraph provides a reference resolver that loads the entity from just its key fields when it is reached from another subgraph.</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> The supergraph is the contract the gateway routes against. Entities — via <code>@key</code> — are what let one client query across subgraph boundaries in a single request.</aside>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. The order of schemas from least to most composed is…</h4>
+  <button class="opt" data-fb="Correct — subgraphs compose to a supergraph served as the API schema.">subgraph, then supergraph, then API schema</button>
+  <button class="opt" data-fb="No — the API schema is the served view, not the source.">supergraph, then API schema, then subgraph</button>
+  <button class="opt" data-fb="No — each service publishes its own subgraph schema first.">API schema, then supergraph, then subgraph</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. An entity is best described as…</h4>
+  <button class="opt" data-fb="No — entities are shared types, not a deployable unit.">a single subgraph service deployed on its own</button>
+  <button class="opt" data-fb="No — that is the composed whole, not one type.">the fully composed supergraph schema</button>
+  <button class="opt" data-fb="Correct — a type that several subgraphs share by agreeing on a @key.">a type several subgraphs share by agreeing on a @key</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. In the owning subgraph, an entity's identity is declared with…</h4>
+  <button class="opt" data-fb="No — @external marks a shared key in a non-owning subgraph.">@external on the key field</button>
+  <button class="opt" data-fb="Correct — @key(fields: ...) names the fields that identify an instance.">@key(fields: ...) naming the identifying fields</button>
+  <button class="opt" data-fb="No — @provides declares a field, not an identity.">@provides on each relationship field</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://www.apollographql.com/docs/federation/federated-schemas/">Federation — Federated schemas</a> and <a href="https://www.apollographql.com/docs/federation/v2/entities/">Entities</a>, then try <code>rover supergraph compose</code> on two tiny subgraphs you write by hand.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Write two subgraph schemas that share a <code>Product</code> entity (one owns it, one extends it with a <code>reviews</code> field), compose them into a supergraph, and describe how the gateway would satisfy <code>product(id) { name reviews { body } }</code>.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.apollographql.com/docs/federation/federated-schemas/">Apollo Federation — Federated schemas</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/rover/commands/supergraphs/">Rover — Composing a supergraph</a></li>
+    <li id="r3"><a href="https://www.apollographql.com/docs/federation/v2/entities/">Apollo Federation — Entities</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-why-a-graph-gateway.html">← Lesson 1: Why a graph gateway</a></span>
+  <span class="nav-next"><a href="0003-gateway-vs-router-two-runtimes.html">Lesson 3: Two runtimes →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/apollo-router-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

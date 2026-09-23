@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — Apollo Router: First Run</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 10</span><span>Apollo GraphQL Gateway &amp; Router</span></div>
+  <h1>Apollo Router: First Run</h1>
+  <p class="subtitle">A binary, a supergraph schema, and a way to serve it — then it plans and routes client queries to your subgraphs.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>The Router is a standalone binary that needs (a) the supergraph schema it serves and (b) a <code>router.yaml</code> for its features; you give it the schema through a file path, an environment variable, or Apollo's schema services, then it listens and routes.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Give it the supergraph</h2>
+<p>The Router needs to know the graph it is running. For a local setup the simplest source is a supergraph file, supplied either by flag or by environment variable:<sup><a href="#r1">1</a></sup></p>
+<pre><code># by command-line flag
+./router --supergraph ./supergraph.graphql
+
+# or by environment variable
+APOLLO_ROUTER_SUPERGRAPH_PATH=./supergraph.graphql ./router</code></pre>
+<p>Other schema sources exist — Apollo Uplink (<code>APOLLO_GRAPH_REF</code>), graph artifacts (<code>APOLLO_GRAPH_ARTIFACT_REFERENCE</code>), and the Kubernetes Operator — each suited to a different deployment.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Run it (binary or container)</h2>
+<p>With a local supergraph file and a minimal <code>router.yaml</code>, launch it and it begins serving the composed API:</p>
+<pre><code># supergraph.graphql   (from rover supergraph compose)
+# router.yaml
+supergraph:
+  path: ./supergraph.graphql
+
+listeners:
+  - port: 4000
+
+# run
+./router --config router.yaml</code></pre>
+<p>Running via container follows the same idea — mount the supergraph and config, set the schema path, and expose the listener port. The exact image tag and volume layout depend on the Router version and its deployment guide; confirm those from the docs before relying on a specific command.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Send a first query</h2>
+<p>Once the Router is up, an HTTP <code>POST</code> to the listener with a GraphQL query behaves like any GraphQL endpoint. It validates against the supergraph, plans, fans out to the subgraphs that can answer, and merges the result:</p>
+<pre><code>curl -X POST http://localhost:4000/ \
+  -H 'content-type: application/json' \
+  -d '{"query":"{ product(id: 1) { name reviews { body } } }"}'</code></pre>
+
+<aside class="note"><strong>Key idea</strong> Launching the Router is not building a GraphQL API — the API is the supergraph. Your job is to give the Router that schema and let its query planner do the fan-out.</aside>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. The Router gets the supergraph for a local run from…</h4>
+  <button class="opt" data-fb="Correct — a file via --supergraph or APOLLO_ROUTER_SUPERGRAPH_PATH.">a local file via --supergraph (or that env var)</button>
+  <button class="opt" data-fb="No — the config file names features; the schema file is separate.">a supergraph section inside router.yaml</button>
+  <button class="opt" data-fb="No — uplink needs APOLLO_GRAPH_REF and a network connection.">Apollo Uplink as the only supported source</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. The listener's job is to…</h4>
+  <button class="opt" data-fb="No — listeners open network sockets the Router serves on.">store the composed supergraph in memory</button>
+  <button class="opt" data-fb="No — that is the schema source, not a network endpoint.">define which subgraphs contribute fields</button>
+  <button class="opt" data-fb="Correct — open a port the Router receives client requests on.">open a port the Router receives client requests on</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. For one client query, the Router typically…</h4>
+  <button class="opt" data-fb="No — it plans the fan-out across subgraphs, not a single call.">calls only the first subgraph and ignores the rest</button>
+  <button class="opt" data-fb="Correct — plans, calls the needed subgraphs, and merges their data.">plans, calls the needed subgraphs, and merges their data</button>
+  <button class="opt" data-fb="No — clients talk to the Router, which fronts the subgraphs.">forwards the query untouched so clients hit subgraphs</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Use the <a href="https://www.apollographql.com/docs/router/configuration/overview/">Router configuration overview</a> to wire the schema source, and its deployment guide for how to actually launch your chosen flavor. Flag any version-specific flag you cannot verify.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Run the Router locally with two subgraph servers and a composed supergraph file. Send a cross-service query, then read the Router's startup log to see the schema it loaded and the listener it opened.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.apollographql.com/docs/router/configuration/overview/">Apollo Router — Configuration overview</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/router/deployment/">Apollo Router — Deployment guides</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-running-the-node-gateway.html">← Lesson 4: Run the Node gateway</a></span>
+  <span class="nav-next"><a href="0006-configuring-the-router-router-yaml.html">Lesson 6: router.yaml →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/apollo-router-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

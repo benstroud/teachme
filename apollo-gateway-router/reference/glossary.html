@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apollo GraphQL Gateway &amp; Router — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Apollo GraphQL Gateway &amp; Router</span></div>
+  <h1>Gateway &amp; Router Glossary</h1>
+  <p class="subtitle">Every term in this course, in one place. Return here when a lesson uses a word you do not fully own.</p>
+</header>
+
+<section>
+<h2>The graph</h2>
+<dl>
+  <dt><strong>graph gateway / graph router</strong></dt>
+  <dd>The edge component that sits in front of several GraphQL services and presents one composed schema to clients, planning and executing each request across those services.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>subgraph</strong></dt>
+  <dd>A single GraphQL service that contributes part of the federated graph, with its own schema and resolvers. A subgraph can be an Apollo Server, another language implementation, or a connector to a REST API.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>supergraph</strong></dt>
+  <dd>The single, composed GraphQL schema produced from all subgraph schemas. It is what clients query and what the gateway routes against.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>API schema</strong></dt>
+  <dd>The client-facing schema the gateway exposes to consumers — the supergraph after federation composition has resolved directives and ownership.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>entity</strong></dt>
+  <dd>A type with an identity (a <code>@key</code>) that several subgraphs can contribute fields to, matched by that key at runtime.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>@key</strong></dt>
+  <dd>A federation directive marking an entity and naming the fields that identify a single instance, e.g. <code>@key(fields: "id")</code>.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>__resolveReference</strong></dt>
+  <dd>A special resolver (in the owning subgraph) that loads an entity from just its key fields when another subgraph references it.</dd>
+
+  <dt><strong>@shareable / @external / @provides / @requires</strong></dt>
+  <dd>Federation directives that spell out which subgraph owns a field, which fields a type contributes, and what a field depends on when resolving across subgraphs.</dd>
+</dl>
+</section>
+<section>
+<h2>The Node gateway (@apollo/gateway)</h2>
+<dl>
+  <dt><strong>@apollo/gateway</strong></dt>
+  <dd>Apollo's Node.js gateway. Runs in-process with Apollo Server and turns Apollo Server into a graph router for a federated supergraph.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>ApolloGateway</strong></dt>
+  <dd>The class exported by <code>@apollo/gateway</code>. Construct it with a supergraph source, then pass the instance as the <code>gateway</code> option to <code>new ApolloServer(...)</code>.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>supergraphSdl</strong></dt>
+  <dd>The option that tells <code>ApolloGateway</code> where the supergraph schema comes from: a string, a hook, or a manager (such as <code>IntrospectAndCompose</code>).<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>IntrospectAndCompose</strong></dt>
+  <dd>A <code>SupergraphManager</code> that introspects a list of subgraph URLs at startup and composes the supergraph, with optional polling for updates.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>buildService</strong></dt>
+  <dd>A function you can give <code>ApolloGateway</code> to customize the data source used to talk to each subgraph (e.g. to attach auth).</dd>
+</dl>
+</section>
+<section>
+<h2>The Apollo Router</h2>
+<dl>
+  <dt><strong>Apollo Router</strong></dt>
+  <dd>The standalone, high-performance graph gateway (a binary) recommended by Apollo for production. It serves the supergraph and routes requests across subgraphs.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>router.yaml</strong></dt>
+  <dd>The Router's default configuration file, where runtime features are declared: schema source, listeners, CORS, authentication, caching, telemetry, and more.<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>listeners</strong></dt>
+  <dd>The Router config section that opens HTTP (and/or shared/unix) sockets the Router listens on.</dd>
+
+  <dt><strong>supergraph source</strong></dt>
+  <dd>Where the Router reads the supergraph schema from: local files, graph artifacts, Apollo Uplink, or the Kubernetes Operator.<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>Apollo Uplink</strong></dt>
+  <dd>Apollo's schema delivery service; the Router reads the supergraph from Apollo when <code>APOLLO_GRAPH_REF</code> is set.</dd>
+
+  <dt><strong>hot reload</strong></dt>
+  <dd>The Router feature that reloads a changed local supergraph file at runtime without a restart.<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>query plan</strong></dt>
+  <dd>The internal execution strategy the gateway produces for a client query: which subgraphs to call, in what order, and how to merge the pieces.<sup><a href="#r6">6</a></sup></dd>
+
+  <dt><strong>Rhai</strong></dt>
+  <dd>A scripting language the Router runs for customization (e.g. authorization logic) without recompiling the binary.</dd>
+
+  <dt><strong>coprocessor</strong></dt>
+  <dd>An out-of-process hook (in any language) for customizing Router behavior at defined points in the request lifecycle.</dd>
+</dl>
+</section>
+<section>
+<h2>Security, caching &amp; operations</h2>
+<dl>
+  <dt><strong>JWT authentication</strong></dt>
+  <dd>A Router security feature that verifies client tokens (against a JWKS/issuer/audience) before a request is planned and executed.<sup><a href="#r7">7</a></sup></dd>
+
+  <dt><strong>subgraph authentication</strong></dt>
+  <dd>Headers the Router attaches when calling subgraphs, forwarding or adding credentials on the upstream hop.</dd>
+
+  <dt><strong>CORS</strong></dt>
+  <dd>Cross-origin request rules the Router enforces on the paths it serves, controlling which browsers may call it.<sup><a href="#r7">7</a></sup></dd>
+
+  <dt><strong>APQ (Automatic Persisted Queries)</strong></dt>
+  <dd>A protocol optimization where clients send a hash of a query and only send the full query on a miss, reducing payload size.<sup><a href="#r8">8</a></sup></dd>
+
+  <dt><strong>response caching</strong></dt>
+  <dd>Router-level caching of full responses (often in Redis) so identical operations do not hit subgraphs every time.<sup><a href="#r8">8</a></sup></dd>
+
+  <dt><strong>traffic shaping</strong></dt>
+  <dd>Per-operation Router policies for timeouts, retries, and batching that tune reliability and performance of upstream calls.<sup><a href="#r8">8</a></sup></dd>
+
+  <dt><strong>OpenTelemetry</strong></dt>
+  <dd>The observability standard the Router emits traces/metrics to (exporters like OTLP, Datadog, Prometheus).<sup><a href="#r9">9</a></sup></dd>
+
+  <dt><strong>Apollo Operator</strong></dt>
+  <dd>Apollo's Kubernetes operator for deploying and managing the Router on Kubernetes with schema-aware blue/green updates.</dd>
+</dl>
+</section>
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.apollographql.com/docs/router/">Apollo Router — Overview</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/federation/federated-schemas/">Apollo Federation — Federated schemas</a></li>
+    <li id="r3"><a href="https://www.apollographql.com/docs/federation/v2/entities/">Apollo Federation — Entities</a></li>
+    <li id="r4"><a href="https://www.apollographql.com/docs/apollo-server/using-federation/api/apollo-gateway/">@apollo/gateway — API reference</a></li>
+    <li id="r5"><a href="https://www.apollographql.com/docs/router/configuration/overview/">Apollo Router — Configuration overview</a></li>
+    <li id="r6"><a href="https://www.apollographql.com/docs/router/">Apollo Router — Request lifecycle</a></li>
+    <li id="r7"><a href="https://www.apollographql.com/docs/router/security/">Apollo Router — Security overview</a></li>
+    <li id="r8"><a href="https://www.apollographql.com/docs/router/performance-and-scaling/">Apollo Router — Performance and scaling</a></li>
+    <li id="r9"><a href="https://www.apollographql.com/docs/router/observability/">Apollo Router — Observability / telemetry</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Mission &amp; notes</span>
+  <span class="nav-next"><a href="../lessons/0001-why-a-graph-gateway.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../NOTES.md">Notes</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — Configuring the Router (router.yaml)</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 10</span><span>Apollo GraphQL Gateway &amp; Router</span></div>
+  <h1>Configuring the Router (router.yaml)</h1>
+  <p class="subtitle">router.yaml declares the Router's runtime features; the supergraph schema is wired separately. Know both sides.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Running the Router means (1) giving it the supergraph schema and (2) declaring its runtime features in a YAML config — named <code>router.yaml</code> by default.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The two halves of setup</h2>
+<table>
+  <tr><th>Half</th><th>What it provides</th><th>How</th></tr>
+  <tr><td>The supergraph schema</td><td>The graph the Router serves and routes against</td><td>Local file, Uplink, graph artifact, or Operator</td></tr>
+  <tr><td>router.yaml</td><td>Listeners, CORS, headers, auth, caching, telemetry</td><td>YAML passed as <code>--config</code> or discovered by name</td></tr>
+</table>
+<sup><a href="#r1">1</a></sup>
+
+<h2>A representative router.yaml</h2>
+<pre><code>supergraph:
+  path: ./supergraph.graphql
+
+listeners:
+  - port: 4000
+
+cors:
+  origins:
+    - https://app.example.com
+
+headers:
+  all:
+    request:
+      - propagate:
+          named: x-request-id
+
+authentication:
+  router:
+    jwt:
+      issuer: https://auth.example.com
+      audiences: [ "my-app" ]
+      jwks:
+        - url: https://auth.example.com/.well-known/jwks.json
+  subgraph:
+    all:
+      http:
+        headers:
+          Authorization: "Bearer a-fixed-token-placeholder"
+
+telemetry:
+  exporters:
+    metrics:
+      otlp:
+        endpoint: http://collector:4317</code></pre>
+<ul>
+  <li><code>supergraph.path</code> points at the supergraph file (an alternate to the <code>--supergraph</code> flag).<sup><a href="#r1">1</a></sup></li>
+  <li><code>listeners</code> open the port(s) the Router serves on.</li>
+  <li><code>cors</code> and <code>headers</code> govern origins and header propagation; <code>authentication</code> adds JWT at the router and attaches credentials to subgraph calls.</li>
+  <li><code>telemetry.exporters</code> wires observability output (expanded in a later lesson).</li>
+</ul>
+
+<h2>Environment variables that matter</h2>
+<ul>
+  <li><code>APOLLO_ROUTER_SUPERGRAPH_PATH</code> — set the supergraph via a local file path.</li>
+  <li><code>APOLLO_GRAPH_REF</code> — fetch the supergraph from Apollo Uplink.</li>
+  <li><code>APOLLO_GRAPH_ARTIFACT_REFERENCE</code> — reference a versioned graph artifact.<sup><a href="#r1">1</a></sup></li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> For local files the Router can <em>hot reload</em>: when the supergraph file changes it reloads the schema at runtime, giving zero-downtime schema updates in local/CI workflows.<sup><a href="#r1">1</a></sup></aside>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. In the Router, router.yaml and the supergraph schema are…</h4>
+  <button class="opt" data-fb="No — the schema is wired separately via file, Uplink, or artifact.">always one single merged file that is both</button>
+  <button class="opt" data-fb="Correct — two inputs: config file plus a separately supplied schema.">two inputs: a config file plus a separately supplied schema</button>
+  <button class="opt" data-fb="No — the config and the schema are both separate inputs.">entirely the same YAML configuration</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The supergraph section of router.yaml is used to…</h4>
+  <button class="opt" data-fb="Correct — point at the local supergraph file (or graph ref).">point at the supergraph file or graph reference</button>
+  <button class="opt" data-fb="No — listeners open the network port, not the schema path.">define the port the Router listens on</button>
+  <button class="opt" data-fb="No — telemetry exporters handle that, not supergraph.">enable telemetry exporters for metrics</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. Hot reload means…</h4>
+  <button class="opt" data-fb="No — it reloads the schema, not the subgraph binaries.">subgraphs restart whenever their code changes</button>
+  <button class="opt" data-fb="No — it affects schema reloads, not request caching.">client responses are always cached indefinitely</button>
+  <button class="opt" data-fb="Correct — the Router reloads a changed supergraph file without a restart.">the Router reloads a changed supergraph file without a restart</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://www.apollographql.com/docs/router/configuration/overview/">Router configuration overview</a> for the schema-source table and env vars, and open the <a href="https://www.apollographql.com/docs/router/configuration/">YAML reference</a> for the full section list. Note any key that is version-specific.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Write a router.yaml for your two-subgraph setup with a listener, CORS origin, a propagated header, and the supergraph pointed at your local file. Run the Router with it and confirm the schema it loads.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.apollographql.com/docs/router/configuration/overview/">Apollo Router — Configuration overview</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-apollo-router-first-run.html">← Lesson 5: Router first run</a></span>
+  <span class="nav-next"><a href="0007-router-authentication-and-security.html">Lesson 7: Authentication &amp; security →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/apollo-router-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

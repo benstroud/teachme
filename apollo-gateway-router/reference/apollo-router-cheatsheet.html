@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apollo GraphQL Gateway &amp; Router — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  .two-col { display: flex; flex-wrap: wrap; gap: 1.4rem; }
+  .two-col > div { flex: 1 1 46%; min-width: 18rem; }
+  code i { color: var(--accent); font-style: normal; }
+  td code, .q code { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Apollo GraphQL Gateway &amp; Router</span></div>
+  <h1>Gateway &amp; Router Cheat Sheet</h1>
+  <p class="subtitle">The compressed essence of the course. Skim before a lesson, study it fully before an interview.</p>
+</header>
+
+<section>
+<h2>1. The mental model</h2>
+<pre><code>   Clients (web, mobile)
+          │  one GraphQL query to the gateway
+      ┌───▼─────────┐
+      │  GATEWAY     │  serves the supergraph,
+      │  (Router)    │  plans + routes the request
+      └──┬────┬────┬─┘
+     ┌───▼┐ ┌▼───┐ ┌▼──────┐
+     │users│ │prod│ │reviews│   ← subgraphs (GraphQL
+     └─────┘ └────┘ └───────┘      services / REST)
+</code></pre>
+<p>A <strong>gateway</strong> composes subgraphs into a <strong>supergraph</strong>, serves it to clients, and for each request builds a <strong>query plan</strong> executed across subgraphs.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>2. Supergraph &amp; entities</h2>
+<pre><code># subgraph schema (products)
+type Product @key(fields: "id") {
+  id: ID!
+  name: String!
+  price: Int
+}
+# subgraph schema (reviews) contributes a field, ties on the key
+extend type Product @key(fields: "id") {
+  id: ID! @external
+  reviews: [Review!]!
+}
+</code></pre>
+<ul>
+  <li>Build the supergraph from subgraphs: <code>rover supergraph compose --config ./supergraph.yaml --output ./supergraph.graphql</code>.<sup><a href="#r2">2</a></sup></li>
+  <li>Entities use <code>@key</code>; non-owning subgraphs <code>extend</code> and mark the key <code>@external</code>.</li>
+</ul>
+</section>
+
+<section>
+<h2>3. Node gateway (@apollo/gateway)</h2>
+<pre><code>npm install @apollo/gateway @apollo/server graphql
+
+import { ApolloServer } from '@apollo/server';
+import { startStandaloneServer } from '@apollo/server/standalone';
+import { ApolloGateway } from '@apollo/gateway';
+import { readFileSync } from 'fs';
+
+const supergraphSdl = readFileSync('./supergraph.graphql').toString();
+const gateway = new ApolloGateway({ supergraphSdl });
+const server = new ApolloServer({ gateway });
+
+const { url } = await startStandaloneServer(server);
+console.log('ready at', url);
+</code></pre>
+<ul>
+  <li>In-process with Apollo Server; docs recommend the Router for production.<sup><a href="#r3">3</a></sup></li>
+  <li>Or compose by introspection: <code>new IntrospectAndCompose({ subgraphs: [ { name, url } ] })</code>.</li>
+</ul>
+</section>
+
+<section>
+<h2>4. Apollo Router — run it</h2>
+<pre><code># provide the supergraph and a config file
+APOLLO_ROUTER_SUPERGRAPH_PATH=./supergraph.graphql ./router
+# or: ./router --supergraph ./supergraph.graphql
+
+# Docker
+docker run -p 4000:4000 \
+  -v ./supergraph.graphql:/supergraph.graphql \
+  -v ./router.yaml:/config/router.yaml \
+  -e APOLLO_ROUTER_SUPERGRAPH_PATH=/supergraph.graphql \
+  ghcr.io/apollographql/router:v2 \
+  --config /config/router.yaml
+</code></pre>
+<ul>
+  <li>Schema source options: local files (<code>APOLLO_ROUTER_SUPERGRAPH_PATH</code>), Uplink (<code>APOLLO_GRAPH_REF</code>), graph artifacts (<code>APOLLO_GRAPH_ARTIFACT_REFERENCE</code>), or the Kubernetes Operator.<sup><a href="#r4">4</a></sup></li>
+  <li>Note — the Docker image/version tag above is illustrative; confirm the current tag and config path for the version you run.</li>
+</ul>
+</section>
+<section>
+<h2>5. router.yaml</h2>
+<pre><code>supergraph:
+  path: ./supergraph.graphql
+
+listeners:
+  - port: 4000
+
+cors:
+  origins:
+    - https://app.example.com
+
+headers:
+  all:
+    request:
+      - propagate:
+          named: x-request-id
+
+authentication:
+  router:
+    jwt:
+      issuer: https://auth.example.com
+      audiences: [ "my-app" ]
+      jwks:
+        - url: https://auth.example.com/.well-known/jwks.json
+  subgraph:
+    all:
+      http:
+        headers:
+          Authorization: "Bearer fixed-token-placeholder"
+
+telemetry:
+  exporters:
+    metrics:
+      otlp:
+        endpoint: http://collector:4317
+</code></pre>
+<ul>
+  <li>router.yaml configures features; the supergraph is wired separately (see §4).<sup><a href="#r4">4</a></sup></li>
+  <li>Exact JWT/jwks and caching key names vary by version — confirm against <code>router --docs</code>.</li>
+</ul>
+</section>
+
+<section>
+<h2>6. Security, caching, operations</h2>
+<ul>
+  <li><strong>Auth:</strong> verify client JWTs at the router (issuer + audience + JWKS); propagate credentials to subgraphs and lock down paths.<sup><a href="#r5">5</a></sup></li>
+  <li><strong>CORS:</strong> control which origins may call the router.</li>
+  <li><strong>Caching:</strong> response caching (Redis) and automatic persisted queries reduce subgraph load.<sup><a href="#r6">6</a></sup></li>
+  <li><strong>Plan-aware:</strong> the native query planner decides which subgraphs run what, in order.</li>
+  <li><strong>Customize:</strong> Rhai scripts (in-binary) or coprocessors (out-of-process) for authz/logic.</li>
+  <li><strong>Observe:</strong> emit OpenTelemetry spans/metrics; export to OTLP/Datadog/Prometheus; use health checks.<sup><a href="#r7">7</a></sup></li>
+  <li><strong>Deploy:</strong> Docker, Kubernetes via the Apollo Operator, AWS, Azure, or GCP.<sup><a href="#r8">8</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>7. Design checklist</h2>
+<ul>
+  <li>Route all client traffic through one gateway; subgraphs stay private behind it.</li>
+  <li>Pick the Router for production performance; use @apollo/gateway for deep Node integration.</li>
+  <li>Own fields once per subgraph; use entities + <code>@key</code> to share across them.</li>
+  <li>Authenticate at the edge with JWT; keep secrets out of reproduction snippets.</li>
+  <li>Cache the queries that deserve it; plan for invalidation.</li>
+  <li>Emit telemetry and health checks from day one.</li>
+</ul>
+</section>
+
+<footer class="citation">
+  Primary sources: <a href="https://www.apollographql.com/docs/router/">Apollo Router</a>,
+  <a href="https://www.apollographql.com/docs/apollo-server/using-federation/apollo-gateway-setup/">Gateway setup</a>,
+  <a href="https://www.apollographql.com/docs/federation/">Federation</a>.
+  <ol>
+    <li id="r1"><a href="https://www.apollographql.com/docs/router/">Apollo Router — Overview</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/federation/federated-schemas/">Apollo Federation — Federated schemas</a></li>
+    <li id="r3"><a href="https://www.apollographql.com/docs/apollo-server/using-federation/apollo-gateway-setup/">Implementing a gateway with Apollo Server</a></li>
+    <li id="r4"><a href="https://www.apollographql.com/docs/router/configuration/overview/">Apollo Router — Configuration overview</a></li>
+    <li id="r5"><a href="https://www.apollographql.com/docs/router/security/">Apollo Router — Security overview</a></li>
+    <li id="r6"><a href="https://www.apollographql.com/docs/router/performance-and-scaling/">Apollo Router — Performance and scaling</a></li>
+    <li id="r7"><a href="https://www.apollographql.com/docs/router/observability/">Apollo Router — Observability</a></li>
+    <li id="r8"><a href="https://www.apollographql.com/docs/router/deployment/">Apollo Router — Deployment</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="../lessons/0001-why-a-graph-gateway.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

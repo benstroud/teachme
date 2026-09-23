@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — Running the Node Gateway</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 10</span><span>Apollo GraphQL Gateway &amp; Router</span></div>
+  <h1>Running the Node Gateway</h1>
+  <p class="subtitle">With @apollo/gateway, Apollo Server becomes the graph router — fed by a supergraph schema string or by introspecting subgraphs.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>You construct an <code>ApolloGateway</code> with a supergraph source, pass it as the <code>gateway</code> option to <code>new ApolloServer(...)</code>, and start it with the usual Apollo Server startup — the gateway now plans and routes across subgraphs.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Install and the minimal gateway</h2>
+<pre><code>npm install @apollo/gateway @apollo/server graphql
+
+import { ApolloServer } from '@apollo/server';
+import { startStandaloneServer } from '@apollo/server/standalone';
+import { ApolloGateway } from '@apollo/gateway';
+import { readFileSync } from 'fs';
+
+const supergraphSdl = readFileSync('./supergraph.graphql').toString();
+
+const gateway = new ApolloGateway({
+  supergraphSdl,
+});
+
+const server = new ApolloServer({ gateway });
+
+const { url } = await startStandaloneServer(server);
+console.log('ready at', url);</code></pre>
+<p>Here <code>supergraphSdl</code> is a pre-composed supergraph string (the output of <code>rover supergraph compose</code>). On startup the gateway processes it, extracts subgraph routing info, and begins planning queries across the listed subgraphs.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Composing at startup by introspection</h2>
+<p>Instead of a pre-built supergraph, you can let the gateway introspect each subgraph at startup with <code>IntrospectAndCompose</code>, naming each service by <code>name</code> and <code>url</code>:<sup><a href="#r2">2</a></sup></p>
+<pre><code>import { ApolloGateway, IntrospectAndCompose } from '@apollo/gateway';
+
+const gateway = new ApolloGateway({
+  supergraphSdl: new IntrospectAndCompose({
+    subgraphs: [
+      { name: 'products', url: 'http://localhost:4001/graphql' },
+      { name: 'reviews',  url: 'http://localhost:4002/graphql' },
+    ],
+    // pollIntervalInMs: 60000,  // optional polling for updates
+  }),
+});
+const server = new ApolloServer({ gateway });
+const { url } = await startStandaloneServer(server);</code></pre>
+
+<h2>Customizing how subgraphs are reached</h2>
+<p><code>buildService</code> lets you swap in a custom data source per subgraph (for example to add auth headers):<sup><a href="#r2">2</a></sup></p>
+<pre><code>const gateway = new ApolloGateway({
+  supergraphSdl,
+  buildService({ name, url }) {
+    return new AuthenticatedDataSource({ name, url });
+  },
+});</code></pre>
+
+<aside class="note"><strong>Key idea</strong> The gateway is just a special Apollo Server configuration. Everything you know about plugins, headers, and context still applies — the difference is that resolving a query now fans out to subgraphs instead of resolvers in the same process.</aside>
+
+<h2>Keep the trade-off in view</h2>
+<p>This path is convenient when you want gateway behavior inside Node. Recall the docs' guidance that production workloads are better served by the Apollo Router — so treat this lesson as the "in-process" option, not the default target.<sup><a href="#r1">1</a></sup></p>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. To turn Apollo Server into a graph router you…</h4>
+  <button class="opt" data-fb="No — the gateway is passed in, not fetched over HTTP.">point it at a remote gateway over HTTP</button>
+  <button class="opt" data-fb="Correct — pass an ApolloGateway instance as the gateway option.">pass an ApolloGateway instance as the gateway option</button>
+  <button class="opt" data-fb="No — that composes subgraphs; the router still needs Apollo Server.">install rover supergraph compose into the process</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The role of supergraphSdl on ApolloGateway is to…</h4>
+  <button class="opt" data-fb="Correct — provide the composed schema the gateway routes against.">provide the composed schema the gateway routes against</button>
+  <button class="opt" data-fb="No — that is IntrospectAndCompose, which fetches subgraph schemas.">introspect each subgraph's live schema</button>
+  <button class="opt" data-fb="No — resolvers run in subgraphs, not on the gateway.">hold the resolvers for every subgraph</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. IntrospectAndCompose gets the supergraph by…</h4>
+  <button class="opt" data-fb="No — it reads each subgraph's schema, not a prebuilt file.">loading a prebuilt supergraph file from disk</button>
+  <button class="opt" data-fb="No — it queries subgraph URLs; it does not push schemas upward.">uploading the local schema to a cloud service</button>
+  <button class="opt" data-fb="Correct — introspecting the named subgraph URLs at startup.">introspecting the named subgraph URLs at startup</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Follow <a href="https://www.apollographql.com/docs/apollo-server/using-federation/apollo-gateway-setup/">Implementing a gateway with Apollo Server</a> and check the <a href="https://www.apollographql.com/docs/apollo-server/using-federation/api/apollo-gateway/">@apollo/gateway API reference</a> for <code>supergraphSdl</code>, <code>buildService</code>, and <code>IntrospectAndCompose</code> options.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Stand up the minimal gateway above against two tiny local subgraph servers you write. Verify a query that crosses both, then enable <code>IntrospectAndCompose</code> and re-run. Note the difference in how each obtains the supergraph.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.apollographql.com/docs/apollo-server/using-federation/apollo-gateway-setup/">Implementing a gateway with Apollo Server</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/apollo-server/using-federation/api/apollo-gateway/">@apollo/gateway — API reference</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-gateway-vs-router-two-runtimes.html">← Lesson 3: Two runtimes</a></span>
+  <span class="nav-next"><a href="0005-apollo-router-first-run.html">Lesson 5: Router first run →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/apollo-router-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

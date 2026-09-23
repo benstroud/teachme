@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 10 — Operating &amp; Scaling the Router</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 10 of 10</span><span>Apollo GraphQL Gateway &amp; Router</span></div>
+  <h1>Operating &amp; Scaling the Router</h1>
+  <p class="subtitle">In production the Router earns its trade-offs through telemetry, health checks, and a deployment model that scales alongside your graph.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Treat the Router as an edge service you operate like any other: ship it as a container (or the Kubernetes Operator), give it health checks, and watch its OpenTelemetry traces and metrics.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Observe it with telemetry</h2>
+<p>The Router emits <strong>OpenTelemetry</strong> traces and metrics covering the request lifecycle, including per-subgraph calls and query planning. You wire exporters to your observability stack — OTLP, Datadog, Prometheus, and others — so one client request is visible as it fans out across subgraphs.<sup><a href="#r2">2</a></sup></p>
+<ul>
+  <li><strong>Metrics</strong> answer "how many, how long, how many errors?" per operation and subgraph.</li>
+  <li><strong>Traces</strong> answer "what did this one request do?" across planning and subgraph hops.</li>
+  <li><strong>Telemetry <em>exporters</em></strong> are configured in YAML (e.g. under <code>telemetry.exporters</code>) and require a target endpoint.</li>
+</ul>
+
+<h2>Health checks &amp; resource management</h2>
+<p>Like any service, the Router exposes a health check you can point load balancers and orchestrators at, and is designed to run with bounded resources. Read the monitoring docs for the exact check path for your version.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Deploy and scale</h2>
+<p>Apollo ships deployment guidance for <strong>Docker</strong>, <strong>Kubernetes</strong> (via the <strong>Apollo Operator</strong>, which manages the Router pods and schema-aware updates), and the major clouds (AWS, Azure, GCP). Scale by running multiple stateless Router instances behind a load balancer, sharing caches (Redis) and a schema source.<sup><a href="#r3">3</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> The Router is stateless toward subgraphs: any instance can serve any request, so the fleet scales horizontally and one instance's restart is invisible to clients — as long as caches and schema delivery are shared.</aside>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. The Router communicates with your observability stack via…</h4>
+  <button class="opt" data-fb="Correct — OpenTelemetry spans and metrics via configured exporters.">OpenTelemetry spans and metrics via configured exporters</button>
+  <button class="opt" data-fb="No — that is schema delivery, not observability.">the APOLLO_GRAPH_REF environment variable</button>
+  <button class="opt" data-fb="No — the supergraph is the schema, not an export format.">writing each response to supergraph files</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. To scale the Router, you typically…</h4>
+  <button class="opt" data-fb="No — instances are stateless, so extra instances do not conflict.">run a single instance and never scale</button>
+  <button class="opt" data-fb="No — each instance is identical, so there is no leader to elect.">elect one primary instance to route everything</button>
+  <button class="opt" data-fb="Correct — run many stateless instances behind a load balancer.">run many stateless instances behind a load balancer</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. For a fleet of Routers to share benefit, caches and schema must be…</h4>
+  <button class="opt" data-fb="Correct — shared, so any instance serves fresh, consistent data.">shared, so any instance serves fresh, consistent data</button>
+  <button class="opt" data-fb="No — isolated caches would reboot data per instance.">isolated to keep each instance independent</button>
+  <button class="opt" data-fb="No — they are central inputs, not per-subgraph concerns.">duplicated inside each and every subgraph</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Skim <a href="https://www.apollographql.com/docs/router/observability/">Router telemetry</a> for the export options, and <a href="https://www.apollographql.com/docs/router/deployment/">deployment guides</a> for Docker, Kubernetes/the Apollo Operator, and the cloud runtimes.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Sketch a production layout: a load-balanced fleet of Routers, a shared Redis cache, a shared supergraph source, and an OpenTelemetry collector. Trace one request through the fleet and state where the Router's health check fits.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.apollographql.com/docs/router/">Apollo Router — Overview</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/router/observability/">Apollo Router — Observability / telemetry</a></li>
+    <li id="r3"><a href="https://www.apollographql.com/docs/router/deployment/">Apollo Router — Deployment guides</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0009-caching-and-performance.html">← Lesson 9: Caching &amp; performance</a></span>
+  <span class="nav-next"><a href="../reference/apollo-router-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/apollo-router-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

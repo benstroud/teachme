@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 9 — Caching &amp; Performance</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 9 of 10</span><span>Apollo GraphQL Gateway &amp; Router</span></div>
+  <h1>Caching &amp; Performance</h1>
+  <p class="subtitle">The Router is built for throughput — but caching and shaping are where you stop hitting subgraphs for every identical request.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>The Router can serve responses from a cache (often Redis), shrink requests with automatic persisted queries (APQ), batch operations, and shape upstream traffic — turning repeated work into cache hits.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Response caching</h2>
+<p><strong>Response caching</strong> stores a full operation response (keyed by operation + variables, and typically honoring cache-control) so an identical request is answered without a subgraph fan-out. It works best with Redis so many Router instances share one cache across instances.<sup><a href="#r1">1</a></sup></p>
+<ul>
+  <li><strong>When it pays:</strong> hot, read-heavy operations with stable shapes.</li>
+  <li><strong>The cost:</strong> stale data — so pair it with invalidation or short TTLs for anything that changes.</li>
+  <li><strong>It is not the plan:</strong> the query still has to be valid; caching skips recomputing it.</li>
+</ul>
+
+<h2>Automatic persisted queries (APQ)</h2>
+<p><strong>APQ</strong> is a wire optimization: the client sends a hash of the query instead of the whole text, and only transmits the full query when the Router reports a miss. That shrinks payloads for large, repeated queries and is a natural fit for a Router that is already caching.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Traffic shaping and batching</h2>
+<p><strong>Traffic shaping</strong> applies per-operation policies — like timeouts and retries — that tune reliability against slow or flaky subgraphs. <strong>Query batching</strong> lets the Router receive batched requests and process them together, which is useful when clients or gateways in front of the Router batch.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Caching changes latency and backpressure, not correctness. Get the plan right first; then cache the hot, read-only operations, and shape upstream calls so one slow subgraph can't stall everything.</aside>
+</section>
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Response caching helps most on…</h4>
+  <button class="opt" data-fb="No — caching is weakest for highly dynamic, write-heavy data.">frequently changing write-heavy operations</button>
+  <button class="opt" data-fb="Correct — hot, read-heavy operations with stable shapes.">hot, read-heavy operations with stable shapes</button>
+  <button class="opt" data-fb="No — stale risk makes caching a poor fit for all mutations.">every mutation without any invalidation</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The point of automatic persisted queries is to…</h4>
+  <button class="opt" data-fb="Correct — shrink requests by sending a hash until a miss.">shrink requests by sending a query hash until a miss</button>
+  <button class="opt" data-fb="No — APQ is a wire optimization, not a cache of live data.">prevent all queries from ever reaching subgraphs</button>
+  <button class="opt" data-fb="No — it reduces payload size, not query-plan correctness.">make every operation return identical results</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. Traffic shaping is used to…</h4>
+  <button class="opt" data-fb="No — shaping tunes reliability, not the schema contract.">change which fields the supergraph exposes</button>
+  <button class="opt" data-fb="No — shaping governs timeouts/retries, not typing.">add types and resolvers to every subgraph</button>
+  <button class="opt" data-fb="Correct — set per-operation timeouts and retries upstream.">set per-operation timeouts and retries upstream</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://www.apollographql.com/docs/router/performance-and-scaling/">Apollo Router — Performance and scaling</a>, focusing on response caching, APQ, traffic shaping, and query batching, and note any Redis configuration details for your version.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Pick one hot read query, plan where to enable response caching (and its invalidation), and where to enable APQ. Explain how you would measure the effect (e.g. with the Router's metrics) before and after.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.apollographql.com/docs/router/performance-and-scaling/">Apollo Router — Performance and scaling</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0008-query-planning-across-subgraphs.html">← Lesson 8: Query planning</a></span>
+  <span class="nav-next"><a href="0010-operating-and-scaling-the-router.html">Lesson 10: Operating the Router →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/apollo-router-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
