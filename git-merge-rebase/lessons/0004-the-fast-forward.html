@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — The Fast-Forward</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 10</span><span>Git · Merging &amp; Rebasing</span></div>
+  <h1>The Fast-Forward</h1>
+  <p class="subtitle">When one branch is simply ahead of the other, a merge just moves the pointer — no new commit, nothing to resolve.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A <strong>fast-forward</strong> is a merge that can just move the current branch pointer up to the merged commit, because that commit is already a descendant of where you are — so no merge commit is created.<sup><a href="#r1">1</a></sup></p>
+
+<h2>When it happens</h2>
+<pre><code>main: o---o---A
+feat:            B---C     (feature descends from A)
+
+git switch main
+git merge feature
+# main simply fast-forwards to C  — nothing new, "Updating A..C"
+</code></pre>
+<p>Because everything in <code>feature</code> already contains <code>main</code>'s history, there is nothing to combine; the pointer just advances. No commit, no conflict.<sup><a href="#r1">1</a></sup></p>
+
+<h2>But not when you have diverged</h2>
+<p>If <code>main</code> also gained commits after <code>A</code>, the two branches moved apart. Then a fast-forward is impossible: Git must do a true three-way merge and create a merge commit (next lesson).<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> A fast-forward is the cleanest possible integration — but it only exists when there was no real divergence. Tools often hide this (auto-ff or auto-merge), which is why <code>--ff-only</code> exists: it fails loudly rather than silently creating a merge commit.</aside>
+
+<h2>Two flags that control it</h2>
+<ul>
+  <li><code>git merge --ff-only</code> — refuse the merge if it cannot fast-forward (good in automation).</li>
+  <li><code>git merge --no-ff</code> — always create a merge commit, even when a fast-forward would work (used to record "a feature was merged here").<sup><a href="#r1">1</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. A fast-forward merge…</h4>
+  <button class="opt" data-fb="No — fast-forward just moves the pointer, it makes no commit.">always creates a brand new merge commit</button>
+  <button class="opt" data-fb="No — it only happens when the target is a descendant.">is impossible whenever the target is a descendant</button>
+  <button class="opt" data-fb="Correct — moves the pointer with no new commit.">moves the pointer with no new commit</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A fast-forward is impossible when…</h4>
+  <button class="opt" data-fb="Correct — both branches have commits since their merge base.">both branches have commits since their merge base</button>
+  <button class="opt" data-fb="No — same content is irrelevant to reachability.">the two branches have identical file contents</button>
+  <button class="opt" data-fb="No — ancestry is what decides, not branch age.">one branch was created after the other</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. --ff-only is useful in automation because…</h4>
+  <button class="opt" data-fb="No — it does the opposite; --no-ff forces a commit.">it forces a merge commit every time</button>
+  <button class="opt" data-fb="Correct — it fails loudly if a fast-forward is impossible.">it fails loudly if a fast-forward is impossible</button>
+  <button class="opt" data-fb="No — it is a safety flag, it does not resolve conflicts.">it auto-resolves any conflicts for you</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the fast-forward / true-merge sections of the <a href="https://git-scm.com/docs/git-merge">git-merge man page</a> and the hotfix example in <a href="https://git-scm.com/book/en/v2/Git-Branching-Basic-Branching-and-Merging">Pro Git — Basic Branching and Merging</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Create a branch, make commits ahead of main, then merge it back. Observe the fast-forward in the output, then repeat with <code>--no-ff</code> and compare the history graphs.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://git-scm.com/docs/git-merge">git-merge — man page</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-pull-fetch-and-integrate.html">← Lesson 3: Pull &amp; fetch</a></span>
+  <span class="nav-next"><a href="0005-the-true-merge-and-merge-commit.html">Lesson 5: The true merge →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/git-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

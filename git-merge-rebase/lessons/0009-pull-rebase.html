@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 9 — Pull with --rebase</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 9 of 10</span><span>Git · Merging &amp; Rebasing</span></div>
+  <h1>Pull with --rebase</h1>
+  <p class="subtitle">A normal pull merges upstream in; pull --rebase instead replays your local commits on top of it — keeping a linear branch.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>By default <code>git pull</code> fetches and then <em>merges</em>; with <code>--rebase</code> it fetches and then <em>rebases</em> your local commits onto the fetched upstream, so you never make an integration merge commit for upstream drift.<sup><a href="#r1">1</a></sup></p>
+
+<h2>What each mode gives you</h2>
+<pre><code>git pull              # fetch + merge  → possibly a merge commit
+git pull --rebase     # fetch + rebase your work onto origin/main
+</code></pre>
+<p>If there is nothing new locally, a plain pull fast-forwards. If both sides gained commits, a default pull creates an integration merge; <code>--rebase</code> instead re-bases your local commits to sit cleanly on the new upstream tip.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Rebase-on-pull keeps your branch's commits attributed to you and placed after the latest upstream — the branch reads as a straight line. It is the recommended flow on branches <em>you</em> are integrating, not for rewriting shared history others depend on.</aside>
+
+<h2>Make it the default</h2>
+<pre><code>git config --global pull.rebase true
+</code></pre>
+<p>Setting <code>pull.rebase</code> makes every <code>git pull</code> rebase by default — a popular choice on feature branches, and the same setting teammates should use if they work atop a rebased branch.<sup><a href="#r1">1</a></sup></p>
+
+<h2>If a conflict appears</h2>
+<p>A rebase pull can hit the same conflict markers as a merge; resolve each file, <code>git add</code>, then <code>git rebase --continue</code> (rather than <code>git commit</code>) to keep replaying. You can abort with <code>git rebase --abort</code>.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. git pull --rebase is a fetch plus…</h4>
+  <button class="opt" data-fb="No — that is the default; --rebase changes the integration step.">a merge of upstream into your branch</button>
+  <button class="opt" data-fb="Correct — a replay of your local commits onto upstream.">a replay of your local commits onto upstream</button>
+  <button class="opt" data-fb="No — pull runs fetch; it is not a plain fetch alone.">nothing but a plain fetch</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The benefit of pull --rebase on your own branch is…</h4>
+  <button class="opt" data-fb="Correct — your history stays a clean straight line above upstream.">your history stays a clean straight line above upstream</button>
+  <button class="opt" data-fb="No — it attributes your own commits, it does not erase them.">your commits vanish from the history</button>
+  <button class="opt" data-fb="No — rebase replays; it does not delete the upstream commits.">upstream commits are removed from the graph</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. After resolving a conflict during a rebase pull, you…</h4>
+  <button class="opt" data-fb="No — that finalizes a merge, not a rebase.">git commit to finish the rebase</button>
+  <button class="opt" data-fb="No — you must stage the resolved file first.">skip staging and keep going</button>
+  <button class="opt" data-fb="Correct — git add the files, then git rebase --continue.">git add the files, then git rebase --continue</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <code>--rebase</code> option in the <a href="https://git-scm.com/docs/git-pull">git-pull man page</a> and the "pull --rebase" guidance in <a href="https://git-scm.com/book/en/v2/Git-Branching-Rebasing">Pro Git — Rebasing</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Make a local commit on a branch, move upstream, and run both <code>git pull</code> and <code>git pull --rebase</code> in turn (resetting back between). Compare the resulting graphs.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://git-scm.com/docs/git-pull">git-pull — man page</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0008-rebase-onto.html">← Lesson 8: Rebase onto</a></span>
+  <span class="nav-next"><a href="0010-when-not-to-rebase-and-recovery.html">Lesson 10: Not-rebase &amp; recovery →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/git-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

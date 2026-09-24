@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Git Merge &amp; Rebase — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  code i { color: var(--accent); font-style: normal; }
+  td code { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Git · Merging &amp; Rebasing</span></div>
+  <h1>Git Merge &amp; Rebase Cheat Sheet</h1>
+  <p class="subtitle">The compressed essence of the course. Skim before a lesson, study it fully before an interview.</p>
+</header>
+
+<section>
+<h2>1. Mental model</h2>
+<pre><code>master:  o---o---o---o
+                    \
+feature:             o---o      (diverged: merge base = 3rd o)
+
+# merge base of master..feature
+git merge-base master feature
+git log --oneline --graph --all        # see the shape
+</code></pre>
+<ul>
+  <li>A branch is a pointer to a commit; committing moves it forward.<sup><a href="#r1">1</a></sup></li>
+  <li>Merge base = the common ancestor from which two branches diverged.<sup><a href="#r3">3</a></sup></li>
+  <li>If one branch is a descendant of the other, a merge can fast-forward.</li>
+</ul>
+</section>
+
+<section>
+<h2>2. Merge: fast-forward vs true merge</h2>
+<pre><code>git switch master
+git merge feature            # fast-forward if feature is ahead; else merge commit
+
+# when you want to control it
+git merge --ff-only feature          # error if a fast-forward is impossible
+git merge --no-ff feature            # always make a merge commit
+git merge --abort                    # cancel an in-progress merge
+git merge --continue                 # finish after resolving conflicts
+</code></pre>
+<p>Fast-forward = just move the pointer (no commit); a true merge of diverged history = a merge commit with two parents.<sup><a href="#r2">2</a></sup></p>
+</section>
+
+<section>
+<h2>3. Remotes: fetch, pull, pull --rebase</h2>
+<pre><code>git fetch origin            # download refs; touch nothing local
+git merge origin/main       # integrate the fetched remote-tracking ref
+# the two above are what `git pull` does by default
+
+git pull                    # fetch + merge (default)
+git pull --rebase           # fetch + rebase your local commits onto origin
+git config --global pull.rebase true    # make --rebase the default
+</code></pre>
+<p>pull = fetch + integrate; remote-tracking refs like <code>origin/main</code> update on fetch.<sup><a href="#r5">5</a></sup></p>
+</section>
+
+<section>
+<h2>4. Rebase and rebase --onto</h2>
+<pre><code># replace a merge with a linear replay of your commits onto the target
+git switch feature
+git rebase main                # replay feature's unique commits onto main
+
+# move a RANGE of commits onto a different base
+git rebase --onto newbase upstream [branch]
+#   replays the commits unique to upstream..branch onto newbase
+#   e.g. drop a middle commit: --onto A B (branch's own B'..tip)
+
+git rebase -i ...              # interactive: reorder/edit/squash/drop
+</code></pre>
+<p>Rebase writes new commits (new hashes) on the new base.<sup><a href="#r4">4</a></sup></p>
+</section>
+
+<section>
+<h2>5. Conflict resolution</h2>
+<pre><code># file content during conflict
+&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD
+...your side...
+=======
+...their side...
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; feature
+
+# resolve → stage → continue
+# (edit the file, remove markers)
+git add path/file
+git commit                # for a merge
+git rebase --continue     # for a rebase
+</code></pre>
+<p>Staging a file marks the conflict resolved.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>6. Merge vs rebase — when</h2>
+<ul>
+  <li><strong>Merge</strong> preserves "what happened" and adds a merge commit; safe on shared branches.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>Rebase</strong> tells a cleaner linear "story"; rewrites local commits only.<sup><a href="#r1">1</a></sup></li>
+  <li>Golden rule: never rebase commits others may have based work on.<sup><a href="#r1">1</a></sup></li>
+  <li>Common flow: rebase local work onto latest main, then merge published work into main.</li>
+</ul>
+</section>
+
+<section>
+<h2>7. Quick reference</h2>
+<table>
+  <tr><th>Want</th><th>Command</th></tr>
+  <tr><td>Integrate upstream (merge)</td><td><code>git pull</code> or <code>git fetch + git merge</code></td></tr>
+  <tr><td>Integrate upstream (linear)</td><td><code>git pull --rebase</code></td></tr>
+  <tr><td>Only accept a fast-forward</td><td><code>git merge --ff-only</code></td></tr>
+  <tr><td>Replay branch onto main</td><td><code>git rebase main</code></td></tr>
+  <tr><td>Move a range onto a new base</td><td><code>git rebase --onto newbase upstream [branch]</code></td></tr>
+  <tr><td>Find divergence point</td><td><code>git merge-base a b</code></td></tr>
+  <tr><td>Undo to an older state</td><td><code>git reflog</code> then checkout/reset</td></tr>
+</table>
+</section>
+
+<footer class="citation">
+  Primary sources: <a href="https://git-scm.com/book/en/v2/Git-Branching-Basic-Branching-and-Merging">Pro Git — Merging</a>,
+  <a href="https://git-scm.com/book/en/v2/Git-Branching-Rebasing">Pro Git — Rebasing</a>,
+  <a href="https://git-scm.com/docs/git-merge">git-merge</a>,
+  <a href="https://git-scm.com/docs/git-rebase">git-rebase</a>,
+  <a href="https://git-scm.com/docs/git-pull">git-pull</a>.
+  <ol>
+    <li id="r1"><a href="https://git-scm.com/book/en/v2/Git-Branching-Basic-Branching-and-Merging">Pro Git — Basic Branching and Merging</a></li>
+    <li id="r2"><a href="https://git-scm.com/docs/git-merge">git-merge — man page</a></li>
+    <li id="r3"><a href="https://git-scm.com/docs/git-merge-base">git-merge-base — man page</a></li>
+    <li id="r4"><a href="https://git-scm.com/docs/git-rebase">git-rebase — man page</a></li>
+    <li id="r5"><a href="https://git-scm.com/docs/git-pull">git-pull — man page</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="../lessons/0001-the-commit-graph.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

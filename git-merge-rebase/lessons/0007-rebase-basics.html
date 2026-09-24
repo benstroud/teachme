@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — Rebase Basics</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 10</span><span>Git · Merging &amp; Rebasing</span></div>
+  <h1>Rebase Basics</h1>
+  <p class="subtitle">Instead of a merge commit, rebase replays your commits onto the other branch — producing new commits and a linear story.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Rebase means "reapply commits on top of another base tip": take the commits unique to your branch, replay them onto the target branch, and get new commits — so the result looks like one straight line.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Flipping the base</h2>
+<pre><code># before: main and feature diverged
+git switch feature
+git rebase main
+# after: feature's unique commits sit on top of main's tip
+
+      o---o---o  main
+              \
+               f1--f2  feature          (f1', f2' are new commits)
+</code></pre>
+<p>Your branch's unique commits are replayed one-by-one onto <code>main</code>. Because their history changed, Git writes <em>new</em> commits with new hashes — even if the content is the same.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Merge leaves a fork in the road; rebase erases it. That's what makes history linear — and why rebasing local work is fine, but rebasing already-published commits is the famous hazard (covered in a later lesson).</aside>
+
+<h2>Rebase vs merge, the two views</h2>
+<ul>
+  <li><strong>Merge</strong> — preserve "what actually happened" (a faithful history with merge commits).<sup><a href="#r1">1</a></sup></li>
+  <li><strong>Rebase</strong> — tell a cleaner "story" of how you got from A to B.<sup><a href="#r1">1</a></sup></li>
+</ul>
+<p>Neither is objectively better; teams pick one and document the policy.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Interactive rebase</h2>
+<p><code>git rebase -i</code> opens a plan you can edit — reorder, reword, squash (merge several commits), or drop commits — before they are replayed.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Rebasing your branch onto main results in…</h4>
+  <button class="opt" data-fb="No — a rebase replays; it does not add a merge commit.">a single new merge commit</button>
+  <button class="opt" data-fb="Correct — new commits replaying yours on top of main.">new commits replaying yours on top of main</button>
+  <button class="opt" data-fb="No — the commits are rewritten, not left untouched.">your original commits left exactly untouched</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The replayed commits are new commits because…</h4>
+  <button class="opt" data-fb="Correct — their parent/base changed, so their hashes change.">their parent/base changed, so their hashes change</button>
+  <button class="opt" data-fb="No — the working content is usually the same.">their file contents always differ completely</button>
+  <button class="opt" data-fb="No — the newness comes from the base, not the author name.">the author timestamp is always forced to zero</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. The merge-versus-rebase choice is about…</h4>
+  <button class="opt" data-fb="No — there is no objectively better default for everyone.">which one is objectively always better</button>
+  <button class="opt" data-fb="No — both integrate; only their history shapes differ.">which command creates fewer commits, always</button>
+  <button class="opt" data-fb="Correct — what you want the commit history to say.">what you want the commit history to say</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://git-scm.com/book/en/v2/Git-Branching-Rebasing">Rebasing chapter</a> in Pro Git and the <a href="https://git-scm.com/docs/git-rebase">git-rebase man page</a> for the exact semantics and interactive mode.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Take two diverged branches, rebase one onto the other, and compare the graph before and after. Observe that the replayed commit hashes changed even though the changes look identical.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://git-scm.com/book/en/v2/Git-Branching-Rebasing">Pro Git — Rebasing</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-merge-conflicts.html">← Lesson 6: Merge conflicts</a></span>
+  <span class="nav-next"><a href="0008-rebase-onto.html">Lesson 8: Rebase onto →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/git-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

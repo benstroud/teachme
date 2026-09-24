@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — Pull, Fetch &amp; Integrate</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 10</span><span>Git · Merging &amp; Rebasing</span></div>
+  <h1>Pull, Fetch &amp; Integrate</h1>
+  <p class="subtitle">git pull is really two steps — download (fetch) then bring it in (merge or rebase). Separate them and nothing surprises you.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p><code>git pull</code> runs <code>git fetch</code> to download the remote branch into a local <em>remote-tracking ref</em> (like <code>origin/main</code>), then integrates it into your current branch — by default a merge.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Fetch only downloads</h2>
+<pre><code>git fetch origin            # update origin/*, touch nothing local
+</code></pre>
+<p>Fetching is safe: it updates remote-tracking refs but does not modify your working tree or current branch. That makes <code>fetch</code> a good habit before you decide how to integrate.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Pull = fetch + integrate</h2>
+<p>The manual equivalent of a default <code>git pull</code> on <code>main</code> against <code>origin/main</code> is:<sup><a href="#r1">1</a></sup></p>
+<pre><code>git fetch origin
+git merge origin/main        # integrate the remote-tracking ref
+</code></pre>
+<p>Which branch <code>pull</code> integrates is set by your branch's <em>upstream</em> — how the branch was created/clone set <code>branch.&lt;name&gt;.remote</code> and <code>branch.&lt;name&gt;.merge</code>.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> The merge that default pull does is a normal <code>git merge</code>: it may fast-forward or create a merge commit — or stop on a conflict. "Pull" does not choose merge versus rebase for you; the next lessons cover those modes.</aside>
+
+<h2>Choosing the integration mode</h2>
+<ul>
+  <li>Default <code>git pull</code> — merges the upstream into your branch (produces merge commits when diverged).</li>
+  <li><code>git pull --rebase</code> — replays your local commits on top of the upstream (covered in a later lesson).</li>
+  <li><code>git pull --ff-only</code> — only bring in upstream if it can fast-forward cleanly (no merge commit, no rebase).</li>
+</ul>
+<sup><a href="#r1">1</a></sup>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. The first thing git pull does is…</h4>
+  <button class="opt" data-fb="Correct — it runs git fetch before integrating.">run git fetch before integrating</button>
+  <button class="opt" data-fb="No — pull is fetch plus an integration step.">rebase your local commits onto the remote</button>
+  <button class="opt" data-fb="No — fetch downloads; it does not rewrite your commits.">rewrite all of your local history</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>2. A remote-tracking ref like origin/main is…</h4>
+  <button class="opt" data-fb="No — it is local, a downloaded mirror of the remote.">a special ref that lives only on the server</button>
+  <button class="opt" data-fb="Correct — a local mirror of a remote branch updated by fetch.">a local mirror of a remote branch updated by fetch</button>
+  <button class="opt" data-fb="No — it is data, kept and updated, not deleted on fetch.">deleted every time you fetch</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. The default git pull integrates upstream by…</h4>
+  <button class="opt" data-fb="No — rebase is opt-in via --rebase, not the default.">rebasing your commits onto the remote</button>
+  <button class="opt" data-fb="No — that is not how pull works by default.">forcing a no-ff merge every time</button>
+  <button class="opt" data-fb="Correct — a merge, which may fast-forward or create a commit.">a merge, which may fast-forward or create a commit</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://git-scm.com/docs/git-pull">git-pull man page</a>, especially the DESCRIPTION (fetch + integrate) and the EXAMPLES where it is spelled out as <code>fetch</code> + <code>merge</code>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Compare <code>git fetch</code> then <code>git status</code> to a <code>git pull</code> in a branch where upstream moved. Note what changed after fetch alone versus after the merge step.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://git-scm.com/docs/git-pull">git-pull — man page</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-how-branches-diverge.html">← Lesson 2: How branches diverge</a></span>
+  <span class="nav-next"><a href="0004-the-fast-forward.html">Lesson 4: The fast-forward →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/git-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

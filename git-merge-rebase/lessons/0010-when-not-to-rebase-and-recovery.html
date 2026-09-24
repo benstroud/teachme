@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 10 — When Not to Rebase &amp; Recovery</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 10 of 10</span><span>Git · Merging &amp; Rebasing</span></div>
+  <h1>When Not to Rebase &amp; Recovery</h1>
+  <p class="subtitle">Rebase freely only on work nobody else depends on; if you ever rewrite shared history, the reflog and --onto are your way back.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Only rebase commits that <em>you</em> own — never commits others may have based work on — because rewriting changes the hashes everyone else anchors to; when that happens anyway, recover with reflogs and <code>--onto</code>.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The golden rule</h2>
+<blockquote>If you only ever rebase commits that have never left your own computer, you'll be just fine... If you rebase commits that have already been pushed and people may have based work on, you may be in for trouble.<cite>Pro Git — Rebasing</cite></blockquote>
+<p>Rewriting a shared branch changes commit hashes, so anyone who already based work on the old ones now sits on a fork that no longer exists at that tip.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> The safe combination: rebase your <em>local</em> work to clean it up, then <em>merge</em> it into the shared branch. "Rebase local before pushing; never rebase what you've pushed."<sup><a href="#r1">1</a></sup></aside>
+
+<h2>Recovery after an upstream rebase</h2>
+<pre><code># upstream (subsystem) was rebased; old tip is still in your reflog
+git fetch
+git rebase --onto subsystem subsystem@{1}
+# replays your work onto the new tip, skipping the already-applied commits
+</code></pre>
+<p>The reflog (<code>git reflog</code>) records where refs <em>used</em> to point; <code>subsystem@{1}</code> names the old tip so <code>--onto</code> can exclude it and stop Git re-applying the same patches.<sup><a href="#r1">1</a></sup></p>
+
+<h2>If you or teammates must rebase a shared branch</h2>
+<p>Tell everyone, and standardize on <code>git pull --rebase</code> (or set <code>pull.rebase true</code>) so re-integrating the rewritten branch is as painless as possible.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. Rebase is safe when…</h4>
+  <button class="opt" data-fb="No — rewriting pushed, depended-on commits is the hazard.">the commits were pushed and teammates depend on them</button>
+  <button class="opt" data-fb="No — touching main that others branch from risks exactly this.">main has been fetched by everyone already</button>
+  <button class="opt" data-fb="Correct — the commits have never left your own machine.">the commits have never left your own machine</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Rewriting a shared branch is dangerous because…</h4>
+  <button class="opt" data-fb="Correct — new hashes break anyone who based work on the old ones.">new hashes break anyone who based work on the old ones</button>
+  <button class="opt" data-fb="No — content rarely changes; the hashes and bases do.">the file contents are always permanently lost</button>
+  <button class="opt" data-fb="No — the old commits remain reachable via the reflog.">git becomes unable to store any new commits</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. The reflog is used for recovery because…</h4>
+  <button class="opt" data-fb="No — the reflog keeps where refs used to point, not clones.">it stores full backups of every repository</button>
+  <button class="opt" data-fb="Correct — it records where branches pointed before the rewrite.">it records where branches pointed before the rewrite</button>
+  <button class="opt" data-fb="No — it records ref history; it does not delete remote branches.">it removes the remote branch entirely</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the "perils of rebasing" and recovery sections of <a href="https://git-scm.com/book/en/v2/Git-Branching-Rebasing">Pro Git — Rebasing</a>, and the <a href="https://git-scm.com/docs/git-reflog">git-reflog man page</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> In a scratch repo, rebase a branch, then use <code>git reflog</code> to find the old tip and reset back to it. Then simulate an upstream rebase and recover with <code>git rebase --onto subsystem subsystem@{1}</code>.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://git-scm.com/book/en/v2/Git-Branching-Rebasing">Pro Git — Rebasing</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0009-pull-rebase.html">← Lesson 9: Pull --rebase</a></span>
+  <span class="nav-next"><a href="../reference/git-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/git-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

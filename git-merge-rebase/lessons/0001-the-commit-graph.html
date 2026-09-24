@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — The Commit Graph</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 10</span><span>Git · Merging &amp; Rebasing</span></div>
+  <h1>The Commit Graph</h1>
+  <p class="subtitle">Merging and rebasing are operations on history — so first you have to see history as a graph of commits, not a stack of saves.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A <strong>commit</strong> is a snapshot wired to its parent(s), forming a directed graph; a <strong>branch</strong> is just a pointer to a commit that moves forward as you commit, and <strong>HEAD</strong> points at the branch you are on.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Commit, graph, branch, HEAD</h2>
+<ul>
+  <li><strong>Commit</strong> — a snapshot plus its parent(s); special commits (merges) have two parents.</li>
+  <li><strong>Branch</strong> — a movable pointer to one commit; new commits move it forward.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>HEAD</strong> — the pointer Git uses for "where am I"; normally the current branch.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>Reachability</strong> — a commit is an ancestor of another if you can walk parent links to it.</li>
+</ul>
+
+<h2>See the graph</h2>
+<pre><code>git log --oneline --graph --all        # visualise the whole history
+git log --graph --oneline              # just the current branch
+</code></pre>
+
+<h2>Divergence: the idea behind it all</h2>
+<p>Branching means creating a new pointer from some point and committing on it. When both your branch and another branch gain commits after their common ancestor, they have <strong>diverged</strong> — there is no single tip that contains both lines, and something must integrate them.<sup><a href="#r1">1</a></sup></p>
+
+<pre><code>o---o---o---o          main
+            \
+             o---o     feature   (merge base = the 3rd o)
+</code></pre>
+
+<aside class="note"><strong>Key idea</strong> Everything in this course — fast-forward, merge, rebase — is Git answering "what happened after the merge base, and how do I bring two lines together?" Start from the graph and the commands stop being magic.</aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. A branch in Git is best described as…</h4>
+  <button class="opt" data-fb="No — commits store snapshots; a branch points to one.">a full copy of every file each commit</button>
+  <button class="opt" data-fb="Correct — a movable pointer to a single commit.">a movable pointer to a single commit</button>
+  <button class="opt" data-fb="No — that is what a fork/remote is, not a branch.">a separate remote repository</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Two branches are "diverged" when…</h4>
+  <button class="opt" data-fb="Correct — each has commits the other lacks since their common ancestor.">each has commits the other lacks since their common ancestor</button>
+  <button class="opt" data-fb="No — one containing the other is exactly not-divered.">one branch is a descendant of the other</button>
+  <button class="opt" data-fb="No — diverging means splitting, not being in different computers.">they live on two different machines</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. HEAD normally points at…</h4>
+  <button class="opt" data-fb="No — HEAD is your current position, not the newest commit.">the newest commit in the whole repo</button>
+  <button class="opt" data-fb="No — origin is the remote; HEAD is local position.">the remote's default branch</button>
+  <button class="opt" data-fb="Correct — the branch you currently have checked out.">the branch you currently have checked out</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://git-scm.com/book/en/v2/Git-Branching-Branches-in-a-Nutshell">Pro Git — Branches in a Nutshell</a> for the commit/branch/HEAD model and <a href="https://git-scm.com/book/en/v2/Git-Branching-Basic-Branching-and-Merging">Basic Branching and Merging</a> for divergence.</p>
+
+<div class="ask"><strong>Ask the agent</strong> In a scratch repo, create two branches, commit on each, and print the graph with <code>git log --graph --all</code>. Label each branch pointer, HEAD, and the merge base in your head.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://git-scm.com/book/en/v2/Git-Branching-Basic-Branching-and-Merging">Pro Git — Basic Branching and Merging</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="0002-how-branches-diverge.html">Lesson 2: Diverge →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/git-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

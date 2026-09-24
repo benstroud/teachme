@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — The True Merge &amp; the Merge Commit</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 10</span><span>Git · Merging &amp; Rebasing</span></div>
+  <h1>The True Merge &amp; the Merge Commit</h1>
+  <p class="subtitle">When histories diverge, a merge combines two lines of work into one commit with two parents.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A <strong>true merge</strong> of diverged history combines the two latest snapshots and their <em>merge base</em>, then records the result in a <strong>merge commit</strong> that has two parents.<sup><a href="#r1">1</a></sup></p>
+
+<h2>What Git combines</h2>
+<pre><code>      o---o         main (HEAD)
+     /
+o---o
+     \   o---o       feature
+git merge feature    # combine main tip, feature tip, and the merge base
+</code></pre>
+<p>The three-way merge takes the two tips plus the common ancestor so it knows what each side actually changed, then applies both sets of changes to the working tree. You finalize with a <code>git commit</code> (or it auto-commits), producing a commit with <em>two</em> parents.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The merge commit's meaning</h2>
+<ul>
+  <li>It has two parents: the previous tip of <code>main</code> and the tip of <code>feature</code>.</li>
+  <li>History stays <em>branched</em>: no commit is rewritten; the graph records that the two lines met here.<sup><a href="#r1">1</a></sup></li>
+  <li>This is why merging is "safe" for shared branches — it never changes existing commits.<sup><a href="#r1">1</a></sup></li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> Merge preserves what happened (two lines came together). Rebase, by contrast, rewrites one line to appear straight — which is why the merge-vs-rebase choice is about what you want history to say.</aside>
+
+<h2>Controlling it</h2>
+<ul>
+  <li><code>git merge --no-ff</code> — force a merge commit even when a fast-forward would work, to mark "a branch was merged here".</li>
+  <li><code>git merge --no-commit</code> — merge into the working tree without committing, so you can adjust first.</li>
+</ul>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. A merge commit is distinguished by…</h4>
+  <button class="opt" data-fb="No — that describes an ordinary non-merge commit.">having exactly one parent</button>
+  <button class="opt" data-fb="Correct — having two parents, one from each line of work.">having two parents, one from each line of work</button>
+  <button class="opt" data-fb="No — a merge commit still has a snapshot, just two parents.">containing no file snapshot at all</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A three-way merge combines…</h4>
+  <button class="opt" data-fb="Correct — the two tips and the merge base.">the two tips and the merge base</button>
+  <button class="opt" data-fb="No — the base is needed to know what each side changed.">just the two divergent tips</button>
+  <button class="opt" data-fb="No — it uses history, not merely file bytes.">only the current working files</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. Merging is considered safe for shared branches because…</h4>
+  <button class="opt" data-fb="No — merge keeps existed commits, it does not rewrite them.">it rewrites the branch you merged from</button>
+  <button class="opt" data-fb="No — merge adds a commit onto your existing line.">it deletes the other branch's commits</button>
+  <button class="opt" data-fb="Correct — it never changes existing commits, only adds a merge commit.">it never changes existing commits, only adds a merge commit</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the true-merge description in the <a href="https://git-scm.com/docs/git-merge">git-merge man page</a> and the two-parents diagram in <a href="https://git-scm.com/book/en/v2/Git-Branching-Basic-Branching-and-Merging">Pro Git — Basic Branching and Merging</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Force a true merge by making two branches diverge, merge them, and inspect the merge commit with <code>git log --graph</code> and <code>git cat-file</code>. Confirm it has two parents.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://git-scm.com/docs/git-merge">git-merge — man page</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-the-fast-forward.html">← Lesson 4: The fast-forward</a></span>
+  <span class="nav-next"><a href="0006-merge-conflicts.html">Lesson 6: Merge conflicts →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/git-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — Merge Conflicts</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 10</span><span>Git · Merging &amp; Rebasing</span></div>
+  <h1>Merge Conflicts</h1>
+  <p class="subtitle">When both sides change the same lines, Git can't choose — it marks the spot, and you resolve the intent by hand.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A conflict happens when two branches changed the same lines in different ways; Git leaves conflict markers in the file and asks you to pick the intended result, stage it, and commit.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The markers</h2>
+<pre><code>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD
+&lt;div id="footer"&gt;contact: email.support@github.com&lt;/div&gt;
+=======
+&lt;div id="footer"&gt;please contact us at support@github.com&lt;/div&gt;
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; iss53
+</code></pre>
+<p>The top block is <strong>HEAD</strong> (what you had checked out), the bottom is the other branch; <code>=======</code> separates them. To resolve, produce the correct content and delete all three marker lines.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Resolve, stage, finish</h2>
+<pre><code># edit the conflicted files, removing the markers, then:
+git add path/to/file      # staging marks it resolved
+git status                # verify nothing is still unmerged
+git commit                # finalize the merge
+# (for a rebase that hits conflicts, use git rebase --continue)
+</code></pre>
+<p>Staging a file tells Git you have resolved it.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> A conflict is not an error — it is Git stopping to ask you about intent. Resolve at the level of the change you actually want, not "keep my side". Then continue or abort cleanly.</aside>
+
+<h2>Abort and tooling</h2>
+<ul>
+  <li><code>git merge --abort</code> — cancel the merge and restore your pre-merge state.</li>
+  <li><code>git merge --continue</code> — finish once conflicts are staged.</li>
+  <li><code>git mergetool</code> — open a visual merge tool to walk through conflicts.<sup><a href="#r1">1</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. In a conflict marker, the section above the equals line is…</h4>
+  <button class="opt" data-fb="Correct — the current HEAD version you had checked out.">the current HEAD version you had checked out</button>
+  <button class="opt" data-fb="No — HEAD is your side; the other branch is below.">the version from the other branch</button>
+  <button class="opt" data-fb="No — markers show two sides, not a merge result.">Git's suggested final resolution</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. To mark a conflicting file resolved you…</h4>
+  <button class="opt" data-fb="No — staging the file is what marks it resolved.">simply git commit the whole conflict</button>
+  <button class="opt" data-fb="No — the marker lines must be removed by your edit.">delete only the equals sign line</button>
+  <button class="opt" data-fb="Correct — edit it and git add it to stage.">edit it and git add it to stage</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. To back out of an in-progress merge entirely you…</h4>
+  <button class="opt" data-fb="No — that finalizes; abort cancels.">run git merge --continue</button>
+  <button class="opt" data-fb="Correct — run git merge --abort to restore pre-merge state.">run git merge --abort to restore pre-merge state</button>
+  <button class="opt" data-fb="No — that stashes work; it does not cancel the merge.">run git stash to hide the conflict</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the conflict-resolution walkthrough in <a href="https://git-scm.com/book/en/v2/Git-Branching-Basic-Branching-and-Merging">Pro Git — Basic Branching and Merging</a> and the conflicts sections of the <a href="https://git-scm.com/docs/git-merge">git-merge man page</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Make two branches edit the same line differently, merge, and resolve the marker by hand. Then practice <code>git merge --abort</code> on a second conflict to confirm it restores your branch.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://git-scm.com/book/en/v2/Git-Branching-Basic-Branching-and-Merging">Pro Git — Basic Branching and Merging</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-the-true-merge-and-merge-commit.html">← Lesson 5: The true merge</a></span>
+  <span class="nav-next"><a href="0007-rebase-basics.html">Lesson 7: Rebase basics →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/git-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

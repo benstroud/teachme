@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — Rebase onto</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 10</span><span>Git · Merging &amp; Rebasing</span></div>
+  <h1>Rebase onto</h1>
+  <p class="subtitle">With --onto you can replay a specific range of commits onto a new base — the tool for moving a topic branch or dropping a middle commit.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p><code>git rebase --onto newbase upstream [branch]</code> replays the commits that are <em>unique to <code>upstream..branch</code></em> onto <code>newbase</code> — letting you choose a different place to rest them than the branch they currently follow.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The 3-argument form</h2>
+<pre><code>git rebase --onto newbase upstream [branch]
+#   upstream..branch  = the commits to move
+#   newbase           = where to replay them
+</code></pre>
+<p>Compare with the plain 1-arg <code>git rebase upstream</code>: there, the commits <code>upstream..branch</code> are replayed onto <code>upstream</code> itself. The 3-arg <code>--onto</code> form decouples "what to move" from "where to put it".<sup><a href="#r1">1</a></sup></p>
+
+<h2>Use case: drop the middle commit</h2>
+<pre><code># topic is o1-o2-o3-o4-o5 on master; you want to keep o4,o5 but drop o3
+#   newbase = o2 (that is topic~3)
+#   upstream = o3 (that is topic~2)   → range o3..topic = o4, o5
+git rebase --onto topic~3 topic~2 topic
+# result: o1---o2---o4'---o5'   (o3 dropped, o4/o5 replayed)
+</code></pre>
+<p>By giving a <code>newbase</code> earlier than the range start, you effectively drop a commit in the middle while keeping every commit after it.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Master the two names: <code>upstream</code> marks the start of what to move (exclusive lower bound), <code>newbase</code> marks the new resting place. Move them independently and rebase becomes precise surgery instead of a blunt "onto the tip".</aside>
+
+<h2>Also used for recovery</h2>
+<p>The same <code>--onto</code> is how you recover when an upstream was itself rebased: <code>git rebase --onto subsystem subsystem@{1}</code> replays your work onto the new tip while excluding the old, already-reapplied commits.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. In rebase --onto newbase upstream [branch], "upstream" marks…</h4>
+  <button class="opt" data-fb="Correct — the start (exclusive lower bound) of the range to move.">the start (exclusive lower bound) of the range to move</button>
+  <button class="opt" data-fb="No — newbase is where it lands; upstream is the range start.">the place the commits will be replayed onto</button>
+  <button class="opt" data-fb="No — the range comes from the commit graph, not the branch name.">a fixed list you write by hand</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. A classic --onto use is to…</h4>
+  <button class="opt" data-fb="No — --onto drops or moves ranges; it does not duplicate.">duplicate a branch into a new repository</button>
+  <button class="opt" data-fb="No — squashing is interactive rebase, not --onto alone.">squash every commit into one automatically</button>
+  <button class="opt" data-fb="Correct — drop a middle commit while keeping the rest.">drop a middle commit while keeping the rest</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. The difference between 1-arg and 3-arg rebase is…</h4>
+  <button class="opt" data-fb="No — the 3-arg form explicitly separates the two spots.">they are exactly identical commands</button>
+  <button class="opt" data-fb="Correct — the 3-arg --onto decouples where commits go from what moves.">the 3-arg --onto decouples where commits go from what moves</button>
+  <button class="opt" data-fb="No — upstream in 1-arg is both the range start and the new base.">the 1-arg form moves a different range of commits</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://git-scm.com/book/en/v2/Git-Branching-Rebasing">--onto example</a> in Pro Git and the --onto / transplanting section of the <a href="https://git-scm.com/docs/git-rebase">git-rebase man page</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Build a topic with five commits, then use <code>git rebase --onto topic~3 topic~2 topic</code> to drop the middle commit. Draw the before/after graph and confirm only the intended commit vanished.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://git-scm.com/docs/git-rebase">git-rebase — man page</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-rebase-basics.html">← Lesson 7: Rebase basics</a></span>
+  <span class="nav-next"><a href="0009-pull-rebase.html">Lesson 9: Pull --rebase →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/git-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

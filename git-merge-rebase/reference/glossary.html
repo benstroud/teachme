@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Git Merge &amp; Rebase — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Git · Merging &amp; Rebasing</span></div>
+  <h1>Git Merge &amp; Rebase Glossary</h1>
+  <p class="subtitle">Every term in this course, in one place. Return here when a lesson uses a word you do not fully own.</p>
+</header>
+
+<section>
+<h2>The commit graph</h2>
+<dl>
+  <dt><strong>commit</strong></dt>
+  <dd>A snapshot of the project plus its parent commit(s) and a message; commits form a directed acyclic graph (the history).<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>branch</strong></dt>
+  <dd>A movable pointer to a commit; creating commits on a branch moves that pointer forward.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>HEAD</strong></dt>
+  <dd>The pointer to the currently checked-out branch (or a detached commit).<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>merge base</strong></dt>
+  <dd>The most recent common ancestor commit of two branches — the point from which they diverged.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>ancestor / descendant</strong></dt>
+  <dd>A commit reachable by parent links (ancestor) or by children links (descendant). Branch A is a descendant of B if A can reach B.</dd>
+
+  <dt><strong>diverged</strong></dt>
+  <dd>Two branches each have commits the other does not, since their common merge base — the shape that forces a true merge or a rebase.</dd>
+</dl>
+</section>
+<section>
+<h2>Merging</h2>
+<dl>
+  <dt><strong>fast-forward</strong></dt>
+  <dd>A merge where the current branch can simply be moved forward to the merged commit (the merged-in branch is a descendant); no new commit is created.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>true merge / three-way merge</strong></dt>
+  <dd>A merge of two diverged histories that combines the two latest snapshots and the merge base, creating a merge commit with two parents.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>merge commit</strong></dt>
+  <dd>A commit with more than one parent (typically two), the result of integrating two histories.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>conflict</strong></dt>
+  <dd>When both sides changed the same lines; Git marks the file with <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD</code>, <code>=======</code>, and <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code> blocks for you to resolve.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>--ff-only / --no-ff</strong></dt>
+  <dd>Merge flags: refuse the merge unless it can fast-forward (<code>--ff-only</code>), or always create a merge commit even when a fast-forward would work (<code>--no-ff</code>).<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>git merge --abort / --continue</strong></dt>
+  <dd>Abort an in-progress merge and restore your pre-merge state, or continue after resolving conflicts.<sup><a href="#r2">2</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Rebasing</h2>
+<dl>
+  <dt><strong>rebase</strong></dt>
+  <dd>Reapply commits on top of another base tip — take the commits unique to your branch and replay them onto the target, producing new commits.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>rebase --onto</strong></dt>
+  <dd>Transplant a range of commits onto a different base: <code>git rebase --onto newbase upstream [branch]</code> replays <code>upstream..branch</code> onto <code>newbase</code>.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>interactive rebase</strong></dt>
+  <dd><code>git rebase -i</code>: reorder, edit, squash, or drop commits in the replay.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>rewrite</strong></dt>
+  <dd>Producing new commits with new hashes in place of old ones — the defining effect of rebase.</dd>
+</dl>
+</section>
+<section>
+<h2>Integration &amp; recovery</h2>
+<dl>
+  <dt><strong>fetch</strong></dt>
+  <dd>Download commits and refs from a remote without touching your working tree or current branch.<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>remote-tracking ref</strong></dt>
+  <dd>A local copy of a remote branch, e.g. <code>origin/main</code>, updated by fetch/pull.<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>pull</strong></dt>
+  <dd><code>git fetch</code> followed by an integration (merge by default), or <code>git pull --rebase</code> to rebase instead.<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>pull.rebase</strong></dt>
+  <dd>A config to make <code>git pull</code> rebase by default.</dd>
+
+  <dt><strong>reflog</strong></dt>
+  <dd>A local log of where HEAD and branches have been — the safety net for recovering from a rewrite.<sup><a href="#r6">6</a></sup></dd>
+</dl>
+</section>
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://git-scm.com/book/en/v2/Git-Branching-Basic-Branching-and-Merging">Pro Git — Basic Branching and Merging</a></li>
+    <li id="r2"><a href="https://git-scm.com/docs/git-merge">git-merge — man page</a></li>
+    <li id="r3"><a href="https://git-scm.com/docs/git-merge-base">git-merge-base — man page</a></li>
+    <li id="r4"><a href="https://git-scm.com/docs/git-rebase">git-rebase — man page</a></li>
+    <li id="r5"><a href="https://git-scm.com/docs/git-pull">git-pull — man page</a></li>
+    <li id="r6"><a href="https://git-scm.com/docs/git-reflog">git-reflog — man page</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Mission &amp; notes</span>
+  <span class="nav-next"><a href="../lessons/0001-the-commit-graph.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../NOTES.md">Notes</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — How Branches Diverge</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 10</span><span>Git · Merging &amp; Rebasing</span></div>
+  <h1>How Branches Diverge</h1>
+  <p class="subtitle">Every integration debate is really about the merge base and whether the two tips have split since then. Read it once and the options become obvious.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>The <strong>merge base</strong> of two branches is their most recent common ancestor; whether the tips are ancestors of each other decides if integration can fast-forward or must merge/rebase.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Find the merge base</h2>
+<pre><code>git merge-base main feature     # prints the common ancestor sha
+</code></pre>
+<p>Everything Git integrates is relative to this commit: the changes "since the time the histories diverged" are what a merge incorporates from each side.<sup><a href="#r2">2</a></sup></p>
+
+<h2>The two shapes</h2>
+<table>
+  <tr><th>Shape</th><th>Meaning</th><th>Integration</th></tr>
+  <tr><td>One tip is a descendant of the other</td><td>No real divergence; feature is just ahead of main</td><td>Fast-forward or a no-ff commit</td></tr>
+  <tr><td>Both tips have commits since the merge base</td><td>Truly diverged</td><td>True merge, or a rebase</td></tr>
+</table>
+
+<pre><code># descended (fast-forwardable)
+  main: o---o---A
+  feat:            B---C      (feature is descended from A)
+
+# diverged (needs merge or rebase)
+  main: o---o---A---D
+  feat:      \     B---C
+</code></pre>
+
+<aside class="note"><strong>Key idea</strong> The question "can I just fast-forward?" is answered by reachability: is the thing I'm merging already in my ancestry? If yes, move the pointer; if no, both sides changed since the base and you need a real integration.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. The merge base of two branches is…</h4>
+  <button class="opt" data-fb="No — that is the tip, not their common ancestor.">the newest commit on either branch</button>
+  <button class="opt" data-fb="Correct — their most recent common ancestor.">their most recent common ancestor</button>
+  <button class="opt" data-fb="No — the merge base is shared history, not one side only.">the tip of whichever branch is older</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A fast-forward is possible when…</h4>
+  <button class="opt" data-fb="Correct — the branch being merged is a descendant of the current one.">the branch being merged is a descendant of the current one</button>
+  <button class="opt" data-fb="No — if both changed since the base, a fast-forward cannot work.">both branches have diverged since the base</button>
+  <button class="opt" data-fb="No — a fast-forward needs reachability, not merely equal files.">the two branches have the same file contents</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. When both tips have commits since the merge base, you…</h4>
+  <button class="opt" data-fb="No — that is exactly the shape that cannot fast-forward.">fast-forward and call it done</button>
+  <button class="opt" data-fb="No — there are two lines of work, nothing is already in the other.">ignore one branch entirely</button>
+  <button class="opt" data-fb="Correct — need a true merge or a rebase to integrate.">need a true merge or a rebase to integrate</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read <a href="https://git-scm.com/docs/git-merge-base">git-merge-base</a> and the divergence example in <a href="https://git-scm.com/book/en/v2/Git-Branching-Basic-Branching-and-Merging">Basic Branching and Merging</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Build a repo where one branch descends from another and a second pair that truly diverges. Run <code>git merge-base</code> on both pairs and read whether a fast-forward would be possible for each.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://git-scm.com/docs/git-merge-base">git-merge-base — man page</a></li>
+    <li id="r2"><a href="https://git-scm.com/docs/git-merge">git-merge — man page</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-the-commit-graph.html">← Lesson 1: The commit graph</a></span>
+  <span class="nav-next"><a href="0003-pull-fetch-and-integrate.html">Lesson 3: Pull &amp; fetch →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/git-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
