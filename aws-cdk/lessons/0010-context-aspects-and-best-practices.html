@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 10 — Context, Aspects &amp; Best Practices</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 10 of 10</span><span>AWS CDK · TypeScript</span></div>
+  <h1>Context, Aspects &amp; Best Practices</h1>
+  <p class="subtitle">Parameterize with context, apply cross-cutting policy with Aspects, and run a maintainable CDK app.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Use <strong>context</strong> for config, <strong>Aspects</strong> for cross-cutting changes across the tree, and treat infrastructure like production code — tested, reviewed, committed.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Context: configuration at the edge</h2>
+<pre><code>// cdk.json
+{ "context": { "appName": "my-app", "dev": true } }
+
+// read it in a construct
+const name = this.node.tryGetContext('appName');
+const isDev = this.node.tryGetContext('dev') === true;</code></pre>
+<p>Context is a key/value store you can set in <code>cdk.json</code>, via CLI flags, or programmatically. It keeps environment-specific values out of your code so one app can deploy to many environments.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Don't hardcode accounts, regions, or feature flags deep in code. Route them through context (or props), so a new environment is a config change, not a code change.</aside>
+
+<h2>Aspects: policy across the whole tree</h2>
+<p>An Aspect is a visitor CDK applies to every node in the construct tree — the natural home for cross-cutting concerns like mandatory tagging, security checks, or naming conventions.<sup><a href="#r2">2</a></sup></p>
+
+<pre><code>import { Aspects, Tag } from 'aws-cdk-lib';
+Aspects.of(app).add(new Tag('team', 'core'));   // tag everything
+</code></pre>
+
+<h2>Best practices for a maintainable app</h2>
+<ul>
+  <li>Treat infrastructure as code: source control, reviews, and tests.<sup><a href="#r1">1</a></sup></li>
+  <li>Prefer L2 constructs; go L1/escape hatch only when you must.<sup><a href="#r1">1</a></sup></li>
+  <li>Split into stacks by environment and lifecycle; set <code>env</code> explicitly.<sup><a href="#r2">2</a></sup></li>
+  <li>Avoid hardcoding; pass props and use context and Tokens.</li>
+  <li>Run <code>cdk diff</code> before <code>cdk deploy</code>, and be deliberate about destructive changes.<sup><a href="#r2">2</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. CDK context is best described as…</h4>
+  <button class="opt" data-fb="Correct — a key/value store for config outside your code.">a key/value store for config outside your code</button>
+  <button class="opt" data-fb="No — cdk.json holds context, not the compiled binaries.">the compiled JavaScript of your app</button>
+  <button class="opt" data-fb="No — context is short-lived config, not long-term logs.">a persistent log of every deployment</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. Aspects are used to…</h4>
+  <button class="opt" data-fb="No — Aspects visit the whole tree, not a single resource.">configure just one single resource</button>
+  <button class="opt" data-fb="No — that is the role of cloud assets and artifacts.">package local Docker images for upload</button>
+  <button class="opt" data-fb="Correct — apply cross-cutting changes (e.g. tagging) across all nodes.">apply cross-cutting changes (e.g. tagging) across all nodes</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. A key best practice in a CDK app is…</h4>
+  <button class="opt" data-fb="No — hardcoding couples the code to one environment.">hardcoding accounts and regions into code</button>
+  <button class="opt" data-fb="Correct — pass config via props/context instead of hardcoding.">pass config via props/context instead of hardcoding</button>
+  <button class="opt" data-fb="No — you should diff before deploying, not skip it.">deploy directly to save time every edit</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read these next)</h2>
+<p>Read <a href="https://docs.aws.amazon.com/cdk/v2/guide/basic_concepts.html">core concepts</a> for context, and the <a href="https://docs.aws.amazon.com/cdk/v2/guide/best_practices.html">CDK best practices</a> page before building anything at scale.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Move an environment-specific value (e.g. a table name or region flag) out of your code into cdk.json context, add a tagging Aspect at the App root, and synth to confirm both take effect everywhere.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/cdk/v2/guide/best_practices.html">AWS CDK — Best practices</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/cdk/v2/guide/basic_concepts.html">AWS CDK — Core concepts</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0009-wiring-and-references.html">← Lesson 9: Wiring &amp; references</a></span>
+  <span class="nav-next"><a href="../reference/cdk-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/cdk-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — App, Stack &amp; the Construct Tree</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 10</span><span>AWS CDK · TypeScript</span></div>
+  <h1>App, Stack &amp; the Construct Tree</h1>
+  <p class="subtitle">Your whole infrastructure is a tree: an App holding Stacks, each holding Constructs, each holding more Constructs.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>An <strong>App</strong> is the root container, a <strong>Stack</strong> is one CloudFormation deployment targeted at an environment, and a <strong>Construct</strong> is a building block that can nest inside other constructs — together they form a tree.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The three shapes</h2>
+<table>
+  <tr><th>Shape</th><th>Role</th></tr>
+  <tr><td><code>App</code></td><td>The root; created as <code>new App()</code> in your entrypoint; holds stacks.</td></tr>
+  <tr><td><code>Stack</code></td><td>Maps to one CloudFormation stack; the unit you deploy and destroy, targeted at an account + region.</td></tr>
+  <tr><td><code>Construct</code></td><td>Anything inside a stack — from a single S3 bucket to an entire subsystem you design.</td></tr>
+</table>
+<sup><a href="#r1">1</a></sup>
+
+<h2>A minimal app in TypeScript</h2>
+<pre><code>// bin/app.ts — entrypoint
+import { App } from 'aws-cdk-lib';
+import { MyStack } from '../lib/my-stack';
+
+const app = new App();
+new MyStack(app, 'MyStack', {
+  env: { account: '123456789012', region: 'eu-west-1' },
+});
+
+// lib/my-stack.ts — stack of constructs
+import { Stack, StackProps } from 'aws-cdk-lib';
+import { Construct } from 'constructs';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+
+export class MyStack extends Stack {
+  constructor(scope: Construct, id: string, props?: StackProps) {
+    super(scope, id, props);
+    new s3.Bucket(this, 'Bucket', { versioned: true });   // a construct
+  }
+}</code></pre>
+<ul>
+  <li>The <code>env</code> sets the target account and region — the stack's environment.<sup><a href="#r1">1</a></sup></li>
+  <li><code>this</code> (the stack) is the <em>scope</em> for the bucket construct, making the bucket a child in the tree.</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> Scope is what links everything: each construct's parent is its scope. This tree is what CDK walks during synthesis to build the templates and to give every construct a stable, unique path.</aside>
+
+<h2>Multiple stacks, separate lifecycles</h2>
+<p>You can put different resources in different stacks so they deploy, update, and destroy independently — e.g. one stack for networking, one for the application, one for databases. Each stack synthesizes to its own CloudFormation template.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. In CDK, a Stack maps to…</h4>
+  <button class="opt" data-fb="Correct — one CloudFormation stack, the deploy/destroy unit.">one CloudFormation stack, the deploy/destroy unit</button>
+  <button class="opt" data-fb="No — Stacks are the deploy unit; the App is the root.">the root of the whole application</button>
+  <button class="opt" data-fb="No — buckets are constructs that live inside a Stack.">a single S3 bucket resource</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. A construct's parent in the tree is its…</h4>
+  <button class="opt" data-fb="No — id is the name; scope is the parent link.">unique id attribute</button>
+  <button class="opt" data-fb="No — env is the account and region, not the parent.">environment configuration</button>
+  <button class="opt" data-fb="Correct — scope, the first constructor argument.">scope, the first constructor argument</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. Separating resources into multiple stacks lets you…</h4>
+  <button class="opt" data-fb="No — it is the opposite: separate stacks mean separate lifecycles.">deploy all of them as one atomic unit only</button>
+  <button class="opt" data-fb="Correct — deploy, update, and destroy them independently.">deploy, update, and destroy them independently</button>
+  <button class="opt" data-fb="No — scope links them; stacks are independent units.">force them all into a single construct tree</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read <a href="https://docs.aws.amazon.com/cdk/v2/guide/basic_concepts.html">core concepts</a> for the App/Stack/Construct definitions and environments, and confirm the scaffolded files <code>bin/app.ts</code> and <code>lib/</code> in <a href="https://docs.aws.amazon.com/cdk/v2/guide/work-with-cdk-typescript.html">the TypeScript guide</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> In your scaffolded project, open <code>bin/</code> and <code>lib/</code>. Identify the App creation, the Stack class, and where a new construct would be added as a child, then sketch the tree you just defined.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/cdk/v2/guide/basic_concepts.html">AWS CDK — Core concepts</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-the-deploy-pipeline.html">← Lesson 2: The deploy pipeline</a></span>
+  <span class="nav-next"><a href="0004-construct-levels.html">Lesson 4: Construct levels →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/cdk-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

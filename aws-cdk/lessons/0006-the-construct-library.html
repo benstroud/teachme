@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — The Construct Library</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 10</span><span>AWS CDK · TypeScript</span></div>
+  <h1>The Construct Library</h1>
+  <p class="subtitle">aws-cdk-lib ships curated constructs for AWS services — import a module, build a resource, and reach down to L1 when you must.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>In v2, all the curated constructs live in one package, <code>aws-cdk-lib</code>, organized into per-service namespaces (e.g. <code>aws-s3</code>, <code>aws-lambda</code>, <code>aws-iam</code>) you import and use like any TypeScript module.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Import and build</h2>
+<pre><code>import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as iam from 'aws-cdk-lib/aws-iam';
+
+const bucket = new s3.Bucket(this, 'Bucket', { versioned: true });
+const role = new iam.Role(this, 'Role', {
+  assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+});
+const fn = new lambda.Function(this, 'Fn', {
+  runtime: lambda.Runtime.NODEJS_20_X,
+  handler: 'index.handler',
+  code: lambda.Code.fromAsset('src'),
+  role,
+});</code></pre>
+<p>Each class embodies an L2 construct: defaults, best-practice security, and helper methods are baked in, so a few lines produce a safe, working resource.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> The library is the interface you compose against. If you can find the service module, you can build its resources; the props interfaces tell you (via editor completions) exactly what each construct accepts.</aside>
+
+<h2>Reaching down to L1 / the escape hatch</h2>
+<p>When an L2 lacks a control, every construct exposes its underlying L1 (e.g. <code>bucket.node.defaultChild</code> as a <code>CfnBucket</code>) or you can add the L1 directly. This is how you get exact CloudFormation property fidelity without leaving CDK.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Know your imports, keep them tidy</h2>
+<p>In TypeScript, import only the modules you use and lean on your IDE's completion for props. Because everything is typed, a wrong property fails at compile time rather than at deploy time — one of CDK's big advantages over hand-written templates.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. In CDK v2, the curated constructs ship in…</h4>
+  <button class="opt" data-fb="No — v2 consolidated them into the single aws-cdk-lib package.">per-service npm packages only</button>
+  <button class="opt" data-fb="Correct — a single package, aws-cdk-lib, split into namespaces.">a single package, aws-cdk-lib, split into namespaces</button>
+  <button class="opt" data-fb="No — constructs are classes; the CLI is the toolkit.">the command-line toolkit alone</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. The escape hatch to exact CFN properties is…</h4>
+  <button class="opt" data-fb="No — you can reach the L1 without leaving CDK.">to rewrite the whole app in another language</button>
+  <button class="opt" data-fb="No — raw templates bypass CDK's typing and are not needed here.">hand-editing the synthesized JSON template</button>
+  <button class="opt" data-fb="Correct — the L1 construct / node.defaultChild of the L2.">the L1 construct / node.defaultChild of the L2</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. A big advantage of a typed library is that…</h4>
+  <button class="opt" data-fb="Correct — invalid props fail at compile time, not at deploy time.">invalid props fail at compile time, not at deploy time</button>
+  <button class="opt" data-fb="No — types help authoring, they don't run any AWS services.">the types themselves deploy all your resources</button>
+  <button class="opt" data-fb="No — every resource is still a real AWS resource that costs money.">resources become free because they are code</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Browse the <a href="https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.html">aws-cdk-lib API reference</a> for a module you use (e.g. aws-s3, aws-lambda) and the <a href="https://docs.aws.amazon.com/cdk/v2/guide/constructs.html">constructs page</a> for the escape hatch.</p>
+
+<div class="ask"><strong>Ask the agent</strong> In a scratch stack, add one S3 bucket, one Lambda function, and an IAM role, then synth and inspect the generated template. Identify one place you would use the L1 escape hatch.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/cdk/v2/guide/work-with-cdk-typescript.html">AWS CDK — Working with the AWS CDK in TypeScript</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/cdk/v2/guide/constructs.html">AWS CDK — Constructs</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-authoring-constructs.html">← Lesson 5: Authoring constructs</a></span>
+  <span class="nav-next"><a href="0007-props-and-tokens.html">Lesson 7: Props &amp; tokens →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/cdk-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

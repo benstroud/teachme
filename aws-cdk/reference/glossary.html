@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AWS CDK — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>AWS CDK · TypeScript</span></div>
+  <h1>AWS CDK Glossary</h1>
+  <p class="subtitle">Every term in this course, in one place. Return here when a lesson uses a word you do not fully own.</p>
+</header>
+
+<section>
+<h2>The architecture</h2>
+<dl>
+  <dt><strong>AWS CDK</strong></dt>
+  <dd>Open-source framework for defining cloud infrastructure in code and provisioning it through AWS CloudFormation. Two parts: the Construct Library and the Toolkit (CLI).<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>App</strong></dt>
+  <dd>The root of a CDK application — the container for one or more stacks. Defined as <code>new App()</code> in the entrypoint.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>Stack</strong></dt>
+  <dd>The deployment unit CDK maps to a CloudFormation stack (targeted at an environment). Resources are grouped into stacks for independent deploy/destroy.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>Construct</strong></dt>
+  <dd>A component representing one or more CloudFormation resources and their configuration — the basic building block of a CDK app.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>Construct tree</strong></dt>
+  <dd>The parent/child hierarchy formed by scope; the App is the root, Stacks are children, constructs nest beneath them.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>Environment</strong></dt>
+  <dd>The account and region a stack deploys to, set via stack props (e.g. <code>env: { account, region }</code>).<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>CloudFormation</strong></dt>
+  <dd>AWS's managed IaC service CDK synthesizes to; it performs predictable, repeatable deployments with rollback on error.<sup><a href="#r1">1</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>The lifecycle</h2>
+<dl>
+  <dt><strong>cdk init</strong></dt>
+  <dd>Creates a new CDK project for a language, e.g. <code>cdk init app --language typescript</code>; installs <code>aws-cdk-lib</code>.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>cdk synth</strong></dt>
+  <dd>Compiles the app and emits the CloudFormation templates for its stacks (the synthesis output).<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>cdk bootstrap</strong></dt>
+  <dd>Deploys the CDKToolkit bootstrap stack into an environment, including the S3 bucket used to store assets (Lambda code, Docker images).<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>cdk deploy</strong></dt>
+  <dd>Deploys the app's stacks through CloudFormation to the target environment.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>cdk diff</strong></dt>
+  <dd>Shows the difference between the synthesized stack and the deployed one before you act.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>cdk destroy</strong></dt>
+  <dd>Tears down a deployed stack and its resources.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>Asset</strong></dt>
+  <dd>Local files or Docker images the app packages and uploads to the bootstrap bucket so services (e.g. Lambda) can use them.<sup><a href="#r2">2</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Construct model</h2>
+<dl>
+  <dt><strong>L1 construct (CFN resource)</strong></dt>
+  <dd>Lowest level; maps one-to-one to a CloudFormation resource, named <code>Cfn*</code> (e.g. <code>CfnBucket</code> for <code>AWS::S3::Bucket</code>); no abstraction.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>L2 construct</strong></dt>
+  <dd>A curated construct (e.g. <code>s3.Bucket</code>) with an intent-based API, sensible defaults, best-practice security, and helper methods.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>L3 construct / pattern</strong></dt>
+  <dd>The highest abstraction level: pre-built patterns wiring several resources together.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>scope</strong></dt>
+  <dd>The first argument to a construct; its parent in the construct tree.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>id</strong></dt>
+  <dd>The second argument; must be unique within its scope and forms (with the path) the construct's logical path.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>props</strong></dt>
+  <dd>The third argument: a key/value bundle conforming to an interface (e.g. <code>BucketProps</code>) that configures the construct.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>Token / lazy value</strong></dt>
+  <dd>A placeholder value whose real CloudFormation expression (Ref, GetAtt, Join) is only known at synthesis — how CDK defers evaluation until the template is built.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>Aspect</strong></dt>
+  <dd>A visitor applied across the whole construct tree to implement cross-cutting concerns (e.g. tagging, security checks).<sup><a href="#r2">2</a></sup></dd>
+</dl>
+</section>
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/cdk/v2/guide/home.html">AWS CDK — What is the AWS CDK</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/cdk/v2/guide/basic_concepts.html">AWS CDK — Core concepts</a></li>
+    <li id="r3"><a href="https://docs.aws.amazon.com/cdk/v2/guide/constructs.html">AWS CDK — Constructs</a></li>
+    <li id="r4"><a href="https://docs.aws.amazon.com/cdk/v2/guide/work-with-cdk-typescript.html">AWS CDK — Working with the AWS CDK in TypeScript</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Mission &amp; notes</span>
+  <span class="nav-next"><a href="../lessons/0001-why-the-cdk.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../NOTES.md">Notes</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

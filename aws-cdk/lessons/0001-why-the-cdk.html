@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — Why the CDK</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 10</span><span>AWS CDK · TypeScript</span></div>
+  <h1>Why the CDK</h1>
+  <p class="subtitle">Define your cloud infrastructure in a real programming language, and let CDK turn it into CloudFormation that provisions on AWS.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>The AWS Cloud Development Kit (CDK) is an open-source framework for defining cloud infrastructure in code and provisioning it through <strong>AWS CloudFormation</strong>.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Two halves: library and toolkit</h2>
+<ul>
+  <li><strong>CDK Construct Library</strong> — pre-written, modular, reusable pieces of code called <em>constructs</em> for building and integrating AWS services.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>CDK Toolkit</strong> — the command-line tool (the <em>CDK CLI</em>) and a programmatic library for managing CDK apps, such as synthesis and deployment.<sup><a href="#r1">1</a></sup></li>
+</ul>
+
+<h2>Infrastructure as code, with the language you already know</h2>
+<p>CDK supports TypeScript, JavaScript, Python, Java, C#/.NET, and Go. Because you write in a general-purpose language, you get loops, conditionals, interfaces, inheritance, IDE completion, tests, and source control — the whole software-engineering toolkit applied to infrastructure.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> CDK writes <em>synthesis</em> output: your code compiles to CloudFormation templates, and CloudFormation performs the actual provisioning — predictably, repeatedly, with rollback on error.<sup><a href="#r1">1</a></sup></aside>
+
+<h2>Why not just use CloudFormation directly</h2>
+<p>CloudFormation is powerful but verbose and template-based. CDK keeps you on CloudFormation's reliable deployment engine while removing the friction: your <em>code</em> is the source of truth, and the template is generated. If you know CloudFormation concepts, they carry over — you just author them in TypeScript.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The workflow in miniature</h2>
+<pre><code>cdk init app --language typescript     # scaffold a project
+# ...author the app (App → Stack → Constructs)...
+cdk synth                              # code → CloudFormation template
+cdk deploy                             # CloudFormation → provisioned AWS</code></pre>
+<p>The next lesson walks this pipeline end to end.</p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. The AWS CDK provisions infrastructure through…</h4>
+  <button class="opt" data-fb="No — CDK calls CloudFormation to do the actual deployment.">a private command-line installer</button>
+  <button class="opt" data-fb="Correct — AWS CloudFormation, which performs the provisioning.">AWS CloudFormation, which performs the provisioning</button>
+  <button class="opt" data-fb="No — CloudFormation is the engine; CDK does not bypass it.">direct raw API calls, bypassing CloudFormation</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The CDK Construct Library is…</h4>
+  <button class="opt" data-fb="Correct — pre-written, reusable code pieces called constructs.">pre-written, reusable code pieces called constructs</button>
+  <button class="opt" data-fb="No — that is the Toolkit, not the library.">the command-line tool used to manage apps</button>
+  <button class="opt" data-fb="No — constructs are modules, not AWS services themselves.">a set of pre-provisioned AWS services</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. A key benefit of CDK over hand-written templates is…</h4>
+  <button class="opt" data-fb="No — it synthesizes templates; you define it as code.">that you still write raw CloudFormation by hand</button>
+  <button class="opt" data-fb="No — CDK is code-first by design.">that it avoids all infrastructure concepts</button>
+  <button class="opt" data-fb="Correct — loops, conditionals, tests, and source control applied to infra.">loops, conditionals, tests, and source control applied to infra</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://docs.aws.amazon.com/cdk/v2/guide/home.html">What is the AWS CDK</a> and then the <a href="https://docs.aws.amazon.com/cdk/v2/guide/getting_started.html">Getting started</a> page to install the CLI and replicate the workflow.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Install the CDK CLI and scaffold your first project with <code>cdk init app --language typescript</code>. Then run <code>cdk synth</code> and tell me what you observe in the generated <code>cdk.out</code> folder.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/cdk/v2/guide/home.html">AWS CDK — What is the AWS CDK</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="0002-the-deploy-pipeline.html">Lesson 2: The deploy pipeline →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/cdk-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

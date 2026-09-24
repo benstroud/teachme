@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — Authoring Constructs</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 10</span><span>AWS CDK · TypeScript</span></div>
+  <h1>Authoring Constructs</h1>
+  <p class="subtitle">Package a bundle of resources behind a small, typed interface — constructs you write compose like any other.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A construct is a class that <code>extends Construct</code>, receives <code>(scope, id, props)</code>, adds child constructs with <code>this</code> as their scope, and exposes what consumers need as <code>readonly</code> properties.<sup><a href="#r1">1</a></sup></p>
+
+<h2>A custom construct</h2>
+<pre><code>import { Construct } from 'constructs';
+import { Bucket, BucketProps } from 'aws-cdk-lib/aws-s3';
+import { Topic } from 'aws-cdk-lib/aws-sns';
+import { SnsDestination } from 'aws-cdk-lib/aws-s3-notifications';
+
+export interface NotifyingBucketProps extends BucketProps {
+  prefix?: string;
+}
+
+export class NotifyingBucket extends Construct {
+  public readonly topic: Topic;               // expose for consumers
+  public readonly bucket: Bucket;
+
+  constructor(scope: Construct, id: string, props?: NotifyingBucketProps) {
+    super(scope, id);
+    this.bucket = new Bucket(this, 'bucket', props);          // child of this
+    this.topic = new Topic(this, 'topic');
+    if (props?.prefix) {
+      this.bucket.addObjectCreatedNotification(new SnsDestination(this.topic), { prefix: props.prefix });
+    }
+  }
+}</code></pre>
+<p>Every construct library class follows the same pattern: instantiated with <code>(scope, id, props)</code>, where props conforms to a dedicated interface like <code>BucketProps</code>.</p>
+
+<h2>Compose, don't scatter</h2>
+<p>The power of custom constructs is reuse: define <code>NotifyingBucket</code> once, and any stack can instantiate it — a bucket, a topic, and the wiring all come as one unit. You can extend an existing interface (as above) to add your own props.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Scope is <code>this</code> inside the construct, so its children land in the tree under it, giving them a stable path and (through synthesis) stable CloudFormation logical IDs.</aside>
+
+<h2>Expose and consume</h2>
+<p>Consumers reach the inner resources through public <code>readonly</code> fields — e.g. <code>images.topic.addSubscription(...)</code> — so encapsulation stays tidy without hiding what integration code needs.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. A custom construct is defined by…</h4>
+  <button class="opt" data-fb="No — it subclasses Construct and takes that trio like everyone else.">extending App and overriding its constructor</button>
+  <button class="opt" data-fb="Correct — extending Construct and receiving (scope, id, props).">extending Construct and receiving (scope, id, props)</button>
+  <button class="opt" data-fb="No — values are exposed as readonly properties, not globals.">exposing all children as module globals</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Child constructs are placed in the tree by…</h4>
+  <button class="opt" data-fb="Correct — using this as their scope inside the construct.">using this as their scope inside the construct</button>
+  <button class="opt" data-fb="No — that would put it under the stack, not under this.">using the stack as their scope everywhere</button>
+  <button class="opt" data-fb="No — scope is a constructor argument, not an import.">importing them into the construct file</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. To let consumers wire into your construct, you…</h4>
+  <button class="opt" data-fb="No — exports are the point, not hiding everything.">hide every child so nothing is usable</button>
+  <button class="opt" data-fb="No — direct stack access would couple consumers too tightly.">reach into the owning stack from consumers</button>
+  <button class="opt" data-fb="Correct — expose the needed children as public readonly properties.">expose the needed children as public readonly properties</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the <a href="https://docs.aws.amazon.com/cdk/v2/guide/constructs.html">constructs page</a> (definitions and the NotifyingBucket example) and the prop-bundles guidance in <a href="https://docs.aws.amazon.com/cdk/v2/guide/work-with-cdk-typescript.html">the TypeScript guide</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Write a small custom construct that bundles a bucket plus a queue, with props to set the bucket versioning. Compose it in a stack, expose the queue, and synth to confirm two resources appear under one logical path.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/cdk/v2/guide/constructs.html">AWS CDK — Constructs</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/cdk/v2/guide/work-with-cdk-typescript.html">AWS CDK — Working with the AWS CDK in TypeScript</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-construct-levels.html">← Lesson 4: Construct levels</a></span>
+  <span class="nav-next"><a href="0006-the-construct-library.html">Lesson 6: The construct library →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/cdk-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AWS CDK — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  code i { color: var(--accent); font-style: normal; }
+  td code { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>AWS CDK · TypeScript</span></div>
+  <h1>AWS CDK Cheat Sheet</h1>
+  <p class="subtitle">The compressed essence of the course. Skim before a lesson, study it fully before an interview.</p>
+</header>
+
+<section>
+<h2>1. Core mental model</h2>
+<pre><code>App  →  Stack(s)  →  Constructs  →  synthesize  →  CloudFormation  →  deploy
+
+// bin/app.ts — the entrypoint
+import { App } from 'aws-cdk-lib';
+import { MyStack } from '../lib/my-stack';
+const app = new App();
+new MyStack(app, 'MyStack', { env: { account: '123456789012', region: 'eu-west-1' } });
+
+// lib/my-stack.ts — a Stack of constructs
+import { Stack, StackProps } from 'aws-cdk-lib';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+export class MyStack extends Stack {
+  constructor(scope: Construct, id: string, props?: StackProps) {
+    super(scope, id, props);
+    new s3.Bucket(this, 'Bucket', { versioned: true });   // L2 construct
+  }
+}</code></pre>
+<p>CDK defines infra in code, synthesizes CloudFormation templates, and provisions through CloudFormation.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>2. Lifecycle commands</h2>
+<pre><code>npm install -g aws-cdk          # or use local: npx aws-cdk
+cdk init app --language typescript   # scaffold project (installs aws-cdk-lib)
+npm run build                        # compile TS → JS (tsc)
+cdk synth                            # emit CloudFormation templates
+cdk diff                             # show changes vs deployed stack
+cdk bootstrap                        # deploy CDKToolkit + asset bucket (needed for assets)
+cdk deploy                           # deploy through CloudFormation
+cdk list                             # list stacks in the app
+cdk destroy                          # tear down a deployed stack</code></pre>
+<p>Workflow: init → synth → (bootstrap once) → diff → deploy.<sup><a href="#r2">2</a></sup></p>
+</section>
+
+<section>
+<h2>3. Construct levels</h2>
+<table>
+  <tr><th>Level</th><th>What</th><th>Example</th></tr>
+  <tr><td>L1 (CFN resource)</td><td>One-to-one with a CloudFormation resource; no abstraction</td><td><code>CfnBucket</code> → <code>AWS::S3::Bucket</code></td></tr>
+  <tr><td>L2 (curated)</td><td>Intent-based, defaults, best-practice security, helpers</td><td><code>s3.Bucket</code></td></tr>
+  <tr><td>L3 (pattern)</td><td>Pre-built multi-resource patterns</td><td>load-balanced Fargate service etc.</td></tr>
+</table>
+<p>Higher level = easier, less control; lower level = more control, less convenience.<sup><a href="#r3">3</a></sup></p>
+</section>
+
+<section>
+<h2>4. Authoring constructs</h2>
+<ul>
+  <li>Every construct takes <code>(scope, id, props)</code>; props conforms to an interface (e.g. <code>BucketProps</code>).<sup><a href="#r4">4</a></sup></li>
+  <li>Extension point: <code>class MyConstruct extends Construct</code>, add L2 children with <code>this</code> as scope.</li>
+  <li>Expose values to consumers with <code>public readonly</code> properties (e.g. <code>readonly topic</code>).</li>
+</ul>
+</section>
+
+<section>
+<h2>5. Tokens &amp; references</h2>
+<pre><code>// Tokens defer the real expression to synthesis (Ref / GetAtt / Join)
+bucket.bucketName          // Token → { Ref / GetAtt }
+bucket.bucketArn
+this.fn.addEnvironment('BUCKET', bucket.bucketName);   // wired without hardcoding
+</code></pre>
+<p>Never string-wrap a Token; pass values as objects so CDK keeps the reference lazy.<sup><a href="#r2">2</a></sup></p>
+</section>
+
+<section>
+<h2>6. Assets &amp; bootstrap</h2>
+<pre><code>import { Code } from 'aws-cdk-lib/aws-lambda';
+const fn = new lambda.Function(this, 'Fn', {
+  runtime: lambda.Runtime.NODEJS_20_X,
+  handler: 'index.handler',
+  code: Code.fromAsset('src'),       // packaged as an asset
+});
+</code></pre>
+<p>Assets upload local files/Docker images to the bootstrap bucket so services can use them.<sup><a href="#r2">2</a></sup></p>
+</section>
+
+<section>
+<h2>7. Wiring &amp; IAM</h2>
+<pre><code>queue.grantSendMessages(fn);        // adds the needed IAM policy
+bucket.grantReadWrite(fn);
+// harness cdk to infer dependencies from references automatically
+</code></pre>
+<p>Passing references creates implicit Cfn depends-on; grants keep least-privilege declarative.</p>
+</section>
+
+<section>
+<h2>8. Best practices checklist</h2>
+<ul>
+  <li>Treat infrastructure as code: review, test, commit it.<sup><a href="#r1">1</a></sup></li>
+  <li>Prefer L2 constructs; drop to L1 or the escape hatch only when needed.<sup><a href="#r3">3</a></sup></li>
+  <li>Organize into stacks per environment/lifecycle; set env (account + region).<sup><a href="#r2">2</a></sup></li>
+  <li>Avoid hardcoding; use props, context, and Tokens.</li>
+  <li>Use Aspects for cross-cutting policy (tagging, security checks).</li>
+  <li>Run <code>cdk diff</code> before <code>cdk deploy</code>; be deliberate about destructive changes.</li>
+  <li>Bootstrap each environment where you deploy assets.</li>
+</ul>
+</section>
+
+<footer class="citation">
+  Primary sources: <a href="https://docs.aws.amazon.com/cdk/v2/guide/home.html">AWS CDK home</a>,
+  <a href="https://docs.aws.amazon.com/cdk/v2/guide/basic_concepts.html">core concepts</a>,
+  <a href="https://docs.aws.amazon.com/cdk/v2/guide/constructs.html">constructs</a>,
+  <a href="https://docs.aws.amazon.com/cdk/v2/guide/work-with-cdk-typescript.html">TypeScript guide</a>.
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/cdk/v2/guide/home.html">AWS CDK — What is the AWS CDK</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/cdk/v2/guide/basic_concepts.html">AWS CDK — Core concepts</a></li>
+    <li id="r3"><a href="https://docs.aws.amazon.com/cdk/v2/guide/constructs.html">AWS CDK — Constructs</a></li>
+    <li id="r4"><a href="https://docs.aws.amazon.com/cdk/v2/guide/work-with-cdk-typescript.html">AWS CDK — Working with the AWS CDK in TypeScript</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="../lessons/0001-why-the-cdk.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

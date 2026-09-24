@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — Props &amp; Tokens</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 10</span><span>AWS CDK · TypeScript</span></div>
+  <h1>Props &amp; Tokens</h1>
+  <p class="subtitle">Constructs are configured with props bundles and connected with Tokens — lazy values that resolve to real CloudFormation expressions at synthesis.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Every construct takes a <strong>props</strong> bundle typed by an interface, and outputs values like <code>bucket.bucketName</code> that are <strong>Tokens</strong> — placeholders resolved to <code>Ref</code>/<code>GetAtt</code>/<code>Join</code> only when the template is synthesized.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Props: a typed key/value bundle</h2>
+<pre><code>const bucket = new s3.Bucket(this, 'Bucket', {
+  versioned: true,        // BucketProps — typed in TypeScript
+  removalPolicy: RemovalPolicy.DESTROY,
+});
+</code></pre>
+<p>Props shape is defined by a per-construct interface (e.g. <code>BucketProps</code>), so your IDE tells you the required and optional keys and their types.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Tokens: lazy references</h2>
+<pre><code>const bucket = new s3.Bucket(this, 'Bucket', {});
+bucket.bucketName;        // a Token — { Ref: 'Bucket...' } at synth time
+bucket.bucketArn;         // a Token — { Fn::GetAtt: [...] }
+</code></pre>
+<p>These values do not exist until CloudFormation creates the resource, so CDK carries them as Tokens and emits the right intrinsic function in the template.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Never force a Token through raw string concatenation in a way CDK cannot see. Passing a Token value into another construct's props is fine (CDK keeps it lazy); the danger is pre-flattening it into a string that discards the reference.</aside>
+
+<h2>Composing references</h2>
+<pre><code>this.fn.addEnvironment('BUCKET', bucket.bucketName);
+queue.grantSendMessages(this.fn);      // wires IAM + creates dependencies
+</code></pre>
+<p>Passing one construct's token into another is how you connect resources without hardcoding names or ARNs — and CDK records the dependency between them.<sup><a href="#r2">2</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. A Token in CDK is…</h4>
+  <button class="opt" data-fb="No — its value is only finalized when the template is synthesized.">the final deployed value from the start</button>
+  <button class="opt" data-fb="Correct — a lazy placeholder resolved to a CFN expression at synth.">a lazy placeholder resolved to a CFN expression at synth</button>
+  <button class="opt" data-fb="No — that phrase describes hardcoding, not lazy references.">a hardcoded literal value you wrote yourself</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The shape of a construct's props is defined by…</h4>
+  <button class="opt" data-fb="Correct — a per-construct interface such as BucketProps.">a per-construct interface such as BucketProps</button>
+  <button class="opt" data-fb="No — props is a plain config bundle, not a compiled binary.">the compiled CloudFormation binary format</button>
+  <button class="opt" data-fb="No — props is a value bundle, not an environment variable.">an environment variable in cdk.json</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. Connecting two constructs is best done by…</h4>
+  <button class="opt" data-fb="No — hardcoding ARNs defeats CDK's dependency tracking.">copying the deployed ARN into a string literal</button>
+  <button class="opt" data-fb="No — that would make the runtime have to guess the value.">leaving the other resource unreferenced</button>
+  <button class="opt" data-fb="Correct — passing one construct's Token into the other's props.">passing one construct's Token into the other's props</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the props-bundle and attribute guidance in <a href="https://docs.aws.amazon.com/cdk/v2/guide/work-with-cdk-typescript.html">the TypeScript guide</a> and the reference-resolution behavior described under <a href="https://docs.aws.amazon.com/cdk/v2/guide/basic_concepts.html">core concepts</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Add a bucket and a Lambda, set the function's env to the bucket name, and synth. Find the generated <code>Ref</code>/<code>GetAtt</code> in the template and confirm the two resources are now connected.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/cdk/v2/guide/work-with-cdk-typescript.html">AWS CDK — Working with the AWS CDK in TypeScript</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/cdk/v2/guide/basic_concepts.html">AWS CDK — Core concepts</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-the-construct-library.html">← Lesson 6: The construct library</a></span>
+  <span class="nav-next"><a href="0008-assets-and-bootstrap.html">Lesson 8: Assets &amp; bootstrap →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/cdk-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

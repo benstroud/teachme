@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 9 — Wiring &amp; References</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 9 of 10</span><span>AWS CDK · TypeScript</span></div>
+  <h1>Wiring &amp; References</h1>
+  <p class="subtitle">Pass values between constructs, let CDK infer dependencies, grant IAM — and connect resources across stacks.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>You connect resources by passing one construct's <em>values</em> (Tokens) into another's props; CDK records the dependency, and <em>grants</em> handle the IAM policy.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Implicit dependencies</h2>
+<pre><code>this.fn.addEnvironment('QUEUE_URL', queue.queueUrl);   // reference ⇒ ordering
+</code></pre>
+<p>Once construct A references a value from construct B, CDK knows B must exist before A is created, and emits the right CloudFormation dependency ordering automatically.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Grants make IAM declarative</h2>
+<pre><code>import * as sqs from 'aws-cdk-lib/aws-sqs';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+
+const queue = new sqs.Queue(this, 'Queue');
+const fn = new lambda.Function(this, 'Fn', { /* ... */ });
+
+queue.grantSendMessages(fn);        // adds receive permission policy to fn
+bucket.grantReadWrite(fn);          // similar for the bucket</code></pre>
+<p>Grant methods encapsulate the least-privilege policy so you don't hand-write IAM JSON; they also create the reference that links the two resources.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Wire by passing <em>constructs' outputs</em>, not ARNs you copy-paste. That is what lets CloudFormation order resources, and what lets a rename refactor safely through the template.</aside>
+
+<h2>Across stacks</h2>
+<p>When resources live in different stacks, passing a value across the <code>App</code> boundary is still possible — CDK emits CloudFormation exports/imports (or parameters) to pass the reference between stacks at deploy time.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. When construct A references a value from construct B, CDK…</h4>
+  <button class="opt" data-fb="Correct — records the dependency so B is created first.">records the dependency so B is created first</button>
+  <button class="opt" data-fb="No — that would break ordering that a reference implies.">deploys them in completely random order</button>
+  <button class="opt" data-fb="No — references connect resources; they do not isolate them.">forces both into totally separate templates</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. Grant methods like grantSendMessages…</h4>
+  <button class="opt" data-fb="No — grants add the needed permission, not delete it.">remove permissions to keep things least-privilege</button>
+  <button class="opt" data-fb="No — grants generate policy, they do not give console access.">open the AWS Management Console for you</button>
+  <button class="opt" data-fb="Correct — add the IAM policy and link the resources.">add the IAM policy and link the resources</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. To connect resources across different stacks you…</h4>
+  <button class="opt" data-fb="No — CDK handles exports/imports so you need not hand-write them.">hand-write CloudFormation exports by hand</button>
+  <button class="opt" data-fb="Correct — pass the value across the App boundary via CDK references.">pass the value across the App boundary via CDK references</button>
+  <button class="opt" data-fb="No — cross-stack links are supported, not impossible.">give up and merge every stack into one</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read how references and dependencies are resolved in <a href="https://docs.aws.amazon.com/cdk/v2/guide/basic_concepts.html">core concepts</a> and see grant methods in the <a href="https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.html">API reference</a> (e.g. <code>s3.Bucket</code> grants).</p>
+
+<div class="ask"><strong>Ask the agent</strong> Give your Lambda permission to send to a queue using <code>queue.grantSendMessages</code>, synth, and find the generated IAM policy and the implicit dependency between the two resources.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/cdk/v2/guide/basic_concepts.html">AWS CDK — Core concepts</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.html">AWS CDK — API reference</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0008-assets-and-bootstrap.html">← Lesson 8: Assets &amp; bootstrap</a></span>
+  <span class="nav-next"><a href="0010-context-aspects-and-best-practices.html">Lesson 10: Context &amp; best practices →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/cdk-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

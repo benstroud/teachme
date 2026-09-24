@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — Construct Levels</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 10</span><span>AWS CDK · TypeScript</span></div>
+  <h1>Construct Levels</h1>
+  <p class="subtitle">L1, L2, L3 — a ladder of abstraction from raw CloudFormation resources to pre-built patterns. Pick your rung per resource.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Constructs come in three levels: <strong>L1</strong> (one per CloudFormation resource, no abstraction), <strong>L2</strong> (curated, intent-based, with defaults and helpers), and <strong>L3</strong> (pre-built patterns) — higher means easier but less control.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The three levels</h2>
+<table>
+  <tr><th>Level</th><th>Nature</th><th>Example</th><th>Control</th></tr>
+  <tr><td>L1 — CFN resources</td><td>Maps 1:1 to a CloudFormation resource, named <code>Cfn*</code>, generated from the CFN resource spec.</td><td><code>CfnBucket</code> → <code>AWS::S3::Bucket</code></td><td>Highest (raw props)</td></tr>
+  <tr><td>L2 — curated</td><td>Intent-based API, sensible defaults, best-practice security, boilerplate glue.</td><td><code>s3.Bucket</code></td><td>High for daily use</td></tr>
+  <tr><td>L3 — patterns</td><td>Higher-level abstractions wiring multiple resources.</td><td>load-balanced container service</td><td>Least (opinionated)</td></tr>
+</table>
+<sup><a href="#r1">1</a></sup>
+
+<h2>L1: the escape to full control</h2>
+<p>Every CloudFormation resource has an L1 counterpart, so anything you could express in a CloudFormation template you can express in CDK. Use L1 when you need a property the L2 does not (yet) surface, or when you want the template to look exactly like a resource spec.<sup><a href="#r1">1</a></sup></p>
+
+<h2>L2: the everyday default</h2>
+<p>L2 constructs are "usually the most widely used." They encode defaults, security best practices, and helper methods (permissions, event wiring) so a bucket becomes <code>new s3.Bucket(this, 'Bucket', { versioned: true })</code> instead of a dozen template lines.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Start at L2 for standard resources; drop to L1 (or an escape hatch) only when you need a control the L2 doesn't expose. Picking the right level is a judgment, not a rule.</aside>
+
+<h2>Choosing the level</h2>
+<ul>
+  <li>Need the standard resource with sane defaults and safe policies → <strong>L2</strong>.</li>
+  <li>Need a raw CFN property or exact template fidelity → <strong>L1</strong>.</li>
+  <li>Want a whole well-trodden topology out of the box → <strong>L3</strong> pattern.</li>
+</ul>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. An L1 construct like CfnBucket maps…</h4>
+  <button class="opt" data-fb="No — L1 is the rawest, single-resource level.">to a whole multi-resource pattern</button>
+  <button class="opt" data-fb="Correct — one-to-one to a single CloudFormation resource.">one-to-one to a single CloudFormation resource</button>
+  <button class="opt" data-fb="No — L1 is level one; L3 is where patterns live.">to a curated, intent-based abstraction</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The L2 level is most useful when…</h4>
+  <button class="opt" data-fb="Correct — you want defaults, security best practices, and helpers.">you want defaults, security best practices, and helpers</button>
+  <button class="opt" data-fb="No — that is the L1 escape for exact template fidelity.">you need to specify every raw CFN property manually</button>
+  <button class="opt" data-fb="No — that is not what L2 provides; it adds abstractions.">you must avoid all abstractions entirely</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. The sensible default for a standard resource is…</h4>
+  <button class="opt" data-fb="No — starting at L1 forfeits the ergonomics of L2.">to always start at the L1 construct</button>
+  <button class="opt" data-fb="No — L3 patterns are for well-trodden topologies, not every block.">always a pre-built L3 pattern</button>
+  <button class="opt" data-fb="Correct — start at L2, and drop to L1 when you need more control.">start at L2, and drop to L1 when you need more control</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://docs.aws.amazon.com/cdk/v2/guide/constructs.html">AWS CDK — Constructs</a> for the full L1/L2/L3 discussion and the naming conventions for L1 constructs.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Name one resource you build often (auth Lambda, a bucket, a queue). Find both its L2 and its L1 forms in aws-cdk-lib, and say which you would start with and why.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/cdk/v2/guide/constructs.html">AWS CDK — Constructs</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-app-stack-and-construct-tree.html">← Lesson 3: App &amp; stack</a></span>
+  <span class="nav-next"><a href="0005-authoring-constructs.html">Lesson 5: Authoring constructs →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/cdk-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — Assets &amp; Bootstrap</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 10</span><span>AWS CDK · TypeScript</span></div>
+  <h1>Assets &amp; Bootstrap</h1>
+  <p class="subtitle">Your Lambda code and container images are assets CDK packages and uploads — which is exactly why deployment needs a bootstrap bucket.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>An <strong>asset</strong> is local content (files or a Docker image) that CDK packages and uploads so an AWS service can use it; the upload target is the S3 bucket provisioned by <code>cdk bootstrap</code>.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Defining an asset</h2>
+<pre><code>import * as lambda from 'aws-cdk-lib/aws-lambda';
+
+const fn = new lambda.Function(this, 'Fn', {
+  runtime: lambda.Runtime.NODEJS_20_X,
+  handler: 'index.handler',
+  code: lambda.Code.fromAsset('src'),   // package the src/ folder as an asset
+});</code></pre>
+<p>At deploy time, CDK fingerprints the source, uploads it to the bootstrap bucket, and references it in the template — so the function's code travels with the infrastructure.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Kinds of assets</h2>
+<ul>
+  <li><strong>File assets</strong> — a directory or single file (Lambda code, config).</li>
+  <li><strong>Docker image assets</strong> — a local image built and pushed to a container registry as part of the deploy.</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> Assets are why <code>cdk bootstrap</code> exists. Hand-written templates that inline everything may not need it, but any real app shipping code or images does — run it once per environment you deploy to.<sup><a href="#r1">1</a></sup></aside>
+
+<h2>Lifecycle and fingerprinting</h2>
+<p>CDK fingerprints each asset's source so a change to a file produces a new asset (and a new template reference). This keeps deployments deterministic and avoids re-uploading unchanged content. Confirm the exact packaging behavior for your asset type against the docs for your version.</p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. An asset is best described as…</h4>
+  <button class="opt" data-fb="No — an asset is local content, not a live AWS helper.">a managed CloudFormation helper</button>
+  <button class="opt" data-fb="Correct — local files or Docker images CDK packages and uploads.">local files or Docker images CDK packages and uploads</button>
+  <button class="opt" data-fb="No — Lambda code is a typical asset, not a non-example.">anything that is never packaged</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Bootstrap's asset bucket matters because…</h4>
+  <button class="opt" data-fb="Correct — deployments upload assets there so services can use them.">deployments upload assets there so services can use them</button>
+  <button class="opt" data-fb="No — that bucket stores uploads, not application logs.">it stores your application log output</button>
+  <button class="opt" data-fb="No — compiled JS lives locally; assets are the packaged code.">it caches your compiled JavaScript only</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. A big benefit of fingerprinting assets is…</h4>
+  <button class="opt" data-fb="No — fingerprinting makes reuse deterministic, not skipped.">that unchanged assets are skipped every single time</button>
+  <button class="opt" data-fb="No — a new file content produces a new asset, not the same one.">that the same file content always gets a different asset</button>
+  <button class="opt" data-fb="Correct — unchanged content is recognized and not re-uploaded.">unchanged content is recognized and not re-uploaded</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the asset and bootstrapping sections of <a href="https://docs.aws.amazon.com/cdk/v2/guide/basic_concepts.html">core concepts</a> and the lambda asset docs in the <a href="https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.html">API reference</a>; confirm packaging specifics against your version.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Give your Lambda real code from a <code>src/</code> folder, run <code>cdk synth</code>, and then bootstrap and deploy. Identify where the asset appears in the template and how the bootstrap bucket is referenced.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/cdk/v2/guide/basic_concepts.html">AWS CDK — Core concepts</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-props-and-tokens.html">← Lesson 7: Props &amp; tokens</a></span>
+  <span class="nav-next"><a href="0009-wiring-and-references.html">Lesson 9: Wiring &amp; references →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/cdk-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

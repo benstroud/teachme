@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — The Deploy Pipeline</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 10</span><span>AWS CDK · TypeScript</span></div>
+  <h1>The Deploy Pipeline</h1>
+  <p class="subtitle">init, synth, bootstrap, diff, deploy — the commands that turn your TypeScript into real AWS resources, in order.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>You scaffold with <code>cdk init</code>, turn code into a template with <code>cdk synth</code>, prepare the account with <code>cdk bootstrap</code>, check changes with <code>cdk diff</code>, and provision with <code>cdk deploy</code>.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The commands</h2>
+<table>
+  <tr><th>Command</th><th>What it does</th></tr>
+  <tr><td><code>cdk init</code></td><td>Scaffolds a new CDK project for a language (e.g. <code>app --language typescript</code>) and installs <code>aws-cdk-lib</code>.<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td><code>cdk synth</code></td><td>Runs the app and emits the CloudFormation templates for its stacks into <code>cdk.out</code>.</td></tr>
+  <tr><td><code>cdk bootstrap</code></td><td>Deploys the CDKToolkit bootstrap stack (including the asset bucket) into the target environment.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>cdk diff</code></td><td>Compares the synthesized stack against the deployed one before you act.</td></tr>
+  <tr><td><code>cdk deploy</code></td><td>Deploys your stacks through CloudFormation to AWS.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>cdk destroy</code></td><td>Tears down a deployed stack and its resources.</td></tr>
+</table>
+
+<h2>Why bootstrap matters</h2>
+<p>Deployment that involves <em>assets</em> — local files or container images — needs a place to store them. Bootstrapping deploys the <code>CDKToolkit</code> stack with an S3 bucket for exactly that, once per environment. Most real apps need it before <code>cdk deploy</code>.</p>
+
+<aside class="note"><strong>Key idea</strong> Synth and deploy are separate steps on purpose: synth is safe and local (code → template), deploy is the effectful one. Diff sits between them so you never deploy unseen changes.</aside>
+
+<h2>Compile before you synth</h2>
+<p>In TypeScript, your code is compiled with <code>tsc</code> to JavaScript before CDK runs it. Use <code>npm run build</code> to compile manually (and catch type errors) or let CDK's build step do it; <code>npm run watch</code> recompiles on save.<sup><a href="#r2">2</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. The step that turns your CDK code into a CloudFormation template is…</h4>
+  <button class="opt" data-fb="No — deploy uploads; synth generates the template.">cdk deploy</button>
+  <button class="opt" data-fb="No — bootstrap prepares the account, it doesn't synthesize.">cdk bootstrap</button>
+  <button class="opt" data-fb="Correct — cdk synth emits the CloudFormation template.">cdk synth</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>2. The CDKToolkit bootstrap stack is needed mostly because…</h4>
+  <button class="opt" data-fb="No — bootstrap provides storage, it does not cache templates.">it caches your app's compiled JavaScript</button>
+  <button class="opt" data-fb="Correct — it creates an S3 bucket for storing deployment assets.">it creates an S3 bucket for storing deployment assets</button>
+  <button class="opt" data-fb="No — deploy is the provisioning step, separate from bootstrap.">it provisions all of your application resources</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. Before deploying you should run…</h4>
+  <button class="opt" data-fb="Correct — cdk diff to review changes against the deployed stack.">cdk diff to review changes against the deployed stack</button>
+  <button class="opt" data-fb="No — the synth template is safe; deploy is the effectful step.">cdk deploy directly for every change</button>
+  <button class="opt" data-fb="No — destroy removes resources; it is not a review step.">cdk destroy to clean stale resources</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read <a href="https://docs.aws.amazon.com/cdk/v2/guide/getting_started.html">Getting started</a> and <a href="https://docs.aws.amazon.com/cdk/v2/guide/basic_concepts.html">core concepts</a> for the full command reference, and the <a href="https://docs.aws.amazon.com/cdk/v2/guide/work-with-cdk-typescript.html">TypeScript guide</a> for build/watch.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Run <code>cdk synth</code> on your scaffolded project and read the output template. Then run <code>cdk diff</code> and <code>cdk list</code>, and explain what each reports about a stack you have not deployed yet.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/cdk/v2/guide/basic_concepts.html">AWS CDK — Core concepts</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/cdk/v2/guide/work-with-cdk-typescript.html">AWS CDK — Working with the AWS CDK in TypeScript</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-why-the-cdk.html">← Lesson 1: Why the CDK</a></span>
+  <span class="nav-next"><a href="0003-app-stack-and-construct-tree.html">Lesson 3: App &amp; stack →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/cdk-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
