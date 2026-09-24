@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — Errors &amp; Missing Values</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 10</span><span>DataLoader · Apollo Server · TypeScript</span></div>
+  <h1>Errors &amp; Missing Values</h1>
+  <p class="subtitle">Not every key resolves: return null for missing rows, and choose between rejecting or returning an Error for a failed lookup.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>DataLoader surfaces errors per <code>load()</code>: return <code>null</code>/<code>undefined</code> for a missing value, return an <code>Error</code> instance at that index for a per-key failure, and only throw when the whole batch genuinely fails.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Missing values → null</h2>
+<pre><code>async function batchUsers(keys) {
+  const rows = await db.users.whereIn('id', keys);
+  const byId = new Map(rows.map(r =&gt; [r.id, r]));
+  return keys.map(id =&gt; byId.get(id) ?? null);   // null for missing
+}</code></pre>
+<p>A key with no row is not an error — return <code>null</code> at that index so alignment holds and the caller sees "no data."<sup><a href="#r1">1</a></sup></p>
+
+<h2>Per-key Errors stop the whole batch</h2>
+<p>If one key's lookup fails, rejecting the <em>batch</em> rejects every key in it. To fail just one key <em>without</em> poisoning the others, return an <code>Error</code> instance at that index — DataLoader then rejects only that key's <code>load()</code> while the rest resolve.<sup><a href="#r1">1</a></sup></p>
+
+<pre><code>// helper from the README: map object results to ordered values, Error for misses
+function objResults(batchLoader) {
+  return keys =&gt;
+    batchLoader(keys).then(objValues =&gt;
+      keys.map(key =&gt; objValues[key] || new Error(`No value for ${key}`)),
+    );
+}</code></pre>
+
+<h2>Throwing from the batch function</h2>
+<p>Throwing inside the batch function causes the entire batch to reject — every <code>load()</code> in that batch gets the rejection. Reserve that for real batch-level failures (e.g. the data source is down), not for a single missing row.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Align error handling with the semantics: <code>null</code> = absent but fine; per-key <code>Error</code> = that one lookup failed, others proceed; thrown batch = everything failed. Your resolvers then decide how each of those surfaces in GraphQL.</aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. For a key with no matching row, the batch function should…</h4>
+  <button class="opt" data-fb="Correct — return null at that index, keeping the array aligned.">return null at that index, keeping the array aligned</button>
+  <button class="opt" data-fb="No — missing is not a whole-batch failure.">throw to reject the entire batch</button>
+  <button class="opt" data-fb="No — skipping shifts alignment for later keys.">omit the index from the array</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. To fail a single key without failing its batch, …</h4>
+  <button class="opt" data-fb="No — since a throw rejects every key in the batch.">throw from inside the batch function</button>
+  <button class="opt" data-fb="No — rejecting the batch rejects all of its keys.">reject the Promise returned by load</button>
+  <button class="opt" data-fb="Correct — return an Error instance at that key's index.">return an Error instance at that key's index</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. Throwing from the batch function means…</h4>
+  <button class="opt" data-fb="No — it rejects the batch, so every key in it rejects.">only the failing key rejects</button>
+  <button class="opt" data-fb="Correct — every load() in that batch rejects.">every load() in that batch rejects</button>
+  <button class="opt" data-fb="No — errors propagate; they are not silently swallowed.">the error is silently ignored</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://github.com/graphql/dataloader">DataLoader README</a> batch-function and error-handling notes, including the README helper that maps object results to per-key values/Errors.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Write a loader where some keys have no row and one key throws. Show the batch function returning the right mix (null, value, Error), and say how a resolver would tell them apart.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://github.com/graphql/dataloader">DataLoader — README</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-cache-keys-and-priming.html">← Lesson 7: Cache keys</a></span>
+  <span class="nav-next"><a href="0009-advanced-batching.html">Lesson 9: Advanced batching →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/dataloader-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — Writing Batch Functions</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 10</span><span>DataLoader · Apollo Server · TypeScript</span></div>
+  <h1>Writing Batch Functions</h1>
+  <p class="subtitle">The heart of DataLoader is a function that turns an array of keys into an array of aligned values — write it with a Map and the ordering takes care of itself.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A batch function receives <code>keys</code> and must resolve to an array of the same length, each value at the key's index — the cleanest way to guarantee that is a lookup <code>Map</code> plus <code>keys.map(...)</code>.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The shape of a good batch function</h2>
+<pre><code>// one query against the data source, then ordered remap
+async function batchUsers(keys: ReadonlyArray&lt;string&gt;): Promise&lt;(User | null)[]&gt; {
+  const rows = await db.users.whereIn('id', keys as string[]);   // 1 query
+  const byId = new Map(rows.map(r =&gt; [r.id, r]));
+  return keys.map(id =&gt; byId.get(id) ?? null);                   // aligned
+}
+
+const users: DataLoader&lt;string, User | null&gt; = new DataLoader(batchUsers);</code></pre>
+<ul>
+  <li>Issue <strong>one</strong> query for all keys (e.g. SQL <code>IN (...)</code> / a MongoDB <code>$in</code>).<sup><a href="#r1">1</a></sup></li>
+  <li>Build a <code>Map</code> from the returned rows keyed by id.</li>
+  <li>Return <code>keys.map(key =&gt; byId.get(key))</code>, using <code>?? null</code> so missing keys become null rather than breaking index alignment.<sup><a href="#r1">1</a></sup></li>
+</ul>
+
+<h2>Type the loader</h2>
+<p>DataLoader ships its own TypeScript types, so <code>new DataLoader&lt;string, User | null&gt;(batchUsers)</code> gives resolvers full, end-to-end typing and lets context values declare loaders precisely.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Never return a shortened array or one in query order. If the DB returns rows in its own order, your <code>Map</code>-and-remap guarantees the loader's index-alignment contract regardless of what the driver ordered.</aside>
+
+<h2>Grouping a one-to-many batch</h2>
+<p>For children with an <code>ownerId</code>, query all rows for <code>IN keys</code>, then group by owner and return the list per key (empty array for none) so every key still gets a value:</p>
+<pre><code>async function batchPosts(keys: ReadonlyArray&lt;string&gt;) {
+  const rows = await db.posts.whereIn('ownerId', keys as string[]);
+  const byOwner = new Map&lt;string, Post[]&gt;();
+  for (const p of rows) {
+    const list = byOwner.get(p.ownerId) ?? [];
+    list.push(p);
+    byOwner.set(p.ownerId, list);
+  }
+  return keys.map(ownerId =&gt; byOwner.get(ownerId) ?? []);
+}</code></pre>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. The batch function's returned array must…</h4>
+  <button class="opt" data-fb="Correct — be the same length as keys, aligned by index.">be the same length as keys, aligned by index</button>
+  <button class="opt" data-fb="No — skipping missing rows breaks the alignment contract.">include only the rows that were found</button>
+  <button class="opt" data-fb="No — query order is not guaranteed; alignment is what matters.">be returned in the query's natural order</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. A good way to guarantee alignment is…</h4>
+  <button class="opt" data-fb="No — that shortens the array for missing values.">return only found rows in query order</button>
+  <button class="opt" data-fb="No — a nested loop per key is O(n.m), not needed here.">filter the rows once per input key</button>
+  <button class="opt" data-fb="Correct — build a Map and remap over the input keys.">build a Map and remap over the input keys</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. For a missing key you should return…</h4>
+  <button class="opt" data-fb="No — rejecting the whole batch kills unrelated keys too.">throw an exception to reject everything</button>
+  <button class="opt" data-fb="Correct — null at that index, keeping the array aligned.">null at that index, keeping the array aligned</button>
+  <button class="opt" data-fb="No — skipping the index would shift every later value.">omit the index entirely from the array</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Re-read the <a href="https://github.com/graphql/dataloader">DataLoader README</a> batch-function and "the Array returned must be the same length as the Array of keys" guidance, and the helper it shows for mapping object results per key.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Write batch functions for a user-by-id loader and a posts-by-owner loader in TypeScript. For each, explain why the Map-and-remap approach keeps results aligned even when the driver returns rows in a different order.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://github.com/graphql/dataloader">DataLoader — README</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-wiring-loaders-in-apollo-server.html">← Lesson 5: Wiring loaders</a></span>
+  <span class="nav-next"><a href="0007-cache-keys-and-priming.html">Lesson 7: Cache keys &amp; priming →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/dataloader-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

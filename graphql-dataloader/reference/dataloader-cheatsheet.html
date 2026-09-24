@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GraphQL DataLoader — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  code i { color: var(--accent); font-style: normal; }
+  td code { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>DataLoader · Apollo Server · TypeScript</span></div>
+  <h1>DataLoader Cheat Sheet</h1>
+  <p class="subtitle">The compressed essence of the course. Skim before a lesson, study it fully before an interview.</p>
+</header>
+
+<section>
+<h2>1. The core</h2>
+<pre><code>npm install dataloader
+
+import DataLoader from 'dataloader';
+
+// batchLoadFn: keys in, values out — ALIGNED BY INDEX
+const userLoader = new DataLoader(async (keys: ReadonlyArray&lt;string&gt;) =&gt; {
+  const rows = await db.users.whereIn('id', keys as string[]);
+  const byId = new Map(rows.map(r =&gt; [r.id, r]));
+  return keys.map(id =&gt; byId.get(id) ?? null);   // same order as keys
+});
+
+const u = await userLoader.load('u1');          // batched across one tick
+</code></pre>
+<ul>
+  <li><strong>Batching:</strong> loads in one event-loop tick coalesce into one batch call.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>Caching:</strong> each instance memoizes; the same key loads once per request.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>Per-request instance:</strong> build loaders in the context function, not globally.<sup><a href="#r1">1</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>2. In Apollo Server + TypeScript</h2>
+<pre><code>import { ApolloServer } from '@apollo/server';
+import { startStandaloneServer } from '@apollo/server/standalone';
+
+type ContextValue = { loaders: { users: DataLoader&lt;string, User&gt; } };
+
+const server = new ApolloServer&lt;ContextValue&gt;({ typeDefs, resolvers });
+
+const { url } = await startStandaloneServer(server, {
+  context: async ({ req }) =&gt; ({
+    loaders: { users: new DataLoader(batchUsers) },  // fresh per request
+  }),
+});
+
+// field resolver uses the loader on contextValue
+type User = { id: string; posts?: unknown };
+const resolvers = {
+  User: { async user(parent:any,_a:any,ctx:ContextValue){ /* loader */ } },
+};
+</code></pre>
+<p>Put loaders on <code>contextValue</code> so every resolver for the request shares the same cache.<sup><a href="#r2">2</a></sup></p>
+</section>
+
+<section>
+<h2>3. Batch function rules</h2>
+<ul>
+  <li>Return an Array the <strong>same length as the keys</strong>, each value at the same index.<sup><a href="#r1">1</a></sup></li>
+  <li>Prefer a <code>Map</code>/dictionary keyed by the row's id, then <code>keys.map(key =&gt; byId.get(key))</code>.</li>
+</ul>
+<pre><code>async function batchAuthors(ids) {
+  const rows = await db.authors.whereIn('id', ids);
+  const byId = new Map(rows.map(r =&gt; [r.id, r]));
+  return ids.map(id =&gt; byId.get(id) ?? null);
+}
+</code></pre>
+</section>
+
+<section>
+<h2>4. Cache keys &amp; priming</h2>
+<pre><code>// normalize / stringify composite keys
+new DataLoader(batchFn, {
+  cacheKeyFn: (key) =&gt; `${key.t}:${key.id}`,
+  maxBatchSize: 100,     // cap batch size
+});
+loader.prime('u1', cachedUser);   // seed a known value
+loader.clear('u1');               // drop one cached value
+loader.clearAll();                // drop all (and the batch queue)
+</code></pre>
+</section>
+
+<section>
+<h2>5. Errors &amp; missing values</h2>
+<ul>
+  <li>Missing rows: return <code>null</code> (or <code>undefined</code>) for that index — do not skip it.<sup><a href="#r1">1</a></sup></li>
+  <li>Per-key failures: return an <code>Error</code> instance at that index; the batch resolves and that key rejects.<sup><a href="#r1">1</a></sup></li>
+  <li>Throwing from the batch function rejects every load in that batch.</li>
+  <li>A rejected <code>load()</code> is cached as an error, but only until it is cleared — treat errors as values you handle.</li>
+</ul>
+</section>
+
+<section>
+<h2>6. N+1 → batched</h2>
+<pre><code>// BEFORE: posts resolver queries per post-author
+// AFTER:
+const resolvers = {
+  User: { posts: (user, _a, ctx) =&gt; ctx.loaders.userPosts.load(user.id) },
+};
+// ctx.loaders.userPosts batches by user.id in one tick → one grouped query
+</code></pre>
+<p>The N+1 problem is per-item resolution; DataLoader turns it into one grouped batch.<sup><a href="#r3">3</a></sup></p>
+</section>
+
+<section>
+<h2>7. Checklist</h2>
+<ul>
+  <li>Create loaders per request (contextValue), never globally.<sup><a href="#r1">1</a></sup></li>
+  <li>Batch function returns values aligned by index; use a Map and remap by keys.</li>
+  <li>Return <code>null</code> for missing, <code>Error</code> for per-key failures.</li>
+  <li>Use <code>cacheKeyFn</code> for composite keys; <code>prime</code> for known values.</li>
+  <li>Cap giants queries with <code>maxBatchSize</code> and split batches consciously.</li>
+  <li>Verify with a query/query-count log, not by reading code.</li>
+  <li>Skip DataLoader for one-off root lookups and for data you already have.</li>
+</ul>
+</section>
+
+<footer class="citation">
+  Primary sources: <a href="https://github.com/graphql/dataloader">DataLoader README</a>,
+  <a href="https://www.apollographql.com/docs/apollo-server/data/fetching-data/">Apollo Server fetching-data</a>.
+  <ol>
+    <li id="r1"><a href="https://github.com/graphql/dataloader">DataLoader — README</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/apollo-server/data/context/">Apollo Server — Context and contextValue</a></li>
+    <li id="r3"><a href="https://www.apollographql.com/docs/apollo-server/data/fetching-data/">Apollo Server — Fetching Data</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="../lessons/0001-the-n-plus-one-problem.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

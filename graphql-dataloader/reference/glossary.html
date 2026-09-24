@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GraphQL DataLoader — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>DataLoader · Apollo Server · TypeScript</span></div>
+  <h1>DataLoader Glossary</h1>
+  <p class="subtitle">Every term in this course, in one place. Return here when a lesson uses a word you do not fully own.</p>
+</header>
+
+<section>
+<h2>The problem</h2>
+<dl>
+  <dt><strong>N+1 problem</strong></dt>
+  <dd>A query pattern where resolving an operation issues one query for a list and then one extra query per item — N+1 queries total for one request. It arises from per-item resolver execution.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>resolver execution</strong></dt>
+  <dd>The way GraphQL resolves a nested selection: a parent field resolver returns objects, then each object's children are resolved by (potentially) their own resolver called once per item.</dd>
+
+  <dt><strong>round-trip</strong></dt>
+  <dd>One request/response exchange with a data source (database or service). Each per-item resolver call tends to produce one round-trip.</dd>
+</dl>
+</section>
+<section>
+<h2>DataLoader</h2>
+<dl>
+  <dt><strong>DataLoader</strong></dt>
+  <dd>A generic utility for the data-fetching layer that provides batching and caching of loads over a data source. `npm install dataloader`.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>batching</strong></dt>
+  <dd>DataLoader's primary feature: individual `load()` calls made within a single frame (one tick of the event loop) are coalesced into one call of the batch function with all requested keys.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>memoization cache</strong></dt>
+  <dd>The in-memory cache a DataLoader instance keeps: once a key resolves it is cached, so loading the same object twice in one request avoids a second fetch.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>batchLoadFn (batch function)</strong></dt>
+  <dd>The function passed to `new DataLoader(batchLoadFn)`. It receives an Array of keys and must return a Promise for an Array of values, aligned by index with the keys.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>index alignment</strong></dt>
+  <dd>The hard rule that the returned Array from a batch function is the same length as the keys Array and each value sits at the same index as the key it answers.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>load(key)</strong></dt>
+  <dd>Requests a single value for a key; returns a Promise. Called many times, these are what get batched.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>loadMany(keys)</strong></dt>
+  <dd>Requests several keys at once; useful with `Promise.all` and resolves to an Array of results.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>prime(key, value)</strong></dt>
+  <dd>Seeds a key/value pair into the cache so a later `load` for that key does not hit the batch function.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>cacheKeyFn</strong></dt>
+  <dd>An optional function that transforms a key into the cache key, letting you normalize or stringify composite keys.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>maxBatchSize</strong></dt>
+  <dd>An option that breaks a large batch into groups of at most this many keys, so a huge query does not produce an oversized single batch.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>per-request instance</strong></dt>
+  <dd>The pattern of creating a fresh DataLoader per request (not globally), so its memoization cache cannot leak one user's data into another's.<sup><a href="#r1">1</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Apollo Server integration</h2>
+<dl>
+  <dt><strong>contextValue</strong></dt>
+  <dd>The per-request object Apollo builds (via the `context` function) and passes to every resolver for that request; the natural home for per-request loaders.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>context function</strong></dt>
+  <dd>The per-request function in `startStandaloneServer` (or an integration) whose return value becomes `contextValue`.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>data source class</strong></dt>
+  <dd>An encapsulating class for fetching from one source, exposing methods resolvers call; Apollo recommends using DataLoader inside such layers for batching/deduplication/caching.<sup><a href="#r2">2</a></sup></dd>
+</dl>
+</section>
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://github.com/graphql/dataloader">DataLoader — README</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/apollo-server/data/fetching-data/">Apollo Server — Fetching Data</a></li>
+    <li id="r3"><a href="https://www.apollographql.com/docs/apollo-server/data/context/">Apollo Server — Context and contextValue</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Mission &amp; notes</span>
+  <span class="nav-next"><a href="../lessons/0001-the-n-plus-one-problem.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../NOTES.md">Notes</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

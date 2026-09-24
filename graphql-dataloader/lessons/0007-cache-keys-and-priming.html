@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — Cache Keys &amp; Priming</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 10</span><span>DataLoader · Apollo Server · TypeScript</span></div>
+  <h1>Cache Keys &amp; Priming</h1>
+  <p class="subtitle">Keys are identity for the cache — use cacheKeyFn for composite keys, prime to seed known values, and clear deliberately.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Every <code>load(key)</code> is stored under a <em>cache key</em>; you can customize that with <code>cacheKeyFn</code>, seed values with <code>prime</code>, and evict with <code>clear</code>/<code>clearAll</code>.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Composite keys and cacheKeyFn</h2>
+<p>When a loader's logical key is more than one field (e.g. <code>{ locale, id }</code> or a date + id), the cache needs to tell them apart. Use <code>cacheKeyFn</code> to produce the cache key from the requested key:<sup><a href="#r1">1</a></sup></p>
+<pre><code>new DataLoader(
+  async (keys: ReadonlyArray&lt;{ locale: string; id: string }&gt;) =&gt;
+    batchGetComposite(keys as { locale: string; id: string }[]),
+  {
+    cacheKeyFn: (key) =&gt; `${key.locale}:${key.id}`,
+  },
+);</code></pre>
+<ul>
+  <li><code>cacheKeyFn</code> transforms the key before it is used for the cache and for uniqueness within a batch.<sup><a href="#r1">1</a></sup></li>
+  <li>Without it, an object key is compared by reference, which would defeat batching/caching for composite inputs.</li>
+</ul>
+<aside class="note"><strong>Key idea</strong> The cache key must be stable and collision-free for your keys. A serialized form (like <code>locale:id</code>) is the common recipe; make sure it cannot collide between distinct logical keys.</aside>
+
+<h2>Prime known values</h2>
+<pre><code>const loader = new DataLoader(batchUsers);
+loader.prime('u1', alreadyLoadedUser);   // seed a value from elsewhere
+await loader.load('u1');                  // served from the cache, no batch</code></pre>
+<p><code>prime(key, value)</code> places a value in the cache without a batch call — handy when a value was already fetched (e.g. from a parent) and you want later resolves to reuse it.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Clear to control the cache</h2>
+<p><code>clear(key)</code> removes one cached value; <code>clearAll()</code> resets the whole instance (including the pending batch queue). Use these when a mutation makes a cached value stale within the request and you want it re-fetched.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. cacheKeyFn is used to…</h4>
+  <button class="opt" data-fb="No — the recipe's job is exactly to make keys stable and unique.">make keys unique by adding randomness</button>
+  <button class="opt" data-fb="Correct — produce the cache key from a (possibly composite) requested key.">produce the cache key from a requested key</button>
+  <button class="opt" data-fb="No — it affects the cache key, not the batch size.">limit how many keys a batch accepts</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. prime(key, value) is for…</h4>
+  <button class="opt" data-fb="Correct — seeding a known value into the cache without a batch.">seeding a known value into the cache without a batch</button>
+  <button class="opt" data-fb="No — that is what maxBatchSize configures.">forcing a larger batch to run immediately</button>
+  <button class="opt" data-fb="No — it caches; it does not remove anything.">deleting a value from the cache</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. clear(key) matters within a request when…</h4>
+  <button class="opt" data-fb="No — a stale cached value is exactly the reason to clear it.">you want to keep a value cached forever</button>
+  <button class="opt" data-fb="No — clear does not change permissions or user scope.">you want to hide data from another user</button>
+  <button class="opt" data-fb="Correct — a mutation made the cached value stale and you need a refetch.">a mutation made the cached value stale and you need a refetch</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the DataLoader README's <a href="https://github.com/graphql/dataloader">options and caching sections</a> for <code>cacheKeyFn</code>, <code>prime</code>, <code>clear</code>, and cache-eviction terminology.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Design a loader keyed by a composite key (e.g. region + id), write the cacheKeyFn, and describe a case where you would prime a value and a case where you would clear one before continuing.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://github.com/graphql/dataloader">DataLoader — README</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-writing-batch-functions.html">← Lesson 6: Batch functions</a></span>
+  <span class="nav-next"><a href="0008-errors-and-missing-values.html">Lesson 8: Errors &amp; missing →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/dataloader-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

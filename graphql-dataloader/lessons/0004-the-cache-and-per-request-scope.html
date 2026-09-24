@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — The Cache &amp; Per-Request Scope</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 10</span><span>DataLoader · Apollo Server · TypeScript</span></div>
+  <h1>The Cache &amp; Per-Request Scope</h1>
+  <p class="subtitle">Batching fixes the query count; the cache prevents repeats. But the cache is only safe if it lives for exactly one request.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Each DataLoader instance is a unique memoization cache scoped to that instance — and since different users may see different things, in a web server you create instances <em>per request</em>.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The memoization cache</h2>
+<p>Once a key resolves on a loader, its value is cached and reused for later <code>load(key)</code> calls on that instance. This deduplicates: if the same entity appears several times in one response, it is fetched once and the others are served from cache — exactly the "avoids loading the same object twice during a single request" behavior Apollo calls out.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<h2>Per-request instances</h2>
+<pre><code>// WRONG: shared across all requests
+const userLoader = new DataLoader(batchUsers); // global
+
+// RIGHT: created fresh for each request
+const resolvers = {
+  Query: { users: (_p, _a, ctx) =&gt; ctx.loaders.users.load('list') },
+};</code></pre>
+<p>A global loader is a global cache: request A could read values cached for request B's user. Fresh instance per request keeps the cache from leaking identity or stale data across users.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Scope the cache to the request and nothing wider. If you need cross-request caching, use a real shared cache with explicit invalidation; the memoization cache is for request-scoped deduplication, not for global TTL caching.</aside>
+
+<h2>Prime, clear, and control</h2>
+<p>You can seed values with <code>prime(key, value)</code>, drop one with <code>clear(key)</code>, or reset the whole cache with <code>clearAll()</code> — each a way to influence the cache you control per instance.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. The DataLoader cache is best described as…</h4>
+  <button class="opt" data-fb="No — it is per instance, not shared across the whole app.">a global cache shared by every request</button>
+  <button class="opt" data-fb="Correct — a per-instance memoization cache for one request.">a per-instance memoization cache for one request</button>
+  <button class="opt" data-fb="No — it caches resolved keys; it does not write to storage.">a write-back cache that flushes to the database</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. A global DataLoader is risky because…</h4>
+  <button class="opt" data-fb="No — a global cache shares data across users, exactly the risk.">it is slower than a per-request instance</button>
+  <button class="opt" data-fb="No — sharing is the problem, not a safety benefit.">it improves consistency by sharing results</button>
+  <button class="opt" data-fb="Correct — its cache could leak one user's data into another's request.">its cache could leak one user's data into another's request</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. To serve the same entity twice in one response, the cache…</h4>
+  <button class="opt" data-fb="Correct — fetches it once and reuses the cached value.">fetches it once and reuses the cached value</button>
+  <button class="opt" data-fb="No — batching merges; the memo cache avoids the repeat.">fetches it once per occurrence</button>
+  <button class="opt" data-fb="No — that would defeat the deduplication purpose entirely.">always re-fetches to stay fresh</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the <a href="https://github.com/graphql/dataloader">DataLoader README</a> sections on caching and per-request instances, plus Apollo's note that DataLoader prevents loading the same object twice in a request.<sup><a href="#r2">2</a></sup></p>
+
+<div class="ask"><strong>Ask the agent</strong> Explain in one paragraph why a loader instance must be scoped per request, using an example where a global cache would be wrong. Then say where you would put the "new DataLoader" call in an Apollo Server app.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://github.com/graphql/dataloader">DataLoader — README</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/apollo-server/data/fetching-data/">Apollo Server — Fetching Data</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-dataloader-basics.html">← Lesson 3: DataLoader basics</a></span>
+  <span class="nav-next"><a href="0005-wiring-loaders-in-apollo-server.html">Lesson 5: Wiring loaders →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/dataloader-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

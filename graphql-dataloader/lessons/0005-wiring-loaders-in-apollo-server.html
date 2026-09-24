@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — Wiring Loaders in Apollo Server</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 10</span><span>DataLoader · Apollo Server · TypeScript</span></div>
+  <h1>Wiring Loaders in Apollo Server</h1>
+  <p class="subtitle">Put per-request loaders on contextValue, and field resolvers call them — that is the whole integration.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Apollo builds a per-request <code>contextValue</code> (via its <code>context</code> function); you construct loaders there and hand them to field resolvers through the third resolver argument.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Build loaders in the context function</h2>
+<pre><code>import { ApolloServer } from '@apollo/server';
+import { startStandaloneServer } from '@apollo/server/standalone';
+import DataLoader from 'dataloader';
+
+type ContextValue = {
+  loaders: { users: DataLoader&lt;string, User> };
+};
+
+const server = new ApolloServer&lt;ContextValue&gt;({ typeDefs, resolvers });
+
+const { url } = await startStandaloneServer(server, {
+  context: async ({ req }) =&gt; ({
+    // fresh loader per request, ready for every resolver
+    loaders: { users: new DataLoader&lt;string, User&gt;(batchUsers) },
+  }),
+});</code></pre>
+<p>The <code>context</code> function runs once per request and its result becomes <code>contextValue</code>, available to every resolver — exactly the right scope for your loaders.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Call loaders from field resolvers</h2>
+<pre><code>const resolvers = {
+  Query: { users: (_p, _a, ctx) =&gt; ctx.loaders.users.loadMany(userIds) },
+  // ... or load one entity per parent:
+  Post: {
+    author: (post, _a, ctx) =&gt; ctx.loaders.users.load(post.authorId),
+  },
+};</code></pre>
+<p>Because every <code>Post.author</code> resolver runs in near-parallel during resolution, all their <code>load(post.authorId)</code> calls land in one event-loop tick and batch into a single user query.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> The resolver does not change its shape much — it just reads the loader from context instead of querying directly. That one swap (per-item query → <code>ctx.loaders.x.load(...)</code>) is what turns N+1 into one batch.</aside>
+
+<h2>Keep loaders reachable and typed</h2>
+<p>Model <code>ContextValue.loaders</code> with the concrete <code>DataLoader&lt;K, V&gt;</code> types so resolvers get end-to-end type safety, and keep the loader construction in a small function (e.g. <code>makeLoaders()</code>) so the context function stays readable.<sup><a href="#r3">3</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. The right place to create per-request loaders is…</h4>
+  <button class="opt" data-fb="No — that would make them global and leak across requests.">the top of the module, once</button>
+  <button class="opt" data-fb="Correct — inside the context function whose result is contextValue.">inside the context function whose result is contextValue</button>
+  <button class="opt" data-fb="No — each resolver creating its own would break batching.">inside each field resolver as needed</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. Field resolvers reach loaders through…</h4>
+  <button class="opt" data-fb="No — parent is the resolved object, not the request scope.">the parent argument of the resolver</button>
+  <button class="opt" data-fb="No — info holds execution state, not the request's loaders.">the info argument of the resolver</button>
+  <button class="opt" data-fb="Correct — the contextValue passed as the third resolver argument.">the contextValue passed as the third resolver argument</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. Many parallel author resolvers batch because…</h4>
+  <button class="opt" data-fb="Correct — their load() calls share one tick and coalesce into one batch.">their load() calls share one tick and coalesce into one batch</button>
+  <button class="opt" data-fb="No — each resolver is separate; the loader coalesces their loads.">each resolver issues its own separate query</button>
+  <button class="opt" data-fb="No — batching is the point; they do not each hit the database.">they are serialized so each queries in turn</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Confirm the per-request context pattern in <a href="https://www.apollographql.com/docs/apollo-server/data/context/">Apollo Server — Context</a> and the N+1/batching rationale in <a href="https://www.apollographql.com/docs/apollo-server/data/fetching-data/">Fetching Data</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Wire a loader into a real Apollo Server in TypeScript: build it in the context function, add it to a field resolver, and run a query that exercises N items. Count the queries before and after using a query logger.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.apollographql.com/docs/apollo-server/data/context/">Apollo Server — Context and contextValue</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/apollo-server/data/fetching-data/">Apollo Server — Fetching Data</a></li>
+    <li id="r3"><a href="https://github.com/graphql/dataloader">DataLoader — README</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-the-cache-and-per-request-scope.html">← Lesson 4: Cache &amp; scope</a></span>
+  <span class="nav-next"><a href="0006-writing-batch-functions.html">Lesson 6: Batch functions →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/dataloader-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

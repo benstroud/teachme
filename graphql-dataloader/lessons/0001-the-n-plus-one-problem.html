@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — The N+1 Problem</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 10</span><span>DataLoader · Apollo Server · TypeScript</span></div>
+  <h1>The N+1 Problem</h1>
+  <p class="subtitle">One request fans out into one query for a list plus one query per item — the most common GraphQL performance bug.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>When a list field's resolver loads data <em>per item</em>, an operation that looks like one query actually triggers <strong>N+1</strong> queries: one for the list, then one for each of its N items.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Seeing it happen</h2>
+<pre><code>// "Users and their pets"
+// Query: { users { name pets { name } } }
+
+const resolvers = {
+  Query: { users: () =&gt; db.users.find() },        // 1 query
+  User: {
+    pets: (user) =&gt; db.pets.find({ ownerId: user.id }),  // N queries!
+  },
+};</code></pre>
+<p>For 50 users this issues 1 + 50 = 51 queries to the database. The query text a client sent looks like one request — the round-trips happen invisibly during resolution.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Why resolution causes it</h2>
+<p>GraphQL resolves a nested selection depth-first: the parent resolver returns an array of objects, then each child field is resolved <em>once per parent object</em>. A naive field resolver that queries inside itself runs per item, and each run is a round-trip.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> The N+1 pattern is a direct consequence of per-item resolver execution. The fix is not to stop resolving children — it is to make all those per-item calls a single batch (which DataLoader does).</aside>
+
+<h2>The real cost</h2>
+<ul>
+  <li><strong>Latency:</strong> each round-trip adds network + query overhead, so a 50-item list multiplies time to the database.</li>
+  <li><strong>Load:</strong> the database and connection pool are hit far harder than the schema suggests.</li>
+  <li><strong>Hidden at the edge:</strong> it does not show in a small demo, only under real nesting and data volume.<sup><a href="#r2">2</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. For a list of 50 items where each resolves one child field, the query count is…</h4>
+  <button class="opt" data-fb="No — one list query plus one per item is the core of the pattern.">one query for everything in total</button>
+  <button class="opt" data-fb="No — the list query is separate from the per-item queries.">fifty child queries total</button>
+  <button class="opt" data-fb="Correct — one list query plus one per item, so fifty-one total.">one list query plus one per item, fifty-one total</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The N+1 problem appears because…</h4>
+  <button class="opt" data-fb="Correct — child fields are resolved once per parent object, each doing a fetch.">child fields are resolved once per parent object, each doing a fetch</button>
+  <button class="opt" data-fb="No — the client query is small; the fan-out is server-side.">clients always send enormous batched queries</button>
+  <button class="opt" data-fb="No — the schema enforces types; it does not cause this fan-out.">the schema itself requires one table per field</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. The correct response to N+1 is to…</h4>
+  <button class="opt" data-fb="No — stopping child resolution changes the API contract.">stop allowing nested queries entirely</button>
+  <button class="opt" data-fb="Correct — keep resolving children but coalesce per-item calls into a batch.">keep resolving children but coalesce per-item calls into a batch</button>
+  <button class="opt" data-fb="No — refetching per item is exactly the problem, not a fix.">cache every item fetch in a global variable</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read <a href="https://shopify.engineering/solving-the-n-1-problem-for-graphql-through-batching">Shopify — Solving the N+1 Problem for GraphQL Through Batching</a> (linked by Apollo's docs) and <a href="https://www.apollographql.com/docs/apollo-server/data/fetching-data/">Apollo Server — Fetching Data</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Trace one of your own schemas: pick a parent list with a nested field, count the queries for 100 items before any fix, and write down exactly where the per-item resolver would run.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://github.com/graphql/dataloader">DataLoader — README</a></li>
+    <li id="r2"><a href="https://shopify.engineering/solving-the-n-1-problem-for-graphql-through-batching">Shopify — Solving the N+1 Problem for GraphQL Through Batching</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="0002-why-dataloader-batching.html">Lesson 2: Why batching →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/dataloader-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

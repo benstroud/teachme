@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — DataLoader Basics</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 10</span><span>DataLoader · Apollo Server · TypeScript</span></div>
+  <h1>DataLoader Basics</h1>
+  <p class="subtitle">Install it, construct it with a batch function, and call load — and the event loop does the batching for you.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>You install DataLoader, create an instance with a batch function (<code>new DataLoader(keys =&gt; …)</code>), and then call <code>load(key)</code> — the loader coalesces same-tick loads into one batch call.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Install and a first loader</h2>
+<pre><code>npm install dataloader
+
+import DataLoader from 'dataloader';
+
+const userLoader = new DataLoader(async (keys: ReadonlyArray&lt;string&gt;) =&gt; {
+  const rows = await db.users.whereIn('id', keys as string[]);
+  const byId = new Map(rows.map(r =&gt; [r.id, r]));
+  return keys.map(id =&gt; byId.get(id) ?? null);
+});
+
+const user = await userLoader.load('u1');</code></pre>
+<ul>
+  <li><code>DataLoader</code> is the default export; usage in TypeScript is typically <code>new DataLoader&lt;Key, Value&gt;(batchFunction)</code>.<sup><a href="#r1">1</a></sup></li>
+  <li>The <strong>batch function</strong> receives <code>ReadonlyArray&lt;Key&gt;</code> and must resolve to an array of <code>Value</code>.</li>
+  <li><code>load(key)</code> returns a Promise for one value; many calls in the same tick become one batch.<sup><a href="#r1">1</a></sup></li>
+</ul>
+
+<h2>Index alignment is the contract</h2>
+<p>The batch function's returned array must be the <strong>same length as the keys array</strong>, with each value at the same index as the key it answers. A string-keyed map plus a remap over <code>keys</code> guarantees this in a table-driven data source.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Write the batch function so it returns a value <em>for every key in order</em>. A common trick: build a <code>Map</code> from loaded rows, then return <code>keys.map(key =&gt; byId.get(key))</code> so alignment is automatic.</aside>
+
+<h2>Load many</h2>
+<p>When your code needs several keys at once, <code>loadMany(keys)</code> resolves to an array of results and is convenient with <code>Promise.all</code> or a variable-argument consumer.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. The batch function you pass to DataLoader…</h4>
+  <button class="opt" data-fb="No — index alignment is exactly what the contract requires.">may return values in any order</button>
+  <button class="opt" data-fb="Correct — accepts keys and resolves values aligned to them by index.">accepts keys and resolves values aligned to them by index</button>
+  <button class="opt" data-fb="No — it returns a Promise of an array, not a single object.">resolves to one object for all keys</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. To keep results aligned you typically…</h4>
+  <button class="opt" data-fb="Correct — build a Map from rows and remap over the input keys.">build a Map from rows and remap over the input keys</button>
+  <button class="opt" data-fb="No — sorting changes order and breaks the contract.">sort both keys and rows identically by value</button>
+  <button class="opt" data-fb="No — returning only found rows shortens the array.">return only the rows that were found</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. loadMany(keys) is useful when…</h4>
+  <button class="opt" data-fb="No — it returns results for many keys at once, not one.">you only ever need a single value</button>
+  <button class="opt" data-fb="No — load() is the per-key call; loadMany is for several.">you want to resolve each key separately</button>
+  <button class="opt" data-fb="Correct — code needs several keys resolved in one batch.">code needs several keys resolved in one batch</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://github.com/graphql/dataloader">DataLoader README</a> sections on the batch function and the ordered-results requirement, then try a minimal loader against your own data source.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Write a typed DataLoader for a <code>User</code> keyed by id, then call load twice in one tick and justify why the batch function runs once. Trace the returned array against the keys array.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://github.com/graphql/dataloader">DataLoader — README</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-why-dataloader-batching.html">← Lesson 2: Why batching</a></span>
+  <span class="nav-next"><a href="0004-the-cache-and-per-request-scope.html">Lesson 4: Cache &amp; scope →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/dataloader-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

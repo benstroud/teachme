@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 9 — Advanced Batching</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 9 of 10</span><span>DataLoader · Apollo Server · TypeScript</span></div>
+  <h1>Advanced Batching</h1>
+  <p class="subtitle">One-to-many relationships, two-stage (nested) batches, and cap on batch size — the moves that keep deep queries to a handful of queries.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Beyond simple by-id loads, you batch <em>children by their owner</em>, chain a second loader through a first result (two-stage batching), and use <code>maxBatchSize</code> to keep any single batch from getting absurdly large.<sup><a href="#r1">1</a></sup></p>
+
+<h2>One-to-many: batch posts by owner</h2>
+<pre><code>async function batchPostsByOwner(keys: ReadonlyArray&lt;string&gt;) {
+  const rows = await db.posts.whereIn('ownerId', keys as string[]);
+  const groups = new Map&lt;string, Post[]&gt;();
+  for (const p of rows) {
+    if (!groups.has(p.ownerId)) groups.set(p.ownerId, []);
+    groups.get(p.ownerId)!.push(p);
+  }
+  return keys.map(ownerId =&gt; groups.get(ownerId) ?? []); // list per owner
+}</code></pre>
+<p>Each key still gets a value (an array — empty if none), so alignment holds and one query serves every "posts of this user" field in the request.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Two-stage (nested) batching</h2>
+<p>Sometimes a loader needs another loader's output: load posts by owner, collect the unique <code>authorId</code>s, then load authors. Because the second stage's loads all happen together in the same downstream tick, they too form a single batch:</p>
+<pre><code>async function batchPostAuthors(keys) {
+  const postsByOwner = await ownerPostsLoader.loadMany(keys);
+  const authorIds = [...new Set(postsByOwner.flat().map(p =&gt; p.authorId))];
+  const authors = await userLoader.loadMany(authorIds);   // one batch
+  const byId = new Map(authors.map(a =&gt; [a?.id, a]));
+  return (postsByOwner as Post[][]).map(list =&gt; list.map(p =&gt; byId.get(p.authorId)));
+}</code></pre>
+<p>Deep nesting still resolves in a few batches because each level's loads are collected before fetching the next.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> New batches form when a loader is awaited: the awaiting resolver's downstream loads pile up in one tick. Compose loader-wrapping-loaders, but keep each stage fetching once.</aside>
+
+<h2>Cap the batch with maxBatchSize</h2>
+<pre><code>new DataLoader(batchFn, { maxBatchSize: 100 });</code></pre>
+<p><code>maxBatchSize</code> splits a very large batch into groups of at most that many keys, avoiding an oversized single query while still batching within each group.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. For a one-to-many batch, each key should resolve to…</h4>
+  <button class="opt" data-fb="No — a nullable single value cannot hold a list of children.">a single nullable child object</button>
+  <button class="opt" data-fb="Correct — an array of children, empty when there are none.">an array of children, empty when there are none</button>
+  <button class="opt" data-fb="No — skipping keys without children breaks alignment.">nothing when there are no children</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Two-stage batching works because…</h4>
+  <button class="opt" data-fb="Correct — the second loader's loads collect in one downstream tick.">the second loader's loads collect in one downstream tick</button>
+  <button class="opt" data-fb="No — stages run after the previous loader resolves, not concurrently.">both loaders issue their queries at exactly once</button>
+  <button class="opt" data-fb="No — only awaited values complete then batch; it does not loop.">the first loader runs repeatedly in a loop</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. maxBatchSize is used to…</h4>
+  <button class="opt" data-fb="No — it limits batch size, it does not add cross-request caching.">add a shared cache across requests</button>
+  <button class="opt" data-fb="No — it restricts how many keys load in total, not the memo cache.">limit the total number of loads per request</button>
+  <button class="opt" data-fb="Correct — split a huge batch into smaller groups.">split a huge batch into smaller groups</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://github.com/graphql/dataloader">DataLoader README</a> sections on batching and the <code>maxBatchSize</code> option, and note how the README's examples group results per key.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Write a two-stage loader (posts by owner, then authors by collected post author ids) and say how many queries run for 100 users each with 5 posts. Then set a sensible maxBatchSize and justify it.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://github.com/graphql/dataloader">DataLoader — README</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0008-errors-and-missing-values.html">← Lesson 8: Errors &amp; missing</a></span>
+  <span class="nav-next"><a href="0010-when-to-use-and-measure.html">Lesson 10: When &amp; measure →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/dataloader-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

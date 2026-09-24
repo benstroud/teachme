@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — Why Batching</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 10</span><span>DataLoader · Apollo Server · TypeScript</span></div>
+  <h1>Why Batching</h1>
+  <p class="subtitle">The fix for N+1 is to turn many small per-item calls into one batched call — DataLoader is a batching and caching utility built for exactly that.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>DataLoader is a small utility for the data-fetching layer that provides <strong>batching</strong> (coalesce many individual loads into one batch) and <strong>caching</strong> (memoize the result of each key) over your data source.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Batching, precisely</h2>
+<p>You create a loader with a <em>batch function</em> — it accepts an array of keys and returns an array of values. Individual <code>load(key)</code> calls that happen during a single frame (one tick of the event loop) are coalesced into <em>one</em> call to that batch function with all the requested keys.<sup><a href="#r1">1</a></sup></p>
+
+<pre><code>const userLoader = new DataLoader(keys =&gt; myBatchGetUsers(keys));
+
+const one = await userLoader.load('u1');
+const two = await userLoader.load('u2');
+const three = await userLoader.load('u3');
+// all three loads in one tick → ONE myBatchGetUsers(['u1','u2','u3'])</code></pre>
+
+<h2>And caching, also called memoization</h2>
+<p>Each loader instance keeps its own cache. Once a key resolves it is stored, so loading the same object twice in a request fetches it once and reuses it — preventing duplicate queries even when the same entity appears many times in the response.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Batching fixes the N+1 count; caching fixes the duplicates. They work together: batching merges concurrent loads, caching makes repeated loads free. This is why Apollo recommends DataLoader for the N+1 problem.<sup><a href="#r2">2</a></sup></aside>
+
+<h2>Why per-request</h2>
+<p>Every loader instance is a unique cache. In a web server you should generally create instances per request, because different users are allowed to see different things — a global cache would hand one user's data to another.<sup><a href="#r1">1</a></sup> The next lessons build on this scope decision.</p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. DataLoader is fundamentally a combination of…</h4>
+  <button class="opt" data-fb="Correct — batching plus memoizing caching over a data source.">batching plus memoizing caching</button>
+  <button class="opt" data-fb="No — it does not compress or encrypt network traffic.">compression and encryption of traffic</button>
+  <button class="opt" data-fb="No — it is a cache; it does not write to the database.">a write-through database pool</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. Batching works by…</h4>
+  <button class="opt" data-fb="No — load() calls are per key; the batch function runs once per tick.">running the batch function once per load</button>
+  <button class="opt" data-fb="No — it is the event loop, not a timer the author starts.">waiting for a manual timer the author starts</button>
+  <button class="opt" data-fb="Correct — coalescing same-tick load() calls into one batch call.">coalescing same-tick load() calls into one batch call</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. Creating DataLoader instances per request matters because…</h4>
+  <button class="opt" data-fb="No — a global cache would share across users, which is the danger.">a global cache is faster for everyone</button>
+  <button class="opt" data-fb="Correct — the cache must not leak one user's data to another.">the cache must not leak one user's data to another</button>
+  <button class="opt" data-fb="No — it is about cache isolation, not about request count.">requests are counted only per loader instance</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://github.com/graphql/dataloader">DataLoader README</a> sections on Getting Started and Batching, and confirm the "per request" guidance it gives for web servers.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Write the two-sentence definition of DataLoader in your own words (batching, caching, per-request), then say which of the two solves the count of N+1 queries and which solves duplicate fetches.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://github.com/graphql/dataloader">DataLoader — README</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/apollo-server/data/fetching-data/">Apollo Server — Fetching Data</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-the-n-plus-one-problem.html">← Lesson 1: The N+1 problem</a></span>
+  <span class="nav-next"><a href="0003-dataloader-basics.html">Lesson 3: DataLoader basics →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/dataloader-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

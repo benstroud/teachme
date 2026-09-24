@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 10 — When to Use &amp; Measure</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 10 of 10</span><span>DataLoader · Apollo Server · TypeScript</span></div>
+  <h1>When to Use &amp; Measure</h1>
+  <p class="subtitle">DataLoader is not always the answer — learn when to skip it, and always verify the query count with a real log.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Use DataLoader when many <em>per-item</em> or repeated loads hit the same data source in one request; skip it for single root lookups and already-loaded data, and confirm the effect by counting queries.<sup><a href="#r1">1</a></sup></p>
+
+<h2>When DataLoader is the wrong tool</h2>
+<ul>
+  <li><strong>Single root lookups.</strong> A top-level <code>user(id)</code> loads one entity once — batching adds nothing. Just query directly.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>Data you already have.</strong> If the parent already holds the children (a join fetched them), loaders that re-query are pure waste — use the default value.</li>
+  <li><strong>Cross-request caching.</strong> The memoization cache is per request; for shared, TTL-managed caching use a real cache layer with invalidations, not a loader.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>Mutations of fresh data.</strong> Caching a just-written value can hand back stale data unless you <code>clear()</code> after the write.</li>
+</ul>
+
+<h2>Verify with a query log</h2>
+<p>Never trust the schema reading or guess. Instrument the data layer to log every query (e.g. a logger on the driver, or a request-scoped counter), run one representative nested operation, and read the count:</p>
+<pre><code>// count per request — pseudo
+let queryCount = 0;
+logger.on('query', () =&gt; queryCount++);
+// ... run the operation ...
+console.log('queries:', queryCount);   // N+1 shows loud and clear</code></pre>
+
+<aside class="note"><strong>Key idea</strong> Measure before and after: a naive query vs a loader-driven query on the same operation. If the numbers don't move, the loader is doing nothing — and you should either remove it or fix the resolver that bypasses it.</aside>
+
+<h2>Keep the data layer tidy</h2>
+<p>Apollo recommends containing fetch logic in data source classes with methods resolvers call; loaders can live inside that boundary so batching, deduplication and caching stay a data-layer concern, not resolver noise.<sup><a href="#r2">2</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. DataLoader is usually unnecessary for…</h4>
+  <button class="opt" data-fb="No — repeated per-item loads are exactly its target.">repeated per-item child loads</button>
+  <button class="opt" data-fb="Correct — a single top-level lookup that runs once.">a single top-level lookup that runs once</button>
+  <button class="opt" data-fb="No — one-to-many children across many parents need batching.">many children across many parent objects</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. To confirm N+1 is fixed you should…</h4>
+  <button class="opt" data-fb="Correct — log the query count for one representative operation.">log the query count for one representative operation</button>
+  <button class="opt" data-fb="No — reading the schema cannot show runtime fan-out.">re-read the schema until it looks correct</button>
+  <button class="opt" data-fb="No — that only checks load, not the query count.">load-test against a staging database</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. Cross-request caching is better served by…</h4>
+  <button class="opt" data-fb="No — a global loader memo cache is exactly the unsafe pattern.">a single global DataLoader instance</button>
+  <button class="opt" data-fb="No — same-instance reuse across users leaks data.">reusing one loader across many users</button>
+  <button class="opt" data-fb="Correct — a real shared cache with explicit invalidation.">a real shared cache with explicit invalidation</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Re-read the <a href="https://github.com/graphql/dataloader">DataLoader README</a> note on per-request instances and Apollo's <a href="https://www.apollographql.com/docs/apollo-server/data/fetching-data/">Fetching Data</a> guidance for keeping the data layer tidy.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Pick one operation in your app, add a query-count log, and record the number before and after introducing a loader. Then list one case where you would deliberately not add a loader and why.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://github.com/graphql/dataloader">DataLoader — README</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/apollo-server/data/fetching-data/">Apollo Server — Fetching Data</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0009-advanced-batching.html">← Lesson 9: Advanced batching</a></span>
+  <span class="nav-next"><a href="../reference/dataloader-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/dataloader-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
