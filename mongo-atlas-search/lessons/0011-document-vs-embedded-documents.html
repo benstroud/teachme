@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 11 — Document vs Embedded Documents</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 11 of 11</span><span>MongoDB Atlas Search</span></div>
+  <h1>Document vs Embedded Documents</h1>
+  <p class="subtitle">Two field types decide whether a subdocument is searched as one unit or as many per-array elements — and an operator matches inside a single element.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>The <code>document</code> field type indexes an object as a single unit, while <code>embeddedDocuments</code> indexes <em>each element</em> of an array independently — and the <code>embeddedDocument</code> operator queries inside one of those array elements, like <code>$elemMatch</code> for search.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<h2>The two field types</h2>
+<table>
+  <tr><th>Field type</th><th>What it indexes</th><th>Typical use</th></tr>
+  <tr><td><code>document</code></td><td>Fields of an object/subdocument as one unit (dynamic or static sub-mappings).</td><td>Highlighting, matching nested fields, faceting counted per root doc.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>embeddedDocuments</code></td><td>Each element of an array of documents as its own indexed unit, independent of the parent.</td><td>Scoping a match to a single array element and scoring within it.<sup><a href="#r2">2</a></sup></td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> You cannot use one field type to do the other's job: <code>document</code> cannot index fields inside array elements (use <code>embeddedDocuments</code>), and <code>embeddedDocuments</code> only applies to elements of an array.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></aside>
+
+<h2>Indexing them</h2>
+<pre><code>db.schools.createSearchIndex({
+  name: "default",
+  mappings: {
+    dynamic: false,
+    fields: {
+      "teachers":        { "type": "document" },
+      "teachers.classes":{ "type": "document" },
+      "clubs.sports":    { "type": "embeddedDocuments", "dynamic": true }
+    }
+  }
+})
+</code></pre>
+<p>Note in the docs' example, the same <code>teachers</code> path is indexed as <code>document</code> (to support highlighting) while array paths meant for element-scoped queries are indexed as <code>embeddedDocuments</code>.<sup><a href="#r3">3</a></sup></p>
+</section>
+
+<section>
+<h2>Querying inside embedded documents</h2>
+<p>To make several predicates hold on a <em>single</em> array element, use the <code>embeddedDocument</code> operator on an <code>embeddedDocuments</code> field:<sup><a href="#r2">2</a></sup></p>
+<pre><code>{ "$search": { "embeddedDocument": {
+    "path": "items",
+    "operator": { "compound": { "must": [
+      { "range": { "path": "items.quantity", "gt": 2 } },
+      { "text":  { "path": "items.tags", "query": "school" } }
+    ]}}
+}}}
+</code></pre>
+<ul>
+  <li><code>path</code> must be an indexed <code>embeddedDocuments</code> field and a parent of every field in <code>operator</code>.<sup><a href="#r2">2</a></sup></li>
+  <li>Scoring: each array element is evaluated and scored independently, the matches are combined (summed by default or via the <code>embedded</code> score option), and joined back to the parent document.<sup><a href="#r2">2</a></sup></li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> This is the search answer to "$elemMatch": it guarantees the constraint is met by one element (e.g. a teacher with a grade-5 class), not by different elements scattered across the array.<sup><a href="#r2">2</a></sup></aside>
+
+<h2>The false-positive trap</h2>
+<p>The subtle trap is what happens when you index an array of objects as the <code>document</code> type and search a nested field with dot notation (e.g. <code>teachers.classes.grade</code>). That search is <em>not</em> scoped to a single array element — every element is searched as part of the parent. With one condition that is harmless, but with <em>several</em> conditions (say a <code>compound</code> that must match <code>grade=5</code> <em>and</em> <code>subject=math</code>) the matches can come from <em>different</em> array elements.</p>
+
+<pre><code>teachers: [
+  { name: "Ann", classes: [ { grade: 5, subject: "history" } ] },   // has 5, not math
+  { name: "Bo",  classes: [
+      { grade: 5, subject: "history" },                             // grade 5 here
+      { grade: 6, subject: "math" }                                 // math here
+  ] },
+]
+# dot-notation 'document' search: grade=5 AND subject=math  → matches Bo  (FALSE POSITIVE:
+#   the grade-5 class is one element, the math class is a different one)
+</code></pre>
+<p>Because each condition is satisfied by a <em>different</em> element, the document matches even though no single class is a grade-5 math class. Indexing the array as <code>embeddedDocuments</code> and querying with the <code>embeddedDocument</code> operator eliminates this class of false positive, because every predicate must be satisfied by the <em>same</em> element.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Rule of thumb: if a match must hold <em>within a single element</em> of an array, use <code>embeddedDocuments</code> + <code>embeddedDocument</code>; if you only need "any element contains X", indexing the array as <code>document</code> and using dot notation is fine.</aside>
+
+<h2>Considerations</h2>
+<ul>
+  <li>Highlighting is not supported inside <code>embeddedDocument</code>.<sup><a href="#r2">2</a></sup></li>
+  <li><code>embeddedDocuments</code> supports at most 5 levels of nesting.<sup><a href="#r2">2</a></sup></li>
+  <li>To return only matching array elements, pair <code>storedSource</code> with the <code>returnScope.path</code> query option.<sup><a href="#r3">3</a></sup></li>
+  <li>Faceting on fields in arrays is counted per matching element with <code>embeddedDocuments</code>; index as <code>document</code> to count per matching root document.<sup><a href="#r3">3</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. The embeddedDocuments field type indexes…</h4>
+  <button class="opt" data-fb="No — that is what the document type does, it is not per array element.">a subdocument as one single unit</button>
+  <button class="opt" data-fb="Correct — each element of an array of documents independently.">each element of an array of documents independently</button>
+  <button class="opt" data-fb="No — embeddedDocuments is for array elements, not plain scalars.">array of primitive string values</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. To require several predicates on one array element, use…</h4>
+  <button class="opt" data-fb="Correct — the embeddedDocument operator over an embeddedDocuments field.">the embeddedDocument operator over an embeddedDocuments field</button>
+  <button class="opt" data-fb="No — document does not reach into array elements.">the document field type on the array</button>
+  <button class="opt" data-fb="No — a plain text search matches across elements, not per element.">a plain text operator over the whole array</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. A limitation of the embeddedDocument operator is…</h4>
+  <button class="opt" data-fb="No — it only works on embeddedDocuments fields, which excludes scalars.">it searches only scalar string fields</button>
+  <button class="opt" data-fb="No — that is a feature, not a limit.">it must match many array elements at once</button>
+  <button class="opt" data-fb="Correct — highlighting is not supported inside it.">highlighting is not supported inside it</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the <a href="https://www.mongodb.com/docs/search/indexes/field-types/document-type.md">document</a> and <a href="https://www.mongodb.com/docs/search/indexes/field-types/embedded-documents-type.md">embeddedDocuments</a> field-type pages, the <a href="https://www.mongodb.com/docs/search/query/operators-collectors/embedded-document.md">embeddedDocument operator</a> reference, and the <a href="https://www.mongodb.com/docs/search/tutorial/embedded-documents-tutorial.md">Embedded Documents tutorial</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Take a "teachers" array with nested "classes". (1) Index it as <code>embeddedDocuments</code> and write an <code>embeddedDocument</code> query that matches a teacher who teaches a grade-5 math class. (2) Then imagine the same array indexed as <code>document</code> and searched by dot notation with the same two conditions — craft a data example that produces a false positive, and confirm the <code>embeddedDocument</code> query does not.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/search/indexes/field-types/document-type.md">MongoDB Search — document Type</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/search/query/operators-collectors/embedded-document.md">MongoDB Search — embeddedDocument Operator</a></li>
+    <li id="r3"><a href="https://www.mongodb.com/docs/search/indexes/field-types/embedded-documents-type.md">MongoDB Search — embeddedDocuments Type</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0010-facets-synonyms-and-production.html">← Lesson 10: Facets, synonyms &amp; production</a></span>
+  <span class="nav-next"><a href="../reference/search-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/search-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
