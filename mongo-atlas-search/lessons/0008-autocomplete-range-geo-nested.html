@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — autocomplete, range, geo &amp; nested</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 10</span><span>MongoDB Atlas Search</span></div>
+  <h1>autocomplete, range, geo &amp; nested</h1>
+  <p class="subtitle">Beyond plain text: suggest-by-prefix, filter numeric/date ranges, search by location, and reach into embedded documents.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Each of these operators targets a mapped field type or indexing strategy: <code>autocomplete</code> for prefix suggestions, <code>range</code> for number/date bounds, <code>geo</code> for coordinates, and <code>nested</code> for embedded documents.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Autocomplete</h2>
+<pre><code>{ "autocomplete": { "query": "micro", "path": "title" } }
+</code></pre>
+<p>Autocomplete returns documents whose indexed field starts with (or contains) the query — the basis of typeahead suggestions. It pairs with a field indexed with an analyzer suited to prefix matching (often an edge-gram custom analyzer) so partial terms can match.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Range</h2>
+<pre><code>{ "range": { "path": "price", "gte": 100, "lte": 250 } }
+</code></pre>
+<p><code>range</code> matches an indexed number or date field between bounds (<code>gt/gte/lt/lte</code>), and can boost the range clauses.</p>
+
+<h2>Geo</h2>
+<pre><code>{ "geo": { "path": "location", "circle": { "center": { "type": "Point",
+        "coordinates": [ -73.98, 40.75 ] }, "radius": 5000 } } }
+</code></pre>
+<p><code>geo</code> runs against a geo-mapped field and supports shape-based distance queries (a circle around a point), useful for "near me" search.</p>
+
+<aside class="note"><strong>Key idea</strong> These operators depend on the index mapping — autocomplete needs a prefix-ready analyzer, range/geo need number/date/geo mappings. Keep the index and the operator in sync or the query cannot use the search index.</aside>
+
+<h2>Nested</h2>
+<p><code>nested</code> applies search inside the documents embedded in an array field, so you can match on fields of sub-documents (e.g. "a review by a VIP user contains 'fast'"). Use it when your matches must be scoped to the embedded object rather than the document as a whole.<sup><a href="#r2">2</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. To power a typeahead suggestion box you would use…</h4>
+  <button class="opt" data-fb="No — phrase needs an exact ordered sequence.">the phrase operator</button>
+  <button class="opt" data-fb="Correct — the autocomplete operator for prefix matches.">the autocomplete operator for prefix matches</button>
+  <button class="opt" data-fb="No — range matches numeric bounds, not suggestions.">the range operator</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A range query requires the field to be mapped as…</h4>
+  <button class="opt" data-fb="Correct — a number or date type in the index.">a number or date type in the index</button>
+  <button class="opt" data-fb="No — range needs a numeric/date mapping, not geo.">a geo type in the index</button>
+  <button class="opt" data-fb="No — string mappings do not support range bounds.">a string type with keyword analyzer</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. To match inside the documents of an array you use…</h4>
+  <button class="opt" data-fb="No — geo is for coordinates, not embedded docs.">the geo operator</button>
+  <button class="opt" data-fb="No — autocomplete is prefix matching, not nesting.">the autocomplete operator</button>
+  <button class="opt" data-fb="Correct — the nested operator.">the nested operator</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the <a href="https://www.mongodb.com/docs/search/tutorial/partial-match.md">Partial Match</a> tutorial for autocomplete, and the operators + collectors reference for range, geo, and nested.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Sketch a query that uses autocomplete on a title and a range on price in the same result set, and say which index field mappings each requires.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/search/tutorial/partial-match.md">MongoDB Search — Autocomplete &amp; Partial Match</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/search/tutorial/embedded-documents-tutorial.md">MongoDB Search — Embedded Documents</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-text-phrase-wildcard-regex.html">← Lesson 7: text, phrase, wildcard, regex</a></span>
+  <span class="nav-next"><a href="0009-compound-and-scoring.html">Lesson 9: Compound &amp; scoring →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/search-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

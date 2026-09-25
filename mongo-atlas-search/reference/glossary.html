@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MongoDB Atlas Search — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>MongoDB Atlas Search</span></div>
+  <h1>Atlas Search Glossary</h1>
+  <p class="subtitle">Every term in this course, in one place. Return here when a lesson uses a word you do not fully own.</p>
+</header>
+
+<section>
+<h2>The basics</h2>
+<dl>
+  <dt><strong>MongoDB Search / Atlas Search</strong></dt>
+  <dd>The full-text search capability that runs inside MongoDB: index fields, then query them with relevance scoring in an aggregation pipeline.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>search index</strong></dt>
+  <dd>A data structure (built per collection) optimized to retrieve documents that meet search criteria; its definition says which fields to index and how to tokenize them.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>$search</strong></dt>
+  <dd>The aggregation stage that returns documents matching a search query (as opposed to $searchMeta, which returns metadata).<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>$searchMeta</strong></dt>
+  <dd>The aggregation stage that returns metadata/analytics about a search (e.g. counts, facets) instead of the documents.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>score</strong></dt>
+  <dd>The relevance value assigned to each returned document; results come back highest to lowest. Surfaced with <code>{"score": { "$meta": "searchScore" }}</code>.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>collector</strong></dt>
+  <dd>A query component inside a search stage that gathers extra data (e.g. facet counts) alongside matching documents.<sup><a href="#r2">2</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Indexes &amp; analysis</h2>
+<dl>
+  <dt><strong>field mapping</strong></dt>
+  <dd>How the index definition maps document fields to search fields. Dynamic mapping indexes all eligible fields; explicit mapping declares specific fields and types.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>dynamic vs explicit</strong></dt>
+  <dd>Dynamic = inferred mappings for every field; explicit = you define the field -> type mapping yourself.</dd>
+
+  <dt><strong>analyzer</strong></dt>
+  <dd>Determines how a string field is tokenized (split into search terms) to control matching.<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>Standard / Simple / Whitespace / Keyword / Language</strong></dt>
+  <dd>Built-in analyzers: tokenize on word boundaries, non-letters, whitespace, treat the whole string as one term (Keyword, exact match only), or use per-language rules.<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>normalizer</strong></dt>
+  <dd>Produces a single token (e.g. lowercase, or no transformation); used with the search token type.<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>custom analyzer / multi</strong></dt>
+  <dd>A custom analyzer you define; <code>multi</code> lets a field be indexed with alternate analyzers too, so you can query with different tokenization.<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>token / tokenization</strong></dt>
+  <dd>The individual searchable terms an analyzer splits a string into.</dd>
+</dl>
+</section>
+<section>
+<h2>Operators &amp; scoring</h2>
+<dl>
+  <dt><strong>text / phrase / wildcard / regex</strong></dt>
+  <dd>Operators: match analyzed terms (text), an exact sequence (phrase), with wildcards, or a regular expression.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>autocomplete</strong></dt>
+  <dd>The operator for prefix / partial-match search suggestions.<sup><a href="#r6">6</a></sup></dd>
+
+  <dt><strong>range / geo / nested</strong></dt>
+  <dd>Operators matched against indexed number/date ranges, geospatial coordinates, and fields inside embedded documents.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>compound</strong></dt>
+  <dd>An operator that combines clauses with must (all), should (any contribute to score), mustNot (exclude), and filter (exclude without scoring).<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>boost / normalize</strong></dt>
+  <dd>Ways to modify relevance: amplify a clause/term's effect (boost) or rescale scores (normalize).<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>facet</strong></dt>
+  <dd>A grouped breakdown (counts by string/number/date buckets) returned by the facet collector.<sup><a href="#r7">7</a></sup></dd>
+
+  <dt><strong>synonym mapping</strong></dt>
+  <dd>A configuration mapping sets of words as equivalent, used by queries to match synonyms.<sup><a href="#r8">8</a></sup></dd>
+
+  <dt><strong>mongot</strong></dt>
+  <dd>The search process (a dedicated service) that serves search indexes and queries.</dd>
+</dl>
+</section>
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/search/index.md">MongoDB Search Overview</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/search/about/searching.md">MongoDB Search — Queries and Indexes</a></li>
+    <li id="r3"><a href="https://www.mongodb.com/docs/search/query/score/overview.md">MongoDB Search — Score the Documents</a></li>
+    <li id="r4"><a href="https://www.mongodb.com/docs/search/indexes/define-field-mappings.md">Define Field Mappings</a></li>
+    <li id="r5"><a href="https://www.mongodb.com/docs/search/indexes/analyzers/overview.md">Process Data with Analyzers</a></li>
+    <li id="r6"><a href="https://www.mongodb.com/docs/search/tutorial/partial-match.md">Autocomplete &amp; Partial Match</a></li>
+    <li id="r7"><a href="https://www.mongodb.com/docs/search/tutorial/facet-tutorial.md">Facets</a></li>
+    <li id="r8"><a href="https://www.mongodb.com/docs/search/tutorial/synonyms-tutorial.md">Synonyms</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Mission &amp; notes</span>
+  <span class="nav-next"><a href="../lessons/0001-why-full-text-search.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../NOTES.md">Notes</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

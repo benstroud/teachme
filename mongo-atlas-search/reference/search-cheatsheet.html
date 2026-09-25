@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MongoDB Atlas Search — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  code i { color: var(--accent); font-style: normal; }
+  td code { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>MongoDB Atlas Search</span></div>
+  <h1>Atlas Search Cheat Sheet</h1>
+  <p class="subtitle">The compressed essence of the course. Skim before a lesson, study it fully before an interview.</p>
+</header>
+
+<section>
+<h2>1. Mental model</h2>
+<pre><code>collection  --define index-->  search index (fields + analyzers)
+query  --aggregation stage-->  $search (docs) | $searchMeta (metadata)
+score  per doc  -->  $project: { score: { $meta: "searchScore" } }
+</code></pre>
+<ul>
+  <li>You must create a search index on the fields you want to search first.<sup><a href="#r1">1</a></sup></li>
+  <li>A search query is an aggregation pipeline beginning with <code>$search</code> or <code>$searchMeta</code>.<sup><a href="#r1">1</a></sup></li>
+  <li>Results come back score-descending; a <code>sort</code> gives a determined order.<sup><a href="#r2">2</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>2. Define a search index</h2>
+<pre><code>// dynamic mapping (index all eligible fields)
+{ "mappings": { "dynamic": true } }
+
+// explicit field mappings
+{
+  "mappings": {
+    "dynamic": false,
+    "fields": {
+      "title":  { "type": "string" },
+      "body":   { "type": "string" },
+      "price":  { "type": "number" },
+      "releasedAt": { "type": "date" },
+      "location":   { "type": "geo" }
+    }
+  }
+}
+</code></pre>
+<ul>
+  <li>Index name + collection; choose dynamic vs explicit mappings.<sup><a href="#r3">3</a></sup></li>
+  <li>Field types include string, number, date, geo, and the search token type.<sup><a href="#r3">3</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>3. Run a search</h2>
+<pre><code>db.movies.aggregate([
+  { "$search": { "text": { "query": "alien", "path": "title" } } },
+  { "$project": { "title": 1, "score": { "$meta": "searchScore" } } },
+  { "$limit": 10 }
+])
+</code></pre>
+<ul>
+  <li><code>$search</code> returns matching docs; <code>$searchMeta</code> returns metadata.<sup><a href="#r1">1</a></sup></li>
+  <li>Score via <code>$meta: "searchScore"</code>; details via <code>searchScoreDetails</code>.<sup><a href="#r2">2</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>4. Operators</h2>
+<table>
+  <tr><th>Shape</th><th>Operator</th></tr>
+  <tr><td>Plain terms (analyzed)</td><td><code>text</code></td></tr>
+  <tr><td>Exact sequence</td><td><code>phrase</code></td></tr>
+  <tr><td>Wildcards / prefix</td><td><code>wildcard</code></td></tr>
+  <tr><td>Regex</td><td><code>regex</code></td></tr>
+  <tr><td>Suggest / prefix</td><td><code>autocomplete</code></td></tr>
+  <tr><td>Numeric / date range</td><td><code>range</code></td></tr>
+  <tr><td>Coordinates</td><td><code>geo</code></td></tr>
+  <tr><td>Embedded fields</td><td><code>nested</code></td></tr>
+</table>
+<sup><a href="#r1">1</a></sup><sup><a href="#r4">4</a></sup>
+</section>
+
+<section>
+<h2>5. Compound &amp; scoring</h2>
+<pre><code>{ "$search": { "compound": {
+    "must":    [ { "text": { "query": "red", "path": "color" } } ],
+    "should":  [ { "text": { "query": "new",  "path": "tagline", "boost": { "value": 2 } } } ],
+    "mustNot": [ { "text": { "query": "used", "path": "condition" } } ],
+    "filter":  [ { "range": { "path": "price", "gte": 100 } } ]
+}}}
+</code></pre>
+<ul>
+  <li>must = all required; should = optional but add to score; mustNot / filter = exclude.<sup><a href="#r1">1</a></sup></li>
+  <li>Boost amplifies a clause; you can also normalize scores.<sup><a href="#r2">2</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>6. Facets &amp; synonyms</h2>
+<pre><code>// facet collector inside $searchMeta / $search
+"facet": { "operator": { "text": { ... } },
+           "collector": { "type": "facet", "path": "category",
+                          "facets": { "kind": { "type": "string" } } } }
+
+// synonym mapping in the index definition: word sets that match as equivalents
+</code></pre>
+<sup><a href="#r5">5</a></sup><sup><a href="#r6">6</a></sup>
+</section>
+
+<section>
+<h2>7. Checklist</h2>
+<ul>
+  <li>Create the search index before querying; pick dynamic or explicit mappings.<sup><a href="#r1">1</a></sup></li>
+  <li>Index the fields you actually search; choose an analyzer that matches your intent.<sup><a href="#r7">7</a></sup></li>
+  <li>Use keyword for exact matches, standard for general, n-gram/custom for prefix.</li>
+  <li>Project the score to verify relevance; add a sort for deterministic order.</li>
+  <li>Use compound (must/should/mustNot/filter) instead of chaining logic by hand.</li>
+  <li>Verify with real data and the Atlas UI; recheck index size/coverage in production.</li>
+</ul>
+</section>
+
+<footer class="citation">
+  Primary sources: <a href="https://www.mongodb.com/docs/search/index.md">Search Overview</a>,
+  <a href="https://www.mongodb.com/docs/search/about/searching.md">Queries and Indexes</a>,
+  <a href="https://www.mongodb.com/docs/search/query/score/overview.md">Scoring</a>.
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/search/about/searching.md">MongoDB Search — Queries and Indexes</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/search/query/score/overview.md">MongoDB Search — Score the Documents</a></li>
+    <li id="r3"><a href="https://www.mongodb.com/docs/search/indexes/define-field-mappings.md">MongoDB Search — Define Field Mappings</a></li>
+    <li id="r4"><a href="https://www.mongodb.com/docs/search/tutorial/partial-match.md">Autocomplete &amp; Partial Match</a></li>
+    <li id="r5"><a href="https://www.mongodb.com/docs/search/tutorial/facet-tutorial.md">Facets</a></li>
+    <li id="r6"><a href="https://www.mongodb.com/docs/search/tutorial/synonyms-tutorial.md">Synonyms</a></li>
+    <li id="r7"><a href="https://www.mongodb.com/docs/search/indexes/analyzers/overview.md">Process Data with Analyzers</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="../lessons/0001-why-full-text-search.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

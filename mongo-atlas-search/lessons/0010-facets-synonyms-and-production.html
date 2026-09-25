@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 10 — Facets, Synonyms &amp; Production</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 10 of 10</span><span>MongoDB Atlas Search</span></div>
+  <h1>Facets, Synonyms &amp; Production</h1>
+  <p class="subtitle">Polished search mutates with grouped counts (facets), understands equivalent words (synonyms), and holds up under real traffic.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Facets add grouped breakdowns to results, synonyms make equivalent words match, and production discipline means verifying coverage, relevance, and index health on real data.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<h2>Facets: grouped counts</h2>
+<p>A facet returns a breakdown of counts by field value or bucket — string facets, numeric/date range facets — so users can filter search results by category, price band, and more. Faceted fields are configured in the index, and the <code>facet</code> collector inside a search stage returns the counts alongside results.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Synonyms: match equivalent words</h2>
+<p>You configure <em>synonym mappings</em> in the search index (word sets that should match as equivalents), then queries using those terms also match their synonyms — e.g. "automobile" and "car" find the same products.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Facets and synonyms are configured at the <em>index definition</em>, not just in the query. If you want them, design the index for them from the start — you cannot facet on a field that was not indexed as a facetable type.</aside>
+
+<h2>Production checks</h2>
+<ul>
+  <li><strong>Coverage:</strong> ensure every field your queries search is actually in the index (<code>getSearchIndexes()</code>).</li>
+  <li><strong>Relevance:</strong> project the score, review the top results for a set of real queries, and tune boosts/analyzers.</li>
+  <li><strong>Health:</strong> monitor search index build status and size; reindex when mappings change.<sup><a href="#r3">3</a></sup></li>
+  <li><strong>Ordering:</strong> add a <code>sort</code> so tying scores do not jitter between requests.</li>
+</ul>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. Facets are best described as…</h4>
+  <button class="opt" data-fb="Correct — grouped counts by field value or bucket in results.">grouped counts by field value or bucket in results</button>
+  <button class="opt" data-fb="No — boosts tune scores; facets group counts.">a way to boost a search term</button>
+  <button class="opt" data-fb="No — facets give counts; they do not define synonyms.">a set of equivalent words to match</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. Synonyms are configured…</h4>
+  <button class="opt" data-fb="No — synonym mappings live in the index definition.">only inside the query operator</button>
+  <button class="opt" data-fb="No — the analyzer handles stemming, not synonym equivalence.">inside the standard analyzer</button>
+  <button class="opt" data-fb="Correct — as synonym mappings on the search index.">as synonym mappings on the search index</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. A key production check is that…</h4>
+  <button class="opt" data-fb="No — unscarched fields do not need to be indexed.">every field in your DB must be in the index</button>
+  <button class="opt" data-fb="Correct — every field your queries search is actually indexed.">every field your queries search is actually indexed</button>
+  <button class="opt" data-fb="No — a sort fixes tie-jitter; it does not enlarge the index.">a $sort option makes the index smaller</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Follow the <a href="https://www.mongodb.com/docs/search/tutorial/facet-tutorial.md">Facets tutorial</a> and the <a href="https://www.mongodb.com/docs/search/tutorial/synonyms-tutorial.md">Synonyms tutorial</a>, and skim the FAQ for operational notes.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Design a product search index that supports full-text on title, a price facet, and a "car/automobile/car" synonym set. Write the index sketch and one query that returns docs plus a facet count.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/search/tutorial/facet-tutorial.md">MongoDB Search — Facets</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/search/tutorial/synonyms-tutorial.md">MongoDB Search — Synonyms</a></li>
+    <li id="r3"><a href="https://www.mongodb.com/docs/search/deployment/monitoring.md">MongoDB Search — Monitor</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0009-compound-and-scoring.html">← Lesson 9: Compound &amp; scoring</a></span>
+  <span class="nav-next"><a href="../reference/search-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/search-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

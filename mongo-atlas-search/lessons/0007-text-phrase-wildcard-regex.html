@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — text, phrase, wildcard &amp; regex</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 10</span><span>MongoDB Atlas Search</span></div>
+  <h1>text, phrase, wildcard &amp; regex</h1>
+  <p class="subtitle">The core string operators: analyzed term matches, exact sequences, wildcard patterns, and regular expressions.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Choose the operator by how strict the match must be: <code>text</code> for analyzed terms, <code>phrase</code> for an exact sequence, <code>wildcard</code> for * and ? patterns, <code>regex</code> for regular expressions.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The operators</h2>
+<table>
+  <tr><th>Operator</th><th>Use for</th></tr>
+  <tr><td><code>text</code></td><td>Tokenized term matches across one or more string fields (run against the analyzer).<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>phrase</code></td><td>An exact sequence of words in order.</td></tr>
+  <tr><td><code>wildcard</code></td><td>Patterns with <code>*</code> (any chars) and <code>?</code> (one char), e.g. prefix search.</td></tr>
+  <tr><td><code>regex</code></td><td>Full regular-expression matching on an indexed field.</td></tr>
+</table>
+
+<h2>Text vs phrase</h2>
+<pre><code>{ "text":   { "query": "senior engineer", "path": "profile" } }
+{ "phrase": { "query": "senior engineer", "path": "profile" } }
+</code></pre>
+<p><code>text</code> matches documents containing each term (analyzed, so "engineers" can match "engineer"); <code>phrase</code> requires the terms to appear together in that order.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> <code>text</code> is the workhorse for relevance; <code>phrase</code> is what you reach for when order matters ("serverless framework" must stay together), and <code>wildcard</code>/<code>regex</code> cover prefix and ad hoc patterns — at the cost of the analyzer's language-aware matching.</aside>
+
+<h2>Wildcard and regex</h2>
+<pre><code>{ "wildcard": { "query": "k8s*", "path": "name" } }
+{ "regex":    { "query": "^te[a-z]+er$", "path": "profile", "allowAnalyzedField": true } }
+</code></pre>
+<p>Wildcards give prefix/substring-style matching; regex expression matching gives full control for exact patterns (e.g. SKUs). Watch analyzer behavior — some operators can search non-analyzed fields only; confirm against your version.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. To require words to appear together in order you use…</h4>
+  <button class="opt" data-fb="No — text matches terms individually; order is not required.">the text operator</button>
+  <button class="opt" data-fb="Correct — the phrase operator.">the phrase operator</button>
+  <button class="opt" data-fb="No — wildcard matches patterns, not ordered phrases.">the wildcard operator</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The operator that lets the analyzer apply language matching is…</h4>
+  <button class="opt" data-fb="Correct — text, which matches analyzed terms.">text, which matches analyzed terms</button>
+  <button class="opt" data-fb="No — wildcard compares raw patterns, not analyzed terms.">wildcard, which is fully literal</button>
+  <button class="opt" data-fb="No — regex is literal; analysis is a text-operator trait.">regex, which always analyzes</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. A prefix search like "k8s*" is naturally expressed with…</h4>
+  <button class="opt" data-fb="No — text tokenizes; it is not a prefix operator.">the text operator</button>
+  <button class="opt" data-fb="No — phrase requires an exact ordered sequence.">the phrase operator</button>
+  <button class="opt" data-fb="Correct — the wildcard operator.">the wildcard operator</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the string operators in the <a href="https://www.mongodb.com/docs/search/tutorial/partial-match.md">Partial Match</a> tutorial and the <a href="https://www.mongodb.com/docs/search/query/operators-collectors/overview.md">Operators and Collectors</a> reference.</p>
+
+<div class="ask"><strong>Ask the agent</strong> For the query "managed database service", write the text version and a phrase version, and predict how the results (and scores) would differ. Try it on an indexed titles field.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/search/tutorial/partial-match.md">MongoDB Search — Autocomplete &amp; Partial Match</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-running-a-search-query.html">← Lesson 6: Run a query</a></span>
+  <span class="nav-next"><a href="0008-autocomplete-range-geo-nested.html">Lesson 8: autocomplete, range, geo, nested →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/search-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

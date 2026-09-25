@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — Field Mappings &amp; Types</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 10</span><span>MongoDB Atlas Search</span></div>
+  <h1>Field Mappings &amp; Types</h1>
+  <p class="subtitle">Explicit mappings let you say exactly what each field is indexed as — string, number, date, geo, or a stored token — so each query type works.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Instead of indexing every field, an explicit <code>fields</code> mapping names each field and assigns a search <em>type</em>, which is what allows text, range, geo, and exact-match behavior.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Explicit mapping</h2>
+<pre><code>db.movies.createSearchIndex({
+  name: "explicit",
+  mappings: {
+    dynamic: false,
+    fields: {
+      title:  { type: "string" },
+      body:   { type: "string", analyzer: "standard" },
+      price:  { type: "number" },
+      releasedAt: { type: "date" },
+      location:   { type: "geo" }
+    }
+  }
+})
+</code></pre>
+<ul>
+  <li><code>dynamic: false</code> disables inference; only the listed fields are indexed.<sup><a href="#r1">1</a></sup></li>
+  <li>String fields get full-text behavior; number/date enable range; geo enables distance.</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> The field's search type is what unlocks an operator: you cannot run a <code>range</code> on a <code>string</code> mapping, or <code>geo</code> without a geo field. Map the type to the queries you need.<sup><a href="#r1">1</a></sup></aside>
+
+<h2>The search token type &amp; stored source</h2>
+<p>A field can be indexed as a <em>token</em> (with a normalizer, so an exact-match/sorted/filter field), and you can store selected fields on the search service (<code>storedSource</code>) to serve results faster without hitting the database. Confirm the field-type details for your server version.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Dynamic vs explicit — the trade</h2>
+<ul>
+  <li><strong>Dynamic</strong>: quick, indexes everything, less control over analyzers.</li>
+  <li><strong>Explicit</strong>: precise, curates the index, chooses analyzers per field — better for production.</li>
+</ul>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. An explicit field mapping…</h4>
+  <button class="opt" data-fb="No — explicit means you name fields and types.">indexes every field automatically</button>
+  <button class="opt" data-fb="Correct — names each field and assigns it a search type.">names each field and assigns it a search type</button>
+  <button class="opt" data-fb="No — that is the opposite of the field mapping purpose.">stores all fields as strings by default</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. To run range queries on a numeric field you must…</h4>
+  <button class="opt" data-fb="Correct — map that field with a number type in the index.">map that field with a number type in the index</button>
+  <button class="opt" data-fb="No — the type enables range behavior; a string mapping will not.">leave it as a string and filter in code</button>
+  <button class="opt" data-fb="No — range requires an indexed field of the right type.">add a geo mapping instead</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. The trade-off with dynamic mapping is that…</h4>
+  <button class="opt" data-fb="No — dynamic infers fields; it does not disable search.">it makes every search inherently unreachable</button>
+  <button class="opt" data-fb="No — dynamic is convenient but gives less per-field control.">it forces a geo type on every field</button>
+  <button class="opt" data-fb="Correct — it is convenient but gives less control per field.">it is convenient but gives less control per field</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://www.mongodb.com/docs/search/indexes/define-field-mappings.md">Define Field Mappings</a> for the full list of field types, and the field mappings section of the Quick Start for a worked example.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Take a document with a title, a price, and a publishedAt date. Write the explicit field mapping for all three, then state which operator each type supports (text vs range vs geo).</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/search/indexes/define-field-mappings.md">MongoDB Search — Define Field Mappings</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/search/about/searching.md">MongoDB Search — Queries and Indexes</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-defining-a-search-index.html">← Lesson 3: Define an index</a></span>
+  <span class="nav-next"><a href="0005-analyzers-and-tokenization.html">Lesson 5: Analyzers →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/search-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

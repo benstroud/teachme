@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — Running a Search Query</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 10</span><span>MongoDB Atlas Search</span></div>
+  <h1>Running a Search Query</h1>
+  <p class="subtitle">A search is an aggregation pipeline: pick the stage, write an operator, project the score, and limit the results.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A MongoDB Search query is an aggregation pipeline that begins with <code>$search</code> (documents) or <code>$searchMeta</code> (metadata), inside which an <em>operator</em> expresses the match — then you shape the output with the usual pipeline stages.<sup><a href="#r1">1</a></sup></p>
+
+<h2>A first search</h2>
+<pre><code>db.articles.aggregate([
+  { "$search": {
+      "index": "default",
+      "text": { "query": "deployment", "path": ["title", "body"] }
+  }},
+  { "$project": { "title": 1, "score": { "$meta": "searchScore" } } },
+  { "$limit": 10 }
+])
+</code></pre>
+<p><code>$search</code> returns the matching documents (ranked); <code>$project</code> pulls in the relevance score; <code>$limit</code> pages the top results.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Only fields in the search index can be searched, and the index name in the query must match the one you built. Design the index for the experience, then write operators that fit its mappings.<sup><a href="#r1">1</a></sup></aside>
+
+<h2>The other stages</h2>
+<ul>
+  <li><code>$searchMeta</code> — return metadata/analytics (e.g. facet counts) rather than documents.<sup><a href="#r1">1</a></sup></li>
+  <li><code>$count</code> — count matching documents.</li>
+  <li>)<code>$project</code> with <code>$meta: "searchScore"</code> — surface each doc's score (or <code>searchScoreDetails</code>).<sup><a href="#r2">2</a></sup></li>
+  <li><code>$sort</code> — deterministic ordering when equal scores make rank ambiguous.<sup><a href="#r2">2</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. To return the actual matching documents you use…</h4>
+  <button class="opt" data-fb="No — that returns metadata, not the documents.">the $searchMeta stage</button>
+  <button class="opt" data-fb="No — $count only counts; it returns no documents.">the $count stage</button>
+  <button class="opt" data-fb="Correct — the $search stage at the pipeline start.">the $search stage at the pipeline start</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The way to include each result's score is…</h4>
+  <button class="opt" data-fb="Correct — a $project using $meta of searchScore.">a $project using $meta of searchScore</button>
+  <button class="opt" data-fb="No — the score is metadata you project, not a limit.">a $limit setting the page size</button>
+  <button class="opt" data-fb="No — $count returns a number, not per-document scores.">the $count stage for each doc</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. Equal scores make result order…</h4>
+  <button class="opt" data-fb="No — it is the opposite: equal scores are ambiguous.">always fully deterministic</button>
+  <button class="opt" data-fb="Correct — non-deterministic; add a $sort for order.">non-deterministic; add a $sort for order</button>
+  <button class="opt" data-fb="No — a sort is what resolves it, not a project.">fixed by projecting the score</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Run the <a href="https://www.mongodb.com/docs/search/tutorial.md">Quick Start</a> and read <a href="https://www.mongodb.com/docs/search/about/searching.md">Queries and Indexes</a> for the full pipeline and options reference.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Against your sample index, run a $search that returns title and score for a term, then a second query using $searchMeta to return a count. Compare what each pipeline returns.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/search/about/searching.md">MongoDB Search — Queries and Indexes</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/search/query/score/overview.md">MongoDB Search — Score the Documents</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-analyzers-and-tokenization.html">← Lesson 5: Analyzers</a></span>
+  <span class="nav-next"><a href="0007-text-phrase-wildcard-regex.html">Lesson 7: text, phrase, wildcard, regex →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/search-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

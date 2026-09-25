@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — Why Full-Text Search</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 10</span><span>MongoDB Atlas Search</span></div>
+  <h1>Why Full-Text Search</h1>
+  <p class="subtitle">A normal find cannot rank results, understand language, or do fast prefix search — that is the gap a search index fills.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>MongoDB Search (Atlas Search) is full-text search that runs inside MongoDB: you index fields, then query them with an aggregation stage that returns <em>ranked</em> results — unlike a plain <code>find</code>.<sup><a href="#r1">1</a></sup></p>
+
+<h2>What a plain find cannot do</h2>
+<ul>
+  <li><strong>Relevance.</strong> A <code>find</code> returns matches in no meaningful order; a search returns documents <em>highest to lowest relevance</em>.<sup><a href="#r2">2</a></sup></li>
+  <li><strong>Language awareness.</strong> No tokenizing, case-folding, or stemming — "Running", "ran", "run" are unrelated strings to a substring match.</li>
+  <li><strong>Fast prefix/autocomplete.</strong> Regex scans fall back to collection scans; a search index is built to answer prefix queries quickly.</li>
+  <li><strong>Ranking knobs.</strong> No notion of boosting or normalizing to tune what surfaces first.</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> The difference is structural: a search index is a data structure optimized to retrieve documents that meet search criteria, and that is what makes relevance and speed possible at all.<sup><a href="#r1">1</a></sup></aside>
+
+<h2>Search queries are aggregation pipelines</h2>
+<p>A MongoDB Search query is an aggregation pipeline that begins with <code>$search</code> (return the matching documents) or <code>$searchMeta</code> (return metadata about the search). Inside those stages you use operators to express what to match.<sup><a href="#r1">1</a></sup></p>
+
+<h2>When to reach for it</h2>
+<p>Blog/article search, e-commerce product search with filters and facets, typeahead/autocomplete, and any "find the best match" experience. If you only need exact equality or range lookups, an ordinary index is the right tool; search buys you ranking and tokenization when matching text matters.<sup><a href="#r3">3</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. A key thing a plain find cannot provide is…</h4>
+  <button class="opt" data-fb="No — exact equality and ranges are exactly what find and normal indexes do.">exact equality matching on any field</button>
+  <button class="opt" data-fb="No — that is a normal-index concern, not the search gap.">fast lookup on database indexes</button>
+  <button class="opt" data-fb="Correct — relevance ranking of the returned documents.">relevance ranking of the returned documents</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A MongoDB Search query is structured as…</h4>
+  <button class="opt" data-fb="Correct — an aggregation pipeline starting with $search or $searchMeta.">an aggregation pipeline starting with $search or $searchMeta</button>
+  <button class="opt" data-fb="No — search uses aggregation stages, not a single find call.">a single plain find query</button>
+  <button class="opt" data-fb="No — it is a separate database, not a cluster command.">a call to an external database</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. The reason search can be fast and ranked is…</h4>
+  <button class="opt" data-fb="No — it is the index structure, not special hardware.">a dedicated search CPU</button>
+  <button class="opt" data-fb="Correct — a search index optimized for search criteria.">a search index optimized for search criteria</button>
+  <button class="opt" data-fb="No — plain fields can be searched, but only with an index.">fields need no special setup at all</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read <a href="https://www.mongodb.com/docs/search/index.md">MongoDB Search Overview</a> and the <a href="https://www.mongodb.com/docs/search/tutorial.md">Quick Start</a>, which walks creating an index and running a first query on sample data.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Take one text field you search today with a regex. List what a plain find returns, then say which of the four gaps (relevance, language, prefix, ranking) matter for that feature and write the search operators you would expect to use.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/search/index.md">MongoDB Search Overview</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/search/query/score/overview.md">MongoDB Search — Score the Documents</a></li>
+    <li id="r3"><a href="https://www.mongodb.com/docs/search/about/searching.md">MongoDB Search — Queries and Indexes</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="0002-index-query-score.html">Lesson 2: Index, query, score →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/search-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

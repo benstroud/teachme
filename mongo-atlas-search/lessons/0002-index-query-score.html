@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — Index, Query, Score</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 10</span><span>MongoDB Atlas Search</span></div>
+  <h1>Index, Query, Score</h1>
+  <p class="subtitle">Three pieces make search work: an index on your fields, a $search query against it, and a relevance score that orders the results.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>You define a <strong>search index</strong> over a collection's fields (and how to tokenize them), run a <strong>$search</strong> query against it, and every returning document gets a <strong>score</strong> used to order them best-first.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<h2>1. The index</h2>
+<p>A search index is a per-collection data structure optimized to retrieve documents that meet search criteria. Its definition says which fields to index and how to tokenize them — so the same field can be set up for full-text, sorting, facets, or autocomplete depending on how you map it.<sup><a href="#r1">1</a></sup></p>
+
+<h2>2. The query</h2>
+<p>A search query is an aggregation pipeline beginning with <code>$search</code> (to return documents) or <code>$searchMeta</code> (for metadata). Inside, operators express what to match — plain terms, a phrase, a range, a geo point, and so on.<sup><a href="#r1">1</a></sup></p>
+
+<pre><code>db.articles.aggregate([
+  { "$search": { "text": { "query": "deployment", "path": ["title", "body"] } } },
+  { "$project": { "title": 1, "score": { "$meta": "searchScore" } } }
+])
+</code></pre>
+
+<h2>3. The score</h2>
+<p>Every returned document receives a relevance score. Results are ordered from highest to lowest; you surface the number with a <code>$project</code> using <code>{ "$meta": "searchScore" }</code> (or <code>searchScoreDetails</code> for a breakdown).<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> The index shape decides what the query can do; the score decides what the user sees first. Design the index for the experience, then tune the query and score together.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. A search index is best described as…</h4>
+  <button class="opt" data-fb="No — it is a data structure, not a query language.">a query language for text</button>
+  <button class="opt" data-fb="Correct — a per-collection structure optimized for search.">a per-collection structure optimized for search</button>
+  <button class="opt" data-fb="No — the index is defined before and used by the query.">the results of your latest query</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The way to show each result's score is…</h4>
+  <button class="opt" data-fb="Correct — a $project stage with $meta of searchScore.">a $project stage with $meta of searchScore</button>
+  <button class="opt" data-fb="No — the score is metadata you project, not a $match filter.">a $match condition that returns it</button>
+  <button class="opt" data-fb="No — scores appear via $project, not in a sort option alone.">only a $sort option can expose it</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. Results come back ordered…</h4>
+  <button class="opt" data-fb="No — search returns highest relevance first, by default.">from lowest relevance to highest</button>
+  <button class="opt" data-fb="No — that applies only when a sort is set explicitly.">in insertion order unless you sort</button>
+  <button class="opt" data-fb="Correct — from highest score to lowest.">from highest score to lowest</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://www.mongodb.com/docs/search/about/searching.md">Queries and Indexes</a> for the index-query relationship and <a href="https://www.mongodb.com/docs/search/query/score/overview.md">Score the Documents</a> for the scoring details.</p>
+
+<div class="ask"><strong>Ask the agent</strong> In mongosh against a sample collection, create a minimal search index on one string field, run a $search with a $project for the score, and read the highest-scoring document out loud.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/search/about/searching.md">MongoDB Search — Queries and Indexes</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/search/query/score/overview.md">MongoDB Search — Score the Documents</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-why-full-text-search.html">← Lesson 1: Why full-text search</a></span>
+  <span class="nav-next"><a href="0003-defining-a-search-index.html">Lesson 3: Define an index →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/search-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — Defining a Search Index</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 10</span><span>MongoDB Atlas Search</span></div>
+  <h1>Defining a Search Index</h1>
+  <p class="subtitle">Before any query, create a search index on the collection — choosing the name, the fields, and how they map.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>You create a search index for a collection and give it a definition — a <code>mappings</code> block that decides which fields are indexed and how — and only then can you query those fields.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Where you create it</h2>
+<ul>
+  <li>In the Atlas UI under the collection's <em>Search Indexes</em> tab.</li>
+  <li>Or programmatically via <code>db.collection.createSearchIndex(...)</code> in mongosh / a driver.</li>
+</ul>
+<p>The Quick Start walks creating one against sample data; that is the fastest way to see one in action.<sup><a href="#r1">1</a></sup></p>
+
+<h2>A minimal definition</h2>
+<pre><code>db.movies.createSearchIndex({
+  name: "default",
+  mappings: { dynamic: true },    // index every eligible field
+})
+</code></pre>
+<p><code>dynamic: true</code> indexes all eligible fields with inferred types — a great starting point. For control, use explicit field mappings instead (next lesson).<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> The index definition determines what your queries can do: which fields are searchable, whether sorting/faceting/autocomplete work, and how strings are tokenized. Design it for the search experience you intend to ship.<sup><a href="#r1">1</a></sup></aside>
+
+<h2>Names and iteration</h2>
+<p>Give the index a meaningful name (queries target an index by name or use the default). You can iterate: add or change field mappings and re-deploy the index as your search needs evolve.<sup><a href="#r2">2</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Before a field can be searched you must…</h4>
+  <button class="opt" data-fb="No — the field must be in the index for search to use it.">mark it in the query only</button>
+  <button class="opt" data-fb="Correct — include it in a search index on that collection.">include it in a search index on that collection</button>
+  <button class="opt" data-fb="No — dynamic mapping covers eligible fields automatically.">create a separate collection per field</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A dynamic mapping definition…</h4>
+  <button class="opt" data-fb="Correct — indexes all eligible fields with inferred types.">indexes all eligible fields with inferred types</button>
+  <button class="opt" data-fb="No — that is explicit mapping, not dynamic.">requires you to list every field and type by hand</button>
+  <button class="opt" data-fb="No — it is an index definition, not a query option.">disables search entirely</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. The index definition matters because it decides…</h4>
+  <button class="opt" data-fb="No — the index shape enables search; it does not disable it.">only the storage engine used</button>
+  <button class="opt" data-fb="No — the score decides ranking; the index decides capability.">which scores get returned to you</button>
+  <button class="opt" data-fb="Correct — which fields are searchable and how they are tokenized.">which fields are searchable and how they are tokenized</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Work the <a href="https://www.mongodb.com/docs/search/tutorial.md">Quick Start</a> to create your first index, and read <a href="https://www.mongodb.com/docs/search/indexes/define-field-mappings.md">Define Field Mappings</a> to understand the mapping options.</p>
+
+<div class="ask"><strong>Ask the agent</strong> In mongosh on a sample collection, create a dynamic search index, list it with <code>db.collection.getSearchIndexes()</code>, and name three fields that are now searchable.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/search/tutorial.md">MongoDB Search — Quick Start</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/search/indexes/define-field-mappings.md">MongoDB Search — Define Field Mappings</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-index-query-score.html">← Lesson 2: Index, query, score</a></span>
+  <span class="nav-next"><a href="0004-field-mappings-and-types.html">Lesson 4: Field mappings →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/search-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — Analyzers &amp; Tokenization</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 10</span><span>MongoDB Atlas Search</span></div>
+  <h1>Analyzers &amp; Tokenization</h1>
+  <p class="subtitle">An analyzer decides how a string is split into searchable tokens — the lever that controls how "running" matches "run".</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>An <strong>analyzer</strong> determines how MongoDB Search tokenizes a string field into search terms, and therefore what queries can match it — from broad, language-aware full text to exact-match keywords.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Built-in analyzers</h2>
+<table>
+  <tr><th>Analyzer</th><th>Behavior</th></tr>
+  <tr><td>Standard (default)</td><td>Splits on word boundaries, lowercases — the general-purpose default.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Simple</td><td>Splits wherever a non-letter appears, lowercases.</td></tr>
+  <tr><td>Whitespace</td><td>Splits on whitespace only.</td></tr>
+  <tr><td>Keyword</td><td>Indexes the whole string as a single term — only exact matches return.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Language</td><td>Uses per-language rules (stemming etc.) for a specific language.</td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> If you don't specify an analyzer, MongoDB uses the default <em>standard</em> analyzer. The choice is the difference between matching "running" when the user types "run" (language/stemming) and treating it as an exact string (keyword).<sup><a href="#r1">1</a></sup></aside>
+
+<h2>Query-time and index-time analyzers</h2>
+<p>An analyzer can be set at index time (how the stored field is tokenized) and at query time (how the query terms are tokenized). They should be compatible so tokens line up. You can also index one field with alternate analyzers using the <code>multi</code> object, letting you search a title both as full text and as an exact/autocomplete field.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Custom analyzers &amp; n-grams</h2>
+<p>For prefix and autocomplete behavior, a custom analyzer with n-gram tokenization is the common tool: it indexes chunks of a word so a partial term can match. Normalizers (e.g. <code>lowercase</code>) produce a single token and apply to the search token type for exact-match fields.<sup><a href="#r1">1</a></sup><sup><a href="#r3">3</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. The analyzer determines…</h4>
+  <button class="opt" data-fb="Correct — how a string is split into search tokens.">how a string is split into search tokens</button>
+  <button class="opt" data-fb="No — that is field mapping; the analyzer handles tokenization.">which fields are even indexed</button>
+  <button class="opt" data-fb="No — scoring is separate; analyzers control matching tokens.">the exact score of a document</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>2. If you only want exact string matches, you should…</h4>
+  <button class="opt" data-fb="No — standard tokenizes; that is not exact matching.">keep the default standard analyzer</button>
+  <button class="opt" data-fb="Correct — use the keyword analyzer on that field.">use the keyword analyzer on that field</button>
+  <button class="opt" data-fb="No — language analyzers do stemming, not exact matching.">use a language analyzer</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. To index a field with several tokenizations you use…</h4>
+  <button class="opt" data-fb="No — the multi object adds alternate analyzers.">a separate collection</button>
+  <button class="opt" data-fb="No — normalizers make a single token, not alternates.">a normalizer only</button>
+  <button class="opt" data-fb="Correct — the multi object with alternate analyzers.">the multi object with alternate analyzers</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read <a href="https://www.mongodb.com/docs/search/indexes/analyzers/overview.md">Process Data with Analyzers</a> and the individual analyzer pages (Standard, Simple, Whitespace, Keyword, Language).</p>
+
+<div class="ask"><strong>Ask the agent</strong> Describe how the word "running" would be tokenized under Standard, Keyword, and a Language analyzer, and how each would answer the query "run". Verify with a real index if possible.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/search/indexes/analyzers/overview.md">MongoDB Search — Analyzers Overview</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/search/indexes/analyzers/multi.md">MongoDB Search — Multi Analyzer</a></li>
+    <li id="r3"><a href="https://www.mongodb.com/docs/search/indexes/analyzers/keyword.md">MongoDB Search — Keyword Analyzer</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-field-mappings-and-types.html">← Lesson 4: Field mappings</a></span>
+  <span class="nav-next"><a href="0006-running-a-search-query.html">Lesson 6: Run a query →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/search-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
