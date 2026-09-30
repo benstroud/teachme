@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Large Language Models — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Large Language Models</span></div>
+  <h1>LLM Glossary</h1>
+  <p class="subtitle">Every term in this course, in one place. Return here when a lesson uses a word you do not fully own.</p>
+</header>
+
+<section>
+<h2>The model</h2>
+<dl>
+  <dt><strong>LLM (large language model)</strong></dt>
+  <dd>A neural network trained on massive text to predict the next token — an autoregressive language model whose size ("large") has grown ~10x/year.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>parameter</strong></dt>
+  <dd>A learned weight of the network; model "size" (e.g. 7B) is its parameter count.</dd>
+
+  <dt><strong>autoregressive</strong></dt>
+  <dd>Generating text by repeatedly predicting the next token given all tokens so far; the sequence probability is a product of next-token probabilities.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>next-token prediction</strong></dt>
+  <dd>The core training/generation operation: from a context, choose the probability distribution over the next token.</dd>
+
+  <dt><strong>checkpoint vs architecture</strong></dt>
+  <dd>An architecture is the definition of a model's layers; a checkpoint is the specific set of weights loaded into it.<sup><a href="#r3">3</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Tokens &amp; the context</h2>
+<dl>
+  <dt><strong>token / tokenizer</strong></dt>
+  <dd>A token is the model's input unit; a tokenizer turns text into tokens via a pipeline (normalization, pre-tokenization, then a subword model).<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>subword / BPE / WordPiece / Unigram</strong></dt>
+  <dd>Tokenization that builds a vocabulary of words and word-pieces so rare/unknown words still tokenize. BPE (byte pair), WordPiece, Unigram are common subword algorithms.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>special tokens</strong></dt>
+  <dd>Reserved tokens added by the tokenizer, e.g. end-of-sequence, padding, or conversation/instruction markers.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>context window</strong></dt>
+  <dd>The finite number of tokens a model can attend to at once — the sum of prompt and generated tokens it can see.</dd>
+
+  <dt><strong>embedding</strong></dt>
+  <dd>The vector a token/token sequence is mapped to inside the model (and, in retrieval, the vector representation of text).</dd>
+</dl>
+</section>
+<section>
+<h2>Architecture &amp; training</h2>
+<dl>
+  <dt><strong>Transformer</strong></dt>
+  <dd>The dominant architecture, based solely on attention, dispensing with recurrence and convolutions — more parallelizable and faster to train.<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>attention / self-attention</strong></dt>
+  <dd>The mechanism by which each position weighs other positions to gather context; self-attention attends within the same sequence.<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>multi-head attention</strong></dt>
+  <dd>Several attention computations in parallel, letting the model attend to different relationships at once.<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>encoder / decoder / attention mask</strong></dt>
+  <dd>Encoder reads the whole input (undirected); decoder generates sequentially and is masked so it cannot see future tokens.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>pretraining / fine-tuning / transfer learning</strong></dt>
+  <dd>Pretraining trains on raw text for general capability; fine-tuning adapts a pretrained checkpoint to a task (transfer learning).<sup><a href="#r3">3</a></sup><sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>RLHF (reinforcement learning from human feedback)</strong></dt>
+  <dd>Aligning an LM to human preferences in three steps: pretrain (and SFT), train a reward model from human feedback, then fine-tune with RL.<sup><a href="#r6">6</a></sup></dd>
+
+  <dt><strong>reward model</strong></dt>
+  <dd>A model trained on human preference pairs to score how good a response is, used as the signal in RLHF.<sup><a href="#r6">6</a></sup></dd>
+
+  <dt><strong>KL penalty</strong></dt>
+  <dd>In RLHF, a term that keeps the fine-tuned model close to its original distribution so it does not drift too far.<sup><a href="#r6">6</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Using the model</h2>
+<dl>
+  <dt><strong>greedy / beam / sampling</strong></dt>
+  <dd>Decoding methods: greedy picks the top next token (argmax); beam searches several candidates; sampling draws from the distribution.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>temperature / top-k / top-p</strong></dt>
+  <dd>Sampling knobs: temperature softens/sharps the probabilities; top-k limits to the k most likely; top-p (nucleus) keeps the smallest set exceeding a probability mass.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>prompt / few-shot / system prompt</strong></dt>
+  <dd>The input that conditions output; few-shot includes example input/output pairs; a system prompt sets top-level behavior/instructions.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>RAG (retrieval-augmented generation)</strong></dt>
+  <dd>Combining a generator with a retriever over a document index; the model conditions on retrieved text to ground and reduce hallucination.<sup><a href="#r7">7</a></sup></dd>
+
+  <dt><strong>hallucination</strong></dt>
+  <dd>Confidently generated text that is not based on facts/context — a key failure mode, mitigated by grounding (e.g. RAG) and evaluation.</dd>
+
+  <dt><strong>quantization</strong></dt>
+  <dd>Storing model weights in fewer bits (e.g. 8-bit) to shrink memory and speed inference.<sup><a href="#r1">1</a></sup></dd>
+</dl>
+</section>
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://huggingface.co/blog/large-language-models">HF — Large Language Models: A New Moore's Law?</a></li>
+    <li id="r2"><a href="https://huggingface.co/blog/how-to-generate">HF — How to generate text</a></li>
+    <li id="r3"><a href="https://huggingface.co/learn/nlp-course/en/chapter1/4">HF Course — How do Transformers work?</a></li>
+    <li id="r4"><a href="https://huggingface.co/docs/tokenizers/index">HF — Tokenizers</a></li>
+    <li id="r5"><a href="https://arxiv.org/abs/1706.03762">Attention Is All You Need</a></li>
+    <li id="r6"><a href="https://huggingface.co/blog/rlhf">HF — RLHF</a></li>
+    <li id="r7"><a href="https://arxiv.org/abs/2005.11401">Retrieval-Augmented Generation (RAG)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Mission &amp; notes</span>
+  <span class="nav-next"><a href="../lessons/0001-what-is-an-llm.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../NOTES.md">Notes</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

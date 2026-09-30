@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 10 — Evaluation &amp; Limitations</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 10 of 10</span><span>Large Language Models</span></div>
+  <h1>Evaluation &amp; Limitations</h1>
+  <p class="subtitle">A model is a sampler over language, not an oracle. Hallucination is real, and responsible use means testing, grounding, and guarding.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Because an LLM generates plausible-sounding text from probabilities, it can confidently <strong>hallucinate</strong> — so you evaluate outputs, ground high-stakes ones, and design for graceful failure.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Hallucination</h2>
+<p>Hallucination is fluent text that is not faithful to facts or to the provided context. It follows from the fundamentals: the model only has its weights and the prompt, so facts outside both are simply <em>predicted</em>, not looked up. It is a key reason grounding (RAG) and verification matter.<sup><a href="#r1">1</a></sup></p>
+
+<h2>How to evaluate</h2>
+<ul>
+  <li><strong>Task-level tests:</strong> run a fixed set of realistic prompts and judge or score outputs (correctness, format, safety).</li>
+  <li><strong>Ground and check:</strong> for factual answers, have the model cite the retrieved chunks, or verify against sources.</li>
+  <li><strong>Decode for consistency:</strong> lower temperature for factual tasks; test across seeds because sampling is non-deterministic.</li>
+  <li><strong>Benchmarks:</strong> published benchmarks give a rough sense but do not guarantee your domain — evaluate on your own data.</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> Build for the failure case: assume uncertain/out-of-context answers can be wrong, add guardrails, cite sources, and route high-stakes output through a check or a human before it acts.</aside>
+
+<h2>The practical checklist</h2>
+<ul>
+  <li>Fit everything the model needs into the context window; retrieve the rest.</li>
+  <li>Choose decoding to match the task (deterministic vs creative).</li>
+  <li>Write clear instructions and examples; set a system prompt.</li>
+  <li>Ground and verify before the model's output controls anything important.</li>
+  <li>Test on real inputs; never assume a claimed capability.</li>
+</ul>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Hallucination is best described as…</h4>
+  <button class="opt" data-fb="No — it is about prediction, not storage.">text the model stores in a table</button>
+  <button class="opt" data-fb="Correct — fluent text not faithful to facts or context.">fluent text not faithful to facts or context</button>
+  <button class="opt" data-fb="No — it is a generation failure, not a network error.">an error in the network connection</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A strong way to reduce hallucination is…</h4>
+  <button class="opt" data-fb="Correct — grounding the model on retrieved context (RAG) and verifying.">grounding the model on retrieved context (RAG) and verifying</button>
+  <button class="opt" data-fb="No — high temperature increases variety, not accuracy.">raising temperature very high</button>
+  <button class="opt" data-fb="No — the factual task benefits from grounded sources.">asking it to guess more confidently</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. When output controls something important, you should…</h4>
+  <button class="opt" data-fb="No — unverified output is exactly the risk.">trust the output and act immediately</button>
+  <button class="opt" data-fb="No — it is a probabilistic model, not a deterministic machine.">assume it is always deterministic</button>
+  <button class="opt" data-fb="Correct — ground it, verify or cite, and route risk to a check.">ground it, verify or cite, and route risk to a check</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Bring it together with the <a href="https://huggingface.co/blog/how-to-generate">generation guide</a> (decoding control) and the <a href="https://arxiv.org/abs/2005.11401">RAG paper</a> (grounding) — the two levers you actually control at build time.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Choose one high-stakes LLM feature you might build, and write how you would ground it, what guards you would add, and where a human or a check would sit before the output takes effect.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://huggingface.co/blog/how-to-generate">HF — How to generate text</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0009-grounding-with-rag.html">← Lesson 9: Grounding with RAG</a></span>
+  <span class="nav-next"><a href="../reference/llm-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/llm-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

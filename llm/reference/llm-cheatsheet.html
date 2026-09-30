@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Large Language Models — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  code i { color: var(--accent); font-style: normal; }
+  td code { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Large Language Models</span></div>
+  <h1>LLM Cheat Sheet</h1>
+  <p class="subtitle">The compressed essence of the course. Skim before a lesson, study it fully before an interview.</p>
+</header>
+
+<section>
+<h2>1. Core definition</h2>
+<ul>
+  <li>An LLM is an autoregressive <strong>next-token predictor</strong> trained on massive text.<sup><a href="#r1">1</a></sup></li>
+  <li>Generation = repeatedly predict the next token given all tokens so far: P(w) = &prod; P(w_t | w_&lt;t).<sup><a href="#r2">2</a></sup></li>
+  <li>"Large" = parameter count growing ~10x/year; transfer learning makes them practical.<sup><a href="#r1">1</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>2. Tokens &amp; context</h2>
+<ul>
+  <li>Text → tokens via a tokenizer pipeline (normalize → pre-tokenize → subword model → post-process/special tokens).<sup><a href="#r3">3</a></sup></li>
+  <li>Subword families: BPE, WordPiece, Unigram; rare/unknown words still tokenize.<sup><a href="#r3">3</a></sup></li>
+  <li>Tokens add up: prompt + output must fit the <strong>context window</strong>.</li>
+</ul>
+</section>
+
+<section>
+<h2>3. Architecture &amp; attention</h2>
+<ul>
+  <li>Transformer = attention only, no recurrence/convolution; parallelizable, faster to train.<sup><a href="#r4">4</a></sup></li>
+  <li>Attention lets each position weigh others; multi-head runs several attentions.<sup><a href="#r4">4</a></sup></li>
+  <li>Encoder reads the whole input; decoder is masked (no future tokens) and generates.<sup><a href="#r5">5</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>4. Training &amp; scale</h2>
+<ul>
+  <li>Pretrain on raw text (next-token loss), then fine-tune — transfer learning.<sup><a href="#r5">5</a></sup></li>
+  <li>Architecture = layers; checkpoint = the loaded weights; "model" can mean either.<sup><a href="#r5">5</a></sup></li>
+  <li>RLHF (3 steps): pretrain/SFT → reward model from human preferences → RL (PPO) with a KL penalty.<sup><a href="#r6">6</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>5. Decoding</h2>
+<table>
+  <tr><th>Method / knob</th><th>Effect</th></tr>
+  <tr><td>Greedy (argmax)</td><td>Most likely next token; can repeat.</td></tr>
+  <tr><td>Beam search</td><td>Keeps top candidates; good for constrained tasks.</td></tr>
+  <tr><td>Sampling</td><td>Draws from the distribution (more creative).</td></tr>
+  <tr><td>Temperature</td><td>Low = sharp/determined; high = random/creative.</td></tr>
+  <tr><td>top-k</td><td>Limit to the k most likely tokens.</td></tr>
+  <tr><td>top-p (nucleus)</td><td>Keep the smallest set with cumulative prob &gt; p.</td></tr>
+</table>
+<sup><a href="#r2">2</a></sup>
+</section>
+
+<section>
+<h2>6. Prompting &amp; grounding</h2>
+<ul>
+  <li>Prompt/instruction/few-shot examples condition the output; a system prompt sets top-level behavior.<sup><a href="#r5">5</a></sup></li>
+  <li>RAG: retriever pulls top-k from a document index → generator conditions on them → grounded, less hallucination.<sup><a href="#r7">7</a></sup></li>
+  <li>Always evaluate: hallucination is real; ground on retrieved context and check outputs.</li>
+</ul>
+</section>
+
+<section>
+<h2>7. Decision checklist</h2>
+<ul>
+  <li>Confirm the context window and count your tokens (prompt + output).</li>
+  <li>Pick decoding: low temperature for factual, higher for creative.</li>
+  <li>Give the model enough context and clear instructions; add examples when needed.</li>
+  <li>Ground high-stakes output in retrieved sources (RAG) and verify.</li>
+  <li>Treat the model as a sampler over language, not an oracle — evaluate.</li>
+</ul>
+</section>
+
+<footer class="citation">
+  Primary sources: <a href="https://arxiv.org/abs/1706.03762">Transformer paper</a>,
+  <a href="https://huggingface.co/blog/how-to-generate">HF generation guide</a>,
+  <a href="https://huggingface.co/learn/nlp-course/en/chapter1/4">HF course</a>,
+  <a href="https://huggingface.co/blog/rlhf">HF RLHF</a>,
+  <a href="https://arxiv.org/abs/2005.11401">RAG paper</a>.
+  <ol>
+    <li id="r1"><a href="https://huggingface.co/blog/large-language-models">HF — Large Language Models: A New Moore's Law?</a></li>
+    <li id="r2"><a href="https://huggingface.co/blog/how-to-generate">HF — How to generate text</a></li>
+    <li id="r3"><a href="https://huggingface.co/docs/tokenizers/index">HF — Tokenizers</a></li>
+    <li id="r4"><a href="https://arxiv.org/abs/1706.03762">Attention Is All You Need</a></li>
+    <li id="r5"><a href="https://huggingface.co/learn/nlp-course/en/chapter1/4">HF Course — How do Transformers work?</a></li>
+    <li id="r6"><a href="https://huggingface.co/blog/rlhf">HF — RLHF</a></li>
+    <li id="r7"><a href="https://arxiv.org/abs/2005.11401">Retrieval-Augmented Generation (RAG)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="../lessons/0001-what-is-an-llm.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

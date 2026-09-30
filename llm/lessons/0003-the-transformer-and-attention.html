@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — The Transformer &amp; Attention</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 10</span><span>Large Language Models</span></div>
+  <h1>The Transformer &amp; Attention</h1>
+  <p class="subtitle">The Transformer dropped recurrence entirely and uses only attention — each token looks at every other to gather context.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>The Transformer is an architecture <em>based solely on attention mechanisms</em> — dispensing with recurrence and convolutions — so each position weighs the others to build context, and the whole thing is highly parallelizable.<sup><a href="#r1">1</a></sup></p>
+
+<h2>What attention does</h2>
+<p>A word's meaning depends on context — the words around it. Attention lets each token look at every other token and pull context from them, weighted by relevance. <strong>Self-attention</strong> is attention within the same sequence; <strong>multi-head attention</strong> runs several of these in parallel so the model can attend to different relationships at once.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<h2>Why it replaced RNNs</h2>
+<p>Recurrent networks process tokens one at a time in order, which is slow and makes long-range dependence hard. Because attention relates positions directly, the Transformer is more parallelizable and trains <em>significantly faster</em> — while being better on those translation tasks in the original paper.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Almost every modern LLM is a <em>decoder-only</em> Transformer: it keeps the attention stack but no separate encoder, and it can only look at tokens it has already generated — enforced by an <em>attention mask</em> that hides future tokens.<sup><a href="#r2">2</a></sup></aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. The Transformer's key mechanism is…</h4>
+  <button class="opt" data-fb="No — attention replaced recurrence; RNNs are the old approach.">recurrent hidden states</button>
+  <button class="opt" data-fb="Correct — attention, where each position weighs the others.">attention, where each position weighs the others</button>
+  <button class="opt" data-fb="No — that is what convolution did, which the paper dropped.">convolution layers over text</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Multi-head attention lets the model…</h4>
+  <button class="opt" data-fb="Correct — attend to different relationships in parallel.">attend to different relationships in parallel</button>
+  <button class="opt" data-fb="No — heads attend; they do not make the model smaller.">shrink the model's parameter count</button>
+  <button class="opt" data-fb="No — masks hide future tokens; heads attend.">ignore the encoder entirely</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. The attention mask in a decoder exists to…</h4>
+  <button class="opt" data-fb="No — it hides future tokens; it does not delete them.">remove words from the training data</button>
+  <button class="opt" data-fb="No — the mask is about visibility, not about memorization.">memorize long documents by heart</button>
+  <button class="opt" data-fb="Correct — prevent the model from seeing future tokens.">prevent the model from seeing future tokens</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the original <a href="https://arxiv.org/abs/1706.03762">Attention Is All You Need</a> paper's abstract/intro and the course chapter <a href="https://huggingface.co/learn/nlp-course/en/chapter1/4">How do Transformers work?</a> for attention and the mask.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Explain why attention is faster to parallelize than recurrence, and why the decoder must be masked during training. Give an example of a word whose meaning only makes sense with the words around it.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://arxiv.org/abs/1706.03762">Attention Is All You Need</a></li>
+    <li id="r2"><a href="https://huggingface.co/learn/nlp-course/en/chapter1/4">HF Course — How do Transformers work?</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-tokens-and-tokenization.html">← Lesson 2: Tokens</a></span>
+  <span class="nav-next"><a href="0004-pretraining-and-scale.html">Lesson 4: Pretraining &amp; scale →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/llm-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

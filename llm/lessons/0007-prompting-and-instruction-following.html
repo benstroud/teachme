@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — Prompting &amp; Instruction Following</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 10</span><span>Large Language Models</span></div>
+  <h1>Prompting &amp; Instruction Following</h1>
+  <p class="subtitle">A pretrained model generates continuation; an instruction-tuned model follows your instructions. Prompting is how you steer that.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>The <strong>prompt</strong> is the full input that conditions the output — instructions, context, and examples (few-shot) — and models that <em>follow instructions</em> are themselves a product of fine-tuning on instruction data.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The prompt is the whole input</h2>
+<ul>
+  <li><strong>Instruction</strong> — what you want done ("summarize this").</li>
+  <li><strong>Context</strong> — the material the model should work from (fits in the window).</li>
+  <li><strong>Few-shot examples</strong> — a couple of input → output pairs that shape the response.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>System prompt</strong> — top-level behavior/role set by the application.</li>
+</ul>
+
+<h2>Instruction following is a capability</h2>
+<p>Base models were trained to predict text; getting them to reliably follow directions took <em>instruction tuning</em>. The landmark was <strong>InstructGPT</strong> (2022), a version of GPT-3 trained to follow instructions better, and it opened the era of chat/assistant models.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Clarity beats cleverness: state the task, bound the output, and use an example when the format matters. The same fact remains true at the limit — if it's not in the window as instruction or context, it isn't guiding the model unless it was already in its weights.</aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. A few-shot prompt includes…</h4>
+  <button class="opt" data-fb="No — that is just an instruction with no examples.">only a single instruction</button>
+  <button class="opt" data-fb="Correct — example input to output pairs to shape the response.">example input to output pairs to shape the response</button>
+  <button class="opt" data-fb="No — few-shot is about examples, not memory size.">which memory slots to allocate</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A system prompt is used to…</h4>
+  <button class="opt" data-fb="Correct — set top-level behavior or role for the session.">set top-level behavior or role for the session</button>
+  <button class="opt" data-fb="No — it sets behavior; it does not resize the window.">increase the context window length</button>
+  <button class="opt" data-fb="No — it guides the model, not the tokenizer.">change how the tokenizer splits words</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. Reliability in following instructions came largely from…</h4>
+  <button class="opt" data-fb="No — that is pretraining on raw text, not instruction tuning.">pretraining on raw text alone</button>
+  <button class="opt" data-fb="No — alignment is real; it is not simply a UI default.">a purely user-interface preference</button>
+  <button class="opt" data-fb="Correct — instruction tuning, e.g. InstructGPT.">instruction tuning, e.g. InstructGPT</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the instruction-tuning and history notes in <a href="https://huggingface.co/learn/nlp-course/en/chapter1/4">How do Transformers work?</a> and the RLHF blog for why instruction following is a trained capability.<sup><a href="#r3">3</a></sup></p>
+
+<div class="ask"><strong>Ask the agent</strong> Write a few-shot prompt for one task you do (e.g. classify support tone), including two examples and a clear output format, and predict how the model uses each part.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://huggingface.co/learn/nlp-course/en/chapter1/4">HF Course — How do Transformers work?</a></li>
+    <li id="r2"><a href="https://huggingface.co/blog/rlhf">HF — RLHF (InstructGPT context)</a></li>
+    <li id="r3"><a href="https://huggingface.co/blog/rlhf">HF — RLHF</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-the-context-window.html">← Lesson 6: The context window</a></span>
+  <span class="nav-next"><a href="0008-alignment-rlhf.html">Lesson 8: Alignment (RLHF) →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/llm-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

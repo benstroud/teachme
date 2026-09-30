@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — The Context Window</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 10</span><span>Large Language Models</span></div>
+  <h1>The Context Window</h1>
+  <p class="subtitle">A model can only attend to a finite window of tokens at once — which is why prompt length, examples, and retrieved context all compete for space.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A model attends to a <strong>bounded window of tokens</strong> — your prompt plus its own output — so what fits in that window is all it can use in a single generation.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Why there is a limit</h2>
+<p>Attention lets each token relate to every other, but the weights are built for a fixed maximum length; inputs beyond it cannot be processed at once. This is why models truncate or require you to fit everything relevant inside the window.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<pre><code>window = context_length            # e.g. a few thousand tokens
+used   = prompt_tokens + generated_tokens
+# keep used &lt;= window, or earlier content is dropped/truncated
+</code></pre>
+
+<h2>What that means in practice</h2>
+<ul>
+  <li>Characters and examples you include consume the window; a long system prompt leaves less room.<sup><a href="#r2">2</a></sup></li>
+  <li>Long conversations "forget" the oldest turns as they exceed the window.</li>
+  <li>Retrieval (later lesson) exists partly because you cannot fit a whole knowledge base in the window — you inject only the relevant slice.</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> Treat the window as a budget: instructions first, then the most relevant context, then room for the output. When you need more knowledge than fits, you summarize or retrieve rather than paste everything.</aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. The context window is…</h4>
+  <button class="opt" data-fb="No — it is a token budget, not a measure of files.">the number of files you can open</button>
+  <button class="opt" data-fb="No — it is the input+output token capacity.">the model's training-set size</button>
+  <button class="opt" data-fb="Correct — the finite tokens a model attends to at once.">the finite tokens a model attends to at once</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. In a long conversation, oldest turns get dropped because…</h4>
+  <button class="opt" data-fb="Correct — the turns exceed the context window.">the turns exceed the context window</button>
+  <button class="opt" data-fb="No — forgetting is about the window, not about hiding.">the model is built to forget them</button>
+  <button class="opt" data-fb="No — output is capped too; the whole window fills up.">the output is never generated</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. When knowledge exceeds the window, a good move is…</h4>
+  <button class="opt" data-fb="No — that would overflow the window and truncate.">paste every document in full</button>
+  <button class="opt" data-fb="Correct — retrieve or summarize the relevant slice.">retrieve or summarize the relevant slice</button>
+  <button class="opt" data-fb="No — the model cannot model text not in the window.">assume the model already knows it</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Re-read the attention and masking ideas in <a href="https://huggingface.co/learn/nlp-course/en/chapter1/4">How do Transformers work?</a>, and the tokenizer docs' truncation/padding to see how contexts are cut.<sup><a href="#r3">3</a></sup></p>
+
+<div class="ask"><strong>Ask the agent</strong> For a model with a small context window, write a prompt that includes instructions, one good example, and a retrieved paragraph — then say what you would cut if you were near the limit.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://huggingface.co/learn/nlp-course/en/chapter1/4">HF Course — How do Transformers work?</a></li>
+    <li id="r2"><a href="https://huggingface.co/docs/tokenizers/index">HF — Tokenizers</a></li>
+    <li id="r3"><a href="https://huggingface.co/docs/tokenizers/index">HF — Tokenizers (truncation/padding)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-decoding-and-sampling.html">← Lesson 5: Decoding &amp; sampling</a></span>
+  <span class="nav-next"><a href="0007-prompting-and-instruction-following.html">Lesson 7: Prompting →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/llm-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

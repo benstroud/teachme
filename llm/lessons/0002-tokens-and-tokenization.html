@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — Tokens &amp; Tokenization</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 10</span><span>Large Language Models</span></div>
+  <h1>Tokens &amp; Tokenization</h1>
+  <p class="subtitle">Models read and write tokens, not characters — so tokenization shapes cost, vocabulary coverage, and context length.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A <strong>tokenizer</strong> turns text into the model's input units (<em>tokens</em>) through a pipeline of normalization, pre-tokenization, and a subword model — and every token you send or generate counts toward the context and the cost.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The tokenization pipeline</h2>
+<ul>
+  <li><strong>Normalization</strong> — clean up text (case, Unicode, accents).</li>
+  <li><strong>Pre-tokenization</strong> — split into rough pieces (e.g. on whitespace/punctuation).</li>
+  <li><strong>Model (BPE / WordPiece / Unigram)</strong> — build and apply a subword vocabulary.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>Post-processing</strong> — add <strong>special tokens</strong> (end-of-sequence, padding, instruction markers).<sup><a href="#r1">1</a></sup></li>
+</ul>
+
+<h2>Why subwords</h2>
+<p>A fixed word vocabulary cannot cover every word a user will type, and a character vocabulary is inefficient. <strong>Subword</strong> tokenizers balance both: common words become single tokens, rare or unknown words are split into known pieces — so anything can still be represented.<sup><a href="#r1">1</a></sup></p>
+
+<pre><code>"unbelievable"  →  ["un", "believ", "able"]     # subword split
+"tokenization"  →  ["token", "ization"]
+</code></pre>
+
+<aside class="note"><strong>Key idea</strong> Tokens are the actual currency: a prompt "cost" is measured in tokens, and the <em>context window</em> is a token budget. Different tokenizers give different token counts for the same text — worth checking before you assume a length.</aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. A token is…</h4>
+  <button class="opt" data-fb="No — a token is several chars, not a single character.">a single character</button>
+  <button class="opt" data-fb="Correct — the model's input unit produced by the tokenizer.">the model's input unit produced by the tokenizer</button>
+  <button class="opt" data-fb="No — a byte is smaller than a token; tokens vary in length.">a single byte of data</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Subword tokenization exists so…</h4>
+  <button class="opt" data-fb="Correct — rare or unknown words still split into known pieces.">rare or unknown words still split into known pieces</button>
+  <button class="opt" data-fb="No — it improves coverage; it does not memorize facts">the model can answer any factual question</button>
+  <button class="opt" data-fb="No — subwords split; they do not compress the weights.">the tokenizer compresses the model weights</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. Special tokens are used for…</h4>
+  <button class="opt" data-fb="No — they delimit; they are not stored secrets.">keeping secrets in the prompt</button>
+  <button class="opt" data-fb="No — they are structural markers, not math operators.">doing arithmetic in the context</button>
+  <button class="opt" data-fb="Correct — marking structure like end-of-sequence or roles.">marking structure like end-of-sequence or roles</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://huggingface.co/docs/tokenizers/index">Tokenizers documentation</a> and the tokenizer chapter of the <a href="https://huggingface.co/learn/nlp-course/en/chapter6/1">Hugging Face course</a> for the full pipeline.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Tokenize the sentence "The quick brown fox jumps over the lazy dog" and describe which tokens are whole words and which are subword pieces. Then count total tokens and say why that number matters for context and cost.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://huggingface.co/docs/tokenizers/index">HF — Tokenizers</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-what-is-an-llm.html">← Lesson 1: What is an LLM</a></span>
+  <span class="nav-next"><a href="0003-the-transformer-and-attention.html">Lesson 3: Transformer &amp; attention →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/llm-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

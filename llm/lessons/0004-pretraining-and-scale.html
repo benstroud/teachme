@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — Pretraining &amp; Scale</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 10</span><span>Large Language Models</span></div>
+  <h1>Pretraining &amp; Scale</h1>
+  <p class="subtitle">Train once on raw text, reuse everywhere: pretraining gives general ability, fine-tuning adapts it — and scale has driven the whole field.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A model is <strong>pretrained</strong> on huge amounts of raw text to learn general language ability, then <strong>fine-tuned</strong> on a narrower task — <em>transfer learning</em> — and the reason this works at all is the sheer scale of data, compute, and parameters.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Pretraining vs fine-tuning</h2>
+<ul>
+  <li><strong>Pretraining</strong> — minimal objective (predict the next token) over massive text; produces a general-purpose base model.</li>
+  <li><strong>Fine-tuning</strong> — continue training a pretrained checkpoint on task data so it adapts (e.g. to follow instructions).</li>
+  <li><strong>Transfer learning</strong> — reuse what was learned on the big general corpus rather than training from scratch.<sup><a href="#r1">1</a></sup></li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> "Architecture" is the network's structure; a <strong>checkpoint</strong> is the specific weights loaded into it. When people say a model like GPT or Llama, they usually mean a published checkpoint you can fine-tune or query.<sup><a href="#r2">2</a></sup></aside>
+
+<h2>An architecture timeline</h2>
+<p>GPT (2018, first pretrained Transformer for fine-tuning) → BERT (2018) → GPT-2 (2019) → T5 (2019) → GPT-3 (2020, zero-shot) → InstructGPT (2022, instruction-following) → Llama (2023) → Mistral (2023).<sup><a href="#r2">2</a></sup></p>
+
+<h2>Scale drives the curve</h2>
+<p>Model size has grown roughly <strong>10x every year</strong>, making language models look like "a new Moore's Law." That scale is why the practical path is to <em>use</em> pretrained models and fine-tune, and why optimization like <em>quantization</em> (storing weights in fewer bits) matters for shipping them.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. Fine-tuning is…</h4>
+  <button class="opt" data-fb="Correct — continuing to train a pretrained checkpoint on task data.">continuing to train a pretrained checkpoint on task data</button>
+  <button class="opt" data-fb="No — fine-tuning starts from a pretrained checkpoint, not scratch.">training a model from random weights</button>
+  <button class="opt" data-fb="No — that is the pretrain step, not fine-tuning.">training on massive raw text</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. A checkpoint refers to…</h4>
+  <button class="opt" data-fb="No — that is the architecture, which checkpoints realize.">the network's layer structure</button>
+  <button class="opt" data-fb="No — a checkpoint is the trained weights, not a GPU state.">a saved GPU state</button>
+  <button class="opt" data-fb="Correct — a specific set of trained weights for an architecture.">a specific set of trained weights for an architecture</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. The "new Moore's Law" trend is that model size…</h4>
+  <button class="opt" data-fb="No — it has grown larger, not smaller.">has shrunk by 10x each year</button>
+  <button class="opt" data-fb="Correct — has grown roughly 10x every year.">has grown roughly 10x every year</button>
+  <button class="opt" data-fb="No — it is size, not a fixed core count.">equals a fixed number of cores</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the exchange in <a href="https://huggingface.co/blog/large-language-models">Large Language Models: A New Moore's Law?</a> and the history/architecture-vs-checkpoint section of the <a href="https://huggingface.co/learn/nlp-course/en/chapter1/4">HF course</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Pick one well-known model, find its architecture and its checkpoint/variant names, and explain what "fine-tuning it" would mean in one sentence.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://huggingface.co/blog/large-language-models">HF — Large Language Models: A New Moore's Law?</a></li>
+    <li id="r2"><a href="https://huggingface.co/learn/nlp-course/en/chapter1/4">HF Course — How do Transformers work?</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-the-transformer-and-attention.html">← Lesson 3: Transformer &amp; attention</a></span>
+  <span class="nav-next"><a href="0005-decoding-and-sampling.html">Lesson 5: Decoding &amp; sampling →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/llm-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

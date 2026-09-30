@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — Alignment (RLHF)</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 10</span><span>Large Language Models</span></div>
+  <h1>Alignment (RLHF)</h1>
+  <p class="subtitle">Next-token prediction alone cannot capture "good answers to people". RLHF adds human preferences as the signal that shapes behavior.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Reinforcement Learning from Human Feedback (RLHF) aligns a base model to human preferences in three steps: take a pretrained (and supervised fine-tuned) model, train a <em>reward model</em> from human preference data, then fine-tune the LM with reinforcement learning.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The three steps</h2>
+<ol>
+  <li><strong>Start with a pretrained (and often SFT) model</strong> — e.g. OpenAI used a smaller GPT-3 for InstructGPT.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>Train a reward model</strong> — from human-ranked pairs of responses, model what "preferable" output looks like.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>Optimize with RL</strong> — fine-tune the LM (typically with PPO) to maximize the reward, with a <strong>KL penalty</strong> to the original model so it does not drift too far.<sup><a href="#r1">1</a></sup></li>
+</ol>
+
+<h2>Why it matters</h2>
+<p>"Good" text is subjective — helpful, harmless, honest — which a next-token loss cannot express. RLHF introduces human feedback as the optimization signal, which is what made instruction-following models like ChatGPT possible.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Supervised fine-tuning (SFT) alone teaches a style; the RLHF reward model + RL step pushes the model toward <em>preferred</em> behavior. The KL penalty keeps alignment from ruining what the base model learned.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. RLHF's three steps are…</h4>
+  <button class="opt" data-fb="No — RLHF needs a pretrained model, a reward model, and RL.">decode, sample, and measure</button>
+  <button class="opt" data-fb="No — that is prompt engineering, not RLHF.">prompt, retrieve, and regenerate</button>
+  <button class="opt" data-fb="Correct — pretrain/SFT, a reward model, then RL.">pretrain/SFT, a reward model, then RL</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The reward model is trained on…</h4>
+  <button class="opt" data-fb="Correct — human preference pairs about which output is better.">human preference pairs about which output is better</button>
+  <button class="opt" data-fb="No — rewards come from human data, not a token count.">a count of generated tokens</button>
+  <button class="opt" data-fb="No — that names the generator, not the reward signal.">random raw text samples</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. The KL penalty in RLHF…</h4>
+  <button class="opt" data-fb="No — it is the opposite: it keeps the model close.">lets the model drift as far as possible</button>
+  <button class="opt" data-fb="Correct — keeps the tuned model close to the original distribution.">keeps the tuned model close to the original distribution</button>
+  <button class="opt" data-fb="No — KL is about distribution distance, not speed.">doubles the generation speed</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the Hugging Face post <a href="https://huggingface.co/blog/rlhf">Illustrating Reinforcement Learning from Human Feedback</a>, which breaks down the three steps and the KL penalty.</p>
+
+<div class="ask"><strong>Ask the agent</strong> In your own words, say why next-token loss is not enough to make a model helpful, and where the reward model and the KL penalty each intervene in RLHF.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://huggingface.co/blog/rlhf">HF — Illustrating RLHF</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-prompting-and-instruction-following.html">← Lesson 7: Prompting</a></span>
+  <span class="nav-next"><a href="0009-grounding-with-rag.html">Lesson 9: Grounding with RAG →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/llm-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

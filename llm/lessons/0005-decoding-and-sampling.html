@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — Decoding &amp; Sampling</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 10</span><span>Large Language Models</span></div>
+  <h1>Decoding &amp; Sampling</h1>
+  <p class="subtitle">The model gives probabilities; decoding decides which token to actually emit. Greedy, beam, sampling, and the knobs that shape creativity.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Language is generated <strong>autoregressively</strong> — each token is chosen from the model's next-token distribution — and the <em>decoding method</em> (greedy, beam, or sampling, with temperature/top-k/top-p) decides how deterministic or creative the result is.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The distribution is the raw material</h2>
+<p>Autoregressive generation assumes the probability of a sequence factorizes into a product of conditional next-token distributions: P(w<sub>1..T</sub>) = &prod;<sub>t</sub>&nbsp;P(w<sub>t</sub> | w<sub>&lt;t</sub>). At each step the model outputs probabilities over the vocabulary; decoding turns that into one token.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Methods and knobs</h2>
+<table>
+  <tr><th>Method / knob</th><th>What it does</th></tr>
+  <tr><td><code>Greedy</code></td><td>Pick the argmax (most likely) token each step; fast but can repeat.</td></tr>
+  <tr><td><code>Beam search</code></td><td>Keep several candidate sequences; good for constrained tasks.</td></tr>
+  <tr><td><code>Sampling</code></td><td>Draw from the distribution; more variety, better for open-ended text.</td></tr>
+  <tr><td><code>Temperature</code></td><td>Low = sharp/deterministic; high = random/creative.</td></tr>
+  <tr><td><code>top-k</code></td><td>Sample only from the k most likely tokens.</td></tr>
+  <tr><td><code>top-p (nucleus)</code></td><td>Sample from the smallest set whose cumulative probability &gt; p.</td></tr>
+</table>
+<sup><a href="#r1">1</a></sup>
+
+<aside class="note"><strong>Key idea</strong> Sampling methods like top-p/top-k usually read as more fluent for open-ended generation, while greedy/beam shine where you want determinism. There is no one right answer — tune to the task.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Greedy decoding chooses…</h4>
+  <button class="opt" data-fb="No — greedy takes the max, it does not sample.">a random token from the distribution</button>
+  <button class="opt" data-fb="Correct — the most likely next token at each step.">the most likely next token at each step</button>
+  <button class="opt" data-fb="No — that is beam search, not greedy.">the top several candidate sequences</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Lower temperature makes output…</h4>
+  <button class="opt" data-fb="Correct — sharper and more deterministic.">sharper and more deterministic</button>
+  <button class="opt" data-fb="No — low temperature sharpens; high randomizes.">more random and creative</button>
+  <button class="opt" data-fb="No — temperature shapes probabilities, not speed.">substantially faster to generate</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. The purpose of top-p (nucleus) sampling is to…</h4>
+  <button class="opt" data-fb="No — top-p is about probability mass, not exactness.">force exact quotes from a document</button>
+  <button class="opt" data-fb="No — top-p restricts candidates; it does not add tokens.">always output the shortest answer</button>
+  <button class="opt" data-fb="Correct — sample from the smallest set above a probability mass.">sample from the smallest set above a probability mass</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://huggingface.co/blog/how-to-generate">How to generate text</a>, which walks greedy, beam, sampling, top-k, and top-p with examples.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Generate one sentence with greedy and again with sampling at high temperature, and describe how the two differ. Then pick a knob (temperature/top-k/top-p) and explain when you would lower it.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://huggingface.co/blog/how-to-generate">HF — How to generate text</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-pretraining-and-scale.html">← Lesson 4: Pretraining &amp; scale</a></span>
+  <span class="nav-next"><a href="0006-the-context-window.html">Lesson 6: The context window →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/llm-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

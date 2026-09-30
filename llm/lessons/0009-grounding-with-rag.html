@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 9 — Grounding with RAG</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 9 of 10</span><span>Large Language Models</span></div>
+  <h1>Grounding with RAG</h1>
+  <p class="subtitle">A model only knows what is in its weights — retrieval plus generation lets it answer from documents you supply, and hallucinate far less.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p><strong>Retrieval-augmented generation (RAG)</strong> combines a generator (an LLM) with a <em>retriever</em> over a document index: for each prompt, retrieve relevant text and let the model generate conditioned on it.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The pieces</h2>
+<ul>
+  <li><strong>Index</strong> — your documents made searchable (e.g. split into chunks and embedded as vectors).</li>
+  <li><strong>Retriever</strong> — given a question, fetch the top-k most relevant chunks.</li>
+  <li><strong>Generator</strong> — the LLM, prompted with the retrieved chunks as context.</li>
+</ul>
+<pre><code>query ──retrieve──▶ top-k chunks ──prompt(instruction + chunks + query)──▶ answer
+</code></pre>
+
+<h2>Why it helps</h2>
+<ul>
+  <li><strong>Grounding:</strong> the model answers from supplied text instead of only its weights, so it can handle private or up-to-date knowledge it never saw in training.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>Less hallucination:</strong> when the answer must be consistent with the retrieved context, the model is less free to invent.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>Fits the window:</strong> you inject a relevant slice rather than an entire knowledge base.</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> RAG trades a bigger model for better-engineered context. It does not make the model omnipotent — retrieve well, and the model stays on script; retrieve poorly, and grounding fails.</aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. RAG adds to an LLM…</h4>
+  <button class="opt" data-fb="No — that is just the model by itself, no retrieval.">a bigger tokenizer</button>
+  <button class="opt" data-fb="Correct — a retriever and a document index to condition on.">a retriever and a document index to condition on</button>
+  <button class="opt" data-fb="No — RAG does not change the pretraining data.">more pretraining data for free</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A major benefit of grounding is…</h4>
+  <button class="opt" data-fb="Correct — answering from supplied documents, with less hallucination.">answering from supplied documents, with less hallucination</button>
+  <button class="opt" data-fb="No — retrieval conditions output; it does not set temperature.">auto-tuning the temperature</button>
+  <button class="opt" data-fb="No — it conditions the text, it cannot remove tokenizer limits.">doubling the context window</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. If retrieval returns irrelevant chunks, the model…</h4>
+  <button class="opt" data-fb="No — grounding depends on what was retrieved.">always ignores them and stays perfect</button>
+  <button class="opt" data-fb="No — irrelevant context is noise, not a safety net.">is automatically protected from error</button>
+  <button class="opt" data-fb="Correct — can be led astray or fail to ground its answer.">can be led astray or fail to ground its answer</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the original paper, <a href="https://arxiv.org/abs/2005.11401">Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks</a>, for the retriever-plus-generator model.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Sketch a minimal RAG flow for a documentation search feature: what are the chunks, how does the retriever rank them, and what does the prompt tell the model to do with them?</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://arxiv.org/abs/2005.11401">Retrieval-Augmented Generation (RAG)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0008-alignment-rlhf.html">← Lesson 8: Alignment</a></span>
+  <span class="nav-next"><a href="0010-evaluation-and-limitations.html">Lesson 10: Evaluation &amp; limits →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/llm-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

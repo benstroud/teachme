@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — What is an LLM</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 10</span><span>Large Language Models</span></div>
+  <h1>What is an LLM</h1>
+  <p class="subtitle">At its core an LLM is not a database or an oracle — it is a very large model trained to predict the next token, generation after generation.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A large language model is a neural network trained on massive amounts of text to <strong>predict the next token</strong>, and it generates text by repeatedly sampling that next token given everything before it.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<h2>What "language model" means</h2>
+<p>A language model assigns probabilities to sequences of words. Its workhorse operation is <em>next-token prediction</em>: given a context ("The quick brown…"), output a probability distribution over what comes next. Generation chains this one token at a time.<sup><a href="#r2">2</a></sup></p>
+
+<h2>What "large" buys you</h2>
+<ul>
+  <li><strong>Scale:</strong> model size (parameter count) has grown roughly <strong>10x every year</strong> — a trend described as "a new Moore's Law."<sup><a href="#r1">1</a></sup></li>
+  <li><strong>Capability:</strong> bigger models trained on more text capture more of the patterns in language, enabling zero-shot and few-shot behavior on tasks they were not explicitly trained to do.<sup><a href="#r3">3</a></sup></li>
+  <li><strong>Cost:</strong> that scale is expensive — training and running them demands serious GPUs, which is why most people <em>use</em> pretrained models rather than train their own.<sup><a href="#r1">1</a></sup></li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> Everything an LLM "knows" is encoded in its weights from training on text — not a trusted fact store. Understanding this is what makes responsible use (grounding, evaluation) click into place later.</aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. An LLM's core operation is…</h4>
+  <button class="opt" data-fb="No — that is a database; the model predicts tokens from weights.">looking facts up in a database</button>
+  <button class="opt" data-fb="No — it predicts text; it is not an algorithmic solver.">solving math exactly every time</button>
+  <button class="opt" data-fb="Correct — predicting the next token given the context.">predicting the next token given the context</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>2. Generation works by…</h4>
+  <button class="opt" data-fb="No — text is produced token by token, not all at once.">writing the whole answer at once</button>
+  <button class="opt" data-fb="Correct — repeatedly predicting the next token and appending it.">repeatedly predicting the next token and appending it</button>
+  <button class="opt" data-fb="No — it generates text; there are no rows to fetch.">fetching a matching row per request</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. The phrase "a new Moore's Law" refers to…</h4>
+  <button class="opt" data-fb="Correct — model size growing roughly 10x each year.">model size growing roughly 10x each year</button>
+  <button class="opt" data-fb="No — it is about size, not a fixed price tag.">trainings being completely free</button>
+  <button class="opt" data-fb="No — it is the scale of the model, not a data format.">a database query language</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Hugging Face explainer <a href="https://huggingface.co/blog/large-language-models">Large Language Models: A New Moore's Law?</a> and the course's <a href="https://huggingface.co/learn/nlp-course/en/chapter1/4">How do Transformers work?</a> for the history and the next-token idea.</p>
+
+<div class="ask"><strong>Ask the agent</strong> In one paragraph, describe what an LLM does without saying "it answers questions". Then name one thing it cannot do because it only predicts text.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://huggingface.co/blog/large-language-models">HF — Large Language Models: A New Moore's Law?</a></li>
+    <li id="r2"><a href="https://huggingface.co/blog/how-to-generate">HF — How to generate text</a></li>
+    <li id="r3"><a href="https://huggingface.co/learn/nlp-course/en/chapter1/4">HF Course — How do Transformers work?</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="0002-tokens-and-tokenization.html">Lesson 2: Tokens →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/llm-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
