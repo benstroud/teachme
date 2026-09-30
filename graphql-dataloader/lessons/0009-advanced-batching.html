@@ -30,7 +30,7 @@
 <p>Each key still gets a value (an array — empty if none), so alignment holds and one query serves every "posts of this user" field in the request.<sup><a href="#r1">1</a></sup></p>
 
 <h2>Two-stage (nested) batching</h2>
-<p>Sometimes a loader needs another loader's output: load posts by owner, collect the unique <code>authorId</code>s, then load authors. Because the second stage's loads all happen together in the same downstream tick, they too form a single batch:</p>
+<p>Sometimes a loader needs another loader's output: load posts by owner, collect the unique <code>authorId</code>s, then load authors. Because the second stage's loads all happen together in the same downstream tick (another event-loop iteration), they too form a single batch:</p>
 <pre><code>async function batchPostAuthors(keys) {
   const postsByOwner = await ownerPostsLoader.loadMany(keys);
   const authorIds = [...new Set(postsByOwner.flat().map(p =&gt; p.authorId))];
@@ -58,7 +58,7 @@
 </div>
 <div class="q" data-correct="0">
   <h4>2. Two-stage batching works because…</h4>
-  <button class="opt" data-fb="Correct — the second loader's loads collect in one downstream tick.">the second loader's loads collect in one downstream tick</button>
+  <button class="opt" data-fb="Correct — the second loader's loads collect in one downstream tick (event-loop iteration).">the second loader's loads collect in one downstream tick</button>
   <button class="opt" data-fb="No — stages run after the previous loader resolves, not concurrently.">both loaders issue their queries at exactly once</button>
   <button class="opt" data-fb="No — only awaited values complete then batch; it does not loop.">the first loader runs repeatedly in a loop</button>
   <div class="fb"></div>

@@ -34,6 +34,8 @@
 
   <dt><strong>batching</strong></dt>
   <dd>DataLoader's primary feature: individual `load()` calls made within a single frame (one tick of the event loop) are coalesced into one call of the batch function with all requested keys.<sup><a href="#r1">1</a></sup></dd>
+<dt><strong>tick (event-loop tick)</strong></dt>
+  <dd>DataLoader's term of art (from its README) for one iteration of the Node event loop — the synchronous work that runs before control yields back to the loop, also called a "frame of execution." Loads made in the same tick coalesce into one batch; it is not a time interval.<sup><a href="#r1">1</a></sup></dd>
 
   <dt><strong>memoization cache</strong></dt>
   <dd>The in-memory cache a DataLoader instance keeps: once a key resolves it is cached, so loading the same object twice in one request avoids a second fetch.<sup><a href="#r1">1</a></sup></dd>

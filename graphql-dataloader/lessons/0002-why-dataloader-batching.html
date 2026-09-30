@@ -18,7 +18,7 @@
 <p>DataLoader is a small utility for the data-fetching layer that provides <strong>batching</strong> (coalesce many individual loads into one batch) and <strong>caching</strong> (memoize the result of each key) over your data source.<sup><a href="#r1">1</a></sup></p>
 
 <h2>Batching, precisely</h2>
-<p>You create a loader with a <em>batch function</em> — it accepts an array of keys and returns an array of values. Individual <code>load(key)</code> calls that happen during a single frame (one tick of the event loop) are coalesced into <em>one</em> call to that batch function with all the requested keys.<sup><a href="#r1">1</a></sup></p>
+<p>You create a loader with a <em>batch function</em> — it accepts an array of keys and returns an array of values. Individual <code>load(key)</code> calls that happen during a single frame (one tick of the event loop) are coalesced into <em>one</em> call to that batch function with all the requested keys.<sup><a href="#r1">1</a></sup> Here a <em>tick</em> means <strong>one iteration of the Node event loop</strong>: all the synchronous work that runs before control yields back to the loop (also called a frame of execution). It is not a time interval — make your <code>load()</code> calls in the same synchronous stretch and they batch; <code>await</code> in between and the earlier group fires first.</p>
 
 <pre><code>const userLoader = new DataLoader(keys =&gt; myBatchGetUsers(keys));
 
