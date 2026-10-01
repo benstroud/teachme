@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 9 — Observability &amp; Operations</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 9 of 10</span><span>Microservices</span></div>
+  <h1>Observability &amp; Operations</h1>
+  <p class="subtitle">Distribution turns debugging into a network problem: trace one request across services, and automate deployment so you can actually run the fleet.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>More services mean more moving parts, so you need <strong>observability</strong> (logs, metrics, especially distributed tracing) to see one request across the system, and <strong>infrastructure automation</strong> to deploy them reliably.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Distributed tracing</h2>
+<p>Carry a shared request/trace id across every service call, so one user action can be followed end to end. That single id is the difference between "the checkout was slow somewhere" and "checkout spent 2s in the payment service."<sup><a href="#r1">1</a></sup></p>
+
+<h2>Logs and metrics</h2>
+<ul>
+  <li><strong>Logs</strong> — structured, each line tagged with the trace id so you can reconstruct a request's path.</li>
+  <li><strong>Metrics</strong> — latency/error/throughput per service and per downstream dependency, so you can see degradation before users do.</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> The operational cost is real: running "lots of services" and keeping deploys frequent demands a mature operations culture and automated pipelines — this is a central cost of the style, not an afterthought.<sup><a href="#r2">2</a></sup></aside>
+
+<h2>Infrastructure automation</h2>
+<p>Independent deployment only helps if deploying is cheap and repeatable. Automate build, test, and release so each service can ship on its own cadence — that is what actually enables the style.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Distributed tracing works by…</h4>
+  <button class="opt" data-fb="No — one shared id ties the calls together.">giving every call a different random id</button>
+  <button class="opt" data-fb="Correct — carrying a shared trace id across all service calls.">carrying a shared trace id across all service calls</button>
+  <button class="opt" data-fb="No — tracing follows the request, not the storage.">storing logs in one big file</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Independent deployment depends on…</h4>
+  <button class="opt" data-fb="Correct — automated build, test, and release pipelines.">automated build, test, and release pipelines</button>
+  <button class="opt" data-fb="No — hand-coordinated deploys are the opposite.">one big manual launch per quarter</button>
+  <button class="opt" data-fb="No — that is about observability, not deployment.">tracing every request</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. A top operational cost of many services is…</h4>
+  <button class="opt" data-fb="No — that is a benefit, not a cost.">independent deploys</button>
+  <button class="opt" data-fb="No — observability makes it manageable, not free.">being cheaper to operate</button>
+  <button class="opt" data-fb="Correct — the complexity of running and redeploying many services.">the complexity of running and redeploying many services</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the infrastructure-automation and operational-systems notes in <a href="https://martinfowler.com/articles/microservices.html">Microservices</a>, and the operational-complexity cost in <a href="https://martinfowler.com/articles/microservice-trade-offs.html">Trade-Offs</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Pick one cross-service flow and describe what logs, metrics, and trace ids you would instrument so you could answer "why was this order slow?" in minutes.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://martinfowler.com/articles/microservices.html">Fowler &amp; Lewis — Microservices</a></li>
+    <li id="r2"><a href="https://martinfowler.com/articles/microservice-trade-offs.html">Fowler — Microservice Trade-Offs</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0008-resilience-and-design-for-failure.html">← Lesson 8: Resilience</a></span>
+  <span class="nav-next"><a href="0010-when-not-to-and-migration.html">Lesson 10: When not to &amp; migration →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/ms-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

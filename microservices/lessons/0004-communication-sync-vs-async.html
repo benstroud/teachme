@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — Communication</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 10</span><span>Microservices</span></div>
+  <h1>Communication</h1>
+  <p class="subtitle">Services connect over a network — so what they send and how they handle failure is a core design decision: sync or async.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>The style favors <strong>smart endpoints and dumb pipes</strong>: keep the transport simple, put logic in the services, and choose between <em>synchronous</em> request/response and <em>asynchronous</em> messages/events for each interaction.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Smart endpoints, dumb pipes</h2>
+<p>Keep the messaging mechanism (the "pipe") as simple as possible and put the business logic in the services (the "endpoints"). Avoid embedding intelligence in the transport or the message bus.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Sync vs async</h2>
+<table>
+  <tr><th>Style</th><th>Typical choice</th><th>Character</th></tr>
+  <tr><td>Synchronous (e.g. HTTP request/response)</td><td>Direct reads and calls that need an immediate answer</td><td>Simple to reason about, but couples the caller to the callee's availability.</td></tr>
+  <tr><td>Asynchronous (messages / events)</td><td>Decoupled work, propagation of changes</td><td>Caller and callee don't wait on each other; better failure tolerance.</td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> Fowler &amp; Lewis explicitly discuss <em>synchronous calls considered harmful</em>: heavy synchronous coupling between services undermines the decoupling that makes the style valuable. Prefer asynchronous, retryable interactions — publish an event, don't hold a long far-flung call chain together.</aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. "Smart endpoints and dumb pipes" means…</h4>
+  <button class="opt" data-fb="No — logic belongs in services, not the transport.">put the logic in the message pipe</button>
+  <button class="opt" data-fb="No — the pipe is the transport, not a data store.">store data inside the pipe</button>
+  <button class="opt" data-fb="Correct — keep the pipe simple and logic in the endpoints.">keep the pipe simple and logic in the endpoints</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A risk of heavy synchronous coupling between services is…</h4>
+  <button class="opt" data-fb="Correct — the caller depends tightly on the callee's availability.">the caller depends tightly on the callee's availability</button>
+  <button class="opt" data-fb="No — distribution is about delays/failures, not fewer hops.">it reduces the number of network hops</button>
+  <button class="opt" data-fb="No — synchronous locks latency, it does not speed it.">it makes responses come back faster</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. Asynchronous messaging is most useful for…</h4>
+  <button class="opt" data-fb="No — async decouples; it does not revoke permissions.">revoking access credentials</button>
+  <button class="opt" data-fb="No — async messages propagate changes; they are not instant reads.">answering every read instantly</button>
+  <button class="opt" data-fb="Correct — decoupled propagation of changes between services.">decoupled propagation of changes between services</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the "smart endpoints and dumb pipes" and synchronous-calls sections of <a href="https://martinfowler.com/articles/microservices.html">Microservices</a>, and the communication patterns on microservices.io.</p>
+
+<div class="ask"><strong>Ask the agent</strong> For an order-placed flow across services, decide which step should be a synchronous HTTP call and which should be an asynchronous event, and justify each based on the need for an immediate answer vs tolerance for failure.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://martinfowler.com/articles/microservices.html">Fowler &amp; Lewis — Microservices</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-finding-service-boundaries.html">← Lesson 3: Service boundaries</a></span>
+  <span class="nav-next"><a href="0005-data-management-and-consistency.html">Lesson 5: Data &amp; consistency →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/ms-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

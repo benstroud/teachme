@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — Distributed Data Patterns</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 10</span><span>Microservices</span></div>
+  <h1>Distributed Data Patterns</h1>
+  <p class="subtitle">With no distributed transaction, patterns handle the span: saga coordinates work, outbox publishes reliably, and composition builds queries.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>When an operation spans services, you cannot use one ACID transaction — so <strong>saga</strong> sequences local transactions with compensations, <strong>transactional outbox</strong> publishes events reliably, and <strong>API composition</strong> (with the gateway) assemblies read results.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<h2>Saga</h2>
+<p>A saga manages a multi-service operation as <em>a sequence of local transactions</em>: each service commits its own step, and if a later step fails, previously applied steps are undone by <em>compensating transactions</em>. This is the alternative to a distributed transaction that doesn't exist.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Transactional outbox</h2>
+<p>To publish an event <em>reliably</em> alongside a data change, write the event to an <em>outbox</em> table in the <em>same local transaction</em> as the business change; a relay later publishes it. This closes the "the DB saved but the event was lost" gap.<sup><a href="#r3">3</a></sup></p>
+
+<h2>API composition &amp; CQRS</h2>
+<ul>
+  <li><strong>API composition</strong> — combine several services' responses to answer one client query (often at a gateway).</li>
+  <li><strong>CQRS</strong> — separate the write model from the read model; your queries can use a denormalized read store that events keep up to date.<sup><a href="#r1">1</a></sup></li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> The common theme: accept <em>eventual consistency</em> and model it explicitly — sagas and outboxes make partial failure and retries <em>handled</em> instead of silent.</aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. A saga handles a multi-service operation by…</h4>
+  <button class="opt" data-fb="No — that is what a single ACID transaction would do.">a distributed ACID transaction</button>
+  <button class="opt" data-fb="No — sagas keep separate local transactions.">one giant transaction over services</button>
+  <button class="opt" data-fb="Correct — a sequence of local transactions with compensations.">a sequence of local transactions with compensations</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The transactional outbox solves…</h4>
+  <button class="opt" data-fb="Correct — publishing an event reliably with the data change.">publishing an event reliably with the data change</button>
+  <button class="opt" data-fb="No — it is about the change+event, not read paths.">serving read-only queries faster</button>
+  <button class="opt" data-fb="No — it holds messages for the write, not the session.">storing user session data</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. API composition is used to…</h4>
+  <button class="opt" data-fb="No — composition reads; sagas coordinate writes.">coordinate a distributed write</button>
+  <button class="opt" data-fb="Correct — combine several services' responses for one query.">combine several services' responses for one query</button>
+  <button class="opt" data-fb="No — that is the gateway's job, done server side.">require the client to call each service</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read <a href="https://microservices.io/patterns/data/saga.html">Saga</a>, <a href="https://microservices.io/patterns/data/transactional-outbox.html">Transactional Outbox</a>, and the distributed data context on microservices.io.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Sketch an order flow as a saga: name the local steps, what compensation each needs, and where a transactional outbox would ensure a downstream service learns about the change reliably.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://microservices.io/patterns/data/database-per-service.html">microservices.io — Database per Service</a></li>
+    <li id="r2"><a href="https://microservices.io/patterns/data/saga.html">microservices.io — Saga</a></li>
+    <li id="r3"><a href="https://microservices.io/patterns/data/transactional-outbox.html">microservices.io — Transactional Outbox</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-data-management-and-consistency.html">← Lesson 5: Data &amp; consistency</a></span>
+  <span class="nav-next"><a href="0007-the-api-gateway.html">Lesson 7: The API gateway →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/ms-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

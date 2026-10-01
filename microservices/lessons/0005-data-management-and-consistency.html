@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — Data Management &amp; Consistency</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 10</span><span>Microservices</span></div>
+  <h1>Data Management &amp; Consistency</h1>
+  <p class="subtitle">Decentralized data is the price of independent services — each owns its store, and consistency becomes eventual.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>The style is <strong>decentralized data management</strong>: each service owns its own database, so a shared database is an anti-pattern that couples services — and the flip side is you must accept <em>eventual consistency</em> across services.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<h2>Database per service</h2>
+<p>Each service owns the data that belongs to its business capability. That makes the service independently schema-managed and lets each team choose its own storage. Sharing a single database between services is generally a trap: it reintroduces the coupling the style exists to remove.<sup><a href="#r3">3</a></sup></p>
+
+<h2>Why strong consistency is hard</h2>
+<p>A single database can give you ACID. Across independently owned databases there is no common transaction — so "strong consistency is extremely difficult" and the system moves to <em>eventual consistency</em>: data converges over time rather than being strongly consistent at every instant.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> You can have ACID within a service or eventual consistency across services — not both. Design users and flows to tolerate the gap (e.g. "we'll confirm shipping shortly") rather than pretending a distributed transaction exists.</aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. The database-per-service principle says…</h4>
+  <button class="opt" data-fb="No — a shared DB is the coupling the style avoids.">all services share one database</button>
+  <button class="opt" data-fb="Correct — each service owns its own data store.">each service owns its own data store</button>
+  <button class="opt" data-fb="No — monolithic layers share a store; services do not.">every module uses exactly one table</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Across independently owned databases, consistency is…</h4>
+  <button class="opt" data-fb="Correct — eventual, since no shared transaction exists.">eventual, since no shared transaction exists</button>
+  <button class="opt" data-fb="No — ACID only holds within a single database.">strongly consistent automatically</button>
+  <button class="opt" data-fb="No — consistency is eventual; it is not avoided.">never needed at all</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. ACID is most realistically available…</h4>
+  <button class="opt" data-fb="No — there is no shared transaction across services.">across every service together</button>
+  <button class="opt" data-fb="No — a shared transaction is exactly what's removed.">only if services share one database</button>
+  <button class="opt" data-fb="Correct — within a single service's own database.">within a single service's own database</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read decentralized data in <a href="https://martinfowler.com/articles/microservices.html">Microservices</a>, the consistency cost in <a href="https://martinfowler.com/articles/microservice-trade-offs.html">Trade-Offs</a>, and <a href="https://microservices.io/patterns/data/database-per-service.html">Database per Service</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> For the store app, name the data each capability-owning service should hold privately, and one piece of data that two services both need — then say how you would share it without a shared database.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://martinfowler.com/articles/microservices.html">Fowler &amp; Lewis — Microservices</a></li>
+    <li id="r2"><a href="https://martinfowler.com/articles/microservice-trade-offs.html">Fowler — Microservice Trade-Offs</a></li>
+    <li id="r3"><a href="https://microservices.io/patterns/data/database-per-service.html">microservices.io — Database per Service</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-communication-sync-vs-async.html">← Lesson 4: Communication</a></span>
+  <span class="nav-next"><a href="0006-distributed-data-patterns.html">Lesson 6: Distributed data patterns →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/ms-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

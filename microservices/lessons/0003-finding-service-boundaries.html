@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — Finding Service Boundaries</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 10</span><span>Microservices</span></div>
+  <h1>Finding Service Boundaries</h1>
+  <p class="subtitle">The hardest question is "where do services split?" — align each service to a business capability and to a team that owns it.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A service should own one <strong>business capability (subdomain)</strong>, and its boundary should line up with the team that lives behind it — because structure follows the organization (Conway's Law).<sup><a href="#r3">3</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<h2>Decompose by business capability</h2>
+<p>microservices.io frames it clearly: decompose the application into services, where each service implements one or more subdomains/business capabilities — "an implementable model of a slice of business functionality."<sup><a href="#r3">3</a></sup> A service owns its business logic, its data, and its adapters.</p>
+
+<h2>Let the team shape the boundary</h2>
+<p>Conway's Law observes that a system mirrors the communication structure of the organization that built it. With larger or multi-location teams, inter-team communication is less frequent and more formal — so a useful consequence is designing each service so it can be owned by one team.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Two heuristics go together: cut along <em>capabilities</em>, not along layers (don't split "front-end", "business logic", "DB" into separate services), and size services so a team can own it end to end. If several teams must change a service together, the boundary is wrong or the service is too big.</aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Good service boundaries are cut along…</h4>
+  <button class="opt" data-fb="No — slicing by layers creates coupled, chatty services.">layers like UI, logic, and database</button>
+  <button class="opt" data-fb="Correct — business capabilities or subdomains.">business capabilities or subdomains</button>
+  <button class="opt" data-fb="No — files-per-service is not a boundary heuristic.">a fixed number of files</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Conway's Law says the architecture tends to mirror…</h4>
+  <button class="opt" data-fb="Correct — the communication structure of the team.">the communication structure of the team</button>
+  <button class="opt" data-fb="No — it is about people/communication, not stored data.">whatever data is in the database</button>
+  <button class="opt" data-fb="No — it mirrors the org, not hardware specs.">the performance of the hardware</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. A good sign a boundary is right is that…</h4>
+  <button class="opt" data-fb="No — needing to change together is exactly the smelly case.">two teams must change it together often</button>
+  <button class="opt" data-fb="No — cross-team formal calls are the norm to accept.">teams constantly email across it</button>
+  <button class="opt" data-fb="Correct — one team can own the service end to end.">one team can own the service end to end</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read <a href="https://microservices.io/patterns/service-decomposition.html">microservices.io — Service Decomposition</a> and the context/forces on the <a href="https://microservices.io/patterns/microservices.html">Microservice Architecture</a> page, plus Conway's Law in the Trade-Offs article.</p>
+
+<div class="ask"><strong>Ask the agent</strong> For a store app, sketch three candidate service boundaries by capability (orders, catalog, shipping). Then say which cross-cutting concern would tempt you to slice by layer, and why that would hurt.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r3"><a href="https://microservices.io/patterns/microservices.html">microservices.io — Microservice Architecture</a></li>
+    <li id="r2"><a href="https://martinfowler.com/articles/microservice-trade-offs.html">Fowler — Microservice Trade-Offs (Conway's Law)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-monolith-vs-microservices.html">← Lesson 2: Monolith vs microservices</a></span>
+  <span class="nav-next"><a href="0004-communication-sync-vs-async.html">Lesson 4: Communication →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/ms-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

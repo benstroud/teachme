@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Microservices — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Microservices</span></div>
+  <h1>Microservices Glossary</h1>
+  <p class="subtitle">Every term in this course, in one place. Return here when a lesson uses a word you do not fully own.</p>
+</header>
+
+<section>
+<h2>The style</h2>
+<dl>
+  <dt><strong>microservice</strong></dt>
+  <dd>Part of a style that builds one application as a suite of small services, each in its own process, communicating via lightweight mechanisms, built around a business capability, and independently deployable.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>independent deployment</strong></dt>
+  <dd>The ability to deploy, release, and evolve a service on its own — a defining trait; coordinated deployments mean the style has broken down.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>monolith</strong></dt>
+  <dd>An application built as a single deployable unit. Well-structured monoliths exist; "monolith" does not automatically mean bad code.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>distributed monolith</strong></dt>
+  <dd>A set of services that must be changed and deployed in lockstep — microservices in name, a monolith in behavior; a warning sign.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>microservice premium</strong></dt>
+  <dd>The productivity cost the style imposes; it is only repaid once system complexity or team size makes it worthwhile.<sup><a href="#r2">2</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Boundaries &amp; teams</h2>
+<dl>
+  <dt><strong>business capability / subdomain</strong></dt>
+  <dd>A slice of business functionality that becomes a natural service boundary — "an implementable model of a slice of business functionality."<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>bounded context</strong></dt>
+  <dd>A DDD boundary within which a domain model is consistent; a service typically owns one.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>Conway's Law</strong></dt>
+  <dd>The observation that a system's structure tends to mirror the communication structure of the team that built it.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>smart endpoints, dumb pipes</strong></dt>
+  <dd>Put logic in the services (the endpoints) and keep the communication pipe as simple as possible.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>shared kernel / database-per-service</strong></dt>
+  <dd>Each service owns its data; a shared database couples services and undermines the style.<sup><a href="#r3">3</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Consistency &amp; data</h2>
+<dl>
+  <dt><strong>ACID</strong></dt>
+  <dd>Atomic, consistent, isolated, durable — the transactional guarantees of a single database.</dd>
+
+  <dt><strong>eventual consistency</strong></dt>
+  <dd>The state of data distributed across services converges over time, rather than being strongly consistent at every instant.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>saga</strong></dt>
+  <dd>A way to manage a transaction that spans services: a sequence of local transactions, with compensation steps to undo on failure — no distributed transaction.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>transactional outbox</strong></dt>
+  <dd>A pattern that publishes an event reliably alongside the data change (an outbox table written in the same transaction).<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>API composition</strong></dt>
+  <dd>Combining responses from several services to answer one client query.</dd>
+
+  <dt><strong>CQRS</strong></dt>
+  <dd>Command-query responsibility segregation: separate the write model from the read model, useful when queries need their own data shape.<sup><a href="#r3">3</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>The edge, resilience &amp; operations</h2>
+<dl>
+  <dt><strong>API gateway</strong></dt>
+  <dd>A single entry point that routes and composes calls to services, keeping clients away from the service mesh.<sup><a href="#r6">6</a></sup></dd>
+
+  <dt><strong>backend-for-frontend</strong></dt>
+  <dd>A gateway owned per client type, shaped to that client's needs.</dd>
+
+  <dt><strong>circuit breaker</strong></dt>
+  <dd>A resiliency pattern that stops calling a failing service after repeated failures, letting it recover.<sup><a href="#r7">7</a></sup></dd>
+
+  <dt><strong>idempotency / retry</strong></dt>
+  <dd>Retries are safe only when a repeated call has no duplicate side effect — handlers should be idempotent.</dd>
+
+  <dt><strong>distributed tracing</strong></dt>
+  <dd>Carrying a trace id across service calls so one user request can be followed end to end.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>service discovery</strong></dt>
+  <dd>How services find each other's addresses at runtime instead of hardcoded URLs.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>strangler fig</strong></dt>
+  <dd>A migration approach that incrementally replaces a monolith with services, piece by piece.<sup><a href="#r1">1</a></sup></dd>
+</dl>
+</section>
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://martinfowler.com/articles/microservices.html">Fowler &amp; Lewis — Microservices</a></li>
+    <li id="r2"><a href="https://martinfowler.com/articles/microservice-trade-offs.html">Fowler — Microservice Trade-Offs</a></li>
+    <li id="r3"><a href="https://microservices.io/patterns/microservices.html">microservices.io — Microservice Architecture</a></li>
+    <li id="r4"><a href="https://microservices.io/patterns/data/saga.html">microservices.io — Saga</a></li>
+    <li id="r5"><a href="https://microservices.io/patterns/data/transactional-outbox.html">microservices.io — Transactional Outbox</a></li>
+    <li id="r6"><a href="https://microservices.io/patterns/apigateway.html">microservices.io — API Gateway</a></li>
+    <li id="r7"><a href="https://microservices.io/patterns/resiliency.html">microservices.io — Resiliency</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Mission &amp; notes</span>
+  <span class="nav-next"><a href="../lessons/0001-what-is-a-microservice.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../NOTES.md">Notes</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

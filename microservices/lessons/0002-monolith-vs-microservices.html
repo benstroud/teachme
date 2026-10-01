@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — Monolith vs Microservices</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 10</span><span>Microservices</span></div>
+  <h1>Monolith vs Microservices</h1>
+  <p class="subtitle">These are two regions of architecture, not good versus evil — the microservice premium decides which you can afford.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A monolith is one deployable unit with strong internal modules; microservices buy strong boundaries and independent deployment at the cost of distribution, consistency, and operations.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<h2>The benefits</h2>
+<ul>
+  <li><strong>Strong module boundaries</strong> — separates code so changes stay local; especially valuable as teams grow.<sup><a href="#r2">2</a></sup></li>
+  <li><strong>Independent deployment</strong> — a simple service is easier to deploy and less likely to take down the whole system.<sup><a href="#r2">2</a></sup></li>
+  <li><strong>Technology diversity</strong> — different languages, frameworks, and stores per service.<sup><a href="#r2">2</a></sup></li>
+</ul>
+
+<h2>The costs</h2>
+<table>
+  <tr><th>Cost</th><th>What it means</th></tr>
+  <tr><td>Distribution</td><td>Remote calls are slow and always at risk of failure.<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td>Eventual consistency</td><td>Strong consistency across services is extremely difficult.<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td>Operational complexity</td><td>You need a mature ops culture to run many redeployed services.<sup><a href="#r2">2</a></sup></td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> The honest framing is the <em>microservice premium</em>: microservices impose a productivity cost that only more complex systems repay. If a well-structured monolith can manage your complexity, you should probably keep it.<sup><a href="#r2">2</a></sup></aside>
+
+<h2>Not a binary choice</h2>
+<p>Neither is a single fixed thing. A well-structured monolith is not a "Big Ball of Mud," and microservices are not automatically better — treat them as two points in the space of architectures and choose for your context.<sup><a href="#r2">2</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. A key benefit of microservices is…</h4>
+  <button class="opt" data-fb="Correct — strong module boundaries and independent deployment.">strong module boundaries and independent deployment</button>
+  <button class="opt" data-fb="No — it is a cost, not a benefit.">strong consistency across services</button>
+  <button class="opt" data-fb="No — distribution is a cost; remote calls are slow.">fewer network calls in total</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. The microservice premium means…</h4>
+  <button class="opt" data-fb="No — it is the opposite: it costs productivity up front.">microservices are always cheaper to build</button>
+  <button class="opt" data-fb="No — it is a real overhead, not a marketing perk.">the style is free to operate</button>
+  <button class="opt" data-fb="Correct — a productivity cost only repaid by more complex systems.">a productivity cost only repaid by more complex systems</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. A well-structured monolith is…</h4>
+  <button class="opt" data-fb="No — it is not automatically indistinguishable from a distributed system.">the same thing as microservices</button>
+  <button class="opt" data-fb="Correct — a legitimate architecture, not automatically bad.">a legitimate architecture, not automatically bad</button>
+  <button class="opt" data-fb="No — monolith refers to a single deployable unit only.">inevitably a Big Ball of Mud</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read <a href="https://martinfowler.com/articles/microservice-trade-offs.html">Microservice Trade-Offs</a> for the benefits/costs and the premium framing, plus the monolith discussion in the original article.</p>
+
+<div class="ask"><strong>Ask the agent</strong> For a small app you know, argue both ways: why you might stay monolithic, and the specific trigger (team size? scaling? deploy cadence?) that would justify splitting.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://martinfowler.com/articles/microservices.html">Fowler &amp; Lewis — Microservices</a></li>
+    <li id="r2"><a href="https://martinfowler.com/articles/microservice-trade-offs.html">Fowler — Microservice Trade-Offs</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-what-is-a-microservice.html">← Lesson 1: What is a microservice</a></span>
+  <span class="nav-next"><a href="0003-finding-service-boundaries.html">Lesson 3: Service boundaries →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/ms-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

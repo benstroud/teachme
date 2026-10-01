@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Microservices — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  code i { color: var(--accent); font-style: normal; }
+  td code { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Microservices</span></div>
+  <h1>Microservices Cheat Sheet</h1>
+  <p class="subtitle">The compressed essence of the course. Skim before a lesson, study it fully before an interview.</p>
+</header>
+
+<section>
+<h2>1. Definition</h2>
+<blockquote>An approach to developing a single application as a suite of small services, each running in its own process and communicating with lightweight mechanisms… built around business capabilities and independently deployable.<cite>Fowler &amp; Lewis — Microservices</cite></blockquote>
+<ul>
+  <li>Defining traits: componentization via services, business capability, decentralized data, smart endpoints / dumb pipes, design for failure.<sup><a href="#r1">1</a></sup></li>
+  <li>Independent deployment is the price of admission; coordinated deploys ⇒ not (really) microservices.<sup><a href="#r2">2</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>2. Trade-offs</h2>
+<table>
+  <tr><th>Benefit</th><th>Cost</th></tr>
+  <tr><td>Strong module boundaries (large teams)</td><td>Distribution — remote calls are slow and can fail</td></tr>
+  <tr><td>Independent deployment</td><td>Eventual consistency — strong consistency is hard</td></tr>
+  <tr><td>Technology diversity</td><td>Operational complexity — many services to run</td></tr>
+</table>
+<p>Microservice premium: the style costs productivity that only more complex systems repay. If a monolith manages your complexity, keep it.<sup><a href="#r2">2</a></sup></p>
+</section>
+
+<section>
+<h2>3. Finding boundaries</h2>
+<ul>
+  <li>Decompose by <strong>business capability / subdomain</strong> (a service owns one).<sup><a href="#r3">3</a></sup></li>
+  <li>Conway's Law: team structure shapes the architecture — size services to team ownership.<sup><a href="#r2">2</a></sup></li>
+  <li>Beware the <strong>distributed monolith</strong>: services that must change together.</li>
+</ul>
+</section>
+
+<section>
+<h2>4. Communication</h2>
+<ul>
+  <li>Smart endpoints, dumb pipes: keep logic in services, pipes simple.<sup><a href="#r1">1</a></sup></li>
+  <li>Sync (HTTP) for request/response; async (events) to decouple and tolerate failure.<sup><a href="#r1">1</a></sup></li>
+  <li>Synchronous coupling between services is often discouraged — prefer asynchronous/retryable flows.<sup><a href="#r1">1</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>5. Data &amp; consistency</h2>
+<ul>
+  <li><strong>Database per service:</strong> each service owns its data; a shared DB couples services.<sup><a href="#r3">3</a></sup></li>
+  <li>Accept eventual consistency; strong consistency across services is extremely difficult.<sup><a href="#r2">2</a></sup></li>
+  <li>Patterns: <strong>saga</strong> (sequence of local transactions + compensations), <strong>transactional outbox</strong> (publish events reliably), API composition, CQRS.<sup><a href="#r4">4</a></sup><sup><a href="#r5">5</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>6. Edge, resilience, operations</h2>
+<ul>
+  <li><strong>API gateway</strong> — one entry that routes and composes; keep clients off the mesh.<sup><a href="#r6">6</a></sup></li>
+  <li><strong>Design for failure:</strong> timeouts, retries (idempotent handlers), <strong>circuit breaker</strong>, service discovery.<sup><a href="#r7">7</a></sup></li>
+  <li><strong>Observe:</strong> distributed tracing + metrics across calls; infrastructure automation for deploys.</li>
+</ul>
+</section>
+
+<section>
+<h2>7. Decision checklist</h2>
+<ul>
+  <li>If a well-structured monolith controls complexity, stay with it (premium).<sup><a href="#r2">2</a></sup></li>
+  <li>Split when teams or scaling requires it — align services to business capabilities and team ownership.</li>
+  <li>Keep each service's data private; use async/events and sagas where a single ACID tx is impossible.</li>
+  <li>Put a gateway at the edge; make failures visible and self-healing.</li>
+  <li>Migrate a monolith incrementally (strangler fig), never a big-bang rewrite.<sup><a href="#r1">1</a></sup></li>
+</ul>
+</section>
+
+<footer class="citation">
+  Primary sources: <a href="https://martinfowler.com/articles/microservices.html">Fowler &amp; Lewis</a>,
+  <a href="https://martinfowler.com/articles/microservice-trade-offs.html">Trade-Offs</a>,
+  <a href="https://microservices.io/patterns/microservices.html">microservices.io</a>.
+  <ol>
+    <li id="r1"><a href="https://martinfowler.com/articles/microservices.html">Fowler &amp; Lewis — Microservices</a></li>
+    <li id="r2"><a href="https://martinfowler.com/articles/microservice-trade-offs.html">Fowler — Microservice Trade-Offs</a></li>
+    <li id="r3"><a href="https://microservices.io/patterns/microservices.html">microservices.io — Microservice Architecture</a></li>
+    <li id="r4"><a href="https://microservices.io/patterns/data/saga.html">microservices.io — Saga</a></li>
+    <li id="r5"><a href="https://microservices.io/patterns/data/transactional-outbox.html">microservices.io — Transactional Outbox</a></li>
+    <li id="r6"><a href="https://microservices.io/patterns/apigateway.html">microservices.io — API Gateway</a></li>
+    <li id="r7"><a href="https://microservices.io/patterns/resiliency.html">microservices.io — Resiliency</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="../lessons/0001-what-is-a-microservice.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

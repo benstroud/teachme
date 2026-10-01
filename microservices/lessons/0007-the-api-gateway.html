@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — The API Gateway</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 10</span><span>Microservices</span></div>
+  <h1>The API Gateway</h1>
+  <p class="subtitle">Clients shouldn't navigate the service mesh — a gateway is the single entry that routes and composes calls for them.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>An <strong>API gateway</strong> is a single entry point for clients that routes requests to the right services and, when needed, composes several services' responses into one — so clients never talk to each service directly.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Why a gateway</h2>
+<ul>
+  <li><strong>One endpoint for clients</strong> — a web/mobile client issues one request instead of fanning out to many services.</li>
+  <li><strong>Routing</strong> — the gateway dispatches by path/operation to the owning service.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>Composition / aggregation</strong> — it combines responses for a screen (the API-composition read path).<sup><a href="#r1">1</a></sup></li>
+  <li><strong>Cross-cutting edge</strong> — auth, rate limiting, and CORS can live here.</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> The gateway is a pragmatic counterpart to "dumb pipes": it exists because clients genuinely need a point of aggregation. A <em>backend-for-frontend</em> is the same idea scoped per client type, so each platform gets the shape it needs.<sup><a href="#r2">2</a></sup></aside>
+
+<h2>Watch the trade-offs</h2>
+<p>A gateway is also a single point that must not become a bottleneck or a monolith-in-disguise. Keep it thin (routing and light composition), and push heavy or long-running work into the services or async flows.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. The main job of an API gateway is…</h4>
+  <button class="opt" data-fb="No — it fronts services; it does not store their data.">to store each service's data</button>
+  <button class="opt" data-fb="Correct — route and compose calls as one entry point for clients.">route and compose calls as one entry point for clients</button>
+  <button class="opt" data-fb="No — that is a database, not a gateway.">to replace the databases</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A backend-for-frontend is…</h4>
+  <button class="opt" data-fb="Correct — a gateway scoped to one client type.">a gateway scoped to one client type</button>
+  <button class="opt" data-fb="No — it is client-owned; it is not a shared server.">shared infrastructure for all clients</button>
+  <button class="opt" data-fb="No — it serves the client, not the other servers.">a place only other services call</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. A gateway risk to avoid is…</h4>
+  <button class="opt" data-fb="No — routing/composition is its purpose.">becoming a thin router</button>
+  <button class="opt" data-fb="No — auth/limits are reasonable edge duties.">handling cross-cutting security</button>
+  <button class="opt" data-fb="Correct — becoming a bottleneck or monolith in disguise.">becoming a bottleneck or monolith in disguise</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://microservices.io/patterns/apigateway.html">microservices.io — API Gateway</a> and the backend-for-frontend notes for how the edge is shaped.<sup><a href="#r2">2</a></sup></p>
+
+<div class="ask"><strong>Ask the agent</strong> For the store app, sketch gateway routes for a "checkout" screen that needs order, catalog, and shipping data, and say what the client would otherwise have to do if there were no gateway.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://microservices.io/patterns/apigateway.html">microservices.io — API Gateway</a></li>
+    <li id="r2"><a href="https://martinfowler.com/articles/microservices.html">Fowler &amp; Lewis — Microservices</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-distributed-data-patterns.html">← Lesson 6: Distributed data patterns</a></span>
+  <span class="nav-next"><a href="0008-resilience-and-design-for-failure.html">Lesson 8: Resilience →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/ms-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

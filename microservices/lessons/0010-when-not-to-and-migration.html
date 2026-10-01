@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 10 — When Not To &amp; Migration</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 10 of 10</span><span>Microservices</span></div>
+  <h1>When Not To &amp; Migration</h1>
+  <p class="subtitle">Microservices are a decision, not a default — and when you do split, do it one capability at a time, never a big-bang rewrite.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Choose microservices only when their premium is repaid (team size, scaling, independent cadence), and when you do migrate, replace the monolith <em>incrementally</em> — the <em>strangler fig</em> approach — rather than rewriting it wholesale.<sup><a href="#r2">2</a></sup><sup><a href="#r1">1</a></sup></p>
+
+<h2>When NOT to split</h2>
+<ul>
+  <li><strong>Small team, manageable monolith</strong> — if a well-structured monolith contains the complexity, the premium is not worth paying.<sup><a href="#r2">2</a></sup></li>
+  <li><strong>No independent deploy need</strong> — the whole point is missing if services must deploy together (that is a <em>distributed monolith</em>).<sup><a href="#r2">2</a></sup></li>
+  <li><strong>Immature operations</strong> — many services demand automation and observability that a small team may not yet have.<sup><a href="#r2">2</a></sup></li>
+</ul>
+
+<h2>Migrating with the strangler fig</h2>
+<p>Extract one business capability at a time into a new service, routing traffic to it while the monolith handles the rest — then repeat. This keeps the system shipping and rollbackable at each step, avoiding the risk of a big-bang rewrite.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> The style's soft factors — team quality, collaboration, domain communication — matter more than the split itself. Choose microservices for capability and team reasons, not because they sound modern.</aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. A reason NOT to adopt microservices is…</h4>
+  <button class="opt" data-fb="No — that is the payoff, not a reason to avoid.">a large team with independent cadence</button>
+  <button class="opt" data-fb="No — that is a benefit the style provides.">a real need to scale separately</button>
+  <button class="opt" data-fb="Correct — a small team with a monolith that manages complexity.">a small team with a monolith that manages complexity</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The strangler fig approach means…</h4>
+  <button class="opt" data-fb="Correct — incrementally extracting capabilities from the monolith.">incrementally extracting capabilities from the monolith</button>
+  <button class="opt" data-fb="No — a rewrite is the big-bang risk to avoid.">rewriting everything at once</button>
+  <button class="opt" data-fb="No — it routes traffic gradually, not all at once.">cutting over all users on day one</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. A distributed monolith is…</h4>
+  <button class="opt" data-fb="No — independent deployment is exactly what is missing.">the ideal microservice shape</button>
+  <button class="opt" data-fb="Correct — services that must be changed and deployed in lockstep.">services that must be changed and deployed in lockstep</button>
+  <button class="opt" data-fb="No — it describes coupling, not physical location.">services running on one machine</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Bring it together with <a href="https://martinfowler.com/articles/microservice-trade-offs.html">Microservice Trade-Offs</a> and the migration advice in the original <a href="https://martinfowler.com/articles/microservices.html">Microservices</a> article.</p>
+
+<div class="ask"><strong>Ask the agent</strong> For a monolith, choose ONE capability to extract first as a strangler-fig step: what you would route, how you would keep it rollbackable, and what would signal it was time to extract another.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://martinfowler.com/articles/microservices.html">Fowler &amp; Lewis — Microservices</a></li>
+    <li id="r2"><a href="https://martinfowler.com/articles/microservice-trade-offs.html">Fowler — Microservice Trade-Offs</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0009-observability-and-operations.html">← Lesson 9: Observability &amp; operations</a></span>
+  <span class="nav-next"><a href="../reference/ms-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/ms-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

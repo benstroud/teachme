@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — Resilience &amp; Design for Failure</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 10</span><span>Microservices</span></div>
+  <h1>Resilience &amp; Design for Failure</h1>
+  <p class="subtitle">A design-for-failure system assumes calls can lag or fail — and uses timeouts, retries, idempotency, and circuit breakers to stay useful.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Because the network and other services <em>will</em> fail, design-for-failure means every call gets a timeout, failure is retried only when safe (idempotency), and a <strong>circuit breaker</strong> stops hammering a failing service.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<h2>Idempotency and retries</h2>
+<p>A retry is dangerous unless the handler is <em>idempotent</em> — a repeated call must not duplicate side effects (e.g. charge twice). Design requests with stable IDs so a retried operation can be recognized and deduplicated.</p>
+
+<h2>Circuit breaker</h2>
+<p>Rather than letting every call wait on a failing service (and degrade the caller), a <strong>circuit breaker</strong> trips after repeated failures: subsequent calls fail fast for a while, giving the dependency time to recover, then the circuit tries to close again.<sup><a href="#r2">2</a></sup></p>
+
+<pre><code>call dependent
+  ├─ success  → keep going
+  └─ failures → after N, OPEN the circuit: fail fast
+                (periodically TRY to close / half-open)
+</code></pre>
+
+<aside class="note"><strong>Key idea</strong> Resilience is an explicit program, not hope: timeouts bound the wait, idempotency makes retries safe, the breaker contains the blast radius — and observability (next lesson) tells you which one to pay attention to.</aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. A retry is only safe when the handler is…</h4>
+  <button class="opt" data-fb="No — non-idempotent retries double side effects.">non-idempotent</button>
+  <button class="opt" data-fb="Correct — idempotent, so a repeat has no extra side effect.">idempotent, so a repeat has no extra side effect</button>
+  <button class="opt" data-fb="No — that is about testing, not side effects.">written in a particular language</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A circuit breaker helps because it…</h4>
+  <button class="opt" data-fb="Correct — fails fast after repeated failures, letting the service recover.">fails fast after repeated failures, letting the service recover</button>
+  <button class="opt" data-fb="No — the breaker prevents calls, it does not multiply them.">triples the number of retries</button>
+  <button class="opt" data-fb="No — a breaker is a call guard, not a cache.">caches responses to hide failures</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. Design-for-failure mainly means…</h4>
+  <button class="opt" data-fb="No — assuming failure is the point, not ignoring it.">trusting every call to succeed</button>
+  <button class="opt" data-fb="No — failure handling is the design, not an afterthought.">removing all error handling</button>
+  <button class="opt" data-fb="Correct — assuming calls can lag or fail and handling that.">assuming calls can lag or fail and handling that</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the resiliency patterns on <a href="https://microservices.io/patterns/resiliency.html">microservices.io</a> (circuit breaker, retry) and the "design for failure" section of <a href="https://martinfowler.com/articles/microservices.html">Microservices</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> For one integration of yours, write the resilience plan: the timeout you set, whether the call is idempotent (and how you make it so), and the breaker thresholds you would choose.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://martinfowler.com/articles/microservices.html">Fowler &amp; Lewis — Microservices (design for failure)</a></li>
+    <li id="r2"><a href="https://microservices.io/patterns/resiliency.html">microservices.io — Resiliency</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-the-api-gateway.html">← Lesson 7: The API gateway</a></span>
+  <span class="nav-next"><a href="0009-observability-and-operations.html">Lesson 9: Observability &amp; operations →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/ms-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

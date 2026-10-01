@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — What is a Microservice</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 10</span><span>Microservices</span></div>
+  <h1>What is a Microservice</h1>
+  <p class="subtitle">Not "many tiny services" for its own sake — a suite of small, independently deployable services, each aligned to a business capability.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Microservices is an approach to <strong>developing one application as a suite of small services</strong>, each in its own process, communicating over lightweight mechanisms, built around a business capability, and independently deployable.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The defining traits</h2>
+<blockquote>An approach to developing a single application as a suite of small services, each running in its own process and communicating with lightweight mechanisms, often an HTTP resource API. These services are built around business capabilities and independently deployable by fully automated deployment machinery.<cite>Fowler &amp; Lewis — Microservices</cite></blockquote>
+
+<p>The frequently cited characteristics of the style include:<sup><a href="#r1">1</a></sup></p>
+<ul>
+  <li><strong>Componentization via services</strong> — components are services, not in-process libraries.</li>
+  <li><strong>Organized around business capabilities</strong> — the service maps to a business function.</li>
+  <li><strong>Decentralized data management</strong> — each service owns its own data.</li>
+  <li><strong>Smart endpoints, dumb pipes</strong> — logic lives in services; the pipe stays simple.</li>
+  <li><strong>Design for failure</strong> and infrastructure automation — the services assume the network/process can fail.</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> The two words to hold onto are <em>independently deployable</em> and <em>business capability</em>. If services must be deployed or changed in lockstep, they are not really microservices — they are a distributed monolith.<sup><a href="#r2">2</a></sup></aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. The microservice style is best defined as…</h4>
+  <button class="opt" data-fb="Correct — a single app built as independently deployable services by capability.">a single app built as independently deployable services by capability</button>
+  <button class="opt" data-fb="No — one process is the monolith; services run in their own process.">one big process that handles everything</button>
+  <button class="opt" data-fb="No — it is about deployment and capability, not file count.">as many source files as possible</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. A defining trait is being organized around…</h4>
+  <button class="opt" data-fb="No — that is shared coupling, the opposite of the style.">a single shared database</button>
+  <button class="opt" data-fb="No — capabilities are business functions, not teams per floor.">office floorplans</button>
+  <button class="opt" data-fb="Correct — business capabilities.">business capabilities</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. Services that must be deployed together are…</h4>
+  <button class="opt" data-fb="No — that would not be independently deployable.">exactly the ideal microservice</button>
+  <button class="opt" data-fb="Correct — a sign of a distributed monolith.">a sign of a distributed monolith</button>
+  <button class="opt" data-fb="No — deployment coordination breaks the style's core.">how the style always works</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://martinfowler.com/articles/microservices.html">Fowler &amp; Lewis — Microservices</a>, section by section, and note the nine characteristics.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Take an application you know (e.g. a store) and list three business capabilities. For each, say whether it looks like a good candidate service and why independent deployment would matter.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://martinfowler.com/articles/microservices.html">Fowler &amp; Lewis — Microservices</a></li>
+    <li id="r2"><a href="https://martinfowler.com/articles/microservice-trade-offs.html">Fowler — Microservice Trade-Offs</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="0002-monolith-vs-microservices.html">Lesson 2: Monolith vs microservices →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/ms-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
