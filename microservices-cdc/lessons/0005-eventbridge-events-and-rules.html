@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — EventBridge Events &amp; Rules</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 10</span><span>Microservices CDC</span></div>
+  <h1>EventBridge Events &amp; Rules</h1>
+  <p class="subtitle">The bus receives events; rules with event patterns decide which of them reach which target — usually a Lambda.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>An <strong>event bus</strong> is a router that receives events and, via <strong>rules</strong> with <strong>event patterns</strong>, delivers each matching event to zero or more <strong>targets</strong> (often Lambda functions).<sup><a href="#r1">1</a></sup></p>
+
+<h2>The pieces</h2>
+<ul>
+  <li><strong>Event bus</strong> — the central router for your CDC integration.</li>
+  <li><strong>Rule</strong> — attached to the bus with an <strong>event pattern</strong> (e.g. match on <code>source</code> and <code>detail-type</code>).</li>
+  <li><strong>Target</strong> — where matching events go, e.g. an inventory-consumer Lambda.</li>
+</ul>
+
+<pre><code>// a rule matches an event pattern
+{
+  "source": ["orders"],
+  "detail-type": ["OrderPlaced", "OrderUpdated"]
+}
+</code></pre>
+<p>One bus can host many rules, so a single change can fan out to several consumers while each rule filters only what it cares about.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Put the fan-out in EventBridge, not in the producer or in a Lambda: the publisher emits once, and rules route to whichever services need the event — that is what keeps services decoupled.</aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. An event bus is best described as…</h4>
+  <button class="opt" data-fb="No — it is a router, not a place to store data.">a permanent data store</button>
+  <button class="opt" data-fb="No — buses receive events from producers, not targets.">only a place for consumers</button>
+  <button class="opt" data-fb="Correct — a router that delivers events to matching targets.">a router that delivers events to matching targets</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The job of a rule is to…</h4>
+  <button class="opt" data-fb="Correct — match events by pattern and route them to targets.">match events by pattern and route them to targets</button>
+  <button class="opt" data-fb="No — the rule filters and routes; it does not create lambdas.">create new Lambda functions</button>
+  <button class="opt" data-fb="No — rules are declarative; they do not run business logic.">execute the business logic</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. With one bus, several consumers are served by…</h4>
+  <button class="opt" data-fb="No — one publisher emits once, and rules do the fan-out.">every consumer publishing again</button>
+  <button class="opt" data-fb="Correct — multiple rules, each filtering and routing to its target.">multiple rules, each filtering and routing to its target</button>
+  <button class="opt" data-fb="No — the bus, not the target, decides routing.">the consumer choosing its own events</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-what-is.html">Amazon EventBridge</a> and the rules/event-patterns pages in the same user guide.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Write two rules on one bus: one that routes OrderPlaced to an inventory consumer and one that routes OrderUpdated to an audit consumer, with a matching event pattern each.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-what-is.html">Amazon EventBridge — What is it?</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-atlas-to-eventbridge.html">← Lesson 4: Atlas → EventBridge</a></span>
+  <span class="nav-next"><a href="0006-the-relay-lambda.html">Lesson 6: The relay Lambda →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/cdc-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — Why CDC Between Services</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 10</span><span>Microservices CDC · Lambda · EventBridge · MongoDB · CDK</span></div>
+  <h1>Why CDC Between Services</h1>
+  <p class="subtitle">Each service owns its database, so when one service's data changes, the others can't read it — they must be told. That's change data capture.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Because every service owns its data, another service cannot query it directly — so a data change in MongoDB must become an <strong>event</strong> that downstream services consume (change data capture / CDC).<sup><a href="#r1">1</a></sup></p>
+
+<h2>The problem: private data</h2>
+<p>You do not share a database, and you do not call another service's code to notice its writes. When an order is placed in the orders service, inventory wants to know — so the orders data must be <em>propagated</em> as an event instead of being read directly.</p>
+
+<h2>How you could propagate a change</h2>
+<table>
+  <tr><th>Approach</th><th>Idea</th></tr>
+  <tr><td>Share a database</td><td>Fast to build; reintroduces coupling between services.</td></tr>
+  <tr><td>Transactional outbox</td><td>Writer emits a prepared event in the same transaction as the change.<sup><a href="#r3">3</a></sup></td></tr>
+  <tr><td>Change data capture (CDC)</td><td>Observe the database log/change stream and emit events for changes made by <em>any</em> writer.</td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> CDC shines when you cannot change every write path: MongoDB Change Streams watch the actual changes, so even changes made by other systems still produce events.<sup><a href="#r2">2</a></sup></aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. The core reason to use CDC between services is…</h4>
+  <button class="opt" data-fb="No — each service owns its data; another cannot read it directly.">services can all query one shared database</button>
+  <button class="opt" data-fb="No — that is coupling, exactly what the style avoids.">in-process method calls</button>
+  <button class="opt" data-fb="Correct — data changes must be propagated as events, not read directly.">data changes must be propagated as events, not read directly</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A benefit of CDC over hand-emitted events is…</h4>
+  <button class="opt" data-fb="Correct — it captures changes even from writers you do not control.">it captures changes even from writers you do not control</button>
+  <button class="opt" data-fb="No — change streams observe writes; they do not skip them.">it skips the database writes entirely</button>
+  <button class="opt" data-fb="No — CDC observes actual changes; it is not polling reads.">it reads the database on a timer</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. The transactional outbox differs from CDC in that…</h4>
+  <button class="opt" data-fb="No — outbox requires the writer to record the event.">it needs no writer involvement at all</button>
+  <button class="opt" data-fb="Correct — the writer must emit the event in its own transaction.">the writer must emit the event in its own transaction</button>
+  <button class="opt" data-fb="No — outbox co-locates the event; it is not a change stream.">it watches the change stream instead</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read <a href="https://www.mongodb.com/docs/manual/changeStreams/">MongoDB Change Streams</a> for the observation side, and <a href="https://microservices.io/patterns/data/transactional-outbox.html">Transactional Outbox</a> for the alternative.</p>
+
+<div class="ask"><strong>Ask the agent</strong> For an order→inventory flow, name the problem with a shared database, and say why a writer-emitted event might miss changes that CDC would catch.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/atlas/triggers/eventbridge/">MongoDB Atlas — Send Trigger Events to EventBridge</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/manual/changeStreams/">MongoDB — Change Streams</a></li>
+    <li id="r3"><a href="https://microservices.io/patterns/data/transactional-outbox.html">microservices.io — Transactional Outbox</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="0002-mongodb-change-streams.html">Lesson 2: MongoDB change streams →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/cdc-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

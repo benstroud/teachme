@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — MongoDB Change Streams</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 10</span><span>Microservices CDC</span></div>
+  <h1>MongoDB Change Streams</h1>
+  <p class="subtitle">Change streams are the CDC source of truth: watch a collection and get a live feed of inserts, updates, replaces, and deletes.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>MongoDB Change Streams let an application <strong>watch</strong> a collection, database, or deployment and receive change events for inserts, updates, replaces, and deletes — backed by the oplog and resumable via tokens.<sup><a href="#r1">1</a></sup></p>
+
+<h2>What you watch and what you get</h2>
+<pre><code>// watch a collection (driver / mongosh)
+const changeCursor = db.orders.watch([
+  { $match: { operationType: { $in: ['insert', 'update', 'replace', 'delete'] } } },
+]);
+
+// each change event carries:
+//   operationType         'insert' | 'update' | 'replace' | 'delete' …
+//   documentKey           { _id: … }   the stable identifier
+//   fullDocument          the post-change document (with updateLookup)
+//   resumeToken | clusterTime
+</code></pre>
+<ul>
+  <li>Watch scope can be a collection, a database, or the whole deployment.<sup><a href="#r1">1</a></sup></li>
+  <li><code>$match</code> filters the event types you care about (here only CRUD operations).</li>
+  <li><code>fullDocument: 'updateLookup'</code> returns the document after an update; the document key is your stable event id.<sup><a href="#r1">1</a></sup></li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> Because a change stream reflects <em>actual</em> writes to the database, it captures changes from any writer — not just your service — which is exactly why it is a good CDC source.<sup><a href="#r1">1</a></sup></aside>
+
+<h2>Resume tokens keep you going</h2>
+<p>If your listener disconnects, a <strong>resume token</strong> lets you continue from where you stopped rather than re-reading everything — vital for a reliable relay.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. A change stream reports…</h4>
+  <button class="opt" data-fb="Correct — real writes to a watched collection, database, or deployment.">real writes to a watched collection, database, or deployment</button>
+  <button class="opt" data-fb="No — it observes writes; it does not run your queries.">the results of your queries</button>
+  <button class="opt" data-fb="No — changes are pushed, not read on a poll.">only scheduled batch reads</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. The document's stable identifier is its…</h4>
+  <button class="opt" data-fb="No — operationType says what happened, not which doc.">operationType</button>
+  <button class="opt" data-fb="No — fullDocument holds the values, not the identity.">fullDocument value</button>
+  <button class="opt" data-fb="Correct — documentKey with the _id.">documentKey with the _id</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. A resume token exists to…</h4>
+  <button class="opt" data-fb="No — it continues the stream; it does not recreate data.">rebuild the entire database</button>
+  <button class="opt" data-fb="Correct — resume a change stream after a disconnect where it left off.">resume a change stream after a disconnect where it left off</button>
+  <button class="opt" data-fb="No — it resumes position, not permissions.">grant access to other services</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://www.mongodb.com/docs/manual/changeStreams/">MongoDB Change Streams</a>, including the event and resume-token sections, to firm up the exact fields.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Against a local collection, open a change stream, insert and then update a document, and list the operationType, documentKey, and fullDocument you observe for each.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/changeStreams/">MongoDB — Change Streams</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-why-cdc-between-services.html">← Lesson 1: Why CDC between services</a></span>
+  <span class="nav-next"><a href="0003-designing-mutation-events.html">Lesson 3: Designing mutation events →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/cdc-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

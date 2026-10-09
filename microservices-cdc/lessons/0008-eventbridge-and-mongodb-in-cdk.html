@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — EventBridge &amp; MongoDB in CDK</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 10</span><span>Microservices CDC</span></div>
+  <h1>EventBridge &amp; MongoDB in CDK</h1>
+  <p class="subtitle">Declare the bus, rules, and Lambda consumers as infrastructure — CDK wires them together and grants the permissions for you.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Use the AWS CDK to define the <code>EventBus</code>, a <code>Rule</code> with an event pattern, and a <code>NodejsFunction</code> consumer as a target — CDK creates the rule-to-Lambda trigger and IAM.</p>
+
+<pre><code>import { EventBus, Rule } from 'aws-cdk-lib/aws-events';
+import { LambdaFunction } from 'aws-cdk-lib/aws-events-targets';
+import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
+
+const bus = new EventBus(this, 'OrdersBus', { eventBusName: 'orders' });
+const inventory = new NodejsFunction(this, 'InventoryConsumer', { entry: 'inventory.ts' });
+
+new Rule(this, 'ForOrderPlaced', {
+  eventBus: bus,
+  eventPattern: { source: ['orders'], 'detail-type': ['OrderPlaced'] },
+  targets: [new LambdaFunction(inventory)],
+});
+</code></pre>
+
+<ul>
+  <li><code>EventBus</code> is the router; <code>Rule</code> + <code>eventPattern</code> filter; the Lambda target receives matches.<sup><a href="#r1">1</a></sup></li>
+  <li><code>NodejsFunction</code> bundles your TypeScript Lambda.<sup><a href="#r2">2</a></sup></li>
+  <li>CDK grants the rule permission to invoke the Lambda — matching infra grows with the code.</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> The insight: after you craft the CDC source (Atlas trigger or relay), the bus/rules/consumers are just declarative infra in the CDK app — one bus, several rules, one consumer per concern.</aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. In CDK, a Lambda receives matching events because…</h4>
+  <button class="opt" data-fb="No — the rule targets the Lambda; there is no implicit listener.">it sets a long-running listener</button>
+  <button class="opt" data-fb="No — it is wired as a rule target, not a subscriber flag.">it marks itself a subscriber alone</button>
+  <button class="opt" data-fb="Correct — a Rule with an event pattern lists it as a target.">a Rule with an event pattern lists it as a target</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The rule's event pattern filters on…</h4>
+  <button class="opt" data-fb="Correct — fields like source and detail-type of the event.">fields like source and detail-type of the event</button>
+  <button class="opt" data-fb="No — it does not change the Lambda code path.">whether a Lambda is TypeScript</button>
+  <button class="opt" data-fb="No — it is about events, not package versions.">bundler version numbers</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. NodejsFunction is used in CDK to…</h4>
+  <button class="opt" data-fb="No — it is a Lambda construct, not a database resource.">define a MongoDB collection</button>
+  <button class="opt" data-fb="No — it bundles code; it is not a rule target.">create an EventBridge rule</button>
+  <button class="opt" data-fb="Correct — define and bundle a TypeScript Lambda.">define and bundle a TypeScript Lambda</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the <a href="https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_events.html">aws-events</a> and <a href="https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_lambda_nodejs.html">aws-lambda-nodejs</a> CDK module references for exact method names.</p>
+
+<div class="ask"><strong>Ask the agent</strong> In a scratch CDK app, define a bus, two rules (OrderPlaced → inventory, OrderUpdated → audit), two NodejsFunction consumers, and synth to inspect the generated rule→lambda trigger.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_events.html">AWS CDK — EventBridge module</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_lambda_nodejs.html">AWS CDK — NodejsFunction</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-the-consumer-lambda.html">← Lesson 7: The consumer Lambda</a></span>
+  <span class="nav-next"><a href="0009-reliability-order-and-replay.html">Lesson 9: Reliability, order &amp; replay →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/cdc-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — The Consumer Lambda</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 10</span><span>Microservices CDC</span></div>
+  <h1>The Consumer Lambda</h1>
+  <p class="subtitle">Downstream services receive events as TypeScript Lambdas — idempotent, retry-tolerant, and able to fail into a dead-letter queue.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A <strong>consumer Lambda</strong> receives an event from the bus, applies the downstream work, and — because delivery is <em>at-least-once</em> — makes that work <strong>idempotent</strong> so a redelivered event is harmless.<sup><a href="#r1">1</a></sup></p>
+
+<pre><code>export async function handler(event: OrderUpdatedEvent): Promise&lt;void&gt; {
+  await dedupe(event.detail.id, () =&gt; apply(event));   // idempotent apply
+}
+</code></pre>
+
+<h2>At-least-once semantics</h2>
+<p>EventBridge can deliver an event more than once (e.g. after a retry). So the consumer must tolerate repeats: dedupe on the event's idempotency key, and make the apply step idempotent (e.g. "set status to paid" is safe to repeat).<sup><a href="#r1">1</a></sup></p>
+
+<h2>Retries and dead letters</h2>
+<ul>
+  <li><strong>Retries</strong> — if the handler throws, Lambda/EventBridge retries; give the function the timeout and retries it needs.</li>
+  <li><strong>DLQ</strong> — after repeated failures, route the event to a dead-letter target so you can inspect and later replay.<sup><a href="#r1">1</a></sup></li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> Design the consumer around <em>at-least-once</em>: assume the same event can arrive twice, and make "apply" repeatable — that single habit removes most CDC class bugs.</aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Consumers see events with…</h4>
+  <button class="opt" data-fb="No — delivery is at-least-once, so it can repeat.">exactly-once guarantees</button>
+  <button class="opt" data-fb="Correct — at-least-once semantics, so handlers must dedupe.">at-least-once semantics, so handlers must dedupe</button>
+  <button class="opt" data-fb="No — events can be redelivered; there is no never-twice promise.">an assurance they never repeat</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The right way to handle a repeat is…</h4>
+  <button class="opt" data-fb="Correct — dedupe on the event's idempotency key and apply idempotently.">dedupe on the event's idempotency key and apply idempotently</button>
+  <button class="opt" data-fb="No — that would redo side effects.">apply the work again each time</button>
+  <button class="opt" data-fb="No — the id is in the event, not assumed.">assume each event is unique</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. A dead-letter queue is used to…</h4>
+  <button class="opt" data-fb="No — it holds failures, it does not ingest them.">ingest incoming events</button>
+  <button class="opt" data-fb="No — it parks failed events, it does not log successes.">log every successful event</button>
+  <button class="opt" data-fb="Correct — park events that keep failing for later inspection/replay.">park events that keep failing for later inspection/replay</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the Lambda retries/DLQ guidance in the <a href="https://docs.aws.amazon.com/lambda/latest/dg/welcome.html">AWS Lambda Developer Guide</a>, and at-least-once notes in the <a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-what-is.html">EventBridge</a> guide.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Write an idempotent consumer for an OrderUpdated event: a dedupe key lookup, an idempotent apply, and a path where failure goes to a DLQ.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/lambda/latest/dg/welcome.html">AWS Lambda — Developer Guide</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-the-relay-lambda.html">← Lesson 6: The relay Lambda</a></span>
+  <span class="nav-next"><a href="0008-eventbridge-and-mongodb-in-cdk.html">Lesson 8: EventBridge &amp; MongoDB in CDK →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/cdc-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

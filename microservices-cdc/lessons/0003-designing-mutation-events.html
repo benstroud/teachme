@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — Designing Mutation Events</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 10</span><span>Microservices CDC</span></div>
+  <h1>Designing Mutation Events</h1>
+  <p class="subtitle">A raw change-stream record is not an event contract. Shape it into a versioned, idempotent, business-meaningful event.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Turn a database change into an <strong>event</strong> with a clear source and detail-type, a versioned <code>detail</code> payload, and an <strong>idempotency key</strong> so consumers can deduplicate.<sup><a href="#r1">1</a></sup></p>
+
+<h2>EventBridge's event shape</h2>
+<p>An EventBridge event has <code>source</code> (where it came from), <code>detail-type</code> (what kind), and <code>detail</code> (the payload), plus an <code>id</code> on delivery; rules match on these fields.<sup><a href="#r1">1</a></sup></p>
+
+<pre><code>type OrderUpdatedEvent = {
+  source: "orders";
+  "detail-type": "OrderUpdated";            // verb-like and meaningful
+  detail: {
+    v: 1;                                   // schema version
+    id: "orders:o1:update:5";               // idempotency key
+    op: "update";
+    orderId: "o1";
+    status: "paid";
+    at: "2026-09-30T12:00:00Z";
+  };
+};
+</code></pre>
+
+<aside class="note"><strong>Key idea</strong> Especially with CDC you are reacting to a state change, not an RPC — so use <em>past-tense, verb-like</em> detail-types (OrderPlaced, OrderUpdated), embed a schema version, and always carry an idempotency key.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. In an EventBridge event, the data payload lives in…</h4>
+  <button class="opt" data-fb="No — source says where it came from, it is not the payload.">source</button>
+  <button class="opt" data-fb="Correct — detail, alongside source and detail-type.">detail, alongside source and detail-type</button>
+  <button class="opt" data-fb="No — detail-type names the kind, it is not the body.">detail-type</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A good detail-type looks like…</h4>
+  <button class="opt" data-fb="Correct — past-tense and business-meaningful, e.g. OrderPlaced.">past-tense and business-meaningful, e.g. OrderPlaced</button>
+  <button class="opt" data-fb="No — that is a technical name, not a business event.">event-listener-v2</button>
+  <button class="opt" data-fb="No — it describes a change, not a command.">please create order</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. The idempotency key matters because…</h4>
+  <button class="opt" data-fb="No — delivery is at-least-once, so it can repeat.">an event is delivered exactly once</button>
+  <button class="opt" data-fb="No — consumers dedupe on it; it is not for routing.">rules match events by it alone</button>
+  <button class="opt" data-fb="Correct — redelivered events must be deduplicated by consumers.">redelivered events must be deduplicated by consumers</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the event structure and <code>detail-type</code> guidance in the <a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-what-is.html">Amazon EventBridge</a> user guide.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Take one order change and design two event types (OrderPlaced, OrderUpdated) with the full EventBridge shape, each with a version and an idempotency key.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-what-is.html">Amazon EventBridge — What is it?</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-mongodb-change-streams.html">← Lesson 2: MongoDB change streams</a></span>
+  <span class="nav-next"><a href="0004-atlas-to-eventbridge.html">Lesson 4: Atlas → EventBridge →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/cdc-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

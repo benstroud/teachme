@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — The Relay Lambda</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 10</span><span>Microservices CDC</span></div>
+  <h1>The Relay Lambda</h1>
+  <p class="subtitle">When the managed Atlas trigger isn't enough, a custom Lambda tails the change stream and publishes events to EventBridge.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A <strong>relay Lambda</strong> subscribes to a MongoDB change stream and, for each change, publishes a shaped event to an EventBridge bus — giving you full control over transformation and resilience.<sup><a href="#r1">1</a></sup></p>
+
+<h2>When to choose it</h2>
+<p>Choose the native Atlas→EventBridge trigger (lesson 4) first. Reach for a relay Lambda when you need to transform change records into your own event schema, attach fields, or handle delivery more precisely than the managed path allows.</p>
+
+<pre><code>// pseudo — tail the change stream and publish
+const stream = db.orders.watch([$match ops], { fullDocument: 'updateLookup' });
+for await (const change of stream) {
+  await eventbridge.putEvents({
+    Entries: [{
+      Source: 'orders',
+      DetailType: toDetailType(change.operationType), // OrderPlaced / OrderUpdated …
+      Detail: JSON.stringify({ v: 1, orderId: change.documentKey._id, change }),
+    }],
+  });
+}
+</code></pre>
+
+<aside class="note"><strong>Key idea</strong> Because the change stream supports <em>resume tokens</em>, persist where you are so the relay can recover after a restart instead of re-reading everything.<sup><a href="#r1">1</a></sup> Prefer the managed trigger unless you specifically need this control.</aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. A relay Lambda's job is to…</h4>
+  <button class="opt" data-fb="No — it publishes events, it does not consume them.">consume events and update data</button>
+  <button class="opt" data-fb="Correct — tail a change stream and publish events to EventBridge.">tail a change stream and publish events to EventBridge</button>
+  <button class="opt" data-fb="No — it reads the database change stream, not an S3 bucket.">read files from an S3 bucket</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Compared to the managed Atlas trigger, the relay gives you…</h4>
+  <button class="opt" data-fb="Correct — more control over transforming and shaping events.">more control over transforming and shaping events</button>
+  <button class="opt" data-fb="No — it is more custom work, not literally less.">less infrastructure to manage</button>
+  <button class="opt" data-fb="No — both connect to EventBridge; the relay adds control.">no connection to EventBridge</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. To recover after a relay restart you should…</h4>
+  <button class="opt" data-fb="No — that would re-read everything and lose position.">restart from the beginning</button>
+  <button class="opt" data-fb="No — a token remembers position; it does not need a snapshot.">take a full database snapshot</button>
+  <button class="opt" data-fb="Correct — resume from a persisted resume token.">resume from a persisted resume token</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Re-read <a href="https://www.mongodb.com/docs/manual/changeStreams/">MongoDB Change Streams</a> (resume tokens) and the EventBridge put-event shape from the <a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-what-is.html">AWS guide</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Write the relay loop in TypeScript: map operationType to a detail-type, dedupe/serialize, and persist the resume token between batches.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/changeStreams/">MongoDB — Change Streams</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-eventbridge-events-and-rules.html">← Lesson 5: EventBridge events &amp; rules</a></span>
+  <span class="nav-next"><a href="0007-the-consumer-lambda.html">Lesson 7: The consumer Lambda →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/cdc-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

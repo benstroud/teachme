@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — Atlas to EventBridge</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 10</span><span>Microservices CDC</span></div>
+  <h1>Atlas to EventBridge (native)</h1>
+  <p class="subtitle">The managed path: an Atlas database trigger publishes change events straight onto your EventBridge event bus.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>MongoDB Atlas can <strong>send database trigger events to AWS EventBridge</strong> — you associate the MongoDB partner event source with a bus, configure a trigger with an EventBridge event processor, and change events arrive as events.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Configuration</h2>
+<p>In an Atlas trigger, the EventBridge event processor carries the target <code>account_id</code> and <code>region</code>, so the trigger knows which bus to publish to:<sup><a href="#r1">1</a></sup></p>
+<pre><code>"event_processors": {
+  "AWS_EVENTBRIDGE": {
+    "config": { "account_id": "012345678901", "region": "us-east-1" }
+  }
+}
+</code></pre>
+
+<h2>Constraints to design around</h2>
+<ul>
+  <li>Associate the MongoDB <strong>partner event source</strong> with your event bus first.<sup><a href="#r1">1</a></sup></li>
+  <li>A single EventBridge trigger event must be under ~1 MB — keep it small.<sup><a href="#r1">1</a></sup></li>
+  <li>A <strong>project expression</strong> can limit which document fields are sent, shrinking payloads.<sup><a href="#r1">1</a></sup></li>
+  <li>Configure an <strong>error handler</strong> so delivery failures go somewhere you can act.</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> This is the lowest-friction CDC producer: no custom Lambda to tail a change stream — Atlas does it for you. Reach for it first; drop to a relay Lambda (lesson 6) only when you need control the managed path can't give.</aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. The native Atlas integration delivers changes via…</h4>
+  <button class="opt" data-fb="No — Atlas triggers publish events; they do not read from SQS.">a queue you poll manually</button>
+  <button class="opt" data-fb="No — triggers push to EventBridge, not to email.">email notifications</button>
+  <button class="opt" data-fb="Correct — a database trigger with an EventBridge event processor.">a database trigger with an EventBridge event processor</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The partner event source is used to…</h4>
+  <button class="opt" data-fb="Correct — associate MongoDB with your event bus so its events flow in.">associate MongoDB with your event bus so its events flow in</button>
+  <button class="opt" data-fb="No — it is an ingress, not a target.">send events to a Lambda target</button>
+  <button class="opt" data-fb="No — it brings events in; it does not archive them.">store events forever</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. A project expression on the trigger…</h4>
+  <button class="opt" data-fb="No — it selects fields; it does not grow the bus.">increases the event bus size</button>
+  <button class="opt" data-fb="Correct — limits which document fields are sent, shrinking events.">limits which document fields are sent, shrinking events</button>
+  <button class="opt" data-fb="No — it filters fields, not the AWS region.">changes the AWS region</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://www.mongodb.com/docs/atlas/triggers/eventbridge/">Send Trigger Events to AWS EventBridge</a> for the full setup, event example, and performance notes.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Walk the setup steps: create the partner source, associate it with a bus, configure the trigger with account/region, and say how a project expression and error handler keep the pipeline clean.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/atlas/triggers/eventbridge/">MongoDB Atlas — Send Trigger Events to EventBridge</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-designing-mutation-events.html">← Lesson 3: Designing mutation events</a></span>
+  <span class="nav-next"><a href="0005-eventbridge-events-and-rules.html">Lesson 5: EventBridge events &amp; rules →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/cdc-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

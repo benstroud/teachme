@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Microservices CDC — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  code i { color: var(--accent); font-style: normal; }
+  td code { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Microservices CDC · Lambda · EventBridge · MongoDB · CDK</span></div>
+  <h1>Microservices CDC Cheat Sheet</h1>
+  <p class="subtitle">The compressed essence of the course. Skim before a lesson, study it fully before an interview.</p>
+</header>
+
+<section>
+<h2>1. The pattern</h2>
+<pre><code>MongoDB (orders)
+   │ change stream (CDC)
+   ▼
+Atlas trigger OR relay Lambda  ──publish──▶  EventBridge (bus)
+                                               │ rule (event pattern)
+                                               ▼
+                                   consumer Lambdas (idempotent)
+</code></pre>
+<ul>
+  <li>Each service owns its data; CDC turns a data change into an <strong>event</strong> other services react to.<sup><a href="#r1">1</a></sup></li>
+  <li>MongoDB Change Streams watch insert/update/replace/delete and expose resume tokens.<sup><a href="#r1">1</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>2. Change streams (MongoDB)</h2>
+<pre><code>// watch a collection (driver / mongosh)
+const cursor = orders.watch([
+  { $match: { operationType: { $in: ['insert','update','replace','delete'] } } },
+]);
+// each change: operationType, documentKey, fullDocument, resumeToken/clusterTime
+</code></pre>
+<ul>
+  <li>operation types: insert / update / replace / delete.<sup><a href="#r1">1</a></sup></li>
+  <li><code>fullDocument: 'updateLookup'</code> returns the post-update document; resume tokens let you resume.<sup><a href="#r1">1</a></sup></li>
+  <li>Use <code>documentKey</code> as a stable id for the mutation event.</li>
+</ul>
+</section>
+
+<section>
+<h2>3. Atlas → EventBridge (native)</h2>
+<pre><code>// Atlas database trigger config (fragment)
+"event_processors": {
+  "AWS_EVENTBRIDGE": { "config": { "account_id": "012345678901", "region": "us-east-1" } }
+}
+</code></pre>
+<ul>
+  <li>Associate the MongoDB partner event source with a bus, then the trigger publishes.<sup><a href="#r2">2</a></sup></li>
+  <li>Single events must be under ~1 MB; use a project expression to shrink them.<sup><a href="#r2">2</a></sup></li>
+  <li>Wire an error handler for failures.</li>
+</ul>
+</section>
+
+<section>
+<h2>4. EventBridge</h2>
+<pre><code>// an event
+{ "source": "orders", "detail-type": "OrderUpdated",
+  "detail": { "orderId": "o1", "status": "paid", "v": 1 } }
+// a rule matches on source / detail-type / detail… and targets a Lambda
+</code></pre>
+<ul>
+  <li>Event buses receive and route events to targets; rules with event patterns filter.<sup><a href="#r3">3</a></sup></li>
+  <li>Targets are often Lambda; delivery is effectively at-least-once.</li>
+</ul>
+</section>
+
+<section>
+<h2>5. Design events (TypeScript)</h2>
+<pre><code>type OrderUpdated = {
+  source: "orders"; "detail-type": "OrderUpdated";
+  detail: { v: 1; orderId: string; op: "update"; status: string; at: string };
+};
+</code></pre>
+<ul>
+  <li>Put a <code>v</code> schema version and an <code>id</code> (idempotency key) in every event.<sup><a href="#r3">3</a></sup></li>
+  <li>Keep <code>detail-type</code> verb-like and business-meaningful (OrderPlaced, OrderUpdated).</li>
+</ul>
+</section>
+
+<section>
+<h2>6. Consumers &amp; reliability</h2>
+<pre><code>// consumer: idempotent + retries/DLQ
+if (await seen(event.detail.orderId, eventId)) return;
+await apply(event);        // throws → Lambda retries → DLQ
+</code></pre>
+<ul>
+  <li>Assume <strong>at-least-once</strong>: dedupe on an event id.<sup><a href="#r4">4</a></sup></li>
+  <li>Use Lambda retries and a DLQ for persistent failures.</li>
+</ul>
+</section>
+
+<section>
+<h2>7. CDK wiring</h2>
+<pre><code>const bus = new events.EventBus(this, 'Bus', { eventBusName: 'edc' });
+const rule = bus.addRule('ForOrderUpdated', {
+  eventPattern: { source: ['orders'], 'detail-type': ['OrderUpdated'] },
+  targets: [new targets.LambdaDestination(consumer)],
+});
+</code></pre>
+<ul>
+  <li>Define bus + rule + Lambda target in CDK; grants are created for you.<sup><a href="#r5">5</a></sup></li>
+  <li>Bundle TypeScript consumer with <code>NodejsFunction</code>.<sup><a href="#r6">6</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>8. Checklist</h2>
+<ul>
+  <li>Pick the CDC source: native Atlas≥EventBridge trigger vs a relay Lambda on a change stream.<sup><a href="#r2">2</a></sup></li>
+  <li>Design events with version + idempotency key; keep them lean.</li>
+  <li>Route with rules by source/detail-type; target one consumer per concern.</li>
+  <li>Make consumers idempotent; add retries + DLQ; plan for replay.<sup><a href="#r4">4</a></sup></li>
+  <li>Consider the transactional outbox when you control the write path.<sup><a href="#r7">7</a></sup></li>
+</ul>
+</section>
+
+<footer class="citation">
+  Primary sources: <a href="https://www.mongodb.com/docs/manual/changeStreams/">MongoDB Change Streams</a>,
+  <a href="https://www.mongodb.com/docs/atlas/triggers/eventbridge/">Atlas → EventBridge</a>,
+  <a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-what-is.html">AWS EventBridge</a>.
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/changeStreams/">MongoDB — Change Streams</a></li>
+    <li id="r2"><a href="https://www.mongodb.com/docs/atlas/triggers/eventbridge/">MongoDB Atlas — Send Trigger Events to EventBridge</a></li>
+    <li id="r3"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-what-is.html">Amazon EventBridge — What is it?</a></li>
+    <li id="r4"><a href="https://docs.aws.amazon.com/lambda/latest/dg/welcome.html">AWS Lambda — Developer Guide</a></li>
+    <li id="r5"><a href="https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_events.html">AWS CDK — EventBridge module</a></li>
+    <li id="r6"><a href="https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_lambda_nodejs.html">AWS CDK — NodejsFunction</a></li>
+    <li id="r7"><a href="https://microservices.io/patterns/data/transactional-outbox.html">microservices.io — Transactional Outbox</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="../lessons/0001-why-cdc-between-services.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

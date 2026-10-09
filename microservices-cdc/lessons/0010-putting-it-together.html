@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 10 — Putting It All Together</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 10 of 10</span><span>Microservices CDC</span></div>
+  <h1>Putting It All Together</h1>
+  <p class="subtitle">Assemble the full pipeline — MongoDB changes → EventBridge → TypeScript consumers in CDK — and defend the design choices.</p>
+</header>
+
+<section>
+<h2>The reference architecture</h2>
+<pre><code>MongoDB orders  →  CDC source  →  EventBridge bus  →  consumer Lambdas
+   (source)       (Atlas trigger       (rules):          (inventory, audit,
+                   OR relay Lambda)     fan-out)          billing ) in CDK
+</code></pre>
+<ol>
+  <li><strong>Capture</strong> — MongoDB Change Streams are the source of truth; an Atlas trigger (preferred) or relay Lambda publishes events.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>Shape</strong> — events carry source, detail-type, a versioned detail, and an idempotency key.</li>
+  <li><strong>Route</strong> — one bus, several rules; each consumer gets only the events it cares about.<sup><a href="#r2">2</a></sup></li>
+  <li><strong>Consume</strong> — idempotent TypeScript Lambdas with retries/DLQ and replay.<sup><a href="#r3">3</a></sup></li>
+  <li><strong>Declare</strong> — the whole thing (bus, rules, NodejsFunction consumers) lives in the CDK app.<sup><a href="#r4">4</a></sup></li>
+</ol>
+
+<h2>Choosing the source, honestly</h2>
+<table>
+  <tr><th>Need</th><th>Pick</th></tr>
+  <tr><td>Low friction, managed setup</td><td>Atlas trigger → EventBridge</td></tr>
+  <tr><td>Full control of shaping/retries</td><td>relay Lambda on a change stream</td></tr>
+  <tr><td>You control the write path & need atomicity</td><td>transactional outbox (not CDC)<sup><a href="#r5">5</a></sup></td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> The pipeline is durable because it layers guarantees: CDC captures <em>all</em> writes, rules fan out cleanly, and at-least-once + idempotency + DLQ + replay absorbs the failures that will happen.</aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. In the final pipeline, the CDC source is…</h4>
+  <button class="opt" data-fb="Correct — MongoDB change streams, via trigger or relay.">MongoDB change streams, via trigger or relay</button>
+  <button class="opt" data-fb="No — the bus routes; it does not capture changes.">the EventBridge bus itself</button>
+  <button class="opt" data-fb="No — consumers react; they are not the source.">the consumer Lambda</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>2. The right source when you own the write path is…</h4>
+  <button class="opt" data-fb="No — a shared table reintroduces coupling.">a shared database</button>
+  <button class="opt" data-fb="Correct — a transactional outbox, for atomic change+event.">a transactional outbox, for atomic change+event</button>
+  <button class="opt" data-fb="No — change streams observe; they do not guarantee write atomicity.">only a change stream</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. Durability comes from layering…</h4>
+  <button class="opt" data-fb="No — a formula for exactly-once is not realistic here.">a formula for exactly-once</button>
+  <button class="opt" data-fb="No — one mechanism cannot cover every failure.">a single retry mechanism</button>
+  <button class="opt" data-fb="Correct — at-least-once + idempotency + DLQ + replay.">at-least-once + idempotency + DLQ + replay</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>What to do next</h2>
+<p>Skim the <a href="../reference/cdc-cheatsheet.html">cheat sheet</a> whenever you build the pipeline, and verify exact API usage against the <a href="https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_events.html">CDK EventBridge</a> and <a href="https://www.mongodb.com/docs/atlas/triggers/eventbridge/">Atlas EventBridge</a> references before a deployment.</p>
+
+<div class="ask"><strong>Ask the agent</strong> For the order→inventory→shipping example, present the full stack in one file: the Mongo/CDC source, the bus, the rules, two idempotent consumers, and the retry/DLQ wiring — and defend each choice.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/changeStreams/">MongoDB — Change Streams</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-what-is.html">Amazon EventBridge — What is it?</a></li>
+    <li id="r3"><a href="https://docs.aws.amazon.com/lambda/latest/dg/welcome.html">AWS Lambda — Developer Guide</a></li>
+    <li id="r4"><a href="https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_events.html">AWS CDK — EventBridge module</a></li>
+    <li id="r5"><a href="https://microservices.io/patterns/data/transactional-outbox.html">microservices.io — Transactional Outbox</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0009-reliability-order-and-replay.html">← Lesson 9: Reliability, order &amp; replay</a></span>
+  <span class="nav-next"><a href="../reference/cdc-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/cdc-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

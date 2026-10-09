@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Microservices CDC — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Microservices CDC · Lambda · EventBridge · MongoDB · CDK</span></div>
+  <h1>Microservices CDC Glossary</h1>
+  <p class="subtitle">Every term in this course, in one place. Return here when a lesson uses a word you do not fully own.</p>
+</header>
+
+<section>
+<h2>Change capture</h2>
+<dl>
+  <dt><strong>CDC (change data capture)</strong></dt>
+  <dd>Observing changes in a data source (here MongoDB) and turning them into events so other services can react.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>change stream</strong></dt>
+  <dd>A MongoDB feature that lets an application watch a collection, database, or deployment for inserts, updates, replaces, and deletes, delivered as change events.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>$changeStream</strong></dt>
+  <dd>The aggregation pipeline stage that powers change streams (used by `watch()`).<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>operationType</strong></dt>
+  <dd>The kind of change: <code>insert</code> | <code>update</code> | <code>replace</code> | <code>delete</code> (among others).<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>resume token</strong></dt>
+  <dd>A token that lets a change stream resume from where it left off after a disconnect.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>pre image / post image / fullDocument</strong></dt>
+  <dd>The document before (pre) and after (post) a change; <code>fullDocument</code> returns the post-update document.<sup><a href="#r1">1</a></sup></dd>
+
+  <dt><strong>documentKey</strong></dt>
+  <dd>The <code>_id</code> (and shard key) identifying the changed document — useful as the stable id of a mutation event.</dd>
+</dl>
+</section>
+<section>
+<h2>Events &amp; EventBridge</h2>
+<dl>
+  <dt><strong>mutation event</strong></dt>
+  <dd>A structured message describing a business-data change (e.g. "OrderUpdated"), distinct from the raw change-stream record.</dd>
+
+  <dt><strong>event schema</strong></dt>
+  <dd>The agreed shape of an event: <code>source</code>, <code>detail-type</code>, <code>detail</code>, plus versioning.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>source / detail-type / detail</strong></dt>
+  <dd>EventBridge event fields: where the event came from, what kind it is, and the payload.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>event bus</strong></dt>
+  <dd>A router that receives events and delivers them to matching targets.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>rule / event pattern</strong></dt>
+  <dd>A rule attaches a pattern to a bus; matching events are sent to its target(s).<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>target</strong></dt>
+  <dd>A destination an event bus delivers to, often a Lambda function.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>partner event source</strong></dt>
+  <dd>A source (e.g. MongoDB Atlas) you associate with an event bus so its events flow in.<sup><a href="#r3">3</a></sup></dd>
+
+  <dt><strong>idempotency key</strong></dt>
+  <dd>A stable identifier in the event (e.g. document key + operation) consumers use to deduplicate at-least-once redeliveries.</dd>
+</dl>
+</section>
+<section>
+<h2>Pipeline &amp; reliability</h2>
+<dl>
+  <dt><strong>relay (producer)</strong></dt>
+  <dd>The component that turns captured changes into events on the bus — an Atlas trigger or a relay Lambda.</dd>
+
+  <dt><strong>consumer</strong></dt>
+  <dd>A Lambda (or other target) that receives an event and performs the downstream work.</dd>
+
+  <dt><strong>at-least-once</strong></dt>
+  <dd>Delivery semantics where an event may be delivered more than once; consumers must be idempotent.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>DLQ (dead-letter queue)</strong></dt>
+  <dd>A queue where events that keep failing are parked for inspection.<sup><a href="#r4">4</a></sup></dd>
+
+  <dt><strong>replay</strong></dt>
+  <dd>Resending past events from the bus to rebuild state or recover after a failure.<sup><a href="#r2">2</a></sup></dd>
+
+  <dt><strong>transactional outbox</strong></dt>
+  <dd>The authored-event alternative: write the event to an outbox table in the same transaction as the change, then publish reliably.<sup><a href="#r5">5</a></sup></dd>
+
+  <dt><strong>project expression</strong></dt>
+  <dd>An Atlas trigger setting that limits which fields are included before sending to EventBridge.<sup><a href="#r3">3</a></sup></dd>
+</dl>
+</section>
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.mongodb.com/docs/manual/changeStreams/">MongoDB — Change Streams</a></li>
+    <li id="r2"><a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-what-is.html">Amazon EventBridge — What is it?</a></li>
+    <li id="r3"><a href="https://www.mongodb.com/docs/atlas/triggers/eventbridge/">MongoDB Atlas — Send Trigger Events to EventBridge</a></li>
+    <li id="r4"><a href="https://docs.aws.amazon.com/lambda/latest/dg/welcome.html">AWS Lambda — Developer Guide</a></li>
+    <li id="r5"><a href="https://microservices.io/patterns/data/transactional-outbox.html">microservices.io — Transactional Outbox</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Mission &amp; notes</span>
+  <span class="nav-next"><a href="../lessons/0001-why-cdc-between-services.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../NOTES.md">Notes</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>
