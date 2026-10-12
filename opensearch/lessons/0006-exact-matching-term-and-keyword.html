@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — Exact Matching: Term &amp; Keyword</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 10</span><span>Elasticsearch · AWS OpenSearch</span></div>
+  <h1>Exact Matching: Term &amp; Keyword</h1>
+  <p class="subtitle">When a key, status, or slug must match a stored value byte for byte.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>When you want an <em>exact</em> value — not a word match — use the <code>term</code> query against a <code>keyword</code> field: no analysis happens on either side, so <code>PENDING</code> only matches <code>PENDING</code>.<sup><a href="#r1">1</a></sup></p>
+
+<h2>term matches the stored value exactly</h2>
+<pre><code>GET /products/_search
+{ "query": { "term": { "status": "PENDING" } } }</code></pre>
+<p>Because <code>status</code> is a <code>keyword</code>, this matches documents whose stored value is literally <code>PENDING</code>. Running the same on a <code>text</code> field would compare against the analyzed tokens and almost certainly miss.</p>
+
+<h2>match vs term</h2>
+<table>
+  <tr><th>Query</th><th>Field</th><th>Input analyzed?</th><th>Use for</th></tr>
+  <tr><td><code>match</code></td><td><code>text</code></td><td>Yes</td><td>Full-text ranked prose.</td></tr>
+  <tr><td><code>term</code></td><td><code>keyword</code></td><td>No</td><td>Exact ids, statuses, enums, slugs.</td></tr>
+  <tr><td><code>terms</code></td><td><code>keyword</code></td><td>No</td><td>"Any of these values" filters.</td></tr>
+  <tr><td><code>range</code></td><td>numeric / date</td><td>—</td><td>Greater/less than boundaries.</td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> The trap: people run <code>term</code> against a <code>text</code> field and get nothing. If the field is analyzed, your "exact" value no longer exists as-is — that is why we keep the <code>.raw</code> keyword sub-field.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. The term query is best used against…</h4>
+  <button class="opt" data-fb="Correct — it matches unanalyzed stored values.">a keyword field for an exact value</button>
+  <button class="opt" data-fb="No — text analysis breaks the exact match.">a text field for word-level recall</button>
+  <button class="opt" data-fb="No — averages come from aggregations, not term.">any numeric field for averaging</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. Compared with match, a term query…</h4>
+  <button class="opt" data-fb="No — term never analyzes the query value.">analyzes the query on both sides</button>
+  <button class="opt" data-fb="No — relevance scoring is not what term is for.">boosts every matched document equally</button>
+  <button class="opt" data-fb="Correct — the input is taken exactly as written.">does not analyze the search value</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. To filter products "in stock OR returned" you use…</h4>
+  <button class="opt" data-fb="No — match is for analyzed text, not enums.">a match query on the stock flag</button>
+  <button class="opt" data-fb="Correct — terms matches any of the given values.">terms with both status values</button>
+  <button class="opt" data-fb="No — terms is the any-of filter for keywords.">an existence check per product</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the OpenSearch term-query reference and compare it with the match page.</p>
+<div class="ask"><strong>Ask the agent</strong> For a search box that should match either exact SKUs or fuzzy names, which query would you use for each branch?</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://opensearch.org/docs/latest/query-dsl/term/">OpenSearch — Term query</a></li>
+    <li id="r2"><a href="https://opensearch.org/docs/latest/query-dsl/full-text/match/">OpenSearch — Match query</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-full-text-search-with-match.html">← Lesson 5</a></span>
+  <span class="nav-next"><a href="0007-relevance-and-bm25-scoring.html">Lesson 7: relevance &amp; BM25 →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/opensearch-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

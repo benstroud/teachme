@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elasticsearch / AWS OpenSearch — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Elasticsearch · AWS OpenSearch</span></div>
+  <h1>OpenSearch Glossary</h1>
+  <p class="subtitle">Every term in this course, in one place. Return here when a lesson uses a word you do not fully own.</p>
+</header>
+
+<section>
+<h2>Engine &amp; cluster</h2>
+<dl>
+  <dt><strong>Elasticsearch</strong></dt>
+  <dd>A distributed, open-source search and analytics engine built on Lucene; the model OpenSearch inherits.</dd>
+  <dt><strong>OpenSearch</strong></dt>
+  <dd>The open-source fork of Elasticsearch 7.10 (Apache-2.0) maintained by the OpenSearch Project; the open-source engine under Amazon OpenSearch Service.<sup><a href="#r1">1</a></sup></dd>
+  <dt><strong>OpenSearch Service / domain</strong></dt>
+  <dd>The AWS managed service. A <em>domain</em> is equivalent to an OpenSearch <em>cluster</em> — settings, instance types, and instance counts you specify.<sup><a href="#r1">1</a></sup></dd>
+  <dt><strong>node</strong></dt>
+  <dd>A single server in the cluster; in OpenSearch Service, each EC2 instance you choose is one node.<sup><a href="#r1">1</a></sup></dd>
+  <dt><strong>shard</strong></dt>
+  <dd>A single Lucene index holding a slice of an index's documents; an index is split across shards and replicated as replicas.</dd>
+  <dt><strong>replica</strong></dt>
+  <dd>A copy of a shard that provides failover and read scaling; a primary and its replicas form a shard group.</dd>
+  <dt><strong>cluster health</strong></dt>
+  <dd>A status (<code>green</code>/<code>yellow</code>/<code>red</code>) reported by the CAT health API describing whether all primary and replica shards are allocated.</dd>
+  <dt><strong>OpenSearch Serverless</strong></dt>
+  <dd>The on-demand, auto-scaling AWS configuration: a <em>collection</em> scales compute automatically, with always-encrypted storage and no manual capacity management.<sup><a href="#r6">6</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Data model</h2>
+<dl>
+  <dt><strong>document</strong></dt>
+  <dd>A JSON object stored and searchable by OpenSearch, identified by an <code>_id</code> within an index.</dd>
+  <dt><strong>index</strong></dt>
+  <dd>A collection of documents with a shared set of fields and mappings; the unit you search.</dd>
+  <dt><strong>mapping</strong></dt>
+  <dd>The definition of a document's fields, their types, and their analyzers; can be dynamic or explicit.</dd>
+  <dt><strong>text field</strong></dt>
+  <dd>A field type that is <em>analyzed</em>: tokenized for full-text matching and relevance scoring on words.<sup><a href="#r4">4</a></sup></dd>
+  <dt><strong>keyword field</strong></dt>
+  <dd>A field type that is <em>not analyzed</em>: stored as one exact value, good for <code>term</code> matching, sorting, and aggregations.<sup><a href="#r4">4</a></sup></dd>
+  <dt><strong>multi-field</strong></dt>
+  <dd>A field with sub-fields, e.g. <code>title</code> plus <code>title.raw</code> (keyword), so one field supports both full-text and exact use.</dd>
+  <dt><strong>inverted index</strong></dt>
+  <dd>The structure mapping each (normalized) term to the documents containing it — the core of fast full-text lookup.</dd>
+  <dt><strong><code>_source</code></strong></dt>
+  <dd>The original JSON document as indexed, returned in search hits unless disabled in the mapping.</dd>
+</dl>
+</section>
+<section>
+<h2>Queries &amp; relevance</h2>
+<dl>
+  <dt><strong>match query</strong></dt>
+  <dd>Full-text query that analyzes the input and matches on terms; <code>OR</code> operator by default.<sup><a href="#r3">3</a></sup></dd>
+  <dt><strong>term query</strong></dt>
+  <dd>Exact, unanalyzed term match against a field — the query value is taken literally.<sup><a href="#r7">7</a></sup></dd>
+  <dt><strong>query / filter context</strong></dt>
+  <dd>Query context computes relevance scores; <code>filter</code> context matches without scoring (and can be cached), used inside a <code>bool</code>.</dd>
+  <dt><strong>bool query</strong></dt>
+  <dd>Composes clauses with <code>must</code> (scored, required), <code>should</code> (bonus), <code>filter</code> (required, no score), and <code>must_not</code>.</dd>
+  <dt><strong><code>_score</code></strong></dt>
+  <dd>The relevance number OpenSearch assigns a hit; higher means more relevant.</dd>
+  <dt><strong>BM25</strong></dt>
+  <dd>The default relevance scoring algorithm: a formula over term frequency, inverse document frequency, and field-length normalization with tunable <code>k1</code> and <code>b</code>.</dd>
+  <dt><strong>analyzer</strong></dt>
+  <dd>An ingestion/query-time text processor built from character filters, a tokenizer, and token filters.<sup><a href="#r5">5</a></sup></dd>
+  <dt><strong>tokenizer / token filter</strong></dt>
+  <dd>The stage that splits text into tokens, and the stages that transform them (lowercase, stop, stem, synonyms).<sup><a href="#r5">5</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Searching &amp; analytics</h2>
+<dl>
+  <dt><strong><code>_search</code></strong></dt>
+  <dd>The API endpoint that runs a search and returns <code>hits</code> — the matched documents and their scores.<sup><a href="#r8">8</a></sup></dd>
+  <dt><strong>aggregation</strong></dt>
+  <dd>A computed grouping or metric over matching documents — metric (e.g. <code>avg</code>) or bucket (e.g. <code>terms</code>).<sup><a href="#r9">9</a></sup></dd>
+  <dt><strong>deep pagination</strong></dt>
+  <dd>Getting to results far beyond the first pages, where <code>from</code>/<code>size</code> grows expensive; solved with <code>search_after</code> + point-in-time.</dd>
+  <dt><strong>point-in-time (PIT)</strong></dt>
+  <dd>An immutable snapshot of an index's state used with <code>search_after</code> for stable deep pagination.<sup><a href="#r10">10</a></sup></dd>
+</dl>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/opensearch-service/latest/developerguide/what-is.html">AWS — What is Amazon OpenSearch Service</a></li>
+    <li id="r2"><a href="https://opensearch.org/docs/latest/">OpenSearch — Documentation</a></li>
+    <li id="r3"><a href="https://opensearch.org/docs/latest/query-dsl/full-text/match/">OpenSearch — Match query</a></li>
+    <li id="r4"><a href="https://opensearch.org/docs/latest/field-types/">OpenSearch — Field types</a></li>
+    <li id="r5"><a href="https://opensearch.org/docs/latest/analyzers/">OpenSearch — Text analysis</a></li>
+    <li id="r6"><a href="https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless.html">AWS — Amazon OpenSearch Serverless</a></li>
+    <li id="r7"><a href="https://opensearch.org/docs/latest/query-dsl/term/">OpenSearch — Term query</a></li>
+    <li id="r8"><a href="https://opensearch.org/docs/latest/api-reference/search-apis/search/">OpenSearch — Search API</a></li>
+    <li id="r9"><a href="https://opensearch.org/docs/latest/aggregations/">OpenSearch — Aggregations</a></li>
+    <li id="r10"><a href="https://opensearch.org/docs/latest/api-reference/search-apis/point-in-time/">OpenSearch — Point in Time</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Mission &amp; notes</span>
+  <span class="nav-next"><a href="../lessons/0001-what-is-opensearch.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../NOTES.md">Notes</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

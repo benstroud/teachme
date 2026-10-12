@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elasticsearch / AWS OpenSearch — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  code i { color: var(--accent); font-style: normal; }
+  td code { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Elasticsearch · AWS OpenSearch</span></div>
+  <h1>OpenSearch Cheat Sheet</h1>
+  <p class="subtitle">The compressed essence of the course. Skim before a lesson, study it fully before an interview.</p>
+</header>
+<section>
+<h2>1. The stack</h2>
+<pre><code>OpenSearch = open-source search engine (Elasticsearch 7.10 fork)
+Amazon OpenSearch Service = managed service; domain === cluster
+  domain -> nodes (EC2 instances) -> indices -> shards(+replicas) -> documents</code></pre>
+<ul>
+  <li>Search the index: OpenSearch distributes each index across shards.<sup><a href="#r1">1</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>2. Documents &amp; the REST API</h2>
+<pre><code># index (create-or-replace), read, update, delete
+PUT    /products/_doc/1      { "name": "Copper Mug", "price": 12.5 }
+GET    /products/_doc/1
+POST   /products/_doc/1/_update  { "doc": { "price": 11.0 } }
+DELETE /products/_doc/1</code></pre>
+<ul>
+  <li>PUT with an explicit <code>_id</code> is idempotent; a bare POST lets the engine pick an id.<sup><a href="#r2">2</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>3. Mappings &amp; field types</h2>
+<pre><code>PUT /products
+{ "mappings": { "properties": {
+    "name":  { "type": "text", "fields": { "raw": { "type": "keyword" } } },
+    "sku":   { "type": "keyword" },
+    "price": { "type": "double" },
+    "added": { "type": "date" } } } }</code></pre>
+<ul>
+  <li><code>text</code> = analyzed for full-text; <code>keyword</code> = one exact, aggregatable value.<sup><a href="#r3">3</a></sup></li>
+  <li>Add a <code>.raw</code> keyword sub-field when one source field needs both uses.<sup><a href="#r3">3</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>4. Indexing &amp; bulk</h2>
+<pre><code>POST /products/_bulk
+{ "index": { "_id": "1" } }
+{ "name": "Copper Mug", "price": 12.5 }
+{ "index": { "_id": "2" } }
+{ "name": "Steel Flask", "price": 9.9 }</code></pre>
+<ul>
+  <li>Bulk is NDJSON: an action line, then a document line.<sup><a href="#r4">4</a></sup></li>
+  <li>Batching slashes round trips; id-based indexing is retry-safe.</li>
+</ul>
+</section>
+<section>
+<h2>5. Queries: match, term, bool</h2>
+<pre><code># full-text (analyzed, OR default)
+{ "query": { "match": { "name": "copper mug" } } }
+# exact value (unanalyzed, keyword)
+{ "query": { "term": { "status": "PENDING" } } }
+# combine
+{ "query": { "bool": {
+    "must": [{ "match": { "category": "kitchen" } }],
+    "should": [{ "match": { "name": "copper" } }],
+    "filter": [{ "term": { "inStock": true } }] } } }</code></pre>
+<ul>
+  <li><code>match</code> analyzes the input; <code>term</code> takes it verbatim. Use them on text vs keyword.<sup><a href="#r5">5</a></sup></li>
+  <li><code>must</code> scored + required, <code>should</code> bonus, <code>filter</code> required, unscored.<sup><a href="#r6">6</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>6. Relevance &amp; BM25</h2>
+<pre><code># every hit has _score; _explain shows how
+POST /products/_search { "query": {...}, "explain": true }</code></pre>
+<ul>
+  <li>BM25 scores from term frequency, inverse document frequency, and field length (k1, b).<sup><a href="#r7">7</a></sup></li>
+  <li>Use <code>filter</code> for constraints so they never distort ranking.</li>
+</ul>
+</section>
+<section>
+<h2>7. Analyzers</h2>
+<pre><code># see the tokens
+GET /_analyze { "analyzer": "standard", "text": "Let's contribute!" }
+# custom analyzer = character filters + tokenizer + token filters</code></pre>
+<ul>
+  <li>Analyze the same way at index and query time, or terms never align.<sup><a href="#r8">8</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>8. Aggregations</h2>
+<pre><code># metric
+{ "size": 0, "aggs": { "avg_price": { "avg": { "field": "price" } } } }
+# bucket
+{ "size": 0, "aggs": { "by_status": { "terms": { "field": "status" } } } }</code></pre>
+<ul>
+  <li>Metrics (avg/sum/cardinality) compute; buckets (terms/date_histogram) group by value.<sup><a href="#r9">9</a></sup></li>
+  <li>Aggregate the <code>keyword</code> sub-field; text fields are not aggregatable by default.<sup><a href="#r9">9</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>9. Scale on AWS</h2>
+<pre><code># deep pages
+open PIT -> search_after on last sort value  (not a huge from/size)
+# deploy
+Provisioned domain  -> you size instances    (predictable load)
+OpenSearch Serverless -> AWS auto-scales      (intermittent load)</code></pre>
+<ul>
+  <li>PIT + search_after resume stably; deep from/size is expensive.<sup><a href="#r10">10</a></sup></li>
+  <li>Provisioned = you manage capacity; Serverless = AWS does.<sup><a href="#r11">11</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>10. Checklist</h2>
+
+<ul>
+  <li>Model documents and write an explicit mapping (text vs keyword, .raw).</li>
+  <li>Ingest with bulk and a stable <code>_id</code>.</li>
+  <li>Pick match for prose, term/terms for exact values, bool to combine.</li>
+  <li>Verify tokenization with _analyze before trusting a field.</li>
+  <li>Aggregate on keyword sub-fields for facets and reports.</li>
+  <li>Choose pagination by depth and deployment by workload predictability.</li>
+</ul>
+</section>
+<footer class="citation">
+  Primary sources: <a href="https://docs.aws.amazon.com/opensearch-service/latest/developerguide/what-is.html">AWS OpenSearch Service</a>,
+  <a href="https://opensearch.org/docs/latest/">OpenSearch docs</a>.
+  <ol>
+    <li id="r1"><a href="https://docs.aws.amazon.com/opensearch-service/latest/developerguide/what-is.html">AWS — What is Amazon OpenSearch Service?</a></li>
+    <li id="r2"><a href="https://opensearch.org/docs/latest/api-reference/document-apis/index-document/">OpenSearch — Document APIs</a></li>
+    <li id="r3"><a href="https://opensearch.org/docs/latest/field-types/">OpenSearch — Field types</a></li>
+    <li id="r4"><a href="https://opensearch.org/docs/latest/api-reference/document-apis/bulk/">OpenSearch — Bulk API</a></li>
+    <li id="r5"><a href="https://opensearch.org/docs/latest/query-dsl/full-text/match/">OpenSearch — Match query</a></li>
+    <li id="r6"><a href="https://opensearch.org/docs/latest/query-dsl/bool/">OpenSearch — Bool query</a></li>
+    <li id="r7"><a href="https://opensearch.org/docs/latest/api-reference/search-apis/search/">OpenSearch — Search API</a></li>
+    <li id="r8"><a href="https://opensearch.org/docs/latest/analyzers/">OpenSearch — Text analysis (analyzers)</a></li>
+    <li id="r9"><a href="https://opensearch.org/docs/latest/aggregations/">OpenSearch — Aggregations</a></li>
+    <li id="r10"><a href="https://opensearch.org/docs/latest/api-reference/search-apis/point-in-time/">OpenSearch — Point in Time (PIT)</a></li>
+    <li id="r11"><a href="https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless.html">AWS — Amazon OpenSearch Serverless</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="../lessons/0001-what-is-opensearch.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

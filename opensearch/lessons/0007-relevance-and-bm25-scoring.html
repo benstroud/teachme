@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — Relevance &amp; BM25 Scoring</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 10</span><span>Elasticsearch · AWS OpenSearch</span></div>
+  <h1>Relevance &amp; BM25 Scoring</h1>
+  <p class="subtitle">Why results are ordered as they are, and how to steer ranking with bool.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Every hit carries a <code>_score</code> computed by <strong>BM25</strong> — a formula combining term frequency, how rare the term is across the index, and the field length — which is why a document with your words repeated in a short field ranks first.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Why one result beats another</h2>
+<p>BM25 rewards a term that appears often in a document (term frequency) but punishes it when the term is common across all documents (inverse document frequency), and it normalizes the count by how long the field is. The <code>k1</code> and <code>b</code> parameters tune how much term frequency and length matter; OpenSearch ships sensible defaults, so you rarely touch them.</p>
+
+<h2>Combine matches with a bool query</h2>
+<pre><code>GET /products/_search
+{ "query": { "bool": {
+    "must":   [ { "match": { "category": "kitchen" } } ],
+    "should": [ { "match": { "name": "copper" } } ],
+    "filter": [ { "term": { "inStock": true } } ]
+  } } }</code></pre>
+<p><code>must</code> is required and scored, <code>should</code> adds a score bonus when it matches, and <code>filter</code> narrows results without touching <code>_score</code>.</p>
+
+<aside class="note"><strong>Key idea</strong> Relevance is a <em>ranking</em>, not a filter — <code>_score</code> tells you the order, and <code>_explain</code> shows exactly how each document's score was built. Use <code>filter</code> for constraints so ranking is never distorted by them.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. BM25 raises the score of a term that is…</h4>
+  <button class="opt" data-fb="No — common terms carry low inverse document frequency.">common in every document</button>
+  <button class="opt" data-fb="Correct — high term frequency plus rare term.">frequent in this doc but rare everywhere</button>
+  <button class="opt" data-fb="No — filters do not contribute to the score.">in the filter context only</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. A should clause adds a score bonus when it…</h4>
+  <button class="opt" data-fb="No — a matching should adds to the score.">fails to match the query</button>
+  <button class="opt" data-fb="No — should only lives inside a bool.">runs outside of the bool query</button>
+  <button class="opt" data-fb="Correct — should is a scoring bonus clause.">matches the search criteria</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. To require a constraint yet ignore its score use…</h4>
+  <button class="opt" data-fb="Correct — filter narrows results without scoring.">filter in the bool query</button>
+  <button class="opt" data-fb="No — should is a soft bonus, not a hard constraint.">should with a term clause</button>
+  <button class="opt" data-fb="No — _explain inspects, it does not constrain.">_explain on every document</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the OpenSearch match and bool references, and try _explain on a real query.</p>
+<div class="ask"><strong>Ask the agent</strong> Your product search returns two items for "copper mug"; explain, in BM25 terms, why the shorter title ranks higher.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://opensearch.org/docs/latest/query-dsl/full-text/match/">OpenSearch — Match query</a></li>
+    <li id="r2"><a href="https://opensearch.org/docs/latest/query-dsl/bool/">OpenSearch — Bool query</a></li>
+    <li id="r3"><a href="https://opensearch.org/docs/latest/api-reference/search-apis/search/">OpenSearch — Search API</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-exact-matching-term-and-keyword.html">← Lesson 6</a></span>
+  <span class="nav-next"><a href="0008-analyzers-and-tokenization.html">Lesson 8: analyzers &amp; tokenization →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/opensearch-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

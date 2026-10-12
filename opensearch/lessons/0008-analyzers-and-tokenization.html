@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — Analyzers &amp; Tokenization</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 10</span><span>Elasticsearch · AWS OpenSearch</span></div>
+  <h1>Analyzers &amp; Tokenization</h1>
+  <p class="subtitle">The hidden pipeline that decides what counts as a matching word.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>An <strong>analyzer</strong> decides exactly what "text" means for a field — splitting on words, lowercasing, and removing noise — so that the same text can match the same terms at index and query time.<sup><a href="#r1">1</a></sup></p>
+
+<h2>An analyzer is three stages</h2>
+<table>
+  <tr><th>Stage</th><th>Job</th><th>Example</th></tr>
+  <tr><td>Character filters</td><td>Preprocess characters before splitting</td><td>Strip HTML, replace &amp; with "and".</td></tr>
+  <tr><td>Tokenizer</td><td>Split text into tokens</td><td><code>standard</code> splits on word boundaries.</td></tr>
+  <tr><td>Token filters</td><td>Transform each token</td><td>lowercase, stop, stem, synonyms.<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+
+<h2>See the tokens with _analyze</h2>
+<pre><code>GET /_analyze
+{ "analyzer": "standard", "text": "Let's contribute to OpenSearch!" }</code></pre>
+<p>The response lists tokens like <code>let's</code>, <code>contribute</code>, <code>to</code>, <code>opensearch</code> with their offsets. Lowercase and <code>stopword</code> filters would shrink that further.</p>
+
+<h2>Defining a custom analyzer</h2>
+<pre><code>PUT /products
+{ "settings": { "analysis": {
+    "analyzer": { "my_lower": {
+       "tokenizer": "standard",
+       "filter": ["lowercase", "stop"] } } } } }</code></pre>
+
+<aside class="note"><strong>Key idea</strong> The same analyzer must run at index time <em>and</em> query time, or terms never line up. Use the <code>_analyze</code> API to confirm the tokens before trusting a field's behavior.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. The three stages of an analyzer are…</h4>
+  <button class="opt" data-fb="Correct — that is the full pipeline.">character filters, tokenizer, token filters</button>
+  <button class="opt" data-fb="No — those are storage concerns, not analysis.">mapping, index, and refresh</button>
+  <button class="opt" data-fb="No — those are query contexts, not analyzer parts.">query, filter, and scoring</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. The _analyze API is useful to…</h4>
+  <button class="opt" data-fb="No — you do not delete analyzers through _analyze.">delete an analyzer from an index</button>
+  <button class="opt" data-fb="No — that is a cluster-admin concern.">rebalance cluster shards</button>
+  <button class="opt" data-fb="Correct — it previews tokenization and offsets.">see the exact tokens an analyzer emits</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. If query and index analyzers disagree, then…</h4>
+  <button class="opt" data-fb="No — mismatched analyzers break matching.">nothing changes in behavior</button>
+  <button class="opt" data-fb="Correct — both sides must emit the same tokens.">terms do not line up and matches miss</button>
+  <button class="opt" data-fb="No — the issue is recall, not score clamping.">scores are clamped to zero</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the OpenSearch text-analysis docs and experiment with _analyze on custom filters.</p>
+<div class="ask"><strong>Ask the agent</strong> Predict the _analyze tokens for "The MongoDB Atlas" under the standard analyzer, then say what lowercase+stop would drop.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://opensearch.org/docs/latest/analyzers/">OpenSearch — Text analysis (analyzers)</a></li>
+    <li id="r2"><a href="https://opensearch.org/docs/latest/field-types/">OpenSearch — Field types</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-relevance-and-bm25-scoring.html">← Lesson 7</a></span>
+  <span class="nav-next"><a href="0009-aggregations-for-analytics.html">Lesson 9: aggregations →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/opensearch-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

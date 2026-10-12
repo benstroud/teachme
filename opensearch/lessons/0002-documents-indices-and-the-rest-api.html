@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — Documents, Indices &amp; the REST API</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 10</span><span>Elasticsearch · AWS OpenSearch</span></div>
+  <h1>Documents, Indices &amp; the REST API</h1>
+  <p class="subtitle">The JSON document as the unit of storage, and the HTTP CRUD calls that touch it.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Every document in OpenSearch is addressed by an <code>_id</code> inside an index, and you create, read, update, and delete it through plain REST calls to the <code>_doc</code> endpoint.<sup><a href="#r1">1</a></sup></p>
+
+<h2>CRUD over HTTP</h2>
+<pre><code># index (create or replace) a document with id "1"
+PUT /products/_doc/1
+{ "name": "Copper Mug", "price": 12.5, "inStock": true }
+
+# read it back
+GET /products/_doc/1
+
+# update part of it (script or partial doc)
+POST /products/_doc/1/_update
+{ "doc": { "price": 11.0 } }
+
+# delete it
+DELETE /products/_doc/1</code></pre>
+
+<h2>The endpoints at a glance</h2>
+<table>
+  <tr><th>Method</th><th>Endpoint</th><th>Action</th></tr>
+  <tr><td>PUT / POST</td><td>/{index}/_doc/{id?}</td><td>Index a document; omit the id and OpenSearch assigns one.</td></tr>
+  <tr><td>GET</td><td>/{index}/_doc/{id}</td><td>Fetch a document by id.</td></tr>
+  <tr><td>POST + _update</td><td>/{index}/_doc/{id}/_update</td><td>Apply a partial update to a document.</td></tr>
+  <tr><td>DELETE</td><td>/{index}/_doc/{id}</td><td>Remove a document.</td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> A <code>PUT</code> with an explicit <code>_id</code> is idempotent — re-sending it replaces the same document. A raw <code>POST</code> without an id lets the engine generate one for you.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. To store a document at a known id, you…</h4>
+  <button class="opt" data-fb="Correct — PUT with an id is idempotent create-or-replace.">PUT /products/_doc/42 with the body</button>
+  <button class="opt" data-fb="No — _search queries; it does not index a document.">POST /products/_search with the body</button>
+  <button class="opt" data-fb="No — you need the _doc endpoint and an identifier.">PUT /products without any id</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. When you POST without an id, OpenSearch…</h4>
+  <button class="opt" data-fb="No — it happily accepts unkeyed documents.">refuses the request entirely</button>
+  <button class="opt" data-fb="No — it generates a fresh id for the new document.">reuses the previous document id</button>
+  <button class="opt" data-fb="Correct — the engine assigns a generated identifier.">generates a new id for you</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. A partial field update uses…</h4>
+  <button class="opt" data-fb="No — that removes the whole document.">DELETE /products/_doc/1</button>
+  <button class="opt" data-fb="Correct — _update applies a partial doc or script.">POST /{index}/_doc/1/_update</button>
+  <button class="opt" data-fb="No — GET only reads the existing document.">GET /products/_doc/1</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the OpenSearch document APIs for the full index/get/update/delete reference.</p>
+<div class="ask"><strong>Ask the agent</strong> Sketch the CRUD calls you would use to back an e-commerce "product" screen, and note which call is safe to retry.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://opensearch.org/docs/latest/api-reference/document-apis/index-document/">OpenSearch — Document APIs</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-what-is-opensearch.html">← Lesson 1</a></span>
+  <span class="nav-next"><a href="0003-mappings-and-field-types.html">Lesson 3: mappings &amp; field types →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/opensearch-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

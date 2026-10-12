@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — Full-text Search with Match</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 10</span><span>Elasticsearch · AWS OpenSearch</span></div>
+  <h1>Full-text Search with Match</h1>
+  <p class="subtitle">Natural-language lookup through the analyzer, and the scored vs unscored match.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>The <code>match</code> query takes natural language, runs it through the field's analyzer, and scores documents that contain <em>any</em> of the resulting terms — full-text search in one call.<sup><a href="#r1">1</a></sup></p>
+
+<h2>match analyzes the query, too</h2>
+<pre><code>GET /products/_search
+{ "query": { "match": { "name": "copper travel mug" } } }</code></pre>
+<p>The terms <code>copper</code>, <code>travel</code>, and <code>mug</code> are each compared against documents; a doc containing all three ranks above one containing only <code>mug</code>.</p>
+
+<h2>Query context vs filter context</h2>
+<table>
+  <tr><th>Context</th><th>Score?</th><th>Typical use</th></tr>
+  <tr><td>Query context</td><td>Yes — computes relevance <code>_score</code></td><td>Text you want ranked, like a name search.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Filter context</td><td>No — match numerically, cacheable</td><td>Boolean, range, and existence checks (in stock, price range).</td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> <code>match</code> defaults to <code>operator: "or"</code>: any term matches. Set <code>operator: "and"</code> or add <code>minimum_should_match</code> when every term must appear — this is how you tighten recall on a user phrase.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. match differs from a raw term hit because it…</h4>
+  <button class="opt" data-fb="No — match analyzes the query into terms first.">compares the query string verbatim</button>
+  <button class="opt" data-fb="Correct — it tokenizes and matches those terms.">analyzes the query into search terms</button>
+  <button class="opt" data-fb="No — it searches field content, not just ids.">only matches on the document id</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. By default, match with multiple words…</h4>
+  <button class="opt" data-fb="Correct — the default operator is OR.">matches if any term is present</button>
+  <button class="opt" data-fb="No — that requires operator "and" or minimum_should_match.">requires every term to appear</button>
+  <button class="opt" data-fb="No — it matches on the terms it finds.">returns nothing unless one term</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. Filter context differs from query context by…</h4>
+  <button class="opt" data-fb="No — filter context does not score at all.">always raising the relevance score</button>
+  <button class="opt" data-fb="No — filters work on typed fields too.">requiring a keyword-field query</button>
+  <button class="opt" data-fb="Correct — it matches without relevance scoring.">not scoring and being cacheable</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the OpenSearch match-query reference to see the full option set.</p>
+<div class="ask"><strong>Ask the agent</strong> Write a match for "blue ceramic cup" and say what happens to the result when you switch operator to "and".</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://opensearch.org/docs/latest/query-dsl/full-text/match/">OpenSearch — Match query</a></li>
+    <li id="r2"><a href="https://opensearch.org/docs/latest/api-reference/search-apis/search/">OpenSearch — Search API</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-indexing-and-the-bulk-api.html">← Lesson 4</a></span>
+  <span class="nav-next"><a href="0006-exact-matching-term-and-keyword.html">Lesson 6: exact matching &amp; term →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/opensearch-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

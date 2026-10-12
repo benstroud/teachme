@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — Mappings &amp; Field Types</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 10</span><span>Elasticsearch · AWS OpenSearch</span></div>
+  <h1>Mappings &amp; Field Types</h1>
+  <p class="subtitle">How you tell the engine what each field is, and why text differs so sharply from keyword.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A <strong>mapping</strong> tells OpenSearch how to store and index each field: <code>text</code> fields are tokenized for full-text search, <code>keyword</code> fields are kept as one exact value, and numeric/date/boolean fields are typed for range queries and aggregations.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Dynamic vs explicit mapping</h2>
+<p>By default OpenSearch <em>infers</em> field types from your first document (dynamic mapping). That is convenient but easy to get wrong — a human-readable id might be inferred as <code>long</code>, or a short description as <code>text</code> when you actually need exact matching. Production mappings are usually written by hand.</p>
+
+<h2>The field types you will reach for</h2>
+<table>
+  <tr><th>Type</th><th>Use it for</th></tr>
+  <tr><td><code>text</code></td><td>Full-text on natural prose: analyzed, matched by <em>words</em>.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>keyword</code></td><td>One exact token: ids, slugs, enums, statuses; sortable, aggregatable.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>integer</code> / <code>long</code></td><td>Whole numbers for range filters and metrics.</td></tr>
+  <tr><td><code>double</code></td><td>Floating-point prices, ratings, coordinates.</td></tr>
+  <tr><td><code>boolean</code></td><td>True/false flags.</td></tr>
+  <tr><td><code>date</code></td><td>Timestamps, for date ranges and histogram buckets.</td></tr>
+  <tr><td><code>object</code> / <code>nested</code></td><td>JSON sub-objects; nested keeps arrays independent.</td></tr>
+</table>
+
+<h2>A small explicit mapping</h2>
+<pre><code>PUT /products
+{ "mappings": {
+    "properties": {
+      "name":   { "type": "text", "fields": { "raw": { "type": "keyword" } } },
+      "sku":    { "type": "keyword" },
+      "price":  { "type": "double" },
+      "tags":   { "type": "keyword" },
+      "status": { "type": "keyword" },
+      "added":  { "type": "date" }
+    } } }</code></pre>
+
+<aside class="note"><strong>Key idea</strong> The <code>name</code> field is both <code>text</code> (for "copper mug" searches) <em>and</em>, via the <code>raw</code> sub-field, <code>keyword</code> (for exact sort/aggregation). One source field, two stored views.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. The field type chosen for full-text prose is…</h4>
+  <button class="opt" data-fb="No — keyword is not analyzed; it is for exact matches.">keyword, because it is kept verbatim</button>
+  <button class="opt" data-fb="Correct — text is tokenized and used for full-text score.">text, because it is analyzed into words</button>
+  <button class="opt" data-fb="No — boolean holds only true or false values.">boolean, because flags sort cleanly</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. A keyword field is the right choice for a…</h4>
+  <button class="opt" data-fb="No — prose needs text analysis, not exact storage.">long review paragraph body</button>
+  <button class="opt" data-fb="No — headlines are searched as words, so text fits.">freeform article headline</button>
+  <button class="opt" data-fb="Correct — status is an exact value you bucket on.">status field you filter and count</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. The raw sub-field on name lets you…</h4>
+  <button class="opt" data-fb="Correct — the keyword sub-field supports exact use.">aggregate or sort on name.raw exactly</button>
+  <button class="opt" data-fb="No — raw is keyword, so it is not analyzed.">search name.raw with full-text scoring</button>
+  <button class="opt" data-fb="No — it is two indexed views of one field value.">store two separate source documents</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the OpenSearch field-types reference and the mappings docs for the full catalog.</p>
+<div class="ask"><strong>Ask the agent</strong> Write the mapping you would give a "books" index — name, author, isbn, published, tags — and justify each type.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://opensearch.org/docs/latest/field-types/">OpenSearch — Field types</a></li>
+    <li id="r2"><a href="https://opensearch.org/docs/latest/api-reference/document-apis/index-document/">OpenSearch — Document APIs</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-documents-indices-and-the-rest-api.html">← Lesson 2</a></span>
+  <span class="nav-next"><a href="0004-indexing-and-the-bulk-api.html">Lesson 4: indexing &amp; the Bulk API →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/opensearch-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

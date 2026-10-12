@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 10 — Search at Scale on AWS OpenSearch</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 10 of 10</span><span>Elasticsearch · AWS OpenSearch</span></div>
+  <h1>Search at Scale on AWS OpenSearch</h1>
+  <p class="subtitle">Pagination, shard-replica scaling, and picking between a domain and Serverless.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>As search grows, you stop paging with <code>from</code>/<code>size</code> and switch to <code>search_after</code> + a point-in-time (PIT), and you choose an AWS deployment — a provisioned domain or OpenSearch Serverless — that matches your workload's predictability.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Deep pagination</h2>
+<p><code>from</code>/(<code>size</code>) is fine for the first pages but grows expensive past ~10,000 results — the coordinator must fetch and sort every preceding bucket. For deep, stable paging use a <strong>PIT</strong> (a fixed snapshot of the index) with <code>search_after</code>, which resumes from the last sort value seen.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Provisioned domain vs OpenSearch Serverless</h2>
+<table>
+  <tr><th>Deployment</th><th>Who manages capacity</th><th>Best when</th></tr>
+  <tr><td>Provisioned domain</td><td>You choose instance types/counts</td><td>Predictable, steady load you want to tune.<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td>OpenSearch Serverless</td><td>AWS auto-scales collections (OCUs)</td><td>Intermittent or unpredictable load.<sup><a href="#r2">2</a></sup></td></tr>
+</table>
+
+<h2>A reference shape</h2>
+<pre><code>ingest (bulk / a stream)  →  index  →  search API
+   products_v2 (mapping + analyzer)        match / term / aggs
+   PIT + search_after for deep pages</code></pre>
+
+<aside class="note"><strong>Key idea</strong> The engine scales by shards and replicas; Serverless hides shard and capacity management for you. Pick pagination and deployment by workload — not by habit.<sup><a href="#r2">2</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. Deep pagination is best served with…</h4>
+  <button class="opt" data-fb="Correct — stable, cheap access to deep pages.">search_after plus a point-in-time</button>
+  <button class="opt" data-fb="No — deep from/size grows the coordinator work.">a huge from offset alone</button>
+  <button class="opt" data-fb="No — refresh is for visibility, not paging.">refreshing the index each page</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. OpenSearch Serverless suits…</h4>
+  <button class="opt" data-fb="No — provisioned domains suit steady tunable load.">a predictable fixed query load</button>
+  <button class="opt" data-fb="No — Serverless is exactly about auto-scaling.">no need to ever scale</button>
+  <button class="opt" data-fb="Correct — it auto-scales to your usage.">intermittent or unpredictable load</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. A provisioned domain's main difference is that…</h4>
+  <button class="opt" data-fb="No — domains support replicas and multi-AZ.">it cannot hold replicas</button>
+  <button class="opt" data-fb="Correct — you pick instance types and counts.">you size the instances yourself</button>
+  <button class="opt" data-fb="No — domains support encryption and VPCs.">storage is never encrypted</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the OpenSearch pagination/PIT docs and the AWS managed vs Serverless pages.</p>
+<div class="ask"><strong>Ask the agent</strong> Sketch the deployment and pagination you would choose for a product search that is quiet overnight but spikes on sale days — and justify it.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://opensearch.org/docs/latest/api-reference/search-apis/point-in-time/">OpenSearch — Point in Time (PIT)</a></li>
+    <li id="r2"><a href="https://opensearch.org/docs/latest/api-reference/search-apis/search/">OpenSearch — Search API</a></li>
+    <li id="r3"><a href="https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless.html">AWS — Amazon OpenSearch Serverless</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0009-aggregations-for-analytics.html">← Lesson 9</a></span>
+  <span class="nav-next"><a href="../reference/opensearch-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/opensearch-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 9 — Aggregations for Analytics</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 9 of 10</span><span>Elasticsearch · AWS OpenSearch</span></div>
+  <h1>Aggregations for Analytics</h1>
+  <p class="subtitle">Turning a search corpus into averages, counts, and time buckets.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>An <strong>aggregation</strong> turns matching documents into computed answers — a metric like an average, or buckets you group by — so one search can also return the report.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Metric aggregations</h2>
+<pre><code>GET /products/_search
+{ "size": 0,
+  "aggs": { "avg_price": { "avg": { "field": "price" } } } }</code></pre>
+<p>Metrics compute a value over the matching set: <code>avg</code>, <code>sum</code>, <code>min</code>, <code>max</code>, <code>cardinality</code> (unique count).</p>
+
+<h2>Bucket aggregations</h2>
+<pre><code>GET /products/_search
+{ "size": 0,
+  "aggs": { "by_status": { "terms": { "field": "status" } } } }</code></pre>
+<p>Buckets group documents — <code>terms</code> by value, <code>date_histogram</code> by time interval — and each bucket reports its own <code>doc_count</code>.</p>
+
+<h2>The keyword-subfield rule</h2>
+<p>OpenSearch will not aggregate a <code>text</code> field by default; it reunites the tokenized words only at real memory cost. Keep a <code>keyword</code> sub-field (like the <code>fields.raw</code> pattern) and aggregate on that instead.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Aggregations are the engine behind facets ("filter by status" counts and "price" averages). They run over however many documents match, so keep <code>size: 0</code> when you only want the report.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. A terms aggregation is a…</h4>
+  <button class="opt" data-fb="No — terms groups by value; it is a bucket agg.">metric that averages a field</button>
+  <button class="opt" data-fb="Correct — it buckets documents by a value.">bucket grouping by field value</button>
+  <button class="opt" data-fb="No — aggregations are computed, not stored.">mapping that defines a field</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. To report the average price you use…</h4>
+  <button class="opt" data-fb="No — averaging is a metric, not a bucket.">a terms bucket on price</button>
+  <button class="opt" data-fb="No — queries filter; they do not compute metrics.">a range query on price</button>
+  <button class="opt" data-fb="Correct — avg computes a value over matches.">the avg metric aggregation</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. Aggregating a text field requires…</h4>
+  <button class="opt" data-fb="Correct — tokenized text is not aggregatable by default.">a keyword sub-field to aggregate on</button>
+  <button class="opt" data-fb="No — an index setting, not a flag, is needed.">a boolean flag on the field</button>
+  <button class="opt" data-fb="No — you map a keyword sub-field, not rebuild blindly.">deleting the index first</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the OpenSearch aggregations docs and try metrics and buckets on an index.</p>
+<div class="ask"><strong>Ask the agent</strong> What aggregation would you run to show users a "price" histogram and a "by status" facet for a product listing?</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://opensearch.org/docs/latest/aggregations/">OpenSearch — Aggregations</a></li>
+    <li id="r2"><a href="https://opensearch.org/docs/latest/field-types/">OpenSearch — Field types</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0008-analyzers-and-tokenization.html">← Lesson 8</a></span>
+  <span class="nav-next"><a href="0010-search-scale-and-aws-deployment.html">Lesson 10: scale &amp; deployment →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/opensearch-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
