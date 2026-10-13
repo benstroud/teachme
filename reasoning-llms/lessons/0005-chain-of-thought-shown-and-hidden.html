@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — Chain of Thought: Shown &amp; Hidden</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 10</span><span>Reasoning vs Non-Reasoning LLMs</span></div>
+  <h1>Chain of Thought: Shown &amp; Hidden</h1>
+  <p class="subtitle">The deliberation you may or may not get to read, and why it is often hidden.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>What a reasoning model "thinks" is a <strong>chain of thought</strong> produced before the reply — and providers decide whether you see the raw deliberation (DeepSeek shows it) or only a short summary (OpenAI hides it), usually for safety and competitive reasons.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Where chain of thought came from</h2>
+<p>Chain-of-thought first became famous as a <em>prompting technique</em>: asking a model to "think step by step" measurably improved its answers to multi-step questions. Reasoning models internalize that idea as trained behavior rather than an ask.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Shown vs hidden deliberation</h2>
+<table>
+  <tr><th>Policy</th><th>You see</th><th>Example providers</th></tr>
+  <tr><td>Shown (open)</td><td>The full reasoning tokens</td><td>DeepSeek-R1 (thinking is printed)</td></tr>
+  <tr><td>Hidden</td><td>Only a brief reasoning summary</td><td>OpenAI o-series reasoning</td></tr>
+</table>
+
+<h2>In the API</h2>
+<pre><code># reasoning content often appears apart from the final answer
+response.reasoning_summary   # provider-controlled summary
+stream: reasoning > final answer  # can be streamed</code></pre>
+
+<aside class="note"><strong>Key idea</strong> "Hidden" does not mean absent — the model still thinks. The provider simply withholds the raw deliberation you could otherwise copy or abuse.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Chain of thought is best described as…</h4>
+  <button class="opt" data-fb="No — it is the reasoning before the answer.">the final answer text only</button>
+  <button class="opt" data-fb="Correct — deliberate intermediate steps lead in.">reasoning steps before the answer</button>
+  <button class="opt" data-fb="No — that is unrelated to reasoning steps.">the token vocabulary size</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A provider that hides chain of thought…</h4>
+  <button class="opt" data-fb="Correct — hiding is about disclosure, not behavior.">still has the model think privately</button>
+  <button class="opt" data-fb="No — the model still reasons; only the text is withheld.">disables reasoning entirely</button>
+  <button class="opt" data-fb="No — that is the "shown" policy instead.">shows you every token verbatim</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. Chain of thought began as…</h4>
+  <button class="opt" data-fb="No — it is a text-level technique.">a hardware optimization</button>
+  <button class="opt" data-fb="No — it is about reasoning steps in text.">a database index type</button>
+  <button class="opt" data-fb="Correct — "think step by step" was the original trick.">a prompting technique</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the CoT paper for the prompting origin and the reasoning guide for how content is exposed.</p>
+<div class="ask"><strong>Ask the agent</strong> Why might a provider show the full thinking transparently (e.g. DeepSeek) while others hide it? Name one reason for each.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://arxiv.org/abs/2201.11903">Wei et al. — Chain-of-Thought Prompting</a></li>
+    <li id="r2"><a href="https://platform.openai.com/docs/guides/reasoning">OpenAI — Reasoning models guide</a></li>
+    <li id="r3"><a href="https://arxiv.org/abs/2501.12948">DeepSeek-R1 — arXiv 2501.12948</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-how-reasoning-is-trained.html">← Lesson 4</a></span>
+  <span class="nav-next"><a href="0006-reasoning-effort-and-control.html">Lesson 6: reasoning effort →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/reasoning-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

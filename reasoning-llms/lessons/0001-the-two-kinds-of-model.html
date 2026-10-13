@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — The Two Kinds of Model</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 10</span><span>Reasoning vs Non-Reasoning LLMs</span></div>
+  <h1>The Two Kinds of Model</h1>
+  <p class="subtitle">One engine, two behaviors: the fluent standard model and the deliberate reasoning model.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A <strong>standard LLM</strong> is a next-token generator: it writes the most plausible continuation quickly. A <strong>reasoning model</strong> is trained to spend extra tokens "thinking" — an internal chain of deliberation — before it commits to an answer, buying correctness at the price of latency and cost.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Two ways to answer, one underlying engine</h2>
+<table>
+  <tr><th></th><th>Standard LLM</th><th>Reasoning model</th></tr>
+  <tr><td>Before answering</td><td>Emits the continuation almost immediately</td><td>Emits a chain of thought first</td></tr>
+  <tr><td>Best at</td><td>Fluency, style, quick recall</td><td>Math, logic, planning, deep analysis</td></tr>
+  <tr><td>Cost profile</td><td>Few tokens, low latency</td><td>Many tokens, higher latency</td></tr>
+</table>
+
+<h2>Why the category exists</h2>
+<p>Reasoning models emerged because evaluation-style questions (multi-step math, coding, hard logic) expose a standard model's weakness: it cannot backtrack, so one early mistake propagates. Giving the model room to deliberate — and training that deliberation with reinforcement learning — measurably lifts those hard tasks.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Neither kind "truly understands" differently — the reasoning model spends more <em>deliberate compute</em> before the answer. The distinction is a training recipe plus an inference-time behavior, not a different brain.<sup><a href="#r2">2</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. The defining behavior of a reasoning model is…</h4>
+  <button class="opt" data-fb="No — that is the standard model, not a reasoning one.">answering instantly without thought</button>
+  <button class="opt" data-fb="Correct — a chain of deliberation precedes the reply.">thinking internally before the answer</button>
+  <button class="opt" data-fb="No — deliberate thinking is what it adds, not refusal.">refusing all multi-step questions</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>2. A reasoning model trades away…</h4>
+  <button class="opt" data-fb="No — those come from the same token engine.">formatting and punctuation</button>
+  <button class="opt" data-fb="Correct — thinking costs tokens and time up front.">latency and token cost for accuracy</button>
+  <button class="opt" data-fb="No — it still generates text; it just thinks first.">the ability to write prose</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. Standard models struggle on multi-step problems because…</h4>
+  <button class="opt" data-fb="Correct — next-token generation never revisits.">they cannot backtrack from an early error</button>
+  <button class="opt" data-fb="No — they accept the prompt; they just err on steps.">they refuse arithmetic equations</button>
+  <button class="opt" data-fb="No — context is finite, and that is not the core issue.">they have no token limit at all</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Start with the OpenAI reasoning-model guide to see the category framing in the provider's own words.</p>
+<div class="ask"><strong>Ask the agent</strong> For each of these three calls — a poem, a 7-fold multiplication, a legal-risk analysis — say which kind of model you would route to, and why.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://platform.openai.com/docs/guides/reasoning">OpenAI — Reasoning models guide</a></li>
+    <li id="r2"><a href="https://openai.com/index/learning-to-reason-with-llms/">OpenAI — Learning to reason with LLMs (o1)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="0002-how-a-standard-llm-answers.html">Lesson 2: how a standard LLM answers →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/reasoning-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

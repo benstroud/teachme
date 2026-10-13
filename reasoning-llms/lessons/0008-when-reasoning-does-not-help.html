@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — When Reasoning Does Not Help</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 10</span><span>Reasoning vs Non-Reasoning LLMs</span></div>
+  <h1>When Reasoning Does Not Help</h1>
+  <p class="subtitle">Trivia, extraction, latency, cost — and the hallucination you cannot think your way out of.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Reasoning models are not universally better: for easy recall, extraction, and latency-sensitive calls they add cost and delay with little accuracy gain — and they still hallucinate, because thinking improves <em>process</em>, not the model's knowledge.<sup><a href="#r1">1</a></sup></p>
+
+<h2>When the standard model is the better tool</h2>
+<table>
+  <tr><th>Task class</th><th>Why deliberation adds little</th></tr>
+  <tr><td>Trivia / fact recall</td><td>The answer is in weights; no steps to verify.</td></tr>
+  <tr><td>Simple classification / extraction</td><td>Short, direct; extra tokens return nothing.</td></tr>
+  <tr><td>Latency-sensitive UIs</td><td>Thinking tokens delay every keystroke response.</td></tr>
+  <tr><td>High-volume / low-budget</td><td>Reasoning costs many more tokens per call.</td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> Reasoning is a compute trade, not a correctness guarantee. A harder thinker can still be wrong, and on easy tasks the extra thinking is pure overhead — which is why routing exists (Lesson 10).<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. For quick fact recall, a reasoning model mostly adds…</h4>
+  <button class="opt" data-fb="Correct — the answer needs no deliberation.">cost and latency without accuracy</button>
+  <button class="opt" data-fb="No — recall improves at the margin, not hugely.">big accuracy gains on recall</button>
+  <button class="opt" data-fb="No — thinking does not expand stored facts.">a larger factual memory</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>2. Extra thinking does not guarantee correctness because…</h4>
+  <button class="opt" data-fb="No — it improves process, not guarantees.">the model refuses to improve</button>
+  <button class="opt" data-fb="Correct — a wrong premise stays wrong, even reasoned over.">it cannot fix a knowledge gap</button>
+  <button class="opt" data-fb="No — verifiability is about the answer, which stays.">it removes verifiability</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. For a high-volume, latency-sensitive UI you should…</h4>
+  <button class="opt" data-fb="No — that piles delay and cost on easy calls.">always run the highest effort</button>
+  <button class="opt" data-fb="No — easier calls suit a cheaper, faster model.">always disable the standard model</button>
+  <button class="opt" data-fb="Correct — save reasoning for when it pays.">route easy calls to a standard model</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the reasoning-guide guidance recommending standard models for simpler, latency-sensitive requests.</p>
+<div class="ask"><strong>Ask the agent</strong> Give a request where a reasoning model would be wastefully slow, and explain the overload.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://platform.openai.com/docs/guides/reasoning">OpenAI — Reasoning models guide</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-when-reasoning-wins.html">← Lesson 7</a></span>
+  <span class="nav-next"><a href="0009-evaluating-reasoning-models.html">Lesson 9: evaluating reasoning →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/reasoning-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

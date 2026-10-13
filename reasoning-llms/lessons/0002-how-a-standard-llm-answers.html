@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — How a Standard LLM Answers</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 10</span><span>Reasoning vs Non-Reasoning LLMs</span></div>
+  <h1>How a Standard LLM Answers</h1>
+  <p class="subtitle">The fast, fluent, non-deliberate token generator you build most apps on.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A standard LLM answers by predicting and emitting the next token again and again — with no search, no backtracking, and no plan — so the prompt plus everything generated so far is its entire working memory.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Autoregressive generation</h2>
+<pre><code>request = "The capital of France is "
+# token-by-token, always conditioned on context + prior output
+context = request           # -> "Paris"
+context = request + "Paris" # -> "."
+context = ...</code></pre>
+<p>Each token is sampled from a probability distribution over the vocabulary. This makes output fast and fluent, but it means the model commits to words before the whole answer is "known" to it — there is no pass where it plans first.</p>
+
+<h2>What that buys and what it costs</h2>
+<table>
+  <tr><th>Strength</th><th>Weakness</th></tr>
+  <tr><td>Very fast, natural phrasing</td><td>One early wrong token propagates</td></tr>
+  <tr><td>Great at recall and summarization</td><td>Weak on long chains of dependent steps</td></tr>
+  <tr><td>Cheap (few tokens)</td><td>No explicit reasoning or self-check</td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> "Reasoning" is not absent from the model — prompts can still coax step-by-step text out of a standard model via chain-of-thought prompting — but it is not <em>enforced</em> by training, so it is patchy.<sup><a href="#r2">2</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. Autoregressive generation produces text…</h4>
+  <button class="opt" data-fb="No — there is no planning pass; tokens come one by one.">all at once after a plan</button>
+  <button class="opt" data-fb="No — there is no search or backtracking.">by searching many drafts</button>
+  <button class="opt" data-fb="Correct — each token builds on all prior ones.">one next token at a time</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>2. The model cannot revise an early mistake because…</h4>
+  <button class="opt" data-fb="No — vocabulary is not the reason for the rigidity.">it lacks a large vocabulary</button>
+  <button class="opt" data-fb="Correct — output is committed as it is produced.">generated tokens are never un-generated</button>
+  <button class="opt" data-fb="No — it is an architectural property, not a refusal.">it refuses to fix its own text</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. Chain of thought can still coax reasoning from a standard model by…</h4>
+  <button class="opt" data-fb="Correct — explicit step prompting elicits step text.">prompting it to write steps</button>
+  <button class="opt" data-fb="No — length alone does not make it deliberate.">increasing the request size</button>
+  <button class="opt" data-fb="No — that would remove what it works from.">removing the context window</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>See a standard generation explained in the LLM introduction source, and the CoT paper for the prompting technique.</p>
+<div class="ask"><strong>Ask the agent</strong> Explain, in one sentence each, why a standard model is great at a summary but can slip on a three-step arithmetic word problem.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://karpathy.ai/">Karpathy — Intro to Large Language Models</a></li>
+    <li id="r2"><a href="https://arxiv.org/abs/2201.11903">Wei et al. — Chain-of-Thought Prompting</a></li>
+    <li id="r3"><a href="https://platform.openai.com/docs/guides/reasoning">OpenAI — Reasoning models guide</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-the-two-kinds-of-model.html">← Lesson 1</a></span>
+  <span class="nav-next"><a href="0003-what-a-reasoning-model-adds.html">Lesson 3: what a reasoning model adds →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/reasoning-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

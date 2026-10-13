@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — Reasoning Effort &amp; Control</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 10</span><span>Reasoning vs Non-Reasoning LLMs</span></div>
+  <h1>Reasoning Effort &amp; Control</h1>
+  <p class="subtitle">How much should this call think? The token-latency-accuracy dial and how to set it.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Reasoning models let you <strong>dial the thinking budget</strong> (a reasoning-effort setting like low/medium/high): more effort buys accuracy on hard problems, while less effort cuts latency and token cost for routine ones.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The knob and what it trades</h2>
+<table>
+  <tr><th>Effort</th><th>Thinking tokens</th><th>Good for</th></tr>
+  <tr><td>Low</td><td>Few</td><td>Easy, frequent, latency-sensitive calls</td></tr>
+  <tr><td>Medium</td><td>Moderate</td><td>Typical analysis</td></tr>
+  <tr><td>High</td><td>Many</td><td>Hard math, complex code, deep reasoning</td></tr>
+</table>
+
+<h2>Two failure modes to avoid</h2>
+<ul>
+  <li><strong>Overthinking</strong>: high effort on trivia wastes tokens and adds delay for no accuracy gain.</li>
+  <li><strong>Underthinking</strong>: low effort on a genuinely hard problem trades away the accuracy you are paying for.</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> Treat effort as a product lever: pick it per request class and tune by measuring. Because extra test-time compute raises accuracy, the right effort is a cost-versus-quality decision you control.<sup><a href="#r2">2</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Increasing reasoning effort most directly raises…</h4>
+  <button class="opt" data-fb="No — vocabulary is fixed by the model.">the output vocabulary</button>
+  <button class="opt" data-fb="Correct — more effort means more deliberation.">thinking tokens and latency</button>
+  <button class="opt" data-fb="No — context retention is not the lever here.">the context retention</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Using high effort on a trivial question mainly causes…</h4>
+  <button class="opt" data-fb="Correct — no accuracy gain on easy calls.">wasted tokens and delay</button>
+  <button class="opt" data-fb="No — caching is separate from effort.">a permanently cached answer</button>
+  <button class="opt" data-fb="No — effort does not make it refuse.">a refusal by the model</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. The best way to choose effort per request is to…</h4>
+  <button class="opt" data-fb="No — that costs latency and tokens on easy calls.">always use the highest setting</button>
+  <button class="opt" data-fb="No — that loses accuracy on hard problems.">always use the lowest setting</button>
+  <button class="opt" data-fb="Correct — measure quality, latency, and cost.">tune by measuring per request class</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the reasoning-effort guidance in the OpenAI reasoning guide for the current labels.</p>
+<div class="ask"><strong>Ask the agent</strong> Give a request where you would set low effort and one where you would set high, and justify each.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://platform.openai.com/docs/guides/reasoning">OpenAI — Reasoning models guide</a></li>
+    <li id="r2"><a href="https://openai.com/index/learning-to-reason-with-llms/">OpenAI — Learning to reason with LLMs (o1)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-chain-of-thought-shown-and-hidden.html">← Lesson 5</a></span>
+  <span class="nav-next"><a href="0007-when-reasoning-wins.html">Lesson 7: when reasoning wins →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/reasoning-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

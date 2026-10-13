@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 9 — Evaluating Reasoning Models</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 9 of 10</span><span>Reasoning vs Non-Reasoning LLMs</span></div>
+  <h1>Evaluating Reasoning Models</h1>
+  <p class="subtitle">Hard verifiable benchmarks, sampling settings, and test-time compute scaling.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>To judge a reasoning model you need hard, <em>verifiable</em> benchmarks (AIME, MATH, GPQA, Codeforces) and you must read them at the right sampling setting — because one lucky sample and 64-sample consensus tell very different stories.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Reading the numbers</h2>
+<table>
+  <tr><th>Measure</th><th>What it tells you</th></tr>
+  <tr><td>pass@1</td><td>Accuracy of a single generation — realistic for API use.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Majority vote / consensus</td><td>Best when you can sample many answers (costly).<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Reranked samples</td><td>Upper bound with a verifier/re-ranker.<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+
+<h2>Test-time compute scaling</h2>
+<p>Research shows you can trade inference compute for accuracy: search over more candidates, or weigh steps with a verifier, instead of buying a bigger model — especially on reasoning-heavy tasks.<sup><a href="#r2">2</a></sup> Benchmark sheets now routinely report accuracy as effort or sampling rises, not as one magic number.</p>
+
+<aside class="note"><strong>Key idea</strong> When a vendor quotes a score, ask: which benchmark, at what effort, and with how many samples? Comparing apples to apples is the whole game.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. pass@1 is the accuracy measure that…</h4>
+  <button class="opt" data-fb="No — that is consensus, not pass@1.">aggregates a hundred samples</button>
+  <button class="opt" data-fb="Correct — it mirrors a normal API call.">uses one single generation per answer</button>
+  <button class="opt" data-fb="No — length weighting is not pass@1.">weights by output length</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Consensus with many samples usually…</h4>
+  <button class="opt" data-fb="Correct — averaging many answers lifts it.">beats a single sample accuracy</button>
+  <button class="opt" data-fb="No — majority vote tends to raise it.">lowers the reported pass rate</button>
+  <button class="opt" data-fb="No — it is a reporting setting, not a test.">removes the need for a benchmark</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. You should read a benchmark score in context of…</h4>
+  <button class="opt" data-fb="No — brand alone carries no numeric context.">the brand name only</button>
+  <button class="opt" data-fb="No — sampling setting matters more here.">the total parameter count</button>
+  <button class="opt" data-fb="Correct — all three shape the number.">effort, sampling, and the benchmark</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Dig into the o1 eval table and the test-time-compute paper for how numbers are gathered.</p>
+<div class="ask"><strong>Ask the agent</strong> You see a claim "X scores 95% on AIME". List two questions to ask before trusting it.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://openai.com/index/learning-to-reason-with-llms/">OpenAI — Learning to reason with LLMs (o1)</a></li>
+    <li id="r2"><a href="https://arxiv.org/abs/2408.03314">Snell et al. — Scaling LLM Test-Time Compute</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0008-when-reasoning-does-not-help.html">← Lesson 8</a></span>
+  <span class="nav-next"><a href="0010-routing-and-reference-architecture.html">Lesson 10: routing &amp; architecture →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/reasoning-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

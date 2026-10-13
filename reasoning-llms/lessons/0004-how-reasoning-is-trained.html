@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — How Reasoning Is Trained</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 10</span><span>Reasoning vs Non-Reasoning LLMs</span></div>
+  <h1>How Reasoning Is Trained</h1>
+  <p class="subtitle">Reinforcement learning on verifiable rewards, and the train- vs test-time compute levers.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Reasoning is <em>learned</em>, not bolted on: reinforcement learning against verifiable rewards shapes a model to think long before answering, and that is what turns a fluent model into a reliable one on hard problems.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The R1 recipe: proof that RL alone suffices</h2>
+<pre><code>R1-Zero:  RL from cold, NO supervised fine-tuning
+   base model
+     + RL on verifiable rewards (math/code)
+     -> long chains of thought emerge, with self-reflection + verification</code></pre>
+<p>DeepSeek demonstrated that pure reinforcement learning — with no human demonstration data first — could <em>incentivize</em> reasoning; advanced patterns like checking and re-verification emerged on their own. A later stage added a short cold-start (SFT on examples) before RL to reach useful behavior faster, then distilled the small models from the large one.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Train-time vs test-time compute</h2>
+<table>
+  <tr><th>Where</th><th>What it is</th><th>Effect</th></tr>
+  <tr><td>Train-time</td><td>More RL during training</td><td>Stronger reasoning baked in.<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td>Test-time</td><td>More thinking tokens at inference</td><td>Higher per-query accuracy.<sup><a href="#r2">2</a></sup></td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> Both knobs raise capability, and research shows extra test-time compute can sometimes beat buying a larger model — making the thinking budget a real product decision, not a fixed cost.<sup><a href="#r3">3</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. R1-Zero showed reasoning can be incentivized by…</h4>
+  <button class="opt" data-fb="Correct — no supervised fine-tuning up front.">pure RL without data labels</button>
+  <button class="opt" data-fb="No — the point is RL, not human demonstrations.">hand-written examples only</button>
+  <button class="opt" data-fb="No — vocabulary is unrelated to the training recipe.">a bigger vocabulary table</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. The "cold start" stage before RL is…</h4>
+  <button class="opt" data-fb="No — it is supervised fine-tuning on examples.">an optional empty prompt</button>
+  <button class="opt" data-fb="No — it seeds behavior, it does not clear data.">deleting the training set</button>
+  <button class="opt" data-fb="Correct — it gives RL a faster starting point.">SFT on demonstration thoughts</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. Test-time compute means spending…</h4>
+  <button class="opt" data-fb="No — that is train-time.">more data during pretraining</button>
+  <button class="opt" data-fb="Correct — extra tokens/thinking when serving.">more thinking at inference</button>
+  <button class="opt" data-fb="No — context is memory; this is about compute.">larger context for storage</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the DeepSeek-R1 abstract for the pure-RL result and the o1 write-up for compute scaling.</p>
+<div class="ask"><strong>Ask the agent</strong> State which stage (pure RL vs cold-start SFT) proves reasoning is not just imitation, and why.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://arxiv.org/abs/2501.12948">DeepSeek-R1 — arXiv 2501.12948</a></li>
+    <li id="r2"><a href="https://openai.com/index/learning-to-reason-with-llms/">OpenAI — Learning to reason with LLMs (o1)</a></li>
+    <li id="r3"><a href="https://arxiv.org/abs/2408.03314">Snell et al. — Scaling LLM Test-Time Compute</a></li>
+    <li id="r4"><a href="https://arxiv.org/abs/2305.20050">Lightman et al. — Let's Verify Step by Step</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-what-a-reasoning-model-adds.html">← Lesson 3</a></span>
+  <span class="nav-next"><a href="0005-chain-of-thought-shown-and-hidden.html">Lesson 5: chain of thought →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/reasoning-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

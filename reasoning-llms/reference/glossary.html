@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reasoning vs Non-Reasoning LLMs — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Reasoning vs Non-Reasoning LLMs</span></div>
+  <h1>Reasoning LLM Glossary</h1>
+  <p class="subtitle">Every term in this course, in one place. Return here when a lesson uses a word you do not fully own.</p>
+</header>
+
+<section>
+<h2>The two model classes</h2>
+<dl>
+  <dt><strong>standard LLM</strong></dt>
+  <dd>A next-token predictor: generates the most plausible next token, one at a time, from the context; fluent but non-deliberate.<sup><a href="#r7">7</a></sup></dd>
+  <dt><strong>reasoning model</strong></dt>
+  <dd>A model trained (usually with reinforcement learning) to emit a chain of thought and "think" before its final answer.<sup><a href="#r1">1</a></sup></dd>
+  <dt><strong>autoregressive generation</strong></dt>
+  <dd>Producing output token by token, each conditioned on everything before it, with no searching or backtracking.<sup><a href="#r7">7</a></sup></dd>
+  <dt><strong>test-time compute</strong></dt>
+  <dd>Extra computation spent at inference time (more thinking tokens, search, or sampling) to improve the final answer.<sup><a href="#r2">2</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>How reasoning is learned</h2>
+<dl>
+  <dt><strong>reinforcement learning (RL)</strong></dt>
+  <dd>Training that maximizes a reward signal rather than just imitating text; used to shape chain-of-thought behavior.<sup><a href="#r3">3</a></sup></dd>
+  <dt><strong>verifiable reward</strong></dt>
+  <dd>An objective that can be checked automatically (e.g. a correct math answer) used to score generations during RL.<sup><a href="#r3">3</a></sup></dd>
+  <dt><strong>outcome reward / process reward</strong></dt>
+  <dd>Reward for the final answer vs reward for each intermediate reasoning step.<sup><a href="#r6">6</a></sup></dd>
+  <dt><strong>cold start</strong></dt>
+  <dd>A short supervised fine-tuning stage with demonstration chains of thought before RL, to give RL a good starting point.<sup><a href="#r3">3</a></sup></dd>
+  <dt><strong>distilled reasoning model</strong></dt>
+  <dd>A smaller model fine-tuned on a large reasoning model's chains of thought to inherit some of its ability cheaply.<sup><a href="#r3">3</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Chain of thought</h2>
+<dl>
+  <dt><strong>chain of thought (CoT)</strong></dt>
+  <dd>Intermediate reasoning steps produced before the final answer; prompting technique later trained in as behavior.<sup><a href="#r4">4</a></sup></dd>
+  <dt><strong>thinking block / reasoning content</strong></dt>
+  <dd>The internal deliberation a reasoning model produces, often shown in the UI or available in the API.<sup><a href="#r1">1</a></sup></dd>
+  <dt><strong>hidden CoT</strong></dt>
+  <dd>A provider's choice to keep full internal reasoning private and show only a short summary (safety/competitive reasons).<sup><a href="#r2">2</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Control &amp; behavior</h2>
+<dl>
+  <dt><strong>reasoning effort</strong></dt>
+  <dd>A parameter that sets how much thinking the model does (e.g. low/medium/high), trading latency and tokens for accuracy.<sup><a href="#r1">1</a></sup></dd>
+  <dt><strong>overthinking</strong></dt>
+  <dd>Spending many reasoning tokens on a trivial request where a standard model would already answer well.</dd>
+  <dt><strong>routing</strong></dt>
+  <dd>Choosing per-request whether to call a reasoning or a standard model, based on task difficulty, latency, and cost.<sup><a href="#r1">1</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Measuring reasoning</h2>
+<dl>
+  <dt><strong>AIME</strong></dt>
+  <dd>A hard competition-math exam used to measure reasoning; frontier scoring was ~12% (standard) rising past ~75% (reasoning).<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>GPQA</strong></dt>
+  <dd>A graduate-level physics/biology/chemistry benchmark; reasoning models exceed human PhD-level accuracy.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>Codeforces</strong></dt>
+  <dd>Competitive programming; reasoning models reach top-percentile rankings.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>pass@1 / majority vote</strong></dt>
+  <dd>Accuracy of one sample vs aggregating many samples (consensus), which improves raw pass rate.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>test-time compute scaling</strong></dt>
+  <dd>The finding that spending more inference compute (or using a verifier) can improve reasoning accuracy, sometimes better than a larger model.<sup><a href="#r5">5</a></sup></dd>
+</dl>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://platform.openai.com/docs/guides/reasoning">OpenAI — Reasoning models guide</a></li>
+    <li id="r2"><a href="https://openai.com/index/learning-to-reason-with-llms/">OpenAI — Learning to reason with LLMs (o1)</a></li>
+    <li id="r3"><a href="https://arxiv.org/abs/2501.12948">DeepSeek-R1 — arXiv 2501.12948</a></li>
+    <li id="r4"><a href="https://arxiv.org/abs/2201.11903">Wei et al. — Chain-of-Thought Prompting</a></li>
+    <li id="r5"><a href="https://arxiv.org/abs/2408.03314">Snell et al. — Scaling LLM Test-Time Compute</a></li>
+    <li id="r6"><a href="https://arxiv.org/abs/2305.20050">Lightman et al. — Let's Verify Step by Step</a></li>
+    <li id="r7"><a href="https://karpathy.ai/">Karpathy — Intro to Large Language Models</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Mission &amp; notes</span>
+  <span class="nav-next"><a href="../lessons/0001-the-two-kinds-of-model.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../NOTES.md">Notes</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

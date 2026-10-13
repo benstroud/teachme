@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reasoning vs Non-Reasoning LLMs — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  code i { color: var(--accent); font-style: normal; }
+  td code { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Reasoning vs Non-Reasoning LLMs</span></div>
+  <h1>Reasoning LLM Cheat Sheet</h1>
+  <p class="subtitle">The compressed essence of the course. Skim before a lesson, study it fully before an interview.</p>
+</header>
+<section>
+<h2>1. The two model classes</h2>
+<pre><code>Standard LLM  = next-token generator, fluent + fast, low cost
+Reasoning model = trained (RL) to "think" before the answer, high accuracy on hard steps</code></pre>
+<ul>
+  <li>Standard models recall and write fast; reasoning models deliberate first.<sup><a href="#r1">1</a></sup></li>
+  <li>Same engine underneath: the difference is training and inference behavior.</li>
+</ul>
+</section>
+<section>
+<h2>2. Standard generation</h2>
+<pre><code>context = "The capital of France is "
+-> "Paris"  -> "."  -> " "  ...   # token by token, never backtracks</code></pre>
+<ul>
+  <li>Autoregressive: each token depends on all prior context, no search or backtrack.<sup><a href="#r7">7</a></sup></li>
+  <li>Great at fluency/recall; fragile on long dependent-step chains.</li>
+</ul>
+</section>
+<section>
+<h2>3. What reasoning adds</h2>
+<pre><code>Standard:  immediate continuation
+Reasoning:  [chain of thought] -> final answer
+Trained by: RL on verifiable rewards (e.g. correct math)</code></pre>
+<ul>
+  <li>RL rewards behavior that yields right answers, so long CoT emerges.<sup><a href="#r3">3</a></sup></li>
+  <li>R1-Zero proved pure RL (no SFT) can incentivize reasoning.<sup><a href="#r3">3</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>4. Chain of thought</h2>
+<pre><code>Shown (open, e.g. DeepSeek):   full reasoning tokens printed
+Hidden (e.g. OpenAI):           only a short reasoning summary
+At runtime:                     reasoning content can be streamed</code></pre>
+<ul>
+  <li>CoT began as a prompting trick; reasoning models internalize it.<sup><a href="#r4">4</a></sup></li>
+  <li>Hidden means withheld, not absent — the model still thinks.<sup><a href="#r1">1</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>5. Effort &amp; compute</h2>
+<pre><code>reasoning_effort: low | medium | high      # thinking budget per request
+Train-time compute  -> capability baked in
+Test-time compute   -> per-query accuracy (more thinking tokens)</code></pre>
+<ul>
+  <li>Raise effort for hard math/code; lower it to cut latency and tokens.<sup><a href="#r1">1</a></sup></li>
+  <li>More test-time compute can beat a larger model on reasoning.<sup><a href="#r5">5</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>6. When reasoning wins</h2>
+<pre><code>AIME 2024 math:  standard ~12%  ->  o1 74% (pass@1) / 93% (reranked)
+Codeforces:       ~89th percentile
+GPQA (PhD sci):   exceeds human PhD-level accuracy</code></pre>
+<ul>
+  <li>Wins on long, checkable, multi-step tasks: math, code, logic, deep analysis.<sup><a href="#r2">2</a></sup></li>
+  <li>Verifiable rewards are exactly why RL works on these.<sup><a href="#r3">3</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>7. When reasoning does not help</h2>
+<pre><code>Trivia / recall:     answer in weights, no steps
+Classification / extraction:  short + direct
+Latency-sensitive UI: thinking tokens delay each reply
+High-volume / budget:  reasoning costs many tokens</code></pre>
+<ul>
+  <li>Extra thinking returns nothing on easy tasks; it is pure overhead.<sup><a href="#r1">1</a></sup></li>
+  <li>It does not fix hallucination: a wrong premise stays wrong after thinking.</li>
+</ul>
+</section>
+<section>
+<h2>8. Evaluating reasoning</h2>
+<pre><code>pass@1      : one generation (realistic for API calls)
+consensus   : majority vote over many samples (costly)
+reranked    : upper bound with a verifier
+test-time scaling: more thinking/search/verifiers lift accuracy</code></pre>
+<ul>
+  <li>Read any score with effort + sampling setting + benchmark in mind.<sup><a href="#r2">2</a></sup></li>
+  <li>Verify with a verifier or re-rank to squeeze accuracy from compute.<sup><a href="#r5">5</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>9. Routing &amp; deployment</h2>
+<pre><code>request -> classify -> easy: standard model (fast, cheap)
+                       -> hard: reasoning model (effort by task)
+always: stream output, cache repeats, log quality/latency/cost</code></pre>
+<ul>
+  <li>Route the easy majority to standard, the hard minority to reasoning.<sup><a href="#r1">1</a></sup></li>
+  <li>Per-request compute allocation is the product lever you own.</li>
+</ul>
+</section>
+<section>
+<h2>10. Checklist</h2>
+
+<ul>
+  <li>Know which class each task needs: recall/flavor (standard) vs proof/code (reasoning).</li>
+  <li>Set reasoning effort per request class; measure quality, latency, and token cost.</li>
+  <li>Expect hidden CoT in some providers; build around the public answer or summary.</li>
+  <li>Quote benchmarks with pass@1, effort, and sampling context.</li>
+  <li>Route, stream, cache — then watch cost and latency per route.</li>
+</ul>
+</section>
+<footer class="citation">
+  Primary sources: <a href="https://platform.openai.com/docs/guides/reasoning">OpenAI reasoning guide</a>,
+  <a href="https://openai.com/index/learning-to-reason-with-llms/">o1 write-up</a>,
+  <a href="https://arxiv.org/abs/2501.12948">DeepSeek-R1</a>.
+  <ol>
+    <li id="r1"><a href="https://platform.openai.com/docs/guides/reasoning">OpenAI — Reasoning models guide</a></li>
+    <li id="r2"><a href="https://openai.com/index/learning-to-reason-with-llms/">OpenAI — Learning to reason with LLMs (o1)</a></li>
+    <li id="r3"><a href="https://arxiv.org/abs/2501.12948">DeepSeek-R1 — arXiv 2501.12948</a></li>
+    <li id="r4"><a href="https://arxiv.org/abs/2201.11903">Wei et al. — Chain-of-Thought Prompting</a></li>
+    <li id="r5"><a href="https://arxiv.org/abs/2408.03314">Snell et al. — Scaling LLM Test-Time Compute</a></li>
+    <li id="r6"><a href="https://arxiv.org/abs/2305.20050">Lightman et al. — Let's Verify Step by Step</a></li>
+    <li id="r7"><a href="https://karpathy.ai/">Karpathy — Intro to Large Language Models</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="../lessons/0001-the-two-kinds-of-model.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

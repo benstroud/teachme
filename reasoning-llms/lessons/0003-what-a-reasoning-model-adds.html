@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — What a Reasoning Model Adds</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 10</span><span>Reasoning vs Non-Reasoning LLMs</span></div>
+  <h1>What a Reasoning Model Adds</h1>
+  <p class="subtitle">Deliberate internal thought, trained in with reinforcement learning, to buy correctness on hard steps.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A reasoning model does not change what a model is — it changes <em>how the model spends compute</em>: it produces a long chain of deliberation first, and that deliberation is what lifts performance on hard, multi-step tasks.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Training deliberation with reinforcement learning</h2>
+<p>Instead of only imitating human text, a reasoning model is trained to maximize a <em>verifiable reward</em> — for example, getting the final math answer right. Reinforcement learning over many generations rewards the behaviors that lead to correct answers, which is what causes long chains of thought (with self-checking and re-verification) to emerge.<sup><a href="#r2">2</a></sup></p>
+
+<h2>What "thinking" is made of</h2>
+<ul>
+  <li>Expanding the problem into smaller sub-steps.</li>
+  <li>Checking an intermediate result before continuing.</li>
+  <li>Re-reading and correcting before writing the final answer.</li>
+</ul>
+<p>These are the same moves chain-of-thought prompting asks a standard model to make — except now they are trained in as reliable behavior rather than requested.<sup><a href="#r3">3</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> The gain is not a better memory of facts — it is a better <em>process</em> over the facts already in context. That is why reasoning models shine brightest where the steps are long and the reward is checkable.<sup><a href="#r2">2</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. A reasoning model differs mostly in how it…</h4>
+  <button class="opt" data-fb="No — its gain is process, not a bigger memory.">stores a larger memory of facts</button>
+  <button class="opt" data-fb="Correct — deliberate thought precedes the reply.">spends extra compute before answering</button>
+  <button class="opt" data-fb="No — that is not what reasoning adds.">compresses its own context window</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Reasoning behavior is trained mainly by…</h4>
+  <button class="opt" data-fb="Correct — RL rewards behavior that gets answers right.">reinforcement learning on verifiable rewards</button>
+  <button class="opt" data-fb="No — that is distillation, not the core training.">copying a larger model verbatim</button>
+  <button class="opt" data-fb="No — reward signals drive the learned behavior.">removing all training signal</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. The internal deliberation often includes…</h4>
+  <button class="opt" data-fb="No — expansion into sub-steps is the point.">avoiding any sub-steps at all</button>
+  <button class="opt" data-fb="No — re-verification is part of the behavior.">skipping checks to save tokens</button>
+  <button class="opt" data-fb="Correct — expand, verify, and revise.">sub-steps, checks, and correction</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the o1 write-up and the reasoning guide for the training and behavior framing.</p>
+<div class="ask"><strong>Ask the agent</strong> Contrast what RL-trained deliberation gives you versus what plain chain-of-thought prompting gives on a standard model.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://openai.com/index/learning-to-reason-with-llms/">OpenAI — Learning to reason with LLMs (o1)</a></li>
+    <li id="r2"><a href="https://arxiv.org/abs/2501.12948">DeepSeek-R1 — arXiv 2501.12948</a></li>
+    <li id="r3"><a href="https://platform.openai.com/docs/guides/reasoning">OpenAI — Reasoning models guide</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-how-a-standard-llm-answers.html">← Lesson 2</a></span>
+  <span class="nav-next"><a href="0004-how-reasoning-is-trained.html">Lesson 4: how reasoning is trained →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/reasoning-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

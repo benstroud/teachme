@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — When Reasoning Wins</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 10</span><span>Reasoning vs Non-Reasoning LLMs</span></div>
+  <h1>When Reasoning Wins</h1>
+  <p class="subtitle">Math, competitions, code, and deep analysis: where deliberation reliably lifts the score.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Reasoning models win where the task has long, checkable, multi-step structure — math, competitions, code, and deep analysis — where deliberation directly increases the odds of a right answer.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The evidence on hard benchmarks</h2>
+<table>
+  <tr><th>Task</th><th>Standard model</th><th>Reasoning model (o1)</th></tr>
+  <tr><td>AIME 2024 math</td><td>~12% solved (1.8/15)</td><td>74% single sample; 93% with reranking<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Codeforces</td><td>—</td><td>~89th percentile<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>GPQA (PhD science)</td><td>—</td><td>exceeds human PhD-level accuracy<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+
+<h2>Why these tasks favor thinking</h2>
+<ul>
+  <li>The answer can be <em>verified</em>, which is exactly what RL rewarded the model for achieving.</li>
+  <li>Progress happens step by step, so breaking it down and checking helps.</li>
+  <li>Long deliberation converts a lucky guess into a derived result.</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> Test-time compute scaling is the mechanism behind the gains: more thinking tokens (and, in research, verification/search) lift accuracy on exactly these reasoning-heavy workloads.<sup><a href="#r2">2</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. Reasoning models shine most on tasks that are…</h4>
+  <button class="opt" data-fb="No — those need no deliberation to answer.">one-line trivia extraction</button>
+  <button class="opt" data-fb="No — fluency, not multi-step proof, drives those.">open-ended creative prose</button>
+  <button class="opt" data-fb="Correct — math, code, and logic reward thinking.">long, checkable, multi-step</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. On AIME 2024, the reasoning model improved on…</h4>
+  <button class="opt" data-fb="Correct — roughly 12% rose to the 70s/90s.">a low single-sample baseline</button>
+  <button class="opt" data-fb="No — the baseline was low, the gain large.">an already-perfect score</button>
+  <button class="opt" data-fb="No — the gain came from thinking, not vocabulary.">a vocabulary-only change</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. The main reason these tasks reward thinking is…</h4>
+  <button class="opt" data-fb="No — verifiability is what makes RL work.">they avoid any verifiable answer</button>
+  <button class="opt" data-fb="Correct — verifiable rewards drove the RL training.">the answer can be checked</button>
+  <button class="opt" data-fb="No — style is not the driver, verifiability is.">they are written in a known style</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the o1 write-up table and the test-time-compute paper for the mechanism.</p>
+<div class="ask"><strong>Ask the agent</strong> Name two concrete product features (e.g. a tax checker, a buggy-code explainer) where you would definitely pick a reasoning model, and why.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://openai.com/index/learning-to-reason-with-llms/">OpenAI — Learning to reason with LLMs (o1)</a></li>
+    <li id="r2"><a href="https://arxiv.org/abs/2408.03314">Snell et al. — Scaling LLM Test-Time Compute</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-reasoning-effort-and-control.html">← Lesson 6</a></span>
+  <span class="nav-next"><a href="0008-when-reasoning-does-not-help.html">Lesson 8: when reasoning does not help →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/reasoning-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
