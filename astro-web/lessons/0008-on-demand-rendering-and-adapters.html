@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — On-Demand Rendering &amp; Adapters</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 10</span><span>Astro.js</span></div>
+  <h1>On-Demand Rendering &amp; Adapters</h1>
+  <p class="subtitle">Choosing per-request rendering, reading the request, and picking a host adapter.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>By default Astro pre-renders pages to static HTML at build time; when a page must run per request you opt it into <strong>on-demand rendering</strong> and add an <strong>adapter</strong> for your host.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Static vs on-demand</h2>
+<table>
+  <tr><th>Mode</th><th>When HTML is produced</th><th>Good for</th></tr>
+  <tr><td>Static (default)</td><td>At build time</td><td>Content, marketing, docs.</td></tr>
+  <tr><td>On-demand</td><td>At request time</td><td>Personalized or fresh data.<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+
+<h2>Opting a page in</h2>
+<pre><code>---
+// src/pages/account.astro
+export const prerender = false;   // render this page on demand
+const cookie = Astro.request.headers.get("cookie");
+---</code></pre>
+<p>With on-demand rendering you get the request (<code>Astro.request</code>) and can set the response status and headers (<code>Astro.response</code>), or return a <code>Response</code> directly.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The adapter</h2>
+<pre><code>// astro.config.mjs
+import node from "@astrojs/node";
+export default { output: "server", adapter: node() };</code></pre>
+<p>The adapter (Node, Netlify, Vercel, Cloudflare, …) is what lets the built site run on demand on that platform.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Keep the static default for anything you can pre-render, and reserve on-demand rendering for the pages that genuinely need per-request behavior — that keeps both performance and cost in your favor.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. On-demand rendering produces HTML…</h4>
+  <button class="opt" data-fb="No — that describes static rendering.">only once, during the build</button>
+  <button class="opt" data-fb="No — the server produces it per request.">in the visitor browser</button>
+  <button class="opt" data-fb="Correct — pages render per incoming request.">at request time on the server</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A page opts into on-demand rendering with…</h4>
+  <button class="opt" data-fb="Correct — that flag disables pre-rendering.">export const prerender = false</button>
+  <button class="opt" data-fb="No — that directive controls hydration.">a client:load directive</button>
+  <button class="opt" data-fb="No — imports do not change render mode.">an import in the frontmatter</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. An adapter in Astro is required to…</h4>
+  <button class="opt" data-fb="No — adapters are about deployment runtime.">style components locally</button>
+  <button class="opt" data-fb="Correct — it wires the server output to a platform.">run on-demand rendering on a host</button>
+  <button class="opt" data-fb="No — schemas handle validation.">validate content collections</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the On-demand rendering guide for output modes, prerender, and adapters.</p>
+<div class="ask"><strong>Ask the agent</strong> Decide which pages in a store stay static and which go on-demand, and say which adapter a Node host needs.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.astro.build/en/guides/on-demand-rendering/">Astro — On-demand rendering</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-content-collections.html">← Lesson 7</a></span>
+  <span class="nav-next"><a href="0009-data-fetching-and-endpoints.html">Lesson 9: data &amp; endpoints →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/astro-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

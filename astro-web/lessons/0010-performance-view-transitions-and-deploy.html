@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 10 — Performance, View Transitions &amp; Deploy</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 10 of 10</span><span>Astro.js</span></div>
+  <h1>Performance, View Transitions &amp; Deploy</h1>
+  <p class="subtitle">Prefetch, animated navigation, SEO, and matching your host to the render mode.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Astro's default output is already fast; you then add polish you control — <strong>prefetch</strong> and <strong>View Transitions</strong> for navigation, SEO basics, and a deploy target that fits your rendering mode.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Faster navigation</h2>
+<table>
+  <tr><th>Tool</th><th>Effect</th></tr>
+  <tr><td>Prefetch</td><td>Preloads linked pages on hover/visibility.<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td>View Transitions</td><td>Animated, app-like client navigation between pages.<sup><a href="#r3">3</a></sup></td></tr>
+</table>
+
+<h2>Before you ship</h2>
+<ul>
+  <li>Add a sitemap and canonical URLs for SEO.</li>
+  <li>Keep interactive components as small, intentioned islands.</li>
+  <li>Match the deploy target to the render mode: static hosts for static output, a server adapter where needed.<sup><a href="#r2">2</a></sup></li>
+</ul>
+
+<h2>A reference shape</h2>
+<pre><code>static pages (build)      -> CDN/static host
+on-demand pages + API     -> server adapter host
+islands                   -> ship only where interactivity is needed
+navigation                -> prefetch + view transitions</code></pre>
+
+<aside class="note"><strong>Key idea</strong> The performance story is layered: zero JS by default, islands for interactivity, and prefetch/transitions for perception. Deploy is the last mile — pick a host that matches how your pages render.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. Prefetch improves perceived speed by…</h4>
+  <button class="opt" data-fb="No — that is the image service, not prefetch.">compressing all images</button>
+  <button class="opt" data-fb="No — prefetch preloads pages, not bundles.">removing client JavaScript</button>
+  <button class="opt" data-fb="Correct — it fetches pages before you click.">preloading linked pages in advance</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. View Transitions add…</h4>
+  <button class="opt" data-fb="Correct — they smooth navigation between pages.">animated client-side navigation</button>
+  <button class="opt" data-fb="No — transitions are a navigation feature.">a new server adapter</button>
+  <button class="opt" data-fb="No — schemas belong to collections.">a content schema type</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. A static-output Astro site deploys to…</h4>
+  <button class="opt" data-fb="No — static output needs no server adapter.">a server adapter only</button>
+  <button class="opt" data-fb="Correct — pre-rendered HTML goes to a static host.">a static host or CDN</button>
+  <button class="opt" data-fb="No — deployment target is a host, not a database.">a database cluster</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Prefetch, View transitions, and Deploy guides to finish the loop.</p>
+<div class="ask"><strong>Ask the agent</strong> Choose a rendering mode and host for a content blog with one login-gated dashboard, and justify each choice.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.astro.build/en/guides/view-transitions/">Astro — View transitions</a></li>
+    <li id="r2"><a href="https://docs.astro.build/en/guides/deploy/">Astro — Deploy</a></li>
+    <li id="r3"><a href="https://docs.astro.build/en/concepts/why-astro/">Astro — Why Astro?</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0009-data-fetching-and-endpoints.html">← Lesson 9</a></span>
+  <span class="nav-next"><a href="../reference/astro-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/astro-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

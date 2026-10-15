@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Astro.js — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Astro.js</span></div>
+  <h1>Astro Glossary</h1>
+  <p class="subtitle">Every term in this course, in one place. Return here when a lesson uses a word you do not fully own.</p>
+</header>
+
+<section>
+<h2>Rendering model</h2>
+<dl>
+  <dt><strong>Astro</strong></dt>
+  <dd>A content-focused, server-first web framework that renders pages to HTML on the server and ships zero client JavaScript by default.<sup><a href="#r1">1</a></sup></dd>
+  <dt><strong>server-first</strong></dt>
+  <dd>Markup is produced on the server (build or request time) rather than in the browser.<sup><a href="#r1">1</a></sup></dd>
+  <dt><strong>zero JS by default</strong></dt>
+  <dd>Astro emits plain HTML/CSS unless you explicitly make a component interactive.<sup><a href="#r1">1</a></sup></dd>
+  <dt><strong>hydration</strong></dt>
+  <dd>Attaching client-side JavaScript to server-rendered HTML to make it interactive — the cost Astro avoids by default.<sup><a href="#r2">2</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Islands &amp; interactivity</h2>
+<dl>
+  <dt><strong>island</strong></dt>
+  <dd>An interactive component on an otherwise static page, hydrated independently.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>client directive</strong></dt>
+  <dd>An attribute like <code>client:load</code> that opts a component into client hydration.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>client:load / idle / visible</strong></dt>
+  <dd>Hydrate immediately / when the browser is idle / when scrolled into view.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>client:only</strong></dt>
+  <dd>Skip server rendering and run the component only in the browser.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>server island</strong></dt>
+  <dd>A component marked <code>server:defer</code> that renders its own server content separately, in parallel.<sup><a href="#r2">2</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Components &amp; pages</h2>
+<dl>
+  <dt><strong>.astro component</strong></dt>
+  <dd>A component file: a frontmatter script fence, then an HTML-superset template.<sup><a href="#r3">3</a></sup></dd>
+  <dt><strong>frontmatter fence</strong></dt>
+  <dd>The <code>---</code> block at the top; it runs at build/server time and never ships to the browser.<sup><a href="#r3">3</a></sup></dd>
+  <dt><strong>layout</strong></dt>
+  <dd>A component (often with <code>&lt;slot /&gt;</code>) that wraps page content in a shared shell.<sup><a href="#r4">4</a></sup></dd>
+  <dt><strong>slot</strong></dt>
+  <dd>A placeholder where child content is injected; named slots and fallback content are supported.<sup><a href="#r3">3</a></sup></dd>
+  <dt><strong>file-based routing</strong></dt>
+  <dd>Files under <code>src/pages/</code> become routes.<sup><a href="#r5">5</a></sup></dd>
+  <dt><strong>dynamic route</strong></dt>
+  <dd>A route with a parameter, e.g. <code>[slug].astro</code>, driven by <code>getStaticPaths</code> (static) or at request time.<sup><a href="#r5">5</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Content &amp; data</h2>
+<dl>
+  <dt><strong>content collection</strong></dt>
+  <dd>A typed group of Markdown/MDX/data entries with a frontmatter schema.<sup><a href="#r9">9</a></sup></dd>
+  <dt><strong>schema (zod)</strong></dt>
+  <dd>A zod definition validating each entry's frontmatter fields and types.<sup><a href="#r9">9</a></sup></dd>
+  <dt><strong>getCollection / getEntry</strong></dt>
+  <dd>APIs to query entries from a collection at build/request time.<sup><a href="#r9">9</a></sup></dd>
+  <dt><strong>endpoint (API route)</strong></dt>
+  <dd>A <code>.js</code>/<code>.ts</code> file under <code>src/pages/</code> exporting a function that returns a <code>Response</code>.<sup><a href="#r11">11</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Rendering modes &amp; deploy</h2>
+<dl>
+  <dt><strong>static output</strong></dt>
+  <dd>Pages are pre-rendered to HTML at build time (the default for content sites).<sup><a href="#r12">12</a></sup></dd>
+  <dt><strong>on-demand rendering</strong></dt>
+  <dd>Rendering at request time; enabled per page via <code>export const prerender = false</code>.<sup><a href="#r12">12</a></sup></dd>
+  <dt><strong>adapter</strong></dt>
+  <dd>The integration (Node, Netlify, Vercel, Cloudflare) that lets an Astro project run on demand on a host.<sup><a href="#r12">12</a></sup></dd>
+  <dt><strong>View Transitions</strong></dt>
+  <dd>Opt-in animated client-side navigation between pages.<sup><a href="#r13">13</a></sup></dd>
+  <dt><strong>prefetch</strong></dt>
+  <dd>Preloading linked pages on hover/visibility so navigation feels instant.<sup><a href="#r13">13</a></sup></dd>
+</dl>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.astro.build/en/concepts/why-astro/">Astro — Why Astro?</a></li>
+    <li id="r2"><a href="https://docs.astro.build/en/concepts/islands/">Astro — Islands architecture</a></li>
+    <li id="r3"><a href="https://docs.astro.build/en/basics/astro-components/">Astro — Components</a></li>
+    <li id="r4"><a href="https://docs.astro.build/en/basics/layouts/">Astro — Layouts</a></li>
+    <li id="r5"><a href="https://docs.astro.build/en/guides/routing/">Astro — Routing</a></li>
+    <li id="r6"><a href="https://docs.astro.build/en/guides/styling/">Astro — Styles & CSS</a></li>
+    <li id="r7"><a href="https://docs.astro.build/en/guides/images/">Astro — Images</a></li>
+    <li id="r8"><a href="https://docs.astro.build/en/guides/framework-components/">Astro — Front-end frameworks</a></li>
+    <li id="r9"><a href="https://docs.astro.build/en/guides/content-collections/">Astro — Content collections</a></li>
+    <li id="r10"><a href="https://docs.astro.build/en/guides/data-fetching/">Astro — Data fetching</a></li>
+    <li id="r11"><a href="https://docs.astro.build/en/guides/endpoints/">Astro — Endpoints</a></li>
+    <li id="r12"><a href="https://docs.astro.build/en/guides/on-demand-rendering/">Astro — On-demand rendering</a></li>
+    <li id="r13"><a href="https://docs.astro.build/en/guides/view-transitions/">Astro — View transitions</a></li>
+    <li id="r14"><a href="https://docs.astro.build/en/guides/deploy/">Astro — Deploy</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Mission &amp; notes</span>
+  <span class="nav-next"><a href="../lessons/0001-why-astro.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../NOTES.md">Notes</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

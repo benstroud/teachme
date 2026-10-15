@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — Content Collections</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 10</span><span>Astro.js</span></div>
+  <h1>Content Collections</h1>
+  <p class="subtitle">Turning a folder of Markdown into a validated, typed content API.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A <strong>content collection</strong> is a typed folder of Markdown/MDX (or data) entries: you define a schema for the frontmatter, and Astro validates every entry, then you query it with <code>getCollection</code>.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Define a collection and schema</h2>
+<pre><code>// src/content.config.ts
+import { defineCollection, z } from "astro:content";
+const blog = defineCollection({
+  type: "content",
+  schema: z.object({
+    title: z.string(),
+    date: z.date(),
+    tags: z.array(z.string()).default([]),
+  }),
+});
+export const collections = { blog };</code></pre>
+<p>Frontmatter that violates the schema fails the build, so your templates can trust the field types.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Query and render</h2>
+<pre><code>---
+import { getCollection } from "astro:content";
+const posts = await getCollection("blog");
+---
+{posts.map((p) =&gt; &lt;a href={"/blog/" + p.slug}&gt;{p.data.title}&lt;/a&gt;)}</code></pre>
+<p>Each entry has typed <code>data</code> (the frontmatter) and a body; <code>render()</code> / <code>&lt;Content /&gt;</code> turns the Markdown into markup.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Collections turn a folder of loose files into a validated, typed content API — the backbone of a blog, docs site, or catalog.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. A content collection schema exists to…</h4>
+  <button class="opt" data-fb="No — styling is separate from validation.">style the Markdown output</button>
+  <button class="opt" data-fb="Correct — the schema checks frontmatter fields.">validate and type each entry</button>
+  <button class="opt" data-fb="No — routing comes from files under pages.">route URLs automatically</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The API that queries a collection is…</h4>
+  <button class="opt" data-fb="Correct — it returns the collection entries.">getCollection</button>
+  <button class="opt" data-fb="No — that enumerates route parameters.">getStaticPaths</button>
+  <button class="opt" data-fb="No — that declares the collection itself.">defineCollection</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. Each entry exposes the frontmatter as…</h4>
+  <button class="opt" data-fb="No — it is available per entry, not globally.">a global variable</button>
+  <button class="opt" data-fb="No — frontmatter is data, not CSS.">a CSS custom property</button>
+  <button class="opt" data-fb="Correct — entry.data holds the typed frontmatter.">the entry data object</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Content collections guide for schemas, querying, and rendering.</p>
+<div class="ask"><strong>Ask the agent</strong> Define a schema for a docs collection with title, order, and draft fields, then query it sorted by order.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.astro.build/en/guides/content-collections/">Astro — Content collections</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-styling-and-assets.html">← Lesson 6</a></span>
+  <span class="nav-next"><a href="0008-on-demand-rendering-and-adapters.html">Lesson 8: on-demand rendering →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/astro-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

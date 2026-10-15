@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — Layouts &amp; Slots</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 10</span><span>Astro.js</span></div>
+  <h1>Layouts &amp; Slots</h1>
+  <p class="subtitle">Reusable page shells built from components and slots — no special framework magic.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A <strong>layout</strong> is just a component that wraps a page in a shared shell — header, nav, footer — and drops the page content into a <code>&lt;slot /&gt;</code>.<sup><a href="#r1">1</a></sup></p>
+
+<h2>A base layout</h2>
+<pre><code>---
+// src/layouts/Base.astro
+const { title = "My Site" } = Astro.props;
+---
+&lt;html lang="en"&gt;
+  &lt;head&gt;&lt;title&gt;{title}&lt;/title&gt;&lt;/head&gt;
+  &lt;body&gt;
+    &lt;header&gt;&lt;nav&gt;…&lt;/nav&gt;&lt;/header&gt;
+    &lt;main&gt;&lt;slot /&gt;&lt;/main&gt;
+    &lt;footer&gt;© My Site&lt;/footer&gt;
+  &lt;/body&gt;
+&lt;/html&gt;</code></pre>
+<p>A page then imports the layout and nests its content inside. The shell is authored once and reused everywhere.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Named slots and fallback content</h2>
+<ul>
+  <li>Give a slot a name (e.g. <code>&lt;slot name="head" /&gt;</code>) to accept a specific piece of content.</li>
+  <li>A <code>&lt;slot /&gt;</code> can contain fallback content shown when nothing is passed in.<sup><a href="#r2">2</a></sup></li>
+  <li>Layouts compose: a page layout can pass slots through to a base layout.<sup><a href="#r2">2</a></sup></li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> Layouts are not a special framework feature — they are components plus slots. That means you can nest them and pass content through deliberately.<sup><a href="#r2">2</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. A layout wraps page content using…</h4>
+  <button class="opt" data-fb="No — a slot is what injects the content.">a global CSS class only</button>
+  <button class="opt" data-fb="No — layouts are components, not route config.">a routing configuration file</button>
+  <button class="opt" data-fb="Correct — <slot/> marks where content lands.">a slot element inside the layout</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Named slots let a layout accept…</h4>
+  <button class="opt" data-fb="Correct — a named slot targets named content.">one specific labelled piece of content</button>
+  <button class="opt" data-fb="No — the default slot handles unnamed children.">only a single unnamed child</button>
+  <button class="opt" data-fb="No — slots handle markup, not bundling.">a compiled JavaScript bundle</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. Fallback content on a slot is shown when…</h4>
+  <button class="opt" data-fb="No — fallback is about missing slot content.">the page fails to build</button>
+  <button class="opt" data-fb="Correct — it fills in when nothing is provided.">no matching child content is passed</button>
+  <button class="opt" data-fb="No — slots are server-rendered markup.">JavaScript is enabled</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Layouts page for composition and slot transfer patterns.</p>
+<div class="ask"><strong>Ask the agent</strong> Design a two-level layout: a base shell with head and body slots, plus a blog layout that fills the head slot.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.astro.build/en/basics/layouts/">Astro — Layouts</a></li>
+    <li id="r2"><a href="https://docs.astro.build/en/basics/astro-components/">Astro — Components</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-pages-and-routing.html">← Lesson 3</a></span>
+  <span class="nav-next"><a href="0005-islands-and-client-directives.html">Lesson 5: islands &amp; client directives →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/astro-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

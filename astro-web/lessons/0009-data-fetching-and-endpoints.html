@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 9 — Data Fetching &amp; Endpoints</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 9 of 10</span><span>Astro.js</span></div>
+  <h1>Data Fetching &amp; Endpoints</h1>
+  <p class="subtitle">Fetching at build or request time, and writing API routes that return a Response.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Astro pages can <code>fetch</code> data during render — at build time for static pages, or at request time for on-demand pages — and a <code>.js</code>/<code>.ts</code> file under <code>src/pages/</code> can export an <strong>endpoint</strong> that returns a <code>Response</code>.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Fetching in a page</h2>
+<pre><code>---
+const res = await fetch("https://api.example.com/posts");
+const posts = await res.json();
+---
+&lt;ul&gt;{posts.map((p) =&gt; &lt;li&gt;{p.title}&lt;/li&gt;)}&lt;/ul&gt;</code></pre>
+<p>For a static page this runs once at build; for an on-demand page it runs per request. Same code, different timing.<sup><a href="#r1">1</a></sup></p>
+
+<h2>An API endpoint</h2>
+<pre><code>// src/pages/api/counter.ts
+export async function POST({ request }) {
+  const body = await request.json();
+  return new Response(JSON.stringify({ ok: true, got: body }), {
+    headers: { "Content-Type": "application/json" },
+  });
+}</code></pre>
+<p>Endpoints can read the request, do server-only work (secrets, database), and return a status, headers, and body — ideal for form submissions and small APIs.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> The same <code>fetch</code> call meets two timings. If the data only changes occasionally, fetch at build and ship static HTML; if it must be live, make the page (or endpoint) on-demand.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. A fetch in a static page runs…</h4>
+  <button class="opt" data-fb="No — static pages run at build time.">on every user request</button>
+  <button class="opt" data-fb="Correct — the data is baked into the HTML.">once, at build time</button>
+  <button class="opt" data-fb="No — the frontmatter runs on the server.">only in the browser</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. An Astro endpoint is a file that…</h4>
+  <button class="opt" data-fb="No — endpoints return responses, not styles.">defines a CSS stylesheet</button>
+  <button class="opt" data-fb="No — routing is file-based already.">registers a route table</button>
+  <button class="opt" data-fb="Correct — it handles requests server-side.">exports a function returning a Response</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. Endpoints are useful for…</h4>
+  <button class="opt" data-fb="Correct — they run secure server-side logic.">form posts and small server APIs</button>
+  <button class="opt" data-fb="No — endpoints are not about styling.">styling components scoped</button>
+  <button class="opt" data-fb="No — the image service handles images.">pre-rendering images</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Data fetching and Endpoints guides for both patterns.</p>
+<div class="ask"><strong>Ask the agent</strong> Write a contact form that POSTs to an endpoint, and say why the handler must run on the server.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.astro.build/en/guides/data-fetching/">Astro — Data fetching</a></li>
+    <li id="r2"><a href="https://docs.astro.build/en/guides/endpoints/">Astro — Endpoints</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0008-on-demand-rendering-and-adapters.html">← Lesson 8</a></span>
+  <span class="nav-next"><a href="0010-performance-view-transitions-and-deploy.html">Lesson 10: performance &amp; deploy →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/astro-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

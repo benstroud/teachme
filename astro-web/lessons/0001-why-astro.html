@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — Why Astro</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 10</span><span>Astro.js</span></div>
+  <h1>Why Astro</h1>
+  <p class="subtitle">The server-first, content-focused framework that ships no JavaScript by default.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Astro is a <strong>server-first, content-focused</strong> web framework: it renders your pages to plain HTML and, by default, ships <strong>zero JavaScript</strong> to the browser — you opt a component into interactivity only when it truly needs it.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The problem Astro targets</h2>
+<p>A typical single-page app sends a large JavaScript bundle and then <em>hydrates</em> the whole page in the browser before it becomes interactive. For a mostly-static site (a blog, docs, marketing, a storefront), that is a lot of cost for little benefit. Astro flips the default: produce finished HTML on the server, and add client JS only where you ask.<sup><a href="#r1">1</a></sup></p>
+
+<h2>What "content-focused" buys</h2>
+<table>
+  <tr><th>Default</th><th>Consequence</th></tr>
+  <tr><td>Zero JS shipped</td><td>Fast first paint, less to download and parse.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>HTML superset syntax</td><td>If you can write HTML, you can write Astro components.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Opt-in complexity</td><td>Add features and interactivity incrementally as needed.<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> Astro renders on the server, so there is no reactivity in the browser unless you add an island. That removes hooks, stale closures, refs, and observables from the default path.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. By default, an Astro page ships…</h4>
+  <button class="opt" data-fb="No — that is the SPA model Astro avoids.">a full client JavaScript bundle</button>
+  <button class="opt" data-fb="Correct — zero JS unless you opt in.">no client JavaScript at all</button>
+  <button class="opt" data-fb="No — HTML and CSS ship, but the point is the JS default.">only a CSS stylesheet</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Astro is best described as…</h4>
+  <button class="opt" data-fb="Correct — HTML on the server, content-oriented.">server-first and content-focused</button>
+  <button class="opt" data-fb="No — that is the model it improves on.">a browser-rendered SPA framework</button>
+  <button class="opt" data-fb="No — it is a web UI framework.">a database and ORM toolkit</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. The phrase "opt in to complexity" means…</h4>
+  <button class="opt" data-fb="No — it is the opposite: start simple.">every page must use a framework</button>
+  <button class="opt" data-fb="No — you can add it when needed.">JavaScript is forbidden entirely</button>
+  <button class="opt" data-fb="Correct — start simple, reach for more as required.">add interactivity only when needed</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Start with the "Why Astro?" concept page to see the design goals in the project's own words.</p>
+<div class="ask"><strong>Ask the agent</strong> Take a site you have built as an SPA and name which pages would need zero JavaScript in Astro, and which would need an island.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.astro.build/en/concepts/why-astro/">Astro — Why Astro?</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="0002-astro-components.html">Lesson 2: Astro components →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/astro-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Astro.js — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  code i { color: var(--accent); font-style: normal; }
+  td code { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Astro.js</span></div>
+  <h1>Astro Cheat Sheet</h1>
+  <p class="subtitle">The compressed essence of the course. Skim before a lesson, study it fully before an interview.</p>
+</header>
+<section>
+<h2>1. The model</h2>
+<pre><code>server-first, content-focused
+render HTML on the server (build or request)
+zero client JS by default  ->  opt a component in when needed</code></pre>
+<ul>
+  <li>Astro ships no client JavaScript unless you add a directive.<sup><a href="#r1">1</a></sup></li>
+  <li>The .astro language is a superset of HTML.<sup><a href="#r1">1</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>2. Components (.astro)</h2>
+<pre><code>---
+// frontmatter: server/build only, never shipped
+const { title } = Astro.props;
+---
+&lt;h1&gt;{title}&lt;/h1&gt;
+&lt;slot /&gt;</code></pre>
+<ul>
+  <li>Frontmatter runs on the server; the template is HTML.<sup><a href="#r3">3</a></sup></li>
+  <li>Read props from Astro.props; braces evaluate expressions.<sup><a href="#r3">3</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>3. Routing</h2>
+<pre><code>src/pages/index.astro        ->  /
+src/pages/blog.astro         ->  /blog
+src/pages/blog/[slug].astro  ->  /blog/:slug   (getStaticPaths)</code></pre>
+<ul>
+  <li>File path defines the URL; brackets make it dynamic.<sup><a href="#r5">5</a></sup></li>
+  <li>getStaticPaths enumerates values to pre-render.<sup><a href="#r5">5</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>4. Layouts &amp; slots</h2>
+<pre><code>&lt;html&gt;
+  &lt;head&gt;&lt;slot name="head" /&gt;&lt;/head&gt;
+  &lt;body&gt;&lt;slot /&gt;&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+<ul>
+  <li>A layout is a component that wraps pages via a slot.<sup><a href="#r4">4</a></sup></li>
+  <li>Named slots + fallback content support composition.<sup><a href="#r3">3</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>5. Islands &amp; directives</h2>
+<pre><code>&lt;Counter client:load /&gt;     immediately
+&lt;Counter client:idle /&gt;     when idle
+&lt;Counter client:visible /&gt;  when in view
+&lt;Counter client:only /&gt;     browser only</code></pre>
+<ul>
+  <li>Only marked components hydrate; the rest stays HTML.<sup><a href="#r2">2</a></sup></li>
+  <li>Islands load and hydrate in parallel, in isolation.<sup><a href="#r2">2</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>6. Styles &amp; assets</h2>
+<pre><code>&lt;style&gt; ... &lt;/style&gt;            scoped to the component
+&lt;style is:global&gt; ... &lt;/style&gt; site-wide
+public/         served as-is
+src/assets/     optimized + hashed (import them)</code></pre>
+<ul>
+  <li>Component styles are scoped by default.<sup><a href="#r6">6</a></sup></li>
+  <li>Use is:global or a global import for site-wide rules.<sup><a href="#r6">6</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>7. Content collections</h2>
+<pre><code>defineCollection({ type:'content', schema: z.object({...}) })
+const posts = await getCollection('blog');
+post.data.title   // typed frontmatter
+await render(post) // -> &lt;Content /&gt;</code></pre>
+<ul>
+  <li>Schemas validate every entry's frontmatter at build.<sup><a href="#r9">9</a></sup></li>
+  <li>getCollection / getEntry query, render() renders the body.<sup><a href="#r9">9</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>8. Rendering modes &amp; adapters</h2>
+<pre><code>static (default):  HTML at build time
+export const prerender = false;   // on demand
+import node from '@astrojs/node';
+export default { output: 'server', adapter: node() };</code></pre>
+<ul>
+  <li>Static for content; on-demand for per-request pages.<sup><a href="#r12">12</a></sup></li>
+  <li>An adapter wires server output to a host (Node/Netlify/Vercel/Cloudflare).<sup><a href="#r12">12</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>9. Data &amp; endpoints</h2>
+<pre><code>--- const res = await fetch(url); const d = await res.json(); ---
+// src/pages/api/x.ts
+export async function POST({ request }) {
+  return new Response(JSON.stringify({ ok: true }));
+}</code></pre>
+<ul>
+  <li>fetch runs at build (static) or request time (on demand).<sup><a href="#r10">10</a></sup></li>
+  <li>Endpoints return a Response for forms and small APIs.<sup><a href="#r11">11</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>10. Checklist</h2>
+<ul>
+  <li>Keep pages static unless they truly need per-request rendering.</li>
+  <li>Make interactivity an explicit, per-component choice (client directives).</li>
+  <li>Use scoped styles; import assets you want optimized.</li>
+  <li>Define content schemas so templates can trust field types.</li>
+  <li>Add prefetch + view transitions, a sitemap, then deploy to a matching host.</li>
+</ul>
+</section>
+<footer class="citation">
+  Primary sources: <a href="https://docs.astro.build/en/concepts/why-astro/">Why Astro</a>,
+  <a href="https://docs.astro.build/en/guides/routing/">Routing</a>,
+  <a href="https://docs.astro.build/en/guides/content-collections/">Content collections</a>.
+  <ol>
+    <li id="r1"><a href="https://docs.astro.build/en/concepts/why-astro/">Astro — Why Astro?</a></li>
+    <li id="r2"><a href="https://docs.astro.build/en/concepts/islands/">Astro — Islands architecture</a></li>
+    <li id="r3"><a href="https://docs.astro.build/en/basics/astro-components/">Astro — Components</a></li>
+    <li id="r4"><a href="https://docs.astro.build/en/basics/layouts/">Astro — Layouts</a></li>
+    <li id="r5"><a href="https://docs.astro.build/en/guides/routing/">Astro — Routing</a></li>
+    <li id="r6"><a href="https://docs.astro.build/en/guides/styling/">Astro — Styles & CSS</a></li>
+    <li id="r7"><a href="https://docs.astro.build/en/guides/images/">Astro — Images</a></li>
+    <li id="r8"><a href="https://docs.astro.build/en/guides/framework-components/">Astro — Front-end frameworks</a></li>
+    <li id="r9"><a href="https://docs.astro.build/en/guides/content-collections/">Astro — Content collections</a></li>
+    <li id="r10"><a href="https://docs.astro.build/en/guides/data-fetching/">Astro — Data fetching</a></li>
+    <li id="r11"><a href="https://docs.astro.build/en/guides/endpoints/">Astro — Endpoints</a></li>
+    <li id="r12"><a href="https://docs.astro.build/en/guides/on-demand-rendering/">Astro — On-demand rendering</a></li>
+    <li id="r13"><a href="https://docs.astro.build/en/guides/view-transitions/">Astro — View transitions</a></li>
+    <li id="r14"><a href="https://docs.astro.build/en/guides/deploy/">Astro — Deploy</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="../lessons/0001-why-astro.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

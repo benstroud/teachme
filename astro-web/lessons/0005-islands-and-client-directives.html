@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — Islands &amp; Client Directives</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 10</span><span>Astro.js</span></div>
+  <h1>Islands &amp; Client Directives</h1>
+  <p class="subtitle">Opting a component into interactivity — and choosing exactly when it hydrates.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>An <strong>island</strong> is an interactive component on an otherwise static page: everything stays HTML, and only the components you mark with a <code>client:</code> directive get their JavaScript loaded and hydrated.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The client directives</h2>
+<table>
+  <tr><th>Directive</th><th>When it hydrates</th></tr>
+  <tr><td><code>client:load</code></td><td>Immediately on page load.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>client:idle</code></td><td>When the browser is idle.</td></tr>
+  <tr><td><code>client:visible</code></td><td>Only once scrolled into view.</td></tr>
+  <tr><td><code>client:only</code></td><td>Skip server render; run only in the browser.</td></tr>
+</table>
+
+<h2>Using a React (or Vue/Svelte) component</h2>
+<pre><code>&lt;Counter client:visible /&gt;   &lt;!-- hydrates only when seen --&gt;</code></pre>
+<p>Install the matching renderer, then opt an existing framework component into the page with a directive. Islands hydrate in isolation and can load in parallel, so a heavy widget low on the page never blocks the header.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Interactivity is a deliberate choice, per component. If you never add a directive, the component is plain HTML and ships nothing to the client.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. An island is a component that…</h4>
+  <button class="opt" data-fb="No — islands are the interactive ones.">always renders only on the server</button>
+  <button class="opt" data-fb="Correct — a client directive enables hydration.">hydrates in the client when told to</button>
+  <button class="opt" data-fb="No — islands are often framework components.">cannot use any UI framework</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. client:visible makes a component hydrate…</h4>
+  <button class="opt" data-fb="No — that is client:load behavior.">immediately when the page loads</button>
+  <button class="opt" data-fb="No — it is a client-side timing control.">only during the build step</button>
+  <button class="opt" data-fb="Correct — it defers until it becomes visible.">only when scrolled into view</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. Islands hydrate in isolation so that…</h4>
+  <button class="opt" data-fb="Correct — islands load and hydrate in parallel.">a heavy widget does not block others</button>
+  <button class="opt" data-fb="No — the page is still server-rendered HTML.">the server stops rendering HTML</button>
+  <button class="opt" data-fb="No — styling is unaffected by hydration.">CSS is disabled entirely</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Islands architecture page and the framework-components guide together.</p>
+<div class="ask"><strong>Ask the agent</strong> For a page with a static article and a live search box, say which component gets a client directive and which does not.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.astro.build/en/concepts/islands/">Astro — Islands architecture</a></li>
+    <li id="r2"><a href="https://docs.astro.build/en/guides/framework-components/">Astro — Front-end frameworks</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-layouts-and-slots.html">← Lesson 4</a></span>
+  <span class="nav-next"><a href="0006-styling-and-assets.html">Lesson 6: styling &amp; assets →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/astro-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

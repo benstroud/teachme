@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — Astro Components</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 10</span><span>Astro.js</span></div>
+  <h1>Astro Components</h1>
+  <p class="subtitle">The .astro file: a server-only frontmatter fence and an HTML-superset template.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>An <code>.astro</code> component has two halves: a <strong>frontmatter fence</strong> between <code>---</code> lines that runs on the server and never ships to the browser, and an HTML template below it that renders the output.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Anatomy of a component</h2>
+<pre><code>---
+// runs at build/server time — never sent to the browser
+const { title } = Astro.props;
+const items = ["a", "b", "c"];
+---
+&lt;h1&gt;{title}&lt;/h1&gt;
+&lt;ul&gt;
+  {items.map((x) =&gt; &lt;li&gt;{x}&lt;/li&gt;)}
+&lt;/ul&gt;</code></pre>
+<p>Curly braces evaluate JavaScript expressions in the template. Because the frontmatter is server-only, it can read files, query a database, or import data with no client cost.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Props and composition</h2>
+<ul>
+  <li>Read incoming props from <code>Astro.props</code> in the frontmatter.</li>
+  <li>Import other components and use them as tags.</li>
+  <li>Pass children into a component with <code>&lt;slot /&gt;</code>.</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> The template is a superset of HTML — any valid HTML is valid Astro. The framework adds expressions and scoped styles, but never forces a client runtime on you.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. The frontmatter fence in an .astro file…</h4>
+  <button class="opt" data-fb="No — it runs on the server side instead.">runs in the visitor browser</button>
+  <button class="opt" data-fb="Correct — it is build/server-only code.">runs on the server and is not shipped</button>
+  <button class="opt" data-fb="No — it is a full server-side script block.">only defines CSS styles</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. In the template, curly braces are used to…</h4>
+  <button class="opt" data-fb="No — CSS uses the style element or imports.">declare CSS rules</button>
+  <button class="opt" data-fb="No — imports live in the frontmatter fence.">import other components</button>
+  <button class="opt" data-fb="Correct — braces evaluate expressions in the template.">evaluate JavaScript expressions</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. A component reads incoming props from…</h4>
+  <button class="opt" data-fb="Correct — props arrive via Astro.props.">Astro.props in the frontmatter</button>
+  <button class="opt" data-fb="No — there is no client runtime by default.">a global window object</button>
+  <button class="opt" data-fb="No — that is not how props are passed.">the browser query string</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Components page for the full .astro syntax and slot rules.</p>
+<div class="ask"><strong>Ask the agent</strong> Write the frontmatter and template for a Card component that takes a title prop and renders child content.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.astro.build/en/basics/astro-components/">Astro — Components</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-why-astro.html">← Lesson 1</a></span>
+  <span class="nav-next"><a href="0003-pages-and-routing.html">Lesson 3: pages &amp; routing →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/astro-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

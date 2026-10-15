@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — Styling &amp; Assets</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 10</span><span>Astro.js</span></div>
+  <h1>Styling &amp; Assets</h1>
+  <p class="subtitle">Scoped-by-default styles, global CSS, and where your files should live.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Styles you write in an <code>.astro</code> component are <strong>scoped to that component by default</strong>, and static files are served from <code>public/</code> while imported assets get optimized.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Scoped vs global styles</h2>
+<pre><code>&lt;style&gt;
+  /* only applies to this component */
+  .card { border: 1px solid #ccc; }
+&lt;/style&gt;
+
+&lt;style is:global&gt;
+  /* applies to the whole site */
+  body { font-family: system-ui; }
+&lt;/style&gt;</code></pre>
+<p>Scoping means you can name a class <code>.card</code> in ten components without collisions. Use <code>is:global</code> (or a global stylesheet import) for site-wide rules and CSS variables.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Assets: public vs imported</h2>
+<table>
+  <tr><th>Where</th><th>Behavior</th></tr>
+  <tr><td><code>public/</code></td><td>Served as-is at the root; not processed.<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td><code>src/assets/</code> (imported)</td><td>Optimized, hashed, and bundled.<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td><code>&lt;Image /&gt;</code></td><td>Renders an optimized image with width/height set.<sup><a href="#r2">2</a></sup></td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> Reach for scoped styles first; they are the path of least surprise. Import images you want optimized, and keep only true static files in <code>public/</code>.<sup><a href="#r2">2</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. A style block in a component is scoped to…</h4>
+  <button class="opt" data-fb="Correct — styles are scoped by default.">just that component</button>
+  <button class="opt" data-fb="No — global needs is:global or an import.">the whole document globally</button>
+  <button class="opt" data-fb="No — scoping is by component, not selector type.">only elements with ids</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. To apply a global stylesheet you use…</h4>
+  <button class="opt" data-fb="No — tables are markup, not styling controls.">a plain table element</button>
+  <button class="opt" data-fb="No — that is not a real directive.">client:global on a script</button>
+  <button class="opt" data-fb="Correct — either makes styles site-wide.">is:global or a global import</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. Files placed in public/ are…</h4>
+  <button class="opt" data-fb="No — that describes imported assets.">optimized and hashed automatically</button>
+  <button class="opt" data-fb="Correct — public files are served directly.">served as-is without processing</button>
+  <button class="opt" data-fb="No — they are copied to the output as-is.">deleted at build time</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Styling and Images guides for scoping, global styles, and the image service.</p>
+<div class="ask"><strong>Ask the agent</strong> Explain why a component-scoped .card class will not leak into another component, and when you would use is:global instead.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.astro.build/en/guides/styling/">Astro — Styles & CSS</a></li>
+    <li id="r2"><a href="https://docs.astro.build/en/guides/images/">Astro — Images</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-islands-and-client-directives.html">← Lesson 5</a></span>
+  <span class="nav-next"><a href="0007-content-collections.html">Lesson 7: content collections →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/astro-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
