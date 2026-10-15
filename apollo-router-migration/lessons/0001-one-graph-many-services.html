@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — One Graph, Many Services</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 10</span><span>Apollo Gateway · Router</span></div>
+  <h1>One Graph, Many Services</h1>
+  <p class="subtitle">Federation fundamentals: subgraphs, the supergraph, and the gateway/router role.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p><strong>Apollo Federation</strong> lets many GraphQL services (subgraphs) compose into one <strong>supergraph</strong>; clients talk to a single endpoint, and the <strong>gateway/router</strong> plans how to fetch each query from the right subgraphs.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Subgraphs and the supergraph</h2>
+<pre><code>subgraph: users    subgraph: products    subgraph: reviews
+        \___________  compose  ___________/
+                     |
+                     v
+              supergraph schema
+                     |
+        clients  --&gt;  gateway / router  --&gt;  subgraphs</code></pre>
+<p>Clients should only query the router, and only the router should query the subgraphs. It does not just forward requests — it intelligently calls the APIs it needs to satisfy them.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Entities are the glue</h2>
+<p>A type that several subgraphs contribute fields to is an <strong>entity</strong>, marked with <code>@key</code>. The router uses those keys to stitch a single result object together across subgraphs.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Everything in this course sits on one job: given a query and a supergraph, decide which subgraphs to call and how to assemble the answer. Gateway and Router are two implementations of that job.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. In federation, clients should query…</h4>
+  <button class="opt" data-fb="No — clients query only the router.">each subgraph directly</button>
+  <button class="opt" data-fb="Correct — the router fronts all subgraphs.">the router, not the subgraphs</button>
+  <button class="opt" data-fb="No — composition produces a schema, not a runtime.">the composition service</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A supergraph is composed from…</h4>
+  <button class="opt" data-fb="Correct — subgraphs compose into the supergraph.">all the subgraph schemas</button>
+  <button class="opt" data-fb="No — that is what federation replaces.">a single monolithic schema</button>
+  <button class="opt" data-fb="No — queries do not define the schema.">the client queries at runtime</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. The router differs from a proxy because it…</h4>
+  <button class="opt" data-fb="No — it plans, it does not just forward.">forwards requests unchanged</button>
+  <button class="opt" data-fb="No — planning, not caching, is the core job.">caches every response</button>
+  <button class="opt" data-fb="Correct — it builds a query plan per request.">plans which subgraphs to call</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Apollo Federation overview to ground subgraphs, the supergraph, and the router role.</p>
+<div class="ask"><strong>Ask the agent</strong> Sketch three subgraphs that share a Product entity and describe what the router must do to answer a query spanning all three.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.apollographql.com/docs/federation/">Apollo Federation — Overview</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/router/">Apollo Router — Overview</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="0002-the-apollo-gateway.html">Lesson 2: the Apollo Gateway →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/gateway-router-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

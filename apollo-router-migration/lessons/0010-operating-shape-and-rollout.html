@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 10 — Operating &amp; Rolling Out</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 10 of 10</span><span>Apollo Gateway · Router</span></div>
+  <h1>Operating &amp; Rolling Out</h1>
+  <p class="subtitle">Telemetry, traffic shaping, caching — and a reversible cutover plan.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Once migrated, the router is operated through configuration you review like code: <strong>OpenTelemetry telemetry</strong>, <strong>traffic shaping</strong>, and caching — plus a roll-out plan that can be reversed.<sup><a href="#r1">1</a></sup></p>
+
+<h2>What you get out of the box</h2>
+<table>
+  <tr><th>Concern</th><th>Router feature</th></tr>
+  <tr><td>Observability</td><td>OpenTelemetry traces &amp; metrics (Datadog, Prometheus, …)<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Resilience</td><td>Traffic shaping: timeouts, rate limiting on router/subgraph<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Performance</td><td>Query batching, APQ, Redis-backed response caching<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+
+<h2>A reference migration shape</h2>
+<pre><code>compose supergraph (CI)
+     |
+     v
+router (--supergraph in CI, artifact/Uplink in prod)
+  + router.yaml: propagation, cors, telemetry, traffic_shaping
+  + Rhai / coprocessors for custom logic
+     |
+proxy in front  ->  canary % to router, rest to gateway
+     |
+watch OTEL traces + error codes, then cut over</code></pre>
+
+<aside class="note"><strong>Key idea</strong> The router makes the gateway's operational knobs declarative and observable. Treat <code>router.yaml</code> as production code: review it, version it, and watch its telemetry after every change.<sup><a href="#r2">2</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. Router telemetry is delivered through…</h4>
+  <button class="opt" data-fb="Correct — OTEL exporters for your stack.">OpenTelemetry traces and metrics</button>
+  <button class="opt" data-fb="No — structured OTEL is the primary path.">only stdout logging</button>
+  <button class="opt" data-fb="No — telemetry is config, not schema.">the GraphQL schema directives</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. Traffic shaping on the router covers…</h4>
+  <button class="opt" data-fb="No — it shapes requests, not DNS.">only DNS resolution</button>
+  <button class="opt" data-fb="No — that is composition, not traffic.">subgraph schema validation</button>
+  <button class="opt" data-fb="Correct — resilience controls for traffic.">timeouts and rate limiting</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. A safe cutover watches…</h4>
+  <button class="opt" data-fb="No — you must watch runtime behavior.">the Git commit log only</button>
+  <button class="opt" data-fb="Correct — behavior and errors gate the switch.">traces and error codes</button>
+  <button class="opt" data-fb="No — that is unrelated to the gateway.">the client bundle size</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Apollo Router overview (telemetry, traffic shaping, caching) and the migration guide rollout strategy.</p>
+<div class="ask"><strong>Ask the agent</strong> Write the last mile of your plan: what telemetry you would watch and what would make you roll back to the gateway.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.apollographql.com/docs/router/">Apollo Router — Overview</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/router/configuration/overview">Apollo Router — Configuration overview</a></li>
+    <li id="r3"><a href="https://www.apollographql.com/docs/router/migrating-from-gateway">Apollo — Gateway Migration Guide</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0009-migrating-gateway-to-router.html">← Lesson 9</a></span>
+  <span class="nav-next"><a href="../reference/gateway-router-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/gateway-router-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

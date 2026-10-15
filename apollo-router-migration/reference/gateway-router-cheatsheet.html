@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apollo Gateway → Router — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style> code i { color: var(--accent); font-style: normal; } td code { white-space: pre-wrap; } </style>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Apollo Gateway · Router</span></div>
+  <h1>Gateway → Router Cheat Sheet</h1>
+  <p class="subtitle">The compressed essence of the course. Skim before a lesson, study it fully before an interview.</p>
+</header>
+<section>
+<h2>1. The job</h2>
+<pre><code>subgraphs --compose--> supergraph schema
+clients -> gateway/router -> subgraphs</code></pre>
+<ul>
+  <li>Clients query only the router; it plans, it does not just forward.<sup><a href="#r1">1</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>2. Apollo Gateway (incumbent)</h2>
+<pre><code>// Node library inside Apollo Server
+class DS extends RemoteGraphQLDataSource {}
+new ApolloGateway({ supergraphSdl, buildService })</code></pre>
+<ul>
+  <li>A library you configure in code: data sources, context, plugins.<sup><a href="#r2">2</a></sup></li>
+  <li>buildService runs once per subgraph.<sup><a href="#r2">2</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>3. Apollo Router (successor)</h2>
+<pre><code>router --supergraph ./supergraph.graphql
+APOLLO_GRAPH_REF="my-graph@current" router</code></pre>
+<ul>
+  <li>Standalone binary; bundles the GraphQL and HTTP servers.<sup><a href="#r3">3</a></sup></li>
+  <li>Platform: query batching, caching, APQ, @defer, subscriptions.<sup><a href="#r3">3</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>4. Gateway vs Router</h2>
+<pre><code>              Gateway                 Router
+runtime       Node library            Rust binary
+config        code (data sources)     declarative YAML
+customize     Apollo Server plugins   Rhai / coprocessors</code></pre>
+<ul>
+  <li>Response/HTTP status and error codes can differ between them.<sup><a href="#r7">7</a></sup></li>
+  <li>Check for a native router option before rewriting a plugin.<sup><a href="#r7">7</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>5. Supergraph composition</h2>
+<pre><code>subgraph schemas --compose--> supergraph schema
+(conflict => compose FAILS => keep last valid schema)</code></pre>
+<ul>
+  <li>Composition validates and merges subgraphs.<sup><a href="#r4">4</a></sup></li>
+  <li>Both gateway and router run the composed schema.<sup><a href="#r4">4</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>6. Query planning &amp; entities</h2>
+<pre><code>type Product @key(fields: "upc") { upc: String! ... }
+Product: { __resolveReference(rep) { return byUpc(rep.upc); } }</code></pre>
+<ul>
+  <li>@key marks a shared entity; the router joins by key.<sup><a href="#r5">5</a></sup></li>
+  <li>Reference resolvers must guard against N+1 (batch with loaders).<sup><a href="#r5">5</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>7. Configure the router</h2>
+<pre><code>supergraph: { listen: 0.0.0.0:4000 }
+headers: { all: { request: [ { propagate: { named: authorization } } ] } }
+telemetry: { metrics: { prometheus: { enabled: true } } }</code></pre>
+<ul>
+  <li>router.yaml drives features, security, observability.<sup><a href="#r6">6</a></sup></li>
+  <li>Schema comes from a file, artifact, Uplink, or the Operator.<sup><a href="#r6">6</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>8. Customization</h2>
+<pre><code>Rhai script       -> in-process, Rust-embedded scripting
+Coprocessor       -> external service, any language</code></pre>
+<ul>
+  <li>Use these only when no config option covers the need.<sup><a href="#r7">7</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>9. Migration checklist</h2>
+<pre><code>1 compose supergraph   2 run router (--supergraph / artifact / Uplink)
+3 context -> header propagation   4 plugins -> config or Rhai/coprocessor
+5 re-check error codes   6 canary via proxy, then cut over</code></pre>
+<ul>
+  <li>context maps to header propagation; plugins map to config/customizations.<sup><a href="#r7">7</a></sup></li>
+  <li>Run gateway and router together and shift traffic gradually.<sup><a href="#r7">7</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>10. Operate</h2>
+<pre><code>telemetry  -> OpenTelemetry (traces + metrics)
+traffic sh:  timeouts, rate limiting
+perf:        batching, APQ, Redis response cache</code></pre>
+<ul>
+  <li>Watch traces and error codes to gate the cutover.<sup><a href="#r3">3</a></sup></li>
+</ul>
+</section>
+<footer class="citation">
+  Primary sources: <a href="https://www.apollographql.com/docs/router/">Apollo Router</a>, 
+  <a href="https://www.apollographql.com/docs/router/migrating-from-gateway">Gateway Migration Guide</a>, 
+  <a href="https://www.apollographql.com/docs/federation/">Apollo Federation</a>.
+  <ol>
+    <li id="r1"><a href="https://www.apollographql.com/docs/federation/">Apollo Federation — Overview</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/apollo-server/using-federation/api/apollo-gateway">Apollo Server — @apollo/gateway reference</a></li>
+    <li id="r3"><a href="https://www.apollographql.com/docs/router/">Apollo Router — Overview</a></li>
+    <li id="r4"><a href="https://www.apollographql.com/docs/federation/federated-types/composition">Apollo Federation — Schema Composition</a></li>
+    <li id="r5"><a href="https://www.apollographql.com/docs/federation/entities">Apollo Federation — Introduction to Entities</a></li>
+    <li id="r6"><a href="https://www.apollographql.com/docs/router/configuration/overview">Apollo Router — Configuration overview</a></li>
+    <li id="r7"><a href="https://www.apollographql.com/docs/router/migrating-from-gateway">Apollo — Gateway Migration Guide</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="../lessons/0001-one-graph-many-services.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

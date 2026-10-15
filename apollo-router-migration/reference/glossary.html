@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apollo Gateway → Router — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Apollo Gateway · Router</span></div>
+  <h1>Gateway → Router Glossary</h1>
+  <p class="subtitle">Every term in this course, in one place. Return here when a lesson uses a word you do not fully own.</p>
+</header>
+
+<section>
+<h2>Federation fundamentals</h2>
+<dl>
+  <dt><strong>federation</strong></dt>
+  <dd>Composing multiple GraphQL services (subgraphs) into one unified API (the supergraph) under a single endpoint.<sup><a href="#r5">5</a></sup></dd>
+  <dt><strong>subgraph</strong></dt>
+  <dd>An individual GraphQL service that contributes part of the federated schema.<sup><a href="#r5">5</a></sup></dd>
+  <dt><strong>supergraph</strong></dt>
+  <dd>The single, composed schema that clients query; built from all subgraphs.<sup><a href="#r5">5</a></sup></dd>
+  <dt><strong>entity</strong></dt>
+  <dd>A type shared across subgraphs, marked with the @key directive.<sup><a href="#r7">7</a></sup></dd>
+  <dt><strong>@key</strong></dt>
+  <dd>The directive naming the field(s) that uniquely identify an entity.<sup><a href="#r7">7</a></sup></dd>
+  <dt><strong>reference resolver</strong></dt>
+  <dd>__resolveReference on a subgraph, called with an entity representation to resolve an entity.<sup><a href="#r7">7</a></sup></dd>
+  <dt><strong>entity representation</strong></dt>
+  <dd>The @key fields plus __typename that the router sends a subgraph to resolve an entity.<sup><a href="#r7">7</a></sup></dd>
+  <dt><strong>composition</strong></dt>
+  <dd>The process that validates and merges subgraph schemas into a supergraph schema.<sup><a href="#r6">6</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>The gateway</h2>
+<dl>
+  <dt><strong>Apollo Gateway</strong></dt>
+  <dd>The earlier Node.js gateway: the @apollo/gateway library run inside Apollo Server.<sup><a href="#r4">4</a></sup></dd>
+  <dt><strong>RemoteGraphQLDataSource</strong></dt>
+  <dd>A gateway class for customizing requests to a subgraph, e.g. adding headers.<sup><a href="#r4">4</a></sup></dd>
+  <dt><strong>buildService</strong></dt>
+  <dd>A gateway hook called once per subgraph to customize its data source.<sup><a href="#r4">4</a></sup></dd>
+  <dt><strong>gateway plugin</strong></dt>
+  <dd>An Apollo Server plugin extending behavior (telemetry, headers, custom logic) in the gateway.<sup><a href="#r3">3</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>The router</h2>
+<dl>
+  <dt><strong>Apollo Router</strong></dt>
+  <dd>The successor: a standalone binary and execution engine for graph-based API orchestration.<sup><a href="#r1">1</a></sup></dd>
+  <dt><strong>query plan</strong></dt>
+  <dd>The router-resolved strategy for fetching a query efficiently across subgraphs.<sup><a href="#r1">1</a></sup></dd>
+  <dt><strong>router.yaml</strong></dt>
+  <dd>The declarative YAML configuration file for all router runtime features.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>Uplink</strong></dt>
+  <dd>Apollo-managed service that delivers the supergraph schema to the router automatically.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>graph artifact</strong></dt>
+  <dd>An immutable, versioned supergraph schema reference for deterministic deploys.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>hot reload</strong></dt>
+  <dd>Reloading the supergraph schema without downtime.<sup><a href="#r2">2</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Customization &amp; migration</h2>
+<dl>
+  <dt><strong>Rhai script</strong></dt>
+  <dd>A lightweight Rust-embedded scripting language for router customizations.<sup><a href="#r3">3</a></sup></dd>
+  <dt><strong>coprocessor</strong></dt>
+  <dd>An external service the router calls to customize behavior in any language.<sup><a href="#r3">3</a></sup></dd>
+  <dt><strong>header propagation</strong></dt>
+  <dd>Forwarding HTTP headers from the client to subgraphs (a router config option).<sup><a href="#r3">3</a></sup></dd>
+  <dt><strong>proxy migration</strong></dt>
+  <dd>Running gateway and router together and conditionally shifting traffic for a gradual cutover.<sup><a href="#r3">3</a></sup></dd>
+</dl>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.apollographql.com/docs/router/">Apollo Router — Overview</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/router/configuration/overview">Apollo Router — Configuration overview</a></li>
+    <li id="r3"><a href="https://www.apollographql.com/docs/router/migrating-from-gateway">Apollo — Gateway Migration Guide</a></li>
+    <li id="r4"><a href="https://www.apollographql.com/docs/apollo-server/using-federation/api/apollo-gateway">Apollo Server — @apollo/gateway reference</a></li>
+    <li id="r5"><a href="https://www.apollographql.com/docs/federation/">Apollo Federation — Overview</a></li>
+    <li id="r6"><a href="https://www.apollographql.com/docs/federation/federated-types/composition">Apollo Federation — Schema Composition</a></li>
+    <li id="r7"><a href="https://www.apollographql.com/docs/federation/entities">Apollo Federation — Introduction to Entities</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Mission &amp; notes</span>
+  <span class="nav-next"><a href="../lessons/0001-one-graph-many-services.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../NOTES.md">Notes</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

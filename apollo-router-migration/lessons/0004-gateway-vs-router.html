@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — Gateway vs Router</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 10</span><span>Apollo Gateway · Router</span></div>
+  <h1>Gateway vs Router</h1>
+  <p class="subtitle">Same job, two models: a Node library you code vs a Rust binary you configure.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Gateway and Router do the same federated job two very different ways: <strong>gateway = a Node library you code</strong>, <strong>router = a Rust binary you configure</strong>.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The comparison that matters</h2>
+<table>
+  <tr><th>Axis</th><th>Apollo Gateway</th><th>Apollo Router</th></tr>
+  <tr><td>Runtime</td><td>Node.js library in Apollo Server<sup><a href="#r2">2</a></sup></td><td>Standalone Rust binary<sup><a href="#r3">3</a></sup></td></tr>
+  <tr><td>Configuration</td><td>Imperative code (data sources, plugins)</td><td>Declarative YAML<sup><a href="#r3">3</a></sup></td></tr>
+  <tr><td>Customization</td><td>Apollo Server plugins</td><td>Rhai scripts &amp; coprocessors<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Server</td><td>Your HTTP server + Apollo Server</td><td>GraphQL + HTTP bundled<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+
+<h2>Two gotchas the migration guide calls out</h2>
+<ul>
+  <li>Reply/response behavior can differ: because the router bundles its server, HTTP status codes and GraphQL error extension codes may change.<sup><a href="#r1">1</a></sup></li>
+  <li>Plugins do not carry over: before rewriting a plugin, check whether the router already has the feature (e.g. header propagation, OpenTelemetry).<sup><a href="#r1">1</a></sup></li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> The migration is not a rename — it is a change of programming model. Everything you expressed in code must be re-expressed as configuration or a router customization.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. The core difference in configuration is…</h4>
+  <button class="opt" data-fb="No — the router uses YAML and scripts.">both use TypeScript plugins</button>
+  <button class="opt" data-fb="No — the gateway is configured in code.">both use YAML files</button>
+  <button class="opt" data-fb="Correct — imperative vs declarative.">gateway is code, router is YAML</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A migration risk the guide highlights is…</h4>
+  <button class="opt" data-fb="Correct — the bundled server can differ.">changed HTTP status and error codes</button>
+  <button class="opt" data-fb="No — both consume a supergraph schema.">loss of the supergraph schema</button>
+  <button class="opt" data-fb="No — both are GraphQL gateways.">GraphQL being removed</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. Before rewriting a gateway plugin you should…</h4>
+  <button class="opt" data-fb="No — rewriting blindly risks losing behavior.">delete it immediately</button>
+  <button class="opt" data-fb="Correct — many have native router config.">check for an equivalent router option</button>
+  <button class="opt" data-fb="No — plugins are gateway-side concerns.">move it to a subgraph</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Gateway Migration Guide for the configuration mapping and error differences.</p>
+<div class="ask"><strong>Ask the agent</strong> For each piece of your gateway (data sources, plugins, context), say whether the router has a config option or needs a customization.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.apollographql.com/docs/router/migrating-from-gateway">Apollo — Gateway Migration Guide</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/apollo-server/using-federation/api/apollo-gateway">Apollo Server — @apollo/gateway reference</a></li>
+    <li id="r3"><a href="https://www.apollographql.com/docs/router/">Apollo Router — Overview</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-the-apollo-router.html">← Lesson 3</a></span>
+  <span class="nav-next"><a href="0005-supergraph-schema-and-composition.html">Lesson 5: the supergraph schema →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/gateway-router-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

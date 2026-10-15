@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — The Supergraph Schema &amp; Composition</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 10</span><span>Apollo Gateway · Router</span></div>
+  <h1>The Supergraph Schema &amp; Composition</h1>
+  <p class="subtitle">The compiled artifact both runtimes run — and why a bad compose is safe.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p><strong>Composition</strong> validates and merges your subgraph schemas into one <strong>supergraph schema</strong> — and both the gateway and the router consume that same artifact.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Composition is a compiler</h2>
+<pre><code>users.graphql + products.graphql + reviews.graphql
+        \____ compose ____/
+               |
+               v
+        supergraph-schema.graphql   &lt;-- what the router runs</code></pre>
+<p>If a subgraph change conflicts with another, composition <em>fails</em> and no new supergraph is produced — so the router keeps running the last valid schema. It is like a compiler error that stops invalid code from shipping.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Who consumes the supergraph</h2>
+<table>
+  <tr><th>Runtime</th><th>How it gets the supergraph</th></tr>
+  <tr><td>Apollo Gateway</td><td>Passed as <code>supergraphSdl</code> in code<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td>Apollo Router</td><td>Local file, graph artifact, Uplink, or the Operator<sup><a href="#r3">3</a></sup></td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> The supergraph schema is the hand-off point in the migration: if you already compose one for the gateway, the router can run <em>the same</em> schema. The work is in how each runtime receives and reloads it.<sup><a href="#r3">3</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Composition produces…</h4>
+  <button class="opt" data-fb="No — subgraphs are the input, not the output.">one schema per subgraph</button>
+  <button class="opt" data-fb="Correct — one composed schema to run.">a single supergraph schema</button>
+  <button class="opt" data-fb="No — composition is a build step, not caching.">a client-side cache</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. When subgraph schemas conflict, composition…</h4>
+  <button class="opt" data-fb="Correct — the last valid schema keeps running.">fails and produces no new schema</button>
+  <button class="opt" data-fb="No — it errors rather than guessing.">silently drops one subgraph</button>
+  <button class="opt" data-fb="No — conflicts are errors, not merges.">merges them by last-write-wins</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. Both gateway and router ultimately consume…</h4>
+  <button class="opt" data-fb="No — they consume the composed schema.">the raw subgraph schemas</button>
+  <button class="opt" data-fb="No — runtime input, not the schema artifact.">the client queries</button>
+  <button class="opt" data-fb="Correct — the composed artifact feeds both.">the supergraph schema</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Schema Composition guide for how subgraph changes are validated and merged.</p>
+<div class="ask"><strong>Ask the agent</strong> Describe what happens to a running router when someone pushes a conflicting subgraph change and composition fails.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.apollographql.com/docs/federation/federated-types/composition">Apollo Federation — Schema Composition</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/apollo-server/using-federation/api/apollo-gateway">Apollo Server — @apollo/gateway reference</a></li>
+    <li id="r3"><a href="https://www.apollographql.com/docs/router/configuration/overview">Apollo Router — Configuration overview</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-gateway-vs-router.html">← Lesson 4</a></span>
+  <span class="nav-next"><a href="0006-query-planning-and-entities.html">Lesson 6: query planning &amp; entities →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/gateway-router-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

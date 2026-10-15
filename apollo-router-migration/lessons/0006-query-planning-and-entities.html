@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — Query Planning &amp; Entities</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 10</span><span>Apollo Gateway · Router</span></div>
+  <h1>Query Planning &amp; Entities</h1>
+  <p class="subtitle">How the router turns one query into a plan across subgraphs — and the N+1 trap.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>For each incoming query the router builds a <strong>query plan</strong>: which subgraphs to call, in what order, and how to stitch their results — using entity keys to join the pieces.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Entities make the join</h2>
+<pre><code>type Product @key(fields: "upc") {
+  upc: String!
+  name: String          # products subgraph
+  reviews: [Review]     # reviews subgraph
+}
+
+# reviews subgraph resolves the shared entity:
+Product: {
+  __resolveReference(rep) { return byUpc(rep.upc); }
+}</code></pre>
+<p><code>@key</code> tells the router "this subgraph can resolve the entity if you give it the key". The router sends an <strong>entity representation</strong> — the key fields plus <code>__typename</code> — to the subgraph that owns the rest of the fields.<sup><a href="#r2">2</a></sup></p>
+
+<h2>The N+1 trap</h2>
+<p>A reference resolver can be called many times for one query. Untreated, that becomes an N+1 problem, so reference resolvers should batch lookups (typically with data loaders).<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Query planning is the daily-visible consequence of federation. Whether gateway or router, a bad <code>@key</code> or an N+1 reference resolver hurts every query that crosses subgraphs.<sup><a href="#r2">2</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. A query plan describes…</h4>
+  <button class="opt" data-fb="No — that is a client concern.">the client-side cache policy</button>
+  <button class="opt" data-fb="No — plans are per query at runtime.">the Git history of the schema</button>
+  <button class="opt" data-fb="Correct — and how to stitch the results.">which subgraphs to call and how</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The @key directive tells the router…</h4>
+  <button class="opt" data-fb="Correct — the subgraph can resolve by key.">how to resolve this entity by its key</button>
+  <button class="opt" data-fb="No — caching is unrelated to @key.">which fields to cache</button>
+  <button class="opt" data-fb="No — @key identifies entities, not lifecycle.">which subgraph is deprecated</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. An entity representation sent to a subgraph contains…</h4>
+  <button class="opt" data-fb="No — only the key fields and typename.">the full parent document</button>
+  <button class="opt" data-fb="Correct — enough to resolve the entity.">the key fields plus __typename</button>
+  <button class="opt" data-fb="No — that is header propagation, not entity data.">the original client headers</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Introduction to Entities guide for @key, reference resolvers, and batching.</p>
+<div class="ask"><strong>Ask the agent</strong> Given two subgraphs sharing a Product entity, describe the plan the router builds and where an N+1 could appear.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.apollographql.com/docs/router/">Apollo Router — Overview</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/federation/entities">Apollo Federation — Introduction to Entities</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-supergraph-schema-and-composition.html">← Lesson 5</a></span>
+  <span class="nav-next"><a href="0007-configuring-the-router.html">Lesson 7: configuring the router →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/gateway-router-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

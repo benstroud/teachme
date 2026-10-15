@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — Customization: Rhai &amp; Coprocessors</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 10</span><span>Apollo Gateway · Router</span></div>
+  <h1>Customization: Rhai &amp; Coprocessors</h1>
+  <p class="subtitle">The two hooks for behavior the configuration cannot express.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>When configuration is not enough, the router offers two customization hooks into its request pipeline: <strong>Rhai scripts</strong> (a Rust-embedded scripting language, in-process) and <strong>coprocessors</strong> (an external service you call, in any language).<sup><a href="#r1">1</a></sup></p>
+
+<h2>Rhai vs coprocessor</h2>
+<table>
+  <tr><th></th><th>Rhai scripts</th><th>Coprocessors</th></tr>
+  <tr><td>Where it runs</td><td>Inside the router process<sup><a href="#r1">1</a></sup></td><td>An external HTTP service<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Language</td><td>Rhai (Rust-embedded)<sup><a href="#r1">1</a></sup></td><td>Any language<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Best for</td><td>Small, fast, in-process tweaks</td><td>Complex logic, existing services</td></tr>
+</table>
+
+<h2>The migration rule of thumb</h2>
+<p>For each gateway plugin, <em>first</em> check whether the router already has a native config option (e.g. header propagation, OpenTelemetry). Only reach for Rhai or a coprocessor when no option covers it.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> The customization surface changed shape, not just syntax: where you once wrote an Apollo Server plugin class, you now either flip a YAML option or write a script/service that hooks the same pipeline.<sup><a href="#r2">2</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Rhai scripts run…</h4>
+  <button class="opt" data-fb="No — coprocessors are external; Rhai is in-process.">in a separate external service</button>
+  <button class="opt" data-fb="Correct — Rhai is embedded in the router.">inside the router process</button>
+  <button class="opt" data-fb="No — customization happens server-side.">in the client browser</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Coprocessors let you customize in…</h4>
+  <button class="opt" data-fb="Correct — the router calls your service.">any language, via an external service</button>
+  <button class="opt" data-fb="No — Rhai is the in-process option.">only the Rhai language</button>
+  <button class="opt" data-fb="No — coprocessors are a service hook.">GraphQL directives only</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. Before writing a custom hook you should…</h4>
+  <button class="opt" data-fb="No — check for native config first.">always write a coprocessor</button>
+  <button class="opt" data-fb="No — plugins do not carry over as-is.">port the plugin verbatim</button>
+  <button class="opt" data-fb="Correct — many needs are built in.">check for a native router config option</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Gateway Migration Guide section on supported customizations (Rhai, external coprocessing).</p>
+<div class="ask"><strong>Ask the agent</strong> Take one gateway plugin and decide: does the router already do this in YAML, or does it need Rhai or a coprocessor?</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.apollographql.com/docs/router/migrating-from-gateway">Apollo — Gateway Migration Guide</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/router/">Apollo Router — Overview</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-configuring-the-router.html">← Lesson 7</a></span>
+  <span class="nav-next"><a href="0009-migrating-gateway-to-router.html">Lesson 9: migrating step by step →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/gateway-router-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

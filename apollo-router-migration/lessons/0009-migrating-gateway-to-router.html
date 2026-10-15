@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 9 — Migrating Gateway to Router</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 9 of 10</span><span>Apollo Gateway · Router</span></div>
+  <h1>Migrating Gateway to Router</h1>
+  <p class="subtitle">Translate configuration and customizations, then roll out gradually behind a proxy.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>The migration is a <strong>translation</strong>: every Apollo Server option and gateway behavior becomes either a router config option or a router customization — then you roll it out gradually behind a proxy.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Map the two big options</h2>
+<table>
+  <tr><th>Gateway (Apollo Server)</th><th>Router equivalent</th></tr>
+  <tr><td><code>context</code> (auth info)</td><td>Header propagation / router config<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>plugins</code></td><td>Router config option first; else Rhai/coprocessor<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+
+<h2>A migration checklist</h2>
+<ol>
+  <li>Compose the supergraph schema you already have.<sup><a href="#r2">2</a></sup></li>
+  <li>Run the router against it (<code>--supergraph</code> locally, artifact/Uplink in prod).<sup><a href="#r3">3</a></sup></li>
+  <li>Translate <code>context</code> into header propagation.</li>
+  <li>Translate each plugin: native option, or Rhai/coprocessor.<sup><a href="#r1">1</a></sup></li>
+  <li>Re-check response/error behavior for HTTP status and GraphQL error codes.<sup><a href="#r1">1</a></sup></li>
+</ol>
+
+<h2>Roll out gradually</h2>
+<p>You can run <code>@apollo/gateway</code> and the router side by side and conditionally proxy traffic to the router for a gradual release (an Apollo Solutions strategy; experimental).<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Do not big-bang it. A proxy in front lets you shift a percentage of traffic to the router and cut back instantly if error codes or behavior diverge.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. Apollo Server context (auth info) maps to…</h4>
+  <button class="opt" data-fb="No — that is schema-level, not request routing.">a subgraph schema directive</button>
+  <button class="opt" data-fb="No — it is a per-request concern.">a cron job</button>
+  <button class="opt" data-fb="Correct — headers carry that info forward.">router header propagation</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The first migration step is to…</h4>
+  <button class="opt" data-fb="Correct — both runtimes need it.">compose the supergraph schema</button>
+  <button class="opt" data-fb="No — keep it during a gradual cutover.">delete the gateway</button>
+  <button class="opt" data-fb="No — subgraphs are unchanged by migration.">rewrite all subgraphs</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. A gradual migration runs…</h4>
+  <button class="opt" data-fb="No — running both is safer.">only the router from day one</button>
+  <button class="opt" data-fb="Correct — shift traffic gradually.">gateway and router, proxying traffic</button>
+  <button class="opt" data-fb="No — the router always needs the schema.">the router without a supergraph</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Gateway Migration Guide end to end and build a checklist for your own graph.</p>
+<div class="ask"><strong>Ask the agent</strong> Draft your migration checklist: what in your gateway is config-equivalent, what needs a script, and how you would canary the router.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.apollographql.com/docs/router/migrating-from-gateway">Apollo — Gateway Migration Guide</a></li>
+    <li id="r2"><a href="https://www.apollographql.com/docs/federation/federated-types/composition">Apollo Federation — Schema Composition</a></li>
+    <li id="r3"><a href="https://www.apollographql.com/docs/router/configuration/overview">Apollo Router — Configuration overview</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0008-customization-rhai-and-coprocessors.html">← Lesson 8</a></span>
+  <span class="nav-next"><a href="0010-operating-shape-and-rollout.html">Lesson 10: operating &amp; rollout →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/gateway-router-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
