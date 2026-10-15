@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tailscale — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Tailscale</span></div>
+  <h1>Tailscale Glossary</h1>
+  <p class="subtitle">Every term in this course, in one place. Return here when a lesson uses a word you do not fully own.</p>
+</header>
+
+<section>
+<h2>Core model</h2>
+<dl>
+  <dt><strong>Tailscale</strong></dt>
+  <dd>A mesh VPN built on WireGuard that connects your devices into a private network using identity, with zero-config traversal of NAT and firewalls.<sup><a href="#r1">1</a></sup></dd>
+  <dt><strong>WireGuard</strong></dt>
+  <dd>The modern, fast, secure VPN protocol Tailscale is built on.<sup><a href="#r1">1</a></sup></dd>
+  <dt><strong>mesh VPN</strong></dt>
+  <dd>Every device connects directly to every other device, rather than all traffic funneling through one gateway.<sup><a href="#r1">1</a></sup></dd>
+  <dt><strong>overlay network</strong></dt>
+  <dd>A virtual network layered on top of the real internet/private networks.</dd>
+  <dt><strong>tailnet</strong></dt>
+  <dd>Your private Tailscale network — the set of devices and users that share access.<sup><a href="#r1">1</a></sup></dd>
+  <dt><strong>node / device</strong></dt>
+  <dd>A machine (or user) joined to the tailnet.</dd>
+  <dt><strong>coordination server</strong></dt>
+  <dd>Tailscale's control plane that distributes keys and policy; it does not carry your data.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>DERP relay</strong></dt>
+  <dd>Tailscale's encrypted fallback relay used when a direct connection cannot be established.<sup><a href="#r2">2</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Addressing &amp; DNS</h2>
+<dl>
+  <dt><strong>tailnet IP</strong></dt>
+  <dd>A device's address inside the tailnet, drawn from the 100.64.0.0/10 CGNAT range.<sup><a href="#r3">3</a></sup></dd>
+  <dt><strong>MagicDNS</strong></dt>
+  <dd>Automatic DNS so you can reach devices by name instead of IP.<sup><a href="#r4">4</a></sup></dd>
+  <dt><strong>FQDN / ts.net</strong></dt>
+  <dd>Machine name + tailnet DNS name (ending in .ts.net); shared devices require the full name.<sup><a href="#r4">4</a></sup></dd>
+  <dt><strong>search domain</strong></dt>
+  <dd>Added by MagicDNS so typing the machine name alone resolves.<sup><a href="#r4">4</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Access control</h2>
+<dl>
+  <dt><strong>ACL</strong></dt>
+  <dd>A rule in the tailnet policy file allowing a source to reach a destination on given ports.<sup><a href="#r5">5</a></sup></dd>
+  <dt><strong>policy file (huJSON)</strong></dt>
+  <dd>The declarative file defining acls, tags, and related settings.<sup><a href="#r6">6</a></sup></dd>
+  <dt><strong>deny-by-default</strong></dt>
+  <dd>Without an explicit allow, communication is blocked when ACLs are defined.<sup><a href="#r5">5</a></sup></dd>
+  <dt><strong>directional</strong></dt>
+  <dd>Allowing A to reach B does not allow B to reach A.<sup><a href="#r5">5</a></sup></dd>
+  <dt><strong>locally enforced</strong></dt>
+  <dd>Each device enforces incoming connections from the distributed rules.<sup><a href="#r5">5</a></sup></dd>
+  <dt><strong>tag</strong></dt>
+  <dd>A label on a device used in ACLs (e.g. tag:server) for policy by role, not person.<sup><a href="#r5">5</a></sup></dd>
+  <dt><strong>autogroup</strong></dt>
+  <dd>A built-in group (e.g. all members) for shorthand in policies.<sup><a href="#r5">5</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Extending the network</h2>
+<dl>
+  <dt><strong>subnet router</strong></dt>
+  <dd>A node that advertises a LAN CIDR so the tailnet can reach that subnet.<sup><a href="#r7">7</a></sup></dd>
+  <dt><strong>exit node</strong></dt>
+  <dd>A node you route all your internet traffic through.<sup><a href="#r8">8</a></sup></dd>
+  <dt><strong>SNAT / masquerading</strong></dt>
+  <dd>Rewriting source addresses for traffic through a subnet router (default on; can be disabled on Linux).<sup><a href="#r7">7</a></sup></dd>
+  <dt><strong>return route</strong></dt>
+  <dd>The route (for 100.64.0.0/10) devices need when SNAT is disabled.<sup><a href="#r7">7</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Services &amp; servers</h2>
+<dl>
+  <dt><strong>Tailscale SSH</strong></dt>
+  <dd>Keyless SSH authenticated by identity and access policy, enforced on the server.<sup><a href="#r9">9</a></sup></dd>
+  <dt><strong>check mode</strong></dt>
+  <dd>A Tailscale SSH setting that requires SSO approval before a session.<sup><a href="#r9">9</a></sup></dd>
+  <dt><strong>Serve</strong></dt>
+  <dd>Expose a local service to your tailnet over HTTPS.<sup><a href="#r10">10</a></sup></dd>
+  <dt><strong>Funnel</strong></dt>
+  <dd>Expose a service to the public internet.<sup><a href="#r11">11</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Automation &amp; ops</h2>
+<dl>
+  <dt><strong>auth key</strong></dt>
+  <dd>A pre-authorized key that joins a device to the tailnet without interactive login.<sup><a href="#r12">12</a></sup></dd>
+  <dt><strong>ephemeral node</strong></dt>
+  <dd>A node that is automatically removed shortly after it goes offline.<sup><a href="#r13">13</a></sup></dd>
+  <dt><strong>key expiry</strong></dt>
+  <dd>Device keys expire by default; disabled for servers, it matters for reliability.</dd>
+  <dt><strong>fail-close</strong></dt>
+  <dd>If a connector's key expires, its advertised routes stay but become unreachable (no leak).<sup><a href="#r7">7</a></sup></dd>
+</dl>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://tailscale.com/kb/1151/what-is-tailscale">Tailscale — What is Tailscale?</a></li>
+    <li id="r2"><a href="https://tailscale.com/blog/how-tailscale-works">Tailscale — How Tailscale works</a></li>
+    <li id="r3"><a href="https://tailscale.com/kb/1017/install">Tailscale — Install</a></li>
+    <li id="r4"><a href="https://tailscale.com/kb/1081/magicdns">Tailscale — MagicDNS</a></li>
+    <li id="r5"><a href="https://tailscale.com/kb/1018/acls">Tailscale — Manage ACLs</a></li>
+    <li id="r6"><a href="https://tailscale.com/kb/1337/policy-syntax">Tailscale — Policy file syntax</a></li>
+    <li id="r7"><a href="https://tailscale.com/kb/1019/subnets">Tailscale — Subnet routers</a></li>
+    <li id="r8"><a href="https://tailscale.com/kb/1103/exit-nodes">Tailscale — Exit nodes</a></li>
+    <li id="r9"><a href="https://tailscale.com/kb/1193/tailscale-ssh">Tailscale — Tailscale SSH</a></li>
+    <li id="r10"><a href="https://tailscale.com/kb/1242/tailscale-serve">Tailscale — tailscale serve</a></li>
+    <li id="r11"><a href="https://tailscale.com/kb/1223/funnel">Tailscale — Funnel</a></li>
+    <li id="r12"><a href="https://tailscale.com/kb/1085/auth-keys">Tailscale — Auth keys</a></li>
+    <li id="r13"><a href="https://tailscale.com/kb/1111/ephemeral-nodes">Tailscale — Ephemeral nodes</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Mission &amp; notes</span>
+  <span class="nav-next"><a href="../lessons/0001-what-is-tailscale.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../NOTES.md">Notes</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

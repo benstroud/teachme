@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — Install &amp; Your First Node</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 10</span><span>Tailscale</span></div>
+  <h1>Install &amp; Your First Node</h1>
+  <p class="subtitle">Install, authenticate, and read the status output like a native.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Getting started is three steps: install the client, run <code>tailscale up</code> and authenticate, then repeat on a second device — the two are now on the same tailnet and can reach each other.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The commands you will live in</h2>
+<pre><code># bring this machine onto the tailnet
+tailscale up
+
+# what is on my tailnet, and am I connected?
+tailscale status
+
+# my tailnet address(es)
+tailscale ip -4
+
+# can I actually reach that peer, and how?
+tailscale ping other-device</code></pre>
+
+<h2>Reading tailscale status</h2>
+<p>The status output lists every node, its tailnet IP, its owner, and whether the path to it is <em>direct</em> or <em>relayed</em>. That one line tells you a lot about health and performance.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> A device's tailnet address comes from the <code>100.64.0.0/10</code> range. It is stable for that device in the tailnet, so peers can address it even while the public internet IP keeps changing.<sup><a href="#r3">3</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. The command that joins a machine to the tailnet is…</h4>
+  <button class="opt" data-fb="Correct — it authenticates and brings the node up.">tailscale up</button>
+  <button class="opt" data-fb="No — that reports state, it does not join.">tailscale status</button>
+  <button class="opt" data-fb="No — that diagnoses connectivity paths.">tailscale netcheck</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. A device's tailnet address is drawn from…</h4>
+  <button class="opt" data-fb="No — tailnet addresses are private to the overlay.">the public IPv4 space</button>
+  <button class="opt" data-fb="No — that is a name, not the address.">a per-account DNS zone</button>
+  <button class="opt" data-fb="Correct — the CGNAT range used for tailnet IPs.">the 100.64.0.0/10 range</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. tailscale status tells you whether a peer is…</h4>
+  <button class="opt" data-fb="No — status is about connectivity, not storage.">encrypted at rest</button>
+  <button class="opt" data-fb="Correct — it shows the connection path kind.">direct or relayed</button>
+  <button class="opt" data-fb="No — status does not inspect services.">running a web server</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Install guide for per-OS clients and the up command.</p>
+<div class="ask"><strong>Ask the agent</strong> Bring two devices onto a tailnet, then run tailscale status and tailscale ping between them and describe the paths.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://tailscale.com/kb/1017/install">Tailscale — Install</a></li>
+    <li id="r2"><a href="https://tailscale.com/blog/how-tailscale-works">Tailscale — How Tailscale works</a></li>
+    <li id="r3"><a href="https://tailscale.com/kb/1019/subnets">Tailscale — Subnet routers</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-what-is-tailscale.html">← Lesson 1</a></span>
+  <span class="nav-next"><a href="0003-identity-and-the-tailnet.html">Lesson 3: identity &amp; the tailnet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/tailscale-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

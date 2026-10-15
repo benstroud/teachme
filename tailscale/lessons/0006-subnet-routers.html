@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — Subnet Routers</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 10</span><span>Tailscale</span></div>
+  <h1>Subnet Routers</h1>
+  <p class="subtitle">Extending the tailnet to whole LANs you cannot install Tailscale on.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A <strong>subnet router</strong> is a node that advertises a real LAN range — say <code>10.0.0.0/24</code> — so the rest of the tailnet can reach devices on that subnet even though Tailscale is not installed on them.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Setting one up</h2>
+<pre><code># 1) enable IP forwarding, then advertise the route
+tailscale up --advertise-routes=10.0.0.0/24
+
+# 2) approve the route in the admin console
+#    (Machines -> the router -> Edit route settings)</code></pre>
+<p>The route must be enabled/approved before other devices can use it. Then any tailnet device can reach <code>10.0.0.5</code> as if it were local.<sup><a href="#r1">1</a></sup></p>
+
+<h2>SNAT and the return route</h2>
+<table>
+  <tr><th>Setting</th><th>Effect</th></tr>
+  <tr><td>SNAT on (default)</td><td>Source addresses are masqueraded; works out of the box.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>SNAT off (Linux)</td><td>Source IPs preserved, but LAN devices need a return route for <code>100.64.0.0/10</code> via the router.<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> Subnet routers extend the tailnet into networks you cannot install Tailscale on (printers, IoT, a corporate LAN). One node, one advertised range, whole subnet reachable.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. A subnet router lets the tailnet reach…</h4>
+  <button class="opt" data-fb="Correct — the advertised CIDR becomes reachable.">a whole LAN range it advertises</button>
+  <button class="opt" data-fb="No — the point is the subnet behind it.">only the router itself</button>
+  <button class="opt" data-fb="No — that is the exit node role.">public internet hosts</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. After advertising a route you must…</h4>
+  <button class="opt" data-fb="No — approval happens in the console.">reinstall the client</button>
+  <button class="opt" data-fb="No — DNS is unrelated to route approval.">disable MagicDNS</button>
+  <button class="opt" data-fb="Correct — advertised routes need enabling.">enable/approve it in the admin console</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. With SNAT disabled on the router, LAN devices need…</h4>
+  <button class="opt" data-fb="No — without SNAT you must add routing.">no extra configuration</button>
+  <button class="opt" data-fb="Correct — it points back at the router LAN IP.">a return route for 100.64.0.0/10</button>
+  <button class="opt" data-fb="No — a specific return route is what is required.">a second default gateway</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Subnet routers guide for setup, SNAT, and high availability.</p>
+<div class="ask"><strong>Ask the agent</strong> Stand up a subnet router for your home LAN and reach a non-Tailscale device (a printer or IoT box) from a laptop on the tailnet.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://tailscale.com/kb/1019/subnets">Tailscale — Subnet routers</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-access-control-with-acls.html">← Lesson 5</a></span>
+  <span class="nav-next"><a href="0007-exit-nodes.html">Lesson 7: exit nodes →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/tailscale-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

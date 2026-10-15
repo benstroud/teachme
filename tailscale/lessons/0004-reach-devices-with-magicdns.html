@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — Reach Devices with MagicDNS</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 10</span><span>Tailscale</span></div>
+  <h1>Reach Devices with MagicDNS</h1>
+  <p class="subtitle">Names instead of IPs: machine names, the .ts.net tailnet domain, and search domains.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p><strong>MagicDNS</strong> gives every device a DNS name so you can reach it by name (<code>ping monitoring</code>) instead of remembering a tailnet IP.<sup><a href="#r1">1</a></sup></p>
+
+<h2>How the name is built</h2>
+<pre><code>Fully qualified name = machine name + tailnet DNS name
+  monitoring  +  yak-bebop.ts.net  =  monitoring.yak-bebop.ts.net</code></pre>
+<p>MagicDNS adds search domains, so just the machine name resolves: <code>ping monitoring</code> and <code>ping monitoring.yak-bebop.ts.net</code> are equivalent.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Machine name vs full domain</h2>
+<table>
+  <tr><th>Case</th><th>What to type</th></tr>
+  <tr><td>Your own tailnet devices</td><td>Just the machine name (search domain applies).<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Devices shared with you</td><td>The full domain name, for security.<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> Names make a tailnet feel like one LAN even though the machines are scattered. If a device cannot resolve names, MagicDNS (or accepting DNS) may be off: <code>tailscale set --accept-dns=false</code> disables it locally.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. MagicDNS lets you reach devices by…</h4>
+  <button class="opt" data-fb="Correct — names resolve to tailnet IPs.">name instead of IP address</button>
+  <button class="opt" data-fb="No — it is DNS-based naming.">MAC address on the LAN</button>
+  <button class="opt" data-fb="No — naming is unrelated to passwords.">a shared password</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. A device FQDN is built from machine name plus…</h4>
+  <button class="opt" data-fb="No — it uses the tailnet DNS name.">the local router domain</button>
+  <button class="opt" data-fb="No — the suffix is the tailnet name.">a random per-device suffix</button>
+  <button class="opt" data-fb="Correct — e.g. host.tailnet.ts.net.">the tailnet DNS name</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. Devices shared with you require…</h4>
+  <button class="opt" data-fb="No — you still address them by name.">no name at all</button>
+  <button class="opt" data-fb="Correct — the FQDN is required for shared nodes.">the full domain name</button>
+  <button class="opt" data-fb="No — names, not leases, are the mechanism.">a temporary IP lease</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the MagicDNS guide for enabling it and naming machines.</p>
+<div class="ask"><strong>Ask the agent</strong> Give a device a friendly name, then connect to it by name only and describe what MagicDNS resolved.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://tailscale.com/kb/1081/magicdns">Tailscale — MagicDNS</a></li>
+    <li id="r2"><a href="https://tailscale.com/kb/1017/install">Tailscale — Install</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-identity-and-the-tailnet.html">← Lesson 3</a></span>
+  <span class="nav-next"><a href="0005-access-control-with-acls.html">Lesson 5: access control →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/tailscale-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

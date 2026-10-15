@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — Access Control with ACLs</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 10</span><span>Tailscale</span></div>
+  <h1>Access Control with ACLs</h1>
+  <p class="subtitle">The policy file that decides who may reach what — deny-by-default and directional.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Access is governed by a declarative <strong>policy file</strong> (huJSON): each rule says a source may reach a destination on given ports — and Tailscale is <strong>deny-by-default</strong> once you define rules.<sup><a href="#r1">1</a></sup></p>
+
+<h2>An ACL rule</h2>
+<pre><code>{
+  "acls": [
+    { "action": "accept",
+      "src": ["tag:laptop"],
+      "dst": ["tag:server:22,443"] }
+  ]
+}</code></pre>
+<p>Read it as: devices with <code>tag:laptop</code> may connect to devices with <code>tag:server</code> on ports 22 and 443.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Four properties to remember</h2>
+<table>
+  <tr><th>Property</th><th>Meaning</th></tr>
+  <tr><td>Deny-by-default</td><td>No explicit allow means no access.</td></tr>
+  <tr><td>Directional</td><td>Allowing A to B does not allow B to A.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Locally enforced</td><td>A device enforces incoming connections itself.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Affects tailnet traffic only</td><td>Local-network access is untouched.<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> The default when you define <em>no</em> <code>acls</code> section is allow-all; an empty <code>acls</code> object denies all. Knowing that default is the difference between "works everywhere" and "locked down".<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. ACLs in Tailscale are, by design…</h4>
+  <button class="opt" data-fb="No — once rules exist the model is deny-by-default.">allow-by-default</button>
+  <button class="opt" data-fb="Correct — access must be explicitly granted.">deny-by-default</button>
+  <button class="opt" data-fb="No — rules name the destination ports.">rules that ignore ports</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Allowing source to reach destination does not…</h4>
+  <button class="opt" data-fb="Correct — ACLs are directional.">let the destination reach the source</button>
+  <button class="opt" data-fb="No — ACL rules do specify ports.">require explicit ports</button>
+  <button class="opt" data-fb="No — ACLs govern tailnet traffic.">apply to tailnet traffic</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. If the policy file has no acls section at all…</h4>
+  <button class="opt" data-fb="No — that is an empty acls object.">all traffic is denied</button>
+  <button class="opt" data-fb="No — tags do not create an implicit allow.">only tag owners connect</button>
+  <button class="opt" data-fb="Correct — absent acls means allow-all.">the default is allow all</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Manage ACLs page and the policy-file syntax reference.</p>
+<div class="ask"><strong>Ask the agent</strong> Write a rule that lets laptops SSH only to servers, and say what happens to every other path.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://tailscale.com/kb/1018/acls">Tailscale — Manage ACLs</a></li>
+    <li id="r2"><a href="https://tailscale.com/kb/1337/policy-syntax">Tailscale — Policy file syntax</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-reach-devices-with-magicdns.html">← Lesson 4</a></span>
+  <span class="nav-next"><a href="0006-subnet-routers.html">Lesson 6: subnet routers →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/tailscale-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

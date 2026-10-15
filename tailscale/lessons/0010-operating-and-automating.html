@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 10 — Operating &amp; Automating a Tailnet</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 10 of 10</span><span>Tailscale</span></div>
+  <h1>Operating &amp; Automating a Tailnet</h1>
+  <p class="subtitle">Diagnosing paths, keeping connectors alive, and joining nodes unattended.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Running a tailnet well means three habits: <strong>diagnose</strong> the path (direct vs relayed), <strong>manage key expiry</strong> so servers do not drop off, and <strong>automate</strong> joins with auth keys and tags.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Diagnose</h2>
+<pre><code>tailscale status        # peers + direct/relayed
+tailscale netcheck      # NAT type, UDP, nearest DERP</code></pre>
+<p>If a peer is relayed when you expect direct, it is usually NAT or a blocked UDP port — <code>netcheck</code> points you at the cause.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Reliability: key expiry</h2>
+<p>Device keys expire by default. For servers and connectors (subnet routers, exit nodes) that is dangerous: when a connector key expires its routes stay but become unreachable — a <em>fail-close</em> policy that avoids leaking traffic. Disable expiry on always-on nodes, and run connectors in pairs for high availability.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Automate joins</h2>
+<table>
+  <tr><th>Tool</th><th>Use</th></tr>
+  <tr><td>Auth key</td><td>Pre-authorized join for CI runners and provisioning.<sup><a href="#r3">3</a></sup></td></tr>
+  <tr><td>Tag</td><td>Apply policy by role at join time.<sup><a href="#r3">3</a></sup></td></tr>
+  <tr><td>Ephemeral node</td><td>Auto-remove short-lived nodes after they go offline.<sup><a href="#r4">4</a></sup></td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> A tailnet that "just works" is one where connectors never expire, automation uses tagged auth keys, and short-lived runners clean up after themselves.<sup><a href="#r3">3</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. tailscale netcheck is used to…</h4>
+  <button class="opt" data-fb="No — joining is done with tailscale up.">join a new device</button>
+  <button class="opt" data-fb="No — policy lives in the admin console.">edit the ACL policy</button>
+  <button class="opt" data-fb="Correct — it reports NAT, UDP, and DERP.">diagnose connectivity paths and NAT</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Letting a subnet router key expire causes…</h4>
+  <button class="opt" data-fb="Correct — a fail-close outcome.">its routes to stay but be unreachable</button>
+  <button class="opt" data-fb="No — fail-close prevents leaking.">traffic to leak to the public internet</button>
+  <button class="opt" data-fb="No — expiry is per device, not the tailnet.">the tailnet to be deleted</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. An ephemeral node is one that…</h4>
+  <button class="opt" data-fb="No — it appears, then is removed.">never appears in the tailnet</button>
+  <button class="opt" data-fb="Correct — good for short-lived runners.">is removed after going offline</button>
+  <button class="opt" data-fb="No — tagged auth keys often create them.">cannot use policy tags</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the troubleshooting, auth-keys, and ephemeral-nodes pages to finish the loop.</p>
+<div class="ask"><strong>Ask the agent</strong> Sketch how you would join a CI runner automatically, tag it, and let it clean itself up — and why its key should not expire.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://tailscale.com/kb/1082/troubleshooting">Tailscale — Troubleshooting</a></li>
+    <li id="r2"><a href="https://tailscale.com/kb/1085/auth-keys">Tailscale — Auth keys</a></li>
+    <li id="r3"><a href="https://tailscale.com/kb/1111/ephemeral-nodes">Tailscale — Ephemeral nodes</a></li>
+    <li id="r4"><a href="https://tailscale.com/kb/1019/subnets">Tailscale — Subnet routers</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0009-serve-and-funnel.html">← Lesson 9</a></span>
+  <span class="nav-next"><a href="../reference/tailscale-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/tailscale-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

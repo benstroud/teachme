@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 9 — Serve &amp; Funnel</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 9 of 10</span><span>Tailscale</span></div>
+  <h1>Serve &amp; Funnel</h1>
+  <p class="subtitle">Exposing a local service to your tailnet, or deliberately to the world.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p><strong>Serve</strong> exposes a service running on a node to your <em>tailnet</em> over HTTPS; <strong>Funnel</strong> exposes it to the <em>public internet</em> — both without opening inbound firewall ports or running your own reverse proxy.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Serve vs Funnel</h2>
+<table>
+  <tr><th></th><th>Serve</th><th>Funnel</th></tr>
+  <tr><td>Reachable by</td><td>Your tailnet devices<sup><a href="#r1">1</a></sup></td><td>Anyone on the internet<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td>Typical use</td><td>Share a dev server with your team</td><td>A public webhook or demo</td></tr>
+  <tr><td>TLS cert</td><td colspan="2">Tailscale provisions a valid HTTPS cert for the node name<sup><a href="#r3">3</a></sup></td></tr>
+</table>
+
+<h2>Commands</h2>
+<pre><code># serve a local port or file to the tailnet
+tailscale serve --bg 3000
+
+# expose it to the public internet
+tailscale funnel --bg 3000
+
+# see what is shared
+tailscale serve status</code></pre>
+<p>Tailscale issues the TLS certificate for the <code>*.ts.net</code> name, so URLs come out as real HTTPS with no manual certs.<sup><a href="#r3">3</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Serve keeps a service private to people you already trust; Funnel deliberately opens it to the world. Choose Funnel last, and only for services designed to be public.<sup><a href="#r2">2</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Tailscale Serve makes a local service reachable by…</h4>
+  <button class="opt" data-fb="No — that is Funnel behavior.">anyone on the public internet</button>
+  <button class="opt" data-fb="Correct — Serve is private to the tailnet.">your tailnet devices only</button>
+  <button class="opt" data-fb="No — the point is reaching it from peers.">only the node itself</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Funnel differs from Serve in that it…</h4>
+  <button class="opt" data-fb="Correct — Funnel is internet-facing.">exposes the service publicly</button>
+  <button class="opt" data-fb="No — both use TLS; Funnel is about reach.">encrypts traffic twice</button>
+  <button class="opt" data-fb="No — both use HTTPS certs.">disables HTTPS</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. The HTTPS certificate for a served service is…</h4>
+  <button class="opt" data-fb="No — Tailscale provisions it.">bought from a public CA</button>
+  <button class="opt" data-fb="No — it is a valid cert for the name.">self-signed and untrusted</button>
+  <button class="opt" data-fb="Correct — a valid cert for the ts.net name.">issued automatically by Tailscale</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the tailscale serve and Funnel guides, plus the HTTPS certificates page.</p>
+<div class="ask"><strong>Ask the agent</strong> Serve a local dev server to your tailnet, then explain what would change — and the risk — if you used Funnel instead.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://tailscale.com/kb/1242/tailscale-serve">Tailscale — tailscale serve</a></li>
+    <li id="r2"><a href="https://tailscale.com/kb/1223/funnel">Tailscale — Funnel</a></li>
+    <li id="r3"><a href="https://tailscale.com/kb/1153/enabling-https">Tailscale — HTTPS certificates</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0008-tailscale-ssh.html">← Lesson 8</a></span>
+  <span class="nav-next"><a href="0010-operating-and-automating.html">Lesson 10: operating &amp; automating →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/tailscale-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

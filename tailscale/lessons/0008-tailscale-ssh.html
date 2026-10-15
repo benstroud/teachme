@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — Tailscale SSH</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 10</span><span>Tailscale</span></div>
+  <h1>Tailscale SSH</h1>
+  <p class="subtitle">Keyless SSH driven by identity and policy — no authorized_keys to manage.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p><strong>Tailscale SSH</strong> removes key management: you SSH to a machine over the tailnet and Tailscale authenticates you by <em>identity</em> and enforces access with the tailnet policy — no <code>authorized_keys</code> to copy around.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Turning it on</h2>
+<pre><code># advertise that this host accepts Tailscale SSH
+tailscale up --ssh        # (or: tailscale set --ssh)
+
+# from a client, connect by name
+ssh user@my-server</code></pre>
+<p>Access is then governed by the <code>ssh</code> section of the tailnet policy: who (user/tag) may connect as which OS user, optionally with a time window.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Check mode and fit</h2>
+<table>
+  <tr><th>Good fit</th><th>Not a good fit</th></tr>
+  <tr><td>Single-user machines and servers</td><td>Multi-user machines with differing access<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Hosts that should not allow outbound SSH</td><td>Hosts you do not fully trust</td></tr>
+</table>
+<p><strong>Check mode</strong> can require SSO approval on every connection (e.g. <code>checkPeriod: always</code>) for stronger control.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Because there is no client key file, any OS user on the client can attempt a connection — but the <em>server-side</em> policy decides what actually succeeds. Policy, not a key on disk, is the control.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. Tailscale SSH authenticates you using…</h4>
+  <button class="opt" data-fb="Correct — identity replaces key files.">your identity and the tailnet policy</button>
+  <button class="opt" data-fb="No — that is what it removes the need for.">a copied authorized_keys file</button>
+  <button class="opt" data-fb="No — there is no shared secret involved.">a shared root password</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. Access to a Tailscale SSH host is enforced…</h4>
+  <button class="opt" data-fb="No — enforcement is server-side.">on the client machine only</button>
+  <button class="opt" data-fb="No — the IdP authenticates, the policy authorizes.">inside the identity provider</button>
+  <button class="opt" data-fb="Correct — the host enforces the rules.">server-side by the tailnet policy</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. Check mode on Tailscale SSH can require…</h4>
+  <button class="opt" data-fb="No — it adds approval, not a protocol swap.">replacing SSH with HTTPS</button>
+  <button class="opt" data-fb="Correct — checkPeriod can force approval.">SSO approval for each connection</button>
+  <button class="opt" data-fb="No — it is about approval, not keys.">a static long-lived key</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Tailscale SSH guide for enabling it, the ssh policy section, and check mode.</p>
+<div class="ask"><strong>Ask the agent</strong> Enable Tailscale SSH on a server, restrict who may connect via policy, and connect by MagicDNS name.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://tailscale.com/kb/1193/tailscale-ssh">Tailscale — Tailscale SSH</a></li>
+    <li id="r2"><a href="https://tailscale.com/kb/1018/acls">Tailscale — Manage ACLs</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-exit-nodes.html">← Lesson 7</a></span>
+  <span class="nav-next"><a href="0009-serve-and-funnel.html">Lesson 9: Serve &amp; Funnel →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/tailscale-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

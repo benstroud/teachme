@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tailscale — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style> code i { color: var(--accent); font-style: normal; } td code { white-space: pre-wrap; } </style>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Tailscale</span></div>
+  <h1>Tailscale Cheat Sheet</h1>
+  <p class="subtitle">The compressed essence of the course. Skim before a lesson, study it fully before an interview.</p>
+</header>
+<section>
+<h2>1. The model</h2>
+<pre><code>mesh VPN on WireGuard  •  identity-based  •  zero-config
+tailnet = your private network of devices
+data is peer-to-peer; the control plane is not in the path</code></pre>
+<ul>
+  <li>Connections work across NAT/firewalls without port forwarding.<sup><a href="#r1">1</a></sup></li>
+  <li>Falls back to an encrypted DERP relay when direct fails.<sup><a href="#r2">2</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>2. Your first node</h2>
+<pre><code>tailscale up            # join / authenticate
+tailscale status        # peers + direct/relayed
+tailscale ip -4         # tailnet IP (100.64.0.0/10)
+tailscale ping NAME     # path to a peer</code></pre>
+<ul>
+  <li>Tailnet addresses come from 100.64.0.0/10.<sup><a href="#r3">3</a></sup></li>
+  <li>status shows each path as direct or relayed.<sup><a href="#r2">2</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>3. Identity &amp; tags</h2>
+<pre><code>user      -> a person from your identity provider
+device    -> a machine joined under a user
+tag:role  -> replaces user ownership for servers</code></pre>
+<ul>
+  <li>Identity, not network location, is the boundary.<sup><a href="#r1">1</a></sup></li>
+  <li>Disable key expiry on always-on servers/connectors.</li>
+</ul>
+</section>
+<section>
+<h2>4. MagicDNS</h2>
+<pre><code>FQDN = machine name + tailnet name (ends .ts.net)
+ping monitoring  ==  ping monitoring.yak-bebop.ts.net</code></pre>
+<ul>
+  <li>Search domains let you type the machine name alone.<sup><a href="#r4">4</a></sup></li>
+  <li>Devices shared with you need the full domain name.<sup><a href="#r4">4</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>5. Access control (ACLs)</h2>
+<pre><code>{ "acls": [ { "action": "accept",
+    "src": ["tag:laptop"],
+    "dst": ["tag:server:22,443"] } ] }</code></pre>
+<ul>
+  <li>Deny-by-default, directional, locally enforced.<sup><a href="#r5">5</a></sup></li>
+  <li>No acls section = allow all; empty acls = deny all.<sup><a href="#r5">5</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>6. Subnet routers</h2>
+<pre><code>tailscale up --advertise-routes=10.0.0.0/24
+# then enable/approve the route in the admin console
+tailscale up --snat-subnet-routes=false   # Linux, keep source IPs</code></pre>
+<ul>
+  <li>Extends the tailnet to LANs you cannot install on.<sup><a href="#r6">6</a></sup></li>
+  <li>Without SNAT, add a return route for 100.64.0.0/10.<sup><a href="#r6">6</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>7. Exit nodes</h2>
+<pre><code>tailscale up --advertise-exit-node       # on the node
+tailscale up --exit-node=my-server       # route ALL internet traffic
+tailscale up --exit-node=my-server --exit-node-allow-lan-access</code></pre>
+<ul>
+  <li>Routes the default route, not one subnet.<sup><a href="#r7">7</a></sup></li>
+  <li>Useful on untrusted Wi-Fi; changes your public IP.</li>
+</ul>
+</section>
+<section>
+<h2>8. Tailscale SSH</h2>
+<pre><code>tailscale up --ssh          # advertise SSH on a host
+ssh user@my-server          # auth by identity + policy</code></pre>
+<ul>
+  <li>No key files; enforced server-side by policy.<sup><a href="#r8">8</a></sup></li>
+  <li>Assumes port 22; check mode can require SSO approval.<sup><a href="#r8">8</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>9. Serve &amp; Funnel</h2>
+<pre><code>tailscale serve --bg 3000     # tailnet only, HTTPS
+tailscale funnel --bg 3000    # public internet
+tailscale serve status</code></pre>
+<ul>
+  <li>Serve is private to the tailnet.<sup><a href="#r9">9</a></sup> Funnel is public.<sup><a href="#r10">10</a></sup></li>
+  <li>Tailscale issues the HTTPS cert for the name.<sup><a href="#r11">11</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>10. Ops &amp; automation checklist</h2>
+<pre><code>tailscale netcheck      # NAT type, UDP, nearest DERP</code></pre>
+<ul>
+  <li>Disable key expiry on connectors (fail-close on expiry).<sup><a href="#r6">6</a></sup></li>
+  <li>Join unattended with auth keys; tag by role.<sup><a href="#r12">12</a></sup></li>
+  <li>Use ephemeral nodes for short-lived runners.<sup><a href="#r13">13</a></sup></li>
+</ul>
+</section>
+<footer class="citation">
+  Primary sources: <a href="https://tailscale.com/kb/1151/what-is-tailscale">What is Tailscale</a>, <a href="https://tailscale.com/kb/1018/acls">ACLs</a>, <a href="https://tailscale.com/kb/1019/subnets">Subnet routers</a>.
+  <ol>
+    <li id="r1"><a href="https://tailscale.com/kb/1151/what-is-tailscale">Tailscale — What is Tailscale?</a></li>
+    <li id="r2"><a href="https://tailscale.com/blog/how-tailscale-works">Tailscale — How Tailscale works</a></li>
+    <li id="r3"><a href="https://tailscale.com/kb/1017/install">Tailscale — Install</a></li>
+    <li id="r4"><a href="https://tailscale.com/kb/1081/magicdns">Tailscale — MagicDNS</a></li>
+    <li id="r5"><a href="https://tailscale.com/kb/1018/acls">Tailscale — Manage ACLs</a></li>
+    <li id="r6"><a href="https://tailscale.com/kb/1019/subnets">Tailscale — Subnet routers</a></li>
+    <li id="r7"><a href="https://tailscale.com/kb/1103/exit-nodes">Tailscale — Exit nodes</a></li>
+    <li id="r8"><a href="https://tailscale.com/kb/1193/tailscale-ssh">Tailscale — Tailscale SSH</a></li>
+    <li id="r9"><a href="https://tailscale.com/kb/1242/tailscale-serve">Tailscale — tailscale serve</a></li>
+    <li id="r10"><a href="https://tailscale.com/kb/1223/funnel">Tailscale — Funnel</a></li>
+    <li id="r11"><a href="https://tailscale.com/kb/1153/enabling-https">Tailscale — HTTPS certificates</a></li>
+    <li id="r12"><a href="https://tailscale.com/kb/1085/auth-keys">Tailscale — Auth keys</a></li>
+    <li id="r13"><a href="https://tailscale.com/kb/1111/ephemeral-nodes">Tailscale — Ephemeral nodes</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="../lessons/0001-what-is-tailscale.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

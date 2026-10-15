@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — Exit Nodes</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 10</span><span>Tailscale</span></div>
+  <h1>Exit Nodes</h1>
+  <p class="subtitle">Routing all internet traffic through a node you trust — the default route.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>An <strong>exit node</strong> routes <em>all</em> your internet traffic through it — the default route, not just one subnet — so your public IP and traffic path come from wherever that node lives.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Advertising and using one</h2>
+<pre><code># on the node that will be the exit
+tailscale up --advertise-exit-node
+#   then approve it in the admin console
+
+# on a client, route everything through it
+tailscale up --exit-node=my-server
+
+# keep reaching local LAN devices too
+tailscale up --exit-node=my-server --exit-node-allow-lan-access</code></pre>
+
+<h2>Exit node vs subnet router</h2>
+<table>
+  <tr><th></th><th>Subnet router</th><th>Exit node</th></tr>
+  <tr><td>Routes</td><td>Specific ranges you advertise</td><td>All internet traffic<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Typical use</td><td>Reach a private LAN</td><td>Change egress / secure public Wi-Fi<sup><a href="#r2">2</a></sup></td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> Think of the exit node as "where my traffic appears to come from". It is handy on untrusted Wi-Fi or to reach geo-restricted services — and it composes with a subnet router.<sup><a href="#r2">2</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. An exit node routes…</h4>
+  <button class="opt" data-fb="No — that is a subnet router role.">one advertised subnet only</button>
+  <button class="opt" data-fb="Correct — it becomes the default route.">all internet traffic by default</button>
+  <button class="opt" data-fb="No — it affects general internet egress.">only traffic to other tailnet nodes</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. To use an exit node on a client you run…</h4>
+  <button class="opt" data-fb="Correct — it points the default route at the node.">tailscale up --exit-node=NAME</button>
+  <button class="opt" data-fb="No — netcheck diagnoses, it does not route.">tailscale netcheck --exit</button>
+  <button class="opt" data-fb="No — serve exposes a service locally.">tailscale serve --exit</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. A common reason to use an exit node is…</h4>
+  <button class="opt" data-fb="No — it changes egress, not LAN speed.">to speed up local LAN access</button>
+  <button class="opt" data-fb="No — traffic is still end-to-end encrypted.">to disable encryption</button>
+  <button class="opt" data-fb="Correct — egress is protected end to end.">securing traffic on public Wi-Fi</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Exit nodes guide for advertising, approval, and LAN access.</p>
+<div class="ask"><strong>Ask the agent</strong> Explain when you would use an exit node instead of a subnet router, and what changes about your public IP.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://tailscale.com/kb/1103/exit-nodes">Tailscale — Exit nodes</a></li>
+    <li id="r2"><a href="https://tailscale.com/kb/1019/subnets">Tailscale — Subnet routers</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-subnet-routers.html">← Lesson 6</a></span>
+  <span class="nav-next"><a href="0008-tailscale-ssh.html">Lesson 8: Tailscale SSH →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/tailscale-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

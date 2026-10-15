@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — What Tailscale Is</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 10</span><span>Tailscale</span></div>
+  <h1>What Tailscale Is</h1>
+  <p class="subtitle">A mesh VPN on WireGuard: identity-based, zero-config, and direct where possible.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Tailscale is a <strong>mesh VPN built on WireGuard</strong>: instead of routing all your traffic through one central gateway, every device gets a private overlay address and can connect <em>directly</em> to every other — and access is decided by <strong>identity</strong>, not by which network you are on.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Mesh vs hub-and-spoke</h2>
+<table>
+  <tr><th></th><th>Traditional VPN</th><th>Tailscale</th></tr>
+  <tr><td>Topology</td><td>Hub-and-spoke: everything through one gateway</td><td>Mesh: device-to-device direct connections<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Setup</td><td>Ports, firewall rules, IP planning</td><td>Zero-config across NAT and firewalls<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Trust</td><td>Being on the network implies access</td><td>Identity-based, zero-trust, end-to-end encrypted<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+
+<h2>Why "zero-config" works</h2>
+<p>Tailscale devices discover each other and negotiate direct links through NAT and firewalls without you opening ports. When a direct path is impossible, traffic falls back to an encrypted <strong>DERP relay</strong> — so connectivity is graceful, not fragile.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Your whole private network is a <strong>tailnet</strong>. Adding a device is "log in", not "allocate an IP and edit a firewall". The control plane shares keys and policy; it is not in the data path.<sup><a href="#r2">2</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Tailscale is best described as…</h4>
+  <button class="opt" data-fb="No — it is a mesh; traffic is device to device.">a centralized proxy gateway</button>
+  <button class="opt" data-fb="Correct — WireGuard underpins the network.">a mesh VPN built on WireGuard</button>
+  <button class="opt" data-fb="No — it is a networking layer for devices.">a managed database service</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A mesh topology means devices connect…</h4>
+  <button class="opt" data-fb="Correct — device to device, not via one hub.">directly to each other</button>
+  <button class="opt" data-fb="No — that is the hub-and-spoke model.">only through a single gateway</button>
+  <button class="opt" data-fb="No — the control plane is not the data path.">only to the coordination server</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. When a direct connection fails, Tailscale…</h4>
+  <button class="opt" data-fb="No — it falls back rather than failing.">drops the connection entirely</button>
+  <button class="opt" data-fb="No — it does not require opening ports.">opens a public port to fix it</button>
+  <button class="opt" data-fb="Correct — DERP is the encrypted fallback.">relays traffic through an encrypted DERP server</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read "What is Tailscale?" and "How Tailscale works" to ground the model and the relay fallback.</p>
+<div class="ask"><strong>Ask the agent</strong> Explain to a teammate why moving from a central VPN gateway to a mesh changes both performance and how you decide who can reach what.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://tailscale.com/kb/1151/what-is-tailscale">Tailscale — What is Tailscale?</a></li>
+    <li id="r2"><a href="https://tailscale.com/blog/how-tailscale-works">Tailscale — How Tailscale works</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="0002-install-and-first-node.html">Lesson 2: install &amp; your first node →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/tailscale-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

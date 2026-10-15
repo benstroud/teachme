@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — Identity &amp; the Tailnet</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 10</span><span>Tailscale</span></div>
+  <h1>Identity &amp; the Tailnet</h1>
+  <p class="subtitle">Users, devices, and tags — and why identity, not IP, is the boundary.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>In Tailscale the security boundary is <strong>identity</strong>, not the network: you log in with your identity provider, each device joins the tailnet under a user or a tag, and policy decides what it may reach.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Users, devices, and tags</h2>
+<table>
+  <tr><th>Concept</th><th>What it is</th></tr>
+  <tr><td>User</td><td>A person identity from your identity provider (SSO).<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Device</td><td>A machine joined under a user, until it is tagged.</td></tr>
+  <tr><td>Tag</td><td>A role label (e.g. tag:server) that replaces user ownership for servers.<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+
+<h2>Joining and lifecycle</h2>
+<ul>
+  <li>An interactive login authorizes the device the first time it joins.</li>
+  <li>Device keys expire by default, which is good for laptops and bad for always-on servers — disable expiry for those.</li>
+  <li>Server and service machines are usually given a <em>tag</em> so policy targets the role, not a person.</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> Because identity drives access, revoking a user in your identity provider cuts off their devices — no shared secret to rotate. That is the shift from network trust to zero trust.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. In Tailscale, access is decided by…</h4>
+  <button class="opt" data-fb="No — identity, not network location, governs.">which subnet a device sits on</button>
+  <button class="opt" data-fb="Correct — identity is the security boundary.">identity, via users and tags</button>
+  <button class="opt" data-fb="No — there is no shared secret to rotate.">a shared pre-shared key</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A tag on a server device is used to…</h4>
+  <button class="opt" data-fb="Correct — tags let policy match a role.">target policy by role, not person</button>
+  <button class="opt" data-fb="No — tags do not rename devices.">shorten the device hostname</button>
+  <button class="opt" data-fb="No — encryption is not what tags change.">encrypt traffic twice</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. Device keys that expire by default are a problem for…</h4>
+  <button class="opt" data-fb="No — expiry is desirable for laptops.">personal laptops only</button>
+  <button class="opt" data-fb="No — expiry is fine for phones too.">phone clients mainly</button>
+  <button class="opt" data-fb="Correct — a server otherwise drops off the tailnet.">always-on servers</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read "What is Tailscale?" for the identity/zero-trust framing, and the Install guide for joining devices.</p>
+<div class="ask"><strong>Ask the agent</strong> List which devices on your tailnet should be tagged as servers and which should be owned by a person, and why.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://tailscale.com/kb/1151/what-is-tailscale">Tailscale — What is Tailscale?</a></li>
+    <li id="r2"><a href="https://tailscale.com/kb/1017/install">Tailscale — Install</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-install-and-first-node.html">← Lesson 2</a></span>
+  <span class="nav-next"><a href="0004-reach-devices-with-magicdns.html">Lesson 4: MagicDNS →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/tailscale-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
