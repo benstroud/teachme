@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — Webviews &amp; Custom UI</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 10</span><span>VS Code Extensions</span></div>
+  <h1>Webviews &amp; Custom UI</h1>
+  <p class="subtitle">Sandboxed HTML panels and the message bridge to your extension.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A <strong>webview</strong> is a sandboxed HTML/CSS/JS panel rendered by your extension; you build the HTML, attach it to a panel, and pass <strong>messages</strong> between the extension and the page.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Create a panel and talk to it</h2>
+<pre><code>const panel = vscode.window.createWebviewPanel(
+  "acme.preview", "Preview", vscode.ViewColumn.One,
+  { enableScripts: true }
+);
+panel.webview.html = "&lt;h1&gt;Hello&lt;/h1&gt;";
+
+// webview -&gt; extension
+panel.webview.onDidReceiveMessage((msg) =&gt; {
+  vscode.window.showInformationMessage("got " + msg.type);
+});
+
+// extension -&gt; webview
+panel.webview.postMessage({ type: "refresh" });</code></pre>
+
+<h2>Rules of the road</h2>
+<ul>
+  <li>Set a Content Security Policy and load assets via the webview URI helper.<sup><a href="#r1">1</a></sup></li>
+  <li>Messages are the only supported bridge — no direct DOM access from the extension.<sup><a href="#r1">1</a></sup></li>
+  <li>Registrations and the panel are disposables; keep them in <code>context.subscriptions</code>.<sup><a href="#r1">1</a></sup></li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> Reach for a webview only when native UI (tree views, quick picks, editors) cannot express what you need — it is the most powerful and the most expensive surface.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. A webview renders…</h4>
+  <button class="opt" data-fb="No — it renders your own HTML/CSS/JS.">native VS Code widgets</button>
+  <button class="opt" data-fb="Correct — a self-contained web page.">sandboxed HTML/CSS/JS content</button>
+  <button class="opt" data-fb="No — you control the webview HTML.">only Markdown documents</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The extension and webview communicate via…</h4>
+  <button class="opt" data-fb="Correct — message passing both ways.">postMessage and onDidReceiveMessage</button>
+  <button class="opt" data-fb="No — the webview is sandboxed.">a shared global variable</button>
+  <button class="opt" data-fb="No — the extension cannot touch the DOM.">direct DOM manipulation</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. Assets in a webview should be loaded via…</h4>
+  <button class="opt" data-fb="No — those break the security model.">absolute file:// paths</button>
+  <button class="opt" data-fb="No — the URI helper is the supported path.">inline data URLs only</button>
+  <button class="opt" data-fb="Correct — safe URI plus Content Security Policy.">the webview URI helper with a CSP</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Webview guide for panel creation, message passing, and security.</p>
+<div class="ask"><strong>Ask the agent</strong> Sketch a webview panel that sends a "save" message to the extension and receives a "saved" reply.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://code.visualstudio.com/api/extension-guides/webview">VS Code — Webview guide</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-language-features.html">← Lesson 7</a></span>
+  <span class="nav-next"><a href="0009-testing-and-bundling.html">Lesson 9: testing &amp; bundling →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/vscode-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

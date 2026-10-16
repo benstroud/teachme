@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — Using the API</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 10</span><span>VS Code Extensions</span></div>
+  <h1>Using the API</h1>
+  <p class="subtitle">Commands, window, workspace — and why every registration is a disposable.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>You interact with the editor entirely through the <code>vscode</code> module, organized into namespaces: <strong>commands</strong>, <strong>window</strong>, and <strong>workspace</strong> — and every registration returns a disposable you keep.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The core calls</h2>
+<pre><code>// run / register commands (Command Palette + programmatic)
+vscode.commands.registerCommand("acme.run", run);
+await vscode.commands.executeCommand("editor.action.format");
+
+// talk to the user
+vscode.window.showInformationMessage("Done");
+const pick = await vscode.window.showQuickPick(["a", "b"]);
+
+// touch documents
+const doc = await vscode.workspace.openTextDocument(uri);
+await vscode.window.showTextDocument(doc);</code></pre>
+
+<h2>Disposables keep you clean</h2>
+<p>Each <code>registerCommand</code>, provider, listener, and status bar item is a disposable. Push them into <code>context.subscriptions</code> so VS Code disposes them on deactivate — this prevents leaks across reloads.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Commands are the universal lever: they show up in the Command Palette, can be bound to keys, added to menus, and called from your own code with <code>executeCommand</code>.<sup><a href="#r2">2</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. The API an extension codes against is…</h4>
+  <button class="opt" data-fb="No — it is an in-process module.">a REST endpoint</button>
+  <button class="opt" data-fb="No — config is data, not the API.">a configuration file</button>
+  <button class="opt" data-fb="Correct — imported and used directly.">the vscode module</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Calling another action from your code uses…</h4>
+  <button class="opt" data-fb="Correct — it dispatches by command id.">commands.executeCommand</button>
+  <button class="opt" data-fb="No — that shows a picker to the user.">window.showQuickPick</button>
+  <button class="opt" data-fb="No — that opens a document.">workspace.openTextDocument</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. Disposables should be kept so that…</h4>
+  <button class="opt" data-fb="No — disposal is about cleanup, not speed.">they run faster next time</button>
+  <button class="opt" data-fb="Correct — avoids leaks across reloads.">they are disposed on deactivate</button>
+  <button class="opt" data-fb="No — commands, not disposables, appear there.">they appear in the Palette</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Command guide and revisit the Anatomy page for registerCommand and subscriptions.</p>
+<div class="ask"><strong>Ask the agent</strong> Write an activate() that registers a command which opens a document and shows a quick pick.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://code.visualstudio.com/api/extension-guides/command">VS Code — Command guide</a></li>
+    <li id="r2"><a href="https://code.visualstudio.com/api/get-started/extension-anatomy">VS Code — Extension Anatomy</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-contribution-points-ui.html">← Lesson 5</a></span>
+  <span class="nav-next"><a href="0007-language-features.html">Lesson 7: language features →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/vscode-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

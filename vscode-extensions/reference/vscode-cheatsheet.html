@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VS Code Extensions — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style> code i { color: var(--accent); font-style: normal; } td code { white-space: pre-wrap; } </style>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>VS Code Extensions</span></div>
+  <h1>VS Code Extension Cheat Sheet</h1>
+  <p class="subtitle">The compressed essence of the course. Skim before a lesson, study it fully before an interview.</p>
+</header>
+<section>
+<h2>1. Architecture</h2>
+<pre><code>manifest (package.json) + entry file (activate/deactivate)
+run inside the extension host process (isolated from the UI)</code></pre>
+<ul>
+  <li>Extensions cannot impact startup, slow UI, or modify the UI directly.<sup><a href="#r13">13</a></sup></li>
+  <li>The vscode module is the API you code against.<sup><a href="#r1">1</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>2. Manifest fields</h2>
+<pre><code>{
+  "name": "my-ext", "publisher": "acme",
+  "engines": { "vscode": "^1.80.0" },
+  "main": "./out/extension.js",
+  "activationEvents": [],
+  "contributes": { ... }
+}</code></pre>
+<ul>
+  <li>ID is <publisher>.<name>; main is the entry point.<sup><a href="#r1">1</a></sup></li>
+  <li>engines.vscode gates which APIs you may use.<sup><a href="#r2">2</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>3. Activation</h2>
+<pre><code>"activationEvents": ["onLanguage:rust", "workspaceContains:**/*.toml"]
+onCommand, onLanguage, workspaceContains, onStartupFinished, * (sparingly)</code></pre>
+<ul>
+  <li>Declares WHEN the extension loads; lazy loading protects startup.<sup><a href="#r3">3</a></sup></li>
+  <li>Since 1.74, contributed commands auto-activate.<sup><a href="#r1">1</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>4. Contribution points (contributes)</h2>
+<pre><code>commands, menus, keybindings, configuration, views, ...
+menu item: { "command": "acme.f", "group": "1_modification@1" }</code></pre>
+<ul>
+  <li>JSON declarations that add to VS Code.<sup><a href="#r4">4</a></sup></li>
+  <li>Groups are ordered; @N orders within a group.<sup><a href="#r4">4</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>5. Using the API</h2>
+<pre><code>vscode.commands.registerCommand("acme.run", run);
+await vscode.commands.executeCommand("editor.action.format");
+vscode.window.showInformationMessage("hi");
+context.subscriptions.push(disposable);</code></pre>
+<ul>
+  <li>commands / window / workspace are the main namespaces.<sup><a href="#r5">5</a></sup></li>
+  <li>Every registration is a disposable; push to subscriptions.<sup><a href="#r1">1</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>6. Views &amp; UI surfaces</h2>
+<pre><code>"views": { "explorer": [ { "id": "acme.items", "name": "Items" } ] }
+vscode.window.registerTreeDataProvider("acme.items", provider);</code></pre>
+<ul>
+  <li>Declare the view, implement a TreeDataProvider for its data.<sup><a href="#r6">6</a></sup></li>
+  <li>Status bar items and quick picks are created at runtime.<sup><a href="#r1">1</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>7. Webview</h2>
+<pre><code>panel.webview.html = "<h1>Hi</h1>";
+panel.webview.onDidReceiveMessage(m => ...);
+panel.webview.postMessage({ type: "refresh" });</code></pre>
+<ul>
+  <li>Sandboxed HTML/CSS/JS; messages are the only bridge.<sup><a href="#r7">7</a></sup></li>
+  <li>Use the webview URI helper plus a Content Security Policy.<sup><a href="#r7">7</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>8. Language features</h2>
+<pre><code>declarative: language config, TextMate grammar, snippets
+programmatic: providers   rich: a language server (LSP)</code></pre>
+<ul>
+  <li>Start with the cheapest level; graduate to LSP for breadth.<sup><a href="#r8">8</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>9. Testing &amp; bundling</h2>
+<pre><code>tests:  run inside a real extension host
+bundle: esbuild/webpack -> one file (needed for VS Code for the Web)
+.vscodeignore: exclude node_modules, out, src</code></pre>
+<ul>
+  <li>Integration tests boot VS Code and activate the extension.<sup><a href="#r9">9</a></sup></li>
+  <li>Bundling speeds install/activation and enables web support.<sup><a href="#r10">10</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>10. Publish &amp; deploy</h2>
+<pre><code>vsce package            # -> my-ext-0.0.1.vsix
+vsce publish            # -> Marketplace
+vsce publish --packagePath file.vsix
+vsce package --target win32-x64</code></pre>
+<ul>
+  <li>PAT must be Marketplace (Manage) + All accessible organizations.<sup><a href="#r11">11</a></sup></li>
+  <li>Max 30 keywords/tags; unpublish/deprecate as needed.<sup><a href="#r11">11</a></sup></li>
+  <li>Automate build/test/publish in CI on a tag.<sup><a href="#r12">12</a></sup></li>
+</ul>
+</section>
+<footer class="citation">
+  Primary sources: <a href="https://code.visualstudio.com/api/get-started/extension-anatomy">Extension Anatomy</a>, 
+  <a href="https://code.visualstudio.com/api/references/contribution-points">Contribution Points</a>, 
+  <a href="https://code.visualstudio.com/api/working-with-extensions/publishing-extension">Publishing Extensions</a>.
+  <ol>
+    <li id="r1"><a href="https://code.visualstudio.com/api/get-started/extension-anatomy">VS Code — Extension Anatomy</a></li>
+    <li id="r2"><a href="https://code.visualstudio.com/api/references/extension-manifest">VS Code — Extension Manifest Reference</a></li>
+    <li id="r3"><a href="https://code.visualstudio.com/api/references/activation-events">VS Code — Activation Events</a></li>
+    <li id="r4"><a href="https://code.visualstudio.com/api/references/contribution-points">VS Code — Contribution Points</a></li>
+    <li id="r5"><a href="https://code.visualstudio.com/api/extension-guides/command">VS Code — Command guide</a></li>
+    <li id="r6"><a href="https://code.visualstudio.com/api/extension-guides/tree-view">VS Code — Tree View guide</a></li>
+    <li id="r7"><a href="https://code.visualstudio.com/api/extension-guides/webview">VS Code — Webview guide</a></li>
+    <li id="r8"><a href="https://code.visualstudio.com/api/language-extensions/language-server-extension-guide">VS Code — Language Server Extension Guide</a></li>
+    <li id="r9"><a href="https://code.visualstudio.com/api/working-with-extensions/testing-extension">VS Code — Testing Extensions</a></li>
+    <li id="r10"><a href="https://code.visualstudio.com/api/working-with-extensions/bundling-extension">VS Code — Bundling Extensions</a></li>
+    <li id="r11"><a href="https://code.visualstudio.com/api/working-with-extensions/publishing-extension">VS Code — Publishing Extensions</a></li>
+    <li id="r12"><a href="https://code.visualstudio.com/api/working-with-extensions/continuous-integration">VS Code — Continuous Integration</a></li>
+    <li id="r13"><a href="https://code.visualstudio.com/api/advanced-topics/extension-host">VS Code — Extension Host</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="../lessons/0001-how-extensions-work.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

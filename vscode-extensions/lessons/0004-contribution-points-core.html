@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — Contribution Points (Core)</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 10</span><span>VS Code Extensions</span></div>
+  <h1>Contribution Points (Core)</h1>
+  <p class="subtitle">Commands, menus, keybindings, and settings — declaring what you add to VS Code.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p><strong>Contribution points</strong> are JSON declarations in the <code>contributes</code> field that add things to VS Code — commands, menus, keybindings, and settings — so the workbench itself knows about them.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The four you will use first</h2>
+<table>
+  <tr><th>Point</th><th>Adds</th></tr>
+  <tr><td><code>commands</code></td><td>Named actions with titles (Command Palette).<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>menus</code></td><td>Where commands appear (context menus, editor title, …).<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>keybindings</code></td><td>Keyboard shortcuts, often with a <code>when</code> clause.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>configuration</code></td><td>User settings your extension reads.<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+
+<h2>The declarations connect to code</h2>
+<pre><code>"contributes": {
+  "commands": [
+    { "command": "acme.format", "title": "Format File" }
+  ],
+  "menus": {
+    "editor/context": [
+      { "command": "acme.format", "group": "1_modification@1" }
+    ]
+  },
+  "keybindings": [
+    { "command": "acme.format", "key": "ctrl+alt+f", "when": "editorFocus" }
+  ]
+}</code></pre>
+<p>Menu items live in groups (e.g. <code>1_modification</code>) and can be ordered within a group with an <code>@</code> suffix like <code>@1</code>.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Declare a contribution and it appears in the UI automatically; then implement the matching command in code with the exact same id. Declaration and implementation must agree.<sup><a href="#r2">2</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Contribution points are declared in…</h4>
+  <button class="opt" data-fb="No — they are manifest declarations.">the extension entry file</button>
+  <button class="opt" data-fb="Correct — JSON in package.json.">the contributes field of the manifest</button>
+  <button class="opt" data-fb="No — VS Code reads the manifest.">a separate routes file</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A menu item can specify its position using…</h4>
+  <button class="opt" data-fb="Correct — e.g. 1_modification@1.">a group with an @ order suffix</button>
+  <button class="opt" data-fb="No — there is no CSS z-index here.">a numeric z-index in CSS</button>
+  <button class="opt" data-fb="No — order is by group and @number.">the file path of the command</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. A contributed command must match…</h4>
+  <button class="opt" data-fb="No — the id matters, not the display name.">the extension display name</button>
+  <button class="opt" data-fb="No — documentation does not drive dispatch.">the README example</button>
+  <button class="opt" data-fb="Correct — declaration and code ids must match.">the id registered in code</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Contribution Points reference and the Command guide.</p>
+<div class="ask"><strong>Ask the agent</strong> Declare one command, add it to the editor context menu in the modification group, and bind it to a key.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://code.visualstudio.com/api/references/contribution-points">VS Code — Contribution Points</a></li>
+    <li id="r2"><a href="https://code.visualstudio.com/api/extension-guides/command">VS Code — Command guide</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-activation.html">← Lesson 3</a></span>
+  <span class="nav-next"><a href="0005-contribution-points-ui.html">Lesson 5: contribution points (UI) →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/vscode-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

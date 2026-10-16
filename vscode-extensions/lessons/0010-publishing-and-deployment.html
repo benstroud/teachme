@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 10 — Publishing &amp; Deployment</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 10 of 10</span><span>VS Code Extensions</span></div>
+  <h1>Publishing &amp; Deployment</h1>
+  <p class="subtitle">vsce, VSIX, the Marketplace, PATs, platform targets, and CI releases.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Deployment is <code>vsce</code>: package a <strong>VSIX</strong>, publish to the <strong>Marketplace</strong> with a publisher account and a scoped <strong>PAT</strong> — and automate it in CI.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Package and publish</h2>
+<pre><code>npm i -g @vscode/vsce
+vsce package                 # makes my-ext-0.0.1.vsix
+vsce publish                 # uploads to the Marketplace
+vsce publish --packagePath my-ext-0.0.1.vsix</code></pre>
+<p>Publishing needs a publisher in the Marketplace and a PAT scoped to <em>Marketplace (Manage)</em> across <em>All accessible organizations</em>; the wrong scope yields 403/401.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Details that bite</h2>
+<table>
+  <tr><th>Concern</th><th>Guidance</th></tr>
+  <tr><td>Keywords</td><td>At most 30 tags, or publishing fails.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Native deps / platform</td><td>Build platform-specific VSIXs with <code>--target</code>.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Lifecycle</td><td>You can unpublish, remove versions, or deprecate.<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+
+<h2>Automate the release</h2>
+<p>A CI job can build, test, and publish on a tag — the standard pattern for a repeatable release.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Treat a release like any shipped artifact: version bump, automated build/test, publish from CI, and be deliberate about platform targets and Open VSX (a separate registry).<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. The CLI used to package and publish is…</h4>
+  <button class="opt" data-fb="No — that publishes to npm, not the Marketplace.">npm publish</button>
+  <button class="opt" data-fb="Correct — it packages VSIXs and publishes.">vsce</button>
+  <button class="opt" data-fb="No — that installs, it does not publish.">code --install</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A common publish failure (403/401) is caused by…</h4>
+  <button class="opt" data-fb="Correct — needs Marketplace (Manage).">a PAT with the wrong scope</button>
+  <button class="opt" data-fb="No — scope errors, not file counts.">too few files in the VSIX</button>
+  <button class="opt" data-fb="No — language is irrelevant here.">using TypeScript</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. An extension package may contain at most…</h4>
+  <button class="opt" data-fb="No — commands are unlimited.">five contributed commands</button>
+  <button class="opt" data-fb="No — multiple activation events are normal.">one activation event</button>
+  <button class="opt" data-fb="Correct — more than 30 fails to publish.">30 keywords/tags</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Publishing Extensions and Continuous Integration guides.</p>
+<div class="ask"><strong>Ask the agent</strong> Write the release steps to bump the version, package a VSIX, and publish from CI on a git tag.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://code.visualstudio.com/api/working-with-extensions/publishing-extension">VS Code — Publishing Extensions</a></li>
+    <li id="r2"><a href="https://code.visualstudio.com/api/working-with-extensions/continuous-integration">VS Code — Continuous Integration</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0009-testing-and-bundling.html">← Lesson 9</a></span>
+  <span class="nav-next"><a href="../reference/vscode-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/vscode-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

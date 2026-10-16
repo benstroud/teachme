@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — Contribution Points (UI)</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 10</span><span>VS Code Extensions</span></div>
+  <h1>Contribution Points (UI)</h1>
+  <p class="subtitle">Sidebar views, the status bar, quick picks, and notifications.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Beyond commands, contribution points let you add <strong>UI surfaces</strong> to the workbench — a sidebar <strong>tree view</strong>, a <strong>status bar</strong> item — and drive interactions with <strong>quick picks</strong> and notifications.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Surfaces and their declarations</h2>
+<table>
+  <tr><th>Surface</th><th>How it is added</th></tr>
+  <tr><td>Tree view (sidebar)</td><td>Contribute a view, then implement a <code>TreeDataProvider</code>.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Status bar item</td><td>Create one at runtime with <code>window.createStatusBarItem</code>.</td></tr>
+  <tr><td>Quick pick / notification</td><td>Call <code>window.showQuickPick</code> / <code>showInformationMessage</code>.</td></tr>
+</table>
+
+<h2>A tree view, end to end</h2>
+<pre><code>// manifest
+"contributes": {
+  "views": { "explorer": [ { "id": "acme.items", "name": "Items" } ] }
+}
+
+// code
+vscode.window.registerTreeDataProvider("acme.items", {
+  getChildren: (el) =&gt; el ? [] : [{ label: "Item A" }],
+  getTreeItem: (el) =&gt; el,
+});</code></pre>
+<p>The declaration places the view in the UI; the provider supplies its data. Each registered provider is a disposable.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> The manifest declares the <em>shape</em> of a surface (id, place, title); code supplies its <em>content</em> and behavior. Keep the two in sync by id, just like commands.<sup><a href="#r2">2</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. A sidebar tree view is added by contributing a view and…</h4>
+  <button class="opt" data-fb="Correct — the provider supplies the data.">implementing a TreeDataProvider</button>
+  <button class="opt" data-fb="No — tree views are API providers, not webviews.">writing a React component</button>
+  <button class="opt" data-fb="No — that is a webview approach.">embedding an iframe</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. A status bar item is created…</h4>
+  <button class="opt" data-fb="No — it is created at runtime in code.">only in the manifest</button>
+  <button class="opt" data-fb="No — keybindings map shortcuts to commands.">through a keybinding</button>
+  <button class="opt" data-fb="Correct — an API call returns an item.">with window.createStatusBarItem</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. Quick picks and notifications are shown via…</h4>
+  <button class="opt" data-fb="No — those are window-level UI calls.">the workspace namespace</button>
+  <button class="opt" data-fb="Correct — window.showQuickPick / showInformationMessage.">the window namespace</button>
+  <button class="opt" data-fb="No — providers supply tree data, not dialogs.">the tree view provider</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Tree View guide and the Contribution Points reference for views.</p>
+<div class="ask"><strong>Ask the agent</strong> Sketch a tree view named Items in the explorer and the provider that returns two children.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://code.visualstudio.com/api/extension-guides/tree-view">VS Code — Tree View guide</a></li>
+    <li id="r2"><a href="https://code.visualstudio.com/api/references/contribution-points">VS Code — Contribution Points</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-contribution-points-core.html">← Lesson 4</a></span>
+  <span class="nav-next"><a href="0006-using-the-api.html">Lesson 6: using the API →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/vscode-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

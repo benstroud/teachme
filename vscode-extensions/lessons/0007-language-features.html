@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — Language Features</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 10</span><span>VS Code Extensions</span></div>
+  <h1>Language Features</h1>
+  <p class="subtitle">The ladder from declarative grammar and snippets to a full language server.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Language support is a ladder: start with <strong>declarative</strong> pieces (configuration, grammar, snippets), add <strong>programmatic</strong> features when needed, and graduate to a <strong>language server</strong> when the logic gets rich.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The ladder</h2>
+<table>
+  <tr><th>Level</th><th>Example</th><th>How</th></tr>
+  <tr><td>Declarative</td><td>Bracket/comment rules, snippets</td><td><code>contributes</code> (languages, snippets)<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td>Declarative</td><td>Syntax highlighting</td><td>A TextMate grammar<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td>Programmatic</td><td>Go to definition, hovers</td><td>API providers or a server</td></tr>
+  <tr><td>Rich</td><td>Full language service</td><td>A language server (LSP)<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+
+<h2>Why graduate to LSP</h2>
+<ul>
+  <li>Your analysis lives in its own process, so it scales and stays decoupled.<sup><a href="#r1">1</a></sup></li>
+  <li>The same server can serve many editors, not just VS Code.<sup><a href="#r1">1</a></sup></li>
+  <li>It gives you a standard feature set: completions, hovers, diagnostics, and more.<sup><a href="#r1">1</a></sup></li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> Do not start with a language server. Add the cheapest level that solves your problem; the LSP path is a deliberate investment for breadth and reuse.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. The cheapest first step for language support is…</h4>
+  <button class="opt" data-fb="No — that is the heaviest option.">writing a language server</button>
+  <button class="opt" data-fb="No — webviews are for custom UI panels.">a webview editor</button>
+  <button class="opt" data-fb="Correct — configuration, grammar, snippets.">declarative contributions</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A TextMate grammar is used for…</h4>
+  <button class="opt" data-fb="Correct — it colors tokens declaratively.">syntax highlighting</button>
+  <button class="opt" data-fb="No — keybindings map commands to keys.">handling keybindings</button>
+  <button class="opt" data-fb="No — tests run in the extension host.">running unit tests</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. An advantage of a language server is…</h4>
+  <button class="opt" data-fb="No — you still ship an extension.">it removes the need for a manifest</button>
+  <button class="opt" data-fb="Correct — LSP is editor-agnostic.">it can serve many editors, not just VS Code</button>
+  <button class="opt" data-fb="No — activation still applies.">it disables lazy activation</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Language Server Extension Guide, and the Contribution Points reference for languages and snippets.</p>
+<div class="ask"><strong>Ask the agent</strong> For a new file format, decide which rung of the ladder you need first and why you would postpone LSP.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://code.visualstudio.com/api/language-extensions/language-server-extension-guide">VS Code — Language Server Extension Guide</a></li>
+    <li id="r2"><a href="https://code.visualstudio.com/api/references/contribution-points">VS Code — Contribution Points</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-using-the-api.html">← Lesson 6</a></span>
+  <span class="nav-next"><a href="0008-webviews-and-custom-ui.html">Lesson 8: webviews &amp; custom UI →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/vscode-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — Activation</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 10</span><span>VS Code Extensions</span></div>
+  <h1>Activation</h1>
+  <p class="subtitle">When your extension loads: activation events and lazy activation.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p><strong>Activation events</strong> declare <em>when</em> your extension loads — and loading lazily (only when relevant) is what keeps VS Code starting fast.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The ones you will use most</h2>
+<table>
+  <tr><th>Event</th><th>Fires when…</th></tr>
+  <tr><td><code>onCommand:…</code></td><td>The command is invoked.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>onLanguage:rust</code></td><td>A file of that language is opened.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>workspaceContains:**/*.toml</code></td><td>The workspace matches a glob.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>onStartupFinished</code></td><td>Startup settles (low priority work).<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>*</code></td><td>Any VS Code startup — use sparingly.<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+
+<h2>Lifecycle</h2>
+<pre><code>{
+  "activationEvents": ["onLanguage:rust", "workspaceContains:**/*.toml"]
+}</code></pre>
+<p><code>activate()</code> is invoked once when any listed event fires. <code>deactivate()</code> handles cleanup and must return a Promise if the cleanup is asynchronous.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Prefer specific events over <code>*</code>. The host loads extensions lazily so they do not consume CPU and memory until they are actually needed.<sup><a href="#r2">2</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. Activation events declare…</h4>
+  <button class="opt" data-fb="No — that is contribution points.">what the extension adds to the UI</button>
+  <button class="opt" data-fb="No — activation is about loading, not dispatch.">how commands are dispatched</button>
+  <button class="opt" data-fb="Correct — the trigger that loads it.">when the extension loads</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Preferring specific events over * exists because…</h4>
+  <button class="opt" data-fb="Correct — load only when relevant.">lazy loading protects startup performance</button>
+  <button class="opt" data-fb="No — * is valid but discouraged.">* is not a valid activation event</button>
+  <button class="opt" data-fb="No — multiple events are allowed.">events cannot be combined</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. deactivate() must return a Promise when…</h4>
+  <button class="opt" data-fb="No — that is unrelated to cleanup.">the extension contributes a view</button>
+  <button class="opt" data-fb="Correct — async cleanup returns a Promise.">the cleanup work is asynchronous</button>
+  <button class="opt" data-fb="No — return type depends on async work.">the extension targets the web</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Activation Events reference and the Extension Host stability notes.</p>
+<div class="ask"><strong>Ask the agent</strong> Pick activation events for an extension that formats a custom file type, and say why you would not use *.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://code.visualstudio.com/api/references/activation-events">VS Code — Activation Events</a></li>
+    <li id="r2"><a href="https://code.visualstudio.com/api/advanced-topics/extension-host">VS Code — Extension Host</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-the-manifest.html">← Lesson 2</a></span>
+  <span class="nav-next"><a href="0004-contribution-points-core.html">Lesson 4: contribution points (core) →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/vscode-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

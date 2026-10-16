@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VS Code Extensions — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>VS Code Extensions</span></div>
+  <h1>VS Code Extension Glossary</h1>
+  <p class="subtitle">Every term in this course, in one place. Return here when a lesson uses a word you do not fully own.</p>
+</header>
+
+<section>
+<h2>Architecture</h2>
+<dl>
+  <dt><strong>VS Code extension</strong></dt>
+  <dd>A package that adds features to VS Code, described by a manifest and loaded into the extension host.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>extension host</strong></dt>
+  <dd>The separate process that runs extensions, isolating them from the UI for stability and performance.<sup><a href="#r3">3</a></sup></dd>
+  <dt><strong>extensionKind</strong></dt>
+  <dd>A manifest field (workspace / ui) expressing where an extension prefers to run.<sup><a href="#r3">3</a></sup></dd>
+  <dt><strong>activate()</strong></dt>
+  <dd>The entry function called once when a registered activation event fires.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>deactivate()</strong></dt>
+  <dd>Optional cleanup called on shutdown; returns a Promise if async.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>ExtensionContext</strong></dt>
+  <dd>The object passed to activate(); holds subscriptions and extension storage.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>disposable</strong></dt>
+  <dd>An object with a dispose() you push into context.subscriptions for clean teardown.<sup><a href="#r2">2</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Manifest</h2>
+<dl>
+  <dt><strong>manifest</strong></dt>
+  <dd>The package.json describing the extension: ID, entry point, engine, contributions.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>publisher + name</strong></dt>
+  <dd>Combined as <publisher>.<name>, the unique extension ID.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>main</strong></dt>
+  <dd>The entry point file that exports activate and deactivate.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>engines.vscode</strong></dt>
+  <dd>The minimum VS Code API version the extension supports.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>activationEvents</strong></dt>
+  <dd>The declared events that cause the extension to load.<sup><a href="#r4">4</a></sup></dd>
+  <dt><strong>contributes</strong></dt>
+  <dd>The declared additions to VS Code (commands, menus, settings, views).<sup><a href="#r5">5</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Contributions</h2>
+<dl>
+  <dt><strong>contribution point</strong></dt>
+  <dd>A JSON declaration in contributes that extends VS Code functionality.<sup><a href="#r5">5</a></sup></dd>
+  <dt><strong>command</strong></dt>
+  <dd>A named action a user can invoke, shown in the Command Palette.<sup><a href="#r5">5</a></sup></dd>
+  <dt><strong>menu</strong></dt>
+  <dd>Where a command appears (context menu, editor title, etc.), organized in groups.<sup><a href="#r5">5</a></sup></dd>
+  <dt><strong>keybinding</strong></dt>
+  <dd>A keyboard shortcut mapped to a command, often with a when clause.<sup><a href="#r5">5</a></sup></dd>
+  <dt><strong>configuration</strong></dt>
+  <dd>Settings the extension exposes to users.<sup><a href="#r5">5</a></sup></dd>
+  <dt><strong>view</strong></dt>
+  <dd>A UI surface such as a tree view in the sidebar.<sup><a href="#r7">7</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>API surfaces</h2>
+<dl>
+  <dt><strong>vscode module</strong></dt>
+  <dd>The API imported by the extension to interact with the editor.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>commands</strong></dt>
+  <dd>Register/dispatch commands programmatically.<sup><a href="#r6">6</a></sup></dd>
+  <dt><strong>window</strong></dt>
+  <dd>Messages, quick picks, status bar, notifications, and visible editors.<sup><a href="#r6">6</a></sup></dd>
+  <dt><strong>workspace</strong></dt>
+  <dd>Open folders, files, configuration, and document access.<sup><a href="#r6">6</a></sup></dd>
+  <dt><strong>webview</strong></dt>
+  <dd>An HTML/CSS/JS panel rendered by the extension, with message passing.<sup><a href="#r8">8</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Language features</h2>
+<dl>
+  <dt><strong>language configuration</strong></dt>
+  <dd>Brackets, comments, and auto-closing rules for a language.</dd>
+  <dt><strong>syntax highlighting</strong></dt>
+  <dd>A TextMate grammar (or semantic tokens) that colors tokens.</dd>
+  <dt><strong>snippet</strong></dt>
+  <dd>A reusable code template surfaced as completions.</dd>
+  <dt><strong>language server (LSP)</strong></dt>
+  <dd>A separate process implementing the Language Server Protocol, used for rich features.<sup><a href="#r9">9</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Ship it</h2>
+<dl>
+  <dt><strong>bundling</strong></dt>
+  <dd>Combining sources into one file (esbuild/webpack) for speed and web support.<sup><a href="#r12">12</a></sup></dd>
+  <dt><strong>.vscodeignore</strong></dt>
+  <dd>The file listing what to exclude from the packaged extension.<sup><a href="#r12">12</a></sup></dd>
+  <dt><strong>vsce</strong></dt>
+  <dd>The CLI that packages and publishes extensions.<sup><a href="#r13">13</a></sup></dd>
+  <dt><strong>VSIX</strong></dt>
+  <dd>The installable extension package file format.<sup><a href="#r13">13</a></sup></dd>
+  <dt><strong>Marketplace</strong></dt>
+  <dd>The public registry where extensions are discovered and installed.<sup><a href="#r13">13</a></sup></dd>
+  <dt><strong>PAT</strong></dt>
+  <dd>A personal access token used by vsce to publish, scoped to Marketplace (Manage).<sup><a href="#r13">13</a></sup></dd>
+  <dt><strong>Open VSX</strong></dt>
+  <dd>An alternative registry used by non-Microsoft VS Code builds.</dd>
+</dl>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://code.visualstudio.com/api/get-started/your-first-extension">VS Code — Your First Extension</a></li>
+    <li id="r2"><a href="https://code.visualstudio.com/api/get-started/extension-anatomy">VS Code — Extension Anatomy</a></li>
+    <li id="r3"><a href="https://code.visualstudio.com/api/advanced-topics/extension-host">VS Code — Extension Host</a></li>
+    <li id="r4"><a href="https://code.visualstudio.com/api/references/activation-events">VS Code — Activation Events</a></li>
+    <li id="r5"><a href="https://code.visualstudio.com/api/references/contribution-points">VS Code — Contribution Points</a></li>
+    <li id="r6"><a href="https://code.visualstudio.com/api/extension-guides/command">VS Code — Command guide</a></li>
+    <li id="r7"><a href="https://code.visualstudio.com/api/extension-guides/tree-view">VS Code — Tree View guide</a></li>
+    <li id="r8"><a href="https://code.visualstudio.com/api/extension-guides/webview">VS Code — Webview guide</a></li>
+    <li id="r9"><a href="https://code.visualstudio.com/api/language-extensions/language-server-extension-guide">VS Code — Language Server Extension Guide</a></li>
+    <li id="r10"><a href="https://code.visualstudio.com/api/references/extension-manifest">VS Code — Extension Manifest Reference</a></li>
+    <li id="r11"><a href="https://code.visualstudio.com/api/working-with-extensions/testing-extension">VS Code — Testing Extensions</a></li>
+    <li id="r12"><a href="https://code.visualstudio.com/api/working-with-extensions/bundling-extension">VS Code — Bundling Extensions</a></li>
+    <li id="r13"><a href="https://code.visualstudio.com/api/working-with-extensions/publishing-extension">VS Code — Publishing Extensions</a></li>
+    <li id="r14"><a href="https://code.visualstudio.com/api/working-with-extensions/continuous-integration">VS Code — Continuous Integration</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Mission &amp; notes</span>
+  <span class="nav-next"><a href="../lessons/0001-how-extensions-work.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../NOTES.md">Notes</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

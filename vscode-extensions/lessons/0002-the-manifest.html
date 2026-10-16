@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — The Manifest</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 10</span><span>VS Code Extensions</span></div>
+  <h1>The Manifest</h1>
+  <p class="subtitle">package.json: the ID, the entry point, the engine gate, and the contributions.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>The <strong>manifest</strong> is <code>package.json</code> — it names the extension, points at the entry file, sets the required VS Code version, and declares every contribution the extension makes.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The fields that matter first</h2>
+<pre><code>{
+  "name": "my-extension",
+  "publisher": "acme",
+  "engines": { "vscode": "^1.80.0" },
+  "categories": ["Other"],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "acme.hello", "title": "Hello" }
+    ]
+  }
+}</code></pre>
+<table>
+  <tr><th>Field</th><th>Meaning</th></tr>
+  <tr><td><code>publisher</code> + <code>name</code></td><td>Combined as the unique ID <code>acme.my-extension</code>.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>main</code></td><td>The entry file exporting <code>activate</code>/<code>deactivate</code>.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>engines.vscode</code></td><td>The minimum VS Code API version.<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> Since VS Code 1.74, a command declared in <code>contributes.commands</code> activates the extension automatically — you no longer need a matching <code>onCommand</code> activation event for it.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. The extension unique ID is formed from…</h4>
+  <button class="opt" data-fb="No — the folder name is not the ID.">the folder name on disk</button>
+  <button class="opt" data-fb="Correct — <publisher>.<name> is the ID.">publisher plus name</button>
+  <button class="opt" data-fb="No — repository is metadata, not the ID.">the git repository URL</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. engines.vscode in the manifest sets…</h4>
+  <button class="opt" data-fb="Correct — it gates which APIs you may use.">the minimum VS Code API version</button>
+  <button class="opt" data-fb="No — that is your build tooling.">the Node version for tests</button>
+  <button class="opt" data-fb="No — categories are separate fields.">the Marketplace category</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. The main field points to…</h4>
+  <button class="opt" data-fb="No — main is the code entry point.">the README file</button>
+  <button class="opt" data-fb="No — icons are separate assets.">the icon asset</button>
+  <button class="opt" data-fb="Correct — the extension entry point.">the entry file exporting activate</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Extension Manifest reference and the Anatomy page for the field list.</p>
+<div class="ask"><strong>Ask the agent</strong> Write the manifest for a hello-world extension named acme.hello-world with one contributed command.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://code.visualstudio.com/api/get-started/extension-anatomy">VS Code — Extension Anatomy</a></li>
+    <li id="r2"><a href="https://code.visualstudio.com/api/references/activation-events">VS Code — Activation Events</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-how-extensions-work.html">← Lesson 1</a></span>
+  <span class="nav-next"><a href="0003-activation.html">Lesson 3: activation →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/vscode-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
