@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — Pinning with .nvmrc</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 10</span><span>nvm &middot; Node Version Management</span></div>
+  <h1>Pinning with .nvmrc</h1>
+  <p class="subtitle">Name the runtime in the repo, switch to it, and declare intent with engines.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A project pins its runtime with an <strong><code>.nvmrc</code></strong> file; <code>nvm use</code> reads that file, and <code>--install-if-missing</code> installs the version if you do not have it yet.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Pin, then use</h2>
+<pre><code># in the project root
+echo "20" &gt; .nvmrc          # a major, or an exact version like 20.11.1
+
+nvm use                    # read .nvmrc and switch
+nvm use --install-if-missing   # install it first if absent
+
+cat .nvmrc                 # commit this file</code></pre>
+<p>Commit <code>.nvmrc</code> so every checkout names the same runtime. Pair it with <code>engines</code> in <code>package.json</code> to declare intent even to tools that do not read <code>.nvmrc</code>.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Auto-switching (optional)</h2>
+<p>You can add a shell hook that runs <code>nvm use</code> when you <code>cd</code> into a directory containing <code>.nvmrc</code>. It is convenient, but keep it out of CI and scripts, where explicit switching is clearer.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Pin a <em>major</em> (e.g. <code>20</code>) for apps that want the latest patch of a line; pin an <em>exact</em> version when you need byte-for-byte reproduction. State which policy your team uses.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. .nvmrc exists to…</h4>
+  <button class="opt" data-fb="No — package.json lists dependencies.">list project dependencies</button>
+  <button class="opt" data-fb="Correct — nvm reads it on use.">name the Node version for the project</button>
+  <button class="opt" data-fb="No — scripts live in package.json.">store npm scripts</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. nvm use --install-if-missing…</h4>
+  <button class="opt" data-fb="Correct — then switches to it.">installs the version if it is absent</button>
+  <button class="opt" data-fb="No — it installs the requested one.">deletes unused versions</button>
+  <button class="opt" data-fb="No — it still honors the file.">ignores .nvmrc entirely</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. Pairing .nvmrc with engines is useful because…</h4>
+  <button class="opt" data-fb="No — they are complementary declarations.">engines replaces nvm</button>
+  <button class="opt" data-fb="No — it declares intent, not speed.">it speeds up installs</button>
+  <button class="opt" data-fb="Correct — tools that ignore .nvmrc read engines.">other tools can read the intent</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the nvm README section on .nvmrc and the npm engines field.</p>
+<div class="ask"><strong>Ask the agent</strong> Add .nvmrc and engines to a project, then prove nvm use selects the pinned version.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://github.com/nvm-sh/nvm">nvm on GitHub</a></li>
+    <li id="r2"><a href="https://docs.npmjs.com/cli/v10/configuring-npm/package-json">npm — package.json (engines/devEngines)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-the-core-commands.html">← Lesson 4</a></span>
+  <span class="nav-next"><a href="0006-lts-current-and-the-release-schedule.html">Lesson 6: LTS, Current &amp; releases →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/nvm-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

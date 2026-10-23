@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — The Core Commands</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 10</span><span>nvm &middot; Node Version Management</span></div>
+  <h1>The Core Commands</h1>
+  <p class="subtitle">install, use, ls, current, which, exec — and how to read the state.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Everyday nvm is a handful of verbs: <strong>install</strong> a version, <strong>use</strong> it, list what you have, inspect the <strong>current</strong> one, and run a command under a specific version with <strong>exec</strong>.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The commands you will actually type</h2>
+<pre><code>nvm install 20          # install a major (latest 20.x)
+nvm install --lts       # install the latest LTS
+nvm use 20              # switch this shell to 20.x
+nvm ls                  # installed versions
+nvm current             # active version in this shell
+nvm which 20            # path to that version's node
+nvm exec 18 node -v     # run once under 18, without switching
+nvm alias default 20    # version for new shells</code></pre>
+
+<h2>How to read the state</h2>
+<table>
+  <tr><th>Command</th><th>Answers</th></tr>
+  <tr><td><code>nvm ls</code></td><td>What is installed (and the aliases).<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>nvm current</code></td><td>What this shell is using now.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>nvm which VERSION</code></td><td>Where that version lives on disk.<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> <code>nvm exec</code> is the underrated one: it runs a single command under another version without disturbing your shell — perfect for a quick compatibility check.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. The command that switches the current shell is…</h4>
+  <button class="opt" data-fb="No — that installs a version.">nvm install</button>
+  <button class="opt" data-fb="No — that lists installed versions.">nvm ls</button>
+  <button class="opt" data-fb="Correct — it changes PATH for this shell.">nvm use</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. nvm exec lets you…</h4>
+  <button class="opt" data-fb="Correct — without switching the shell.">run one command under another version</button>
+  <button class="opt" data-fb="No — it runs a command.">install every version</button>
+  <button class="opt" data-fb="No — that is nvm alias default.">change the default alias</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. nvm current reports…</h4>
+  <button class="opt" data-fb="No — it reports your active version.">the latest published version</button>
+  <button class="opt" data-fb="Correct — per-shell state.">the version active in this shell</button>
+  <button class="opt" data-fb="No — that is in package.json.">the project engines range</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Keep the nvm README command list open while you practice.</p>
+<div class="ask"><strong>Ask the agent</strong> Install two majors, switch between them, and run node -v under each with nvm exec.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://github.com/nvm-sh/nvm">nvm on GitHub</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-install-and-first-node.html">← Lesson 3</a></span>
+  <span class="nav-next"><a href="0005-pinning-with-nvmrc.html">Lesson 5: pinning with .nvmrc →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/nvm-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

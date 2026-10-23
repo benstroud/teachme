@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — LTS, Current &amp; the Release Schedule</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 10</span><span>nvm &middot; Node Version Management</span></div>
+  <h1>LTS, Current &amp; the Release Schedule</h1>
+  <p class="subtitle">Current → Active LTS → Maintenance → EOL, and choosing a support posture.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Node release lines move through phases — <strong>Current → Active LTS → Maintenance → End-of-Life</strong> — and each LTS line gets a codename; production should normally track LTS, not Current.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The phases</h2>
+<table>
+  <tr><th>Phase</th><th>What it means</th></tr>
+  <tr><td>Current</td><td>Newest line, still stabilizing; may change.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Active LTS</td><td>Stable, receives features/backports; the safe default.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Maintenance</td><td>Critical fixes only; plan to upgrade.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>End-of-Life</td><td>No more support; upgrade now.<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+
+<h2>Reading the schedule</h2>
+<pre><code>line    status        codename    EOL
+22.x    Maintenance   Jod         2027-04-30
+24.x    Active LTS    Krypton     2028-04-30
+26.x    Current       (—)         2029-04-30</code></pre>
+<p>Modern lines get roughly 12 months of active support, then about 18 months of maintenance, with dates subject to change.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Choose the runtime by <em>support posture</em>, not by "newest". LTS for production; Current only when a project explicitly needs an unreleased capability.<sup><a href="#r2">2</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. For production the sensible default is…</h4>
+  <button class="opt" data-fb="No — Current is still stabilizing.">the newest Current line</button>
+  <button class="opt" data-fb="No — that no longer gets support.">an End-of-Life line</button>
+  <button class="opt" data-fb="Correct — stable and supported.">an Active LTS line</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Maintenance mode means…</h4>
+  <button class="opt" data-fb="Correct — plan your upgrade.">only critical fixes are backported</button>
+  <button class="opt" data-fb="No — features land in active/Current.">new features arrive weekly</button>
+  <button class="opt" data-fb="No — that is End-of-Life.">the line is unsupported</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. An LTS codename is…</h4>
+  <button class="opt" data-fb="No — that is packageManager.">a package manager version</button>
+  <button class="opt" data-fb="Correct — e.g. Krypton, Jod.">a friendly name for the line</button>
+  <button class="opt" data-fb="No — a range selects versions, not names.">a semver range</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Node release schedule and the downloads page for LTS status.</p>
+<div class="ask"><strong>Ask the agent</strong> Given a project that must be supported for two years, pick a line and justify it from the schedule.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://github.com/nodejs/Release">Node.js Release Working Group</a></li>
+    <li id="r2"><a href="https://nodejs.org/en/download">Node.js downloads</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-pinning-with-nvmrc.html">← Lesson 5</a></span>
+  <span class="nav-next"><a href="0007-aliases-default-and-globals.html">Lesson 7: aliases, default &amp; globals →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/nvm-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

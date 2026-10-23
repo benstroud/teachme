@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — Team Reproducibility &amp; CI</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 10</span><span>nvm &middot; Node Version Management</span></div>
+  <h1>Team Reproducibility &amp; CI</h1>
+  <p class="subtitle">Pin Node and the package manager, then make CI read the same file.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Reproducibility is two pins plus one mirror: pin <strong>Node</strong> (<code>.nvmrc</code> + <code>engines</code>), pin the <strong>package manager</strong> (Corepack <code>packageManager</code>), and make <strong>CI</strong> use exactly those.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The project declarations</h2>
+<pre><code>// package.json
+{
+  "engines": { "node": "&gt;=20" },
+  "packageManager": "pnpm@9.1.0"
+}
+
+# .nvmrc
+20
+
+# CI (GitHub Actions sketch)
+- uses: actions/setup-node@v4
+  with:
+    node-version-file: .nvmrc
+    cache: pnpm</code></pre>
+
+<h2>What each pin does</h2>
+<table>
+  <tr><th>Pin</th><th>Ensures</th></tr>
+  <tr><td><code>.nvmrc</code></td><td>Local nvm picks the intended Node.<sup><a href="#r3">3</a></sup></td></tr>
+  <tr><td><code>engines</code></td><td>Intent is declared; enforce stricter with engine-strict.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>packageManager</code></td><td>Corepack runs the pinned manager version.<sup><a href="#r2">2</a></sup></td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> The best CI says <code>node-version-file: .nvmrc</code> rather than hard-coding a version. Two sources of truth always drift; one file does not.<sup><a href="#r3">3</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. Corepack pins…</h4>
+  <button class="opt" data-fb="No — that is .nvmrc/engines.">the Node runtime version</button>
+  <button class="opt" data-fb="Correct — via packageManager.">the package manager version</button>
+  <button class="opt" data-fb="No — the manager dictates the lockfile.">the lockfile format</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A CI job should read the Node version from…</h4>
+  <button class="opt" data-fb="Correct — one source of truth.">.nvmrc, not a hard-coded value</button>
+  <button class="opt" data-fb="No — that is not project state.">the latest release notes</button>
+  <button class="opt" data-fb="No — prose is not enforced.">the developer README</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. engines is advisory unless you…</h4>
+  <button class="opt" data-fb="No — that removes the declaration.">delete package.json</button>
+  <button class="opt" data-fb="No — that affects install, not engines checks.">use npm ci</button>
+  <button class="opt" data-fb="Correct — otherwise npm warns, not blocks.">enforce it (engine-strict/devEngines)</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Corepack docs and the npm engines/devEngines fields.</p>
+<div class="ask"><strong>Ask the agent</strong> Add .nvmrc, engines, and packageManager to a repo and make CI read node-version-file.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.npmjs.com/cli/v10/configuring-npm/package-json">npm — package.json (engines/devEngines)</a></li>
+    <li id="r2"><a href="https://nodejs.org/api/corepack.html">Node.js — Corepack</a></li>
+    <li id="r3"><a href="https://github.com/nvm-sh/nvm">nvm on GitHub</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-aliases-default-and-globals.html">← Lesson 7</a></span>
+  <span class="nav-next"><a href="0009-alternatives-and-edge-cases.html">Lesson 9: alternatives &amp; edge cases →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/nvm-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

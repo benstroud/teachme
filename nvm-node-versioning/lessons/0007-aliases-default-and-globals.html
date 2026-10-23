@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — Aliases, Default &amp; Globals</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 10</span><span>nvm &middot; Node Version Management</span></div>
+  <h1>Aliases, Default &amp; Globals</h1>
+  <p class="subtitle">Named pointers, the default shell version, and why globals do not follow you.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p><strong>Aliases</strong> are named pointers to versions; <code>default</code> decides what a fresh shell gets, and <strong>global npm packages are per-version</strong> — so switching versions can "lose" your CLIs unless you migrate them.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Pointers and defaults</h2>
+<pre><code>nvm alias default 20      # new shells start on 20.x
+nvm alias work 20.11.1    # a named pointer you can nvm use work
+nvm unalias work
+nvm ls                    # shows installed versions + aliases</code></pre>
+
+<h2>Globals do not follow you</h2>
+<pre><code># install a version and carry over its globals from another version
+nvm install 20 --reinstall-packages-from=18
+
+# or reinstall a CLI explicitly after switching
+npm install -g typescript ts-node</code></pre>
+<p>Because each version has its own global <code>node_modules</code>, a CLI installed under 18 is not present under 20 until you reinstall or migrate it.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Prefer project-local tooling (<code>npx</code>, devDependencies) over global installs. Globals are exactly the thing that makes your environment harder to reproduce.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. nvm alias default controls…</h4>
+  <button class="opt" data-fb="Correct — the default pointer.">the version a new shell starts with</button>
+  <button class="opt" data-fb="No — .nvmrc is a file you write.">the project .nvmrc value</button>
+  <button class="opt" data-fb="No — aliases do not affect registries.">the npm registry</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. Global npm packages are…</h4>
+  <button class="opt" data-fb="No — they live per version.">shared across every version</button>
+  <button class="opt" data-fb="No — those are local dependencies.">stored in the project</button>
+  <button class="opt" data-fb="Correct — so switching loses them unless migrated.">per Node version</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. To carry globals to a new version you use…</h4>
+  <button class="opt" data-fb="No — that lists versions.">nvm ls</button>
+  <button class="opt" data-fb="Correct — it reinstalls them.">--reinstall-packages-from</button>
+  <button class="opt" data-fb="No — that prints a path.">nvm which</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the nvm README alias and reinstall-packages sections.</p>
+<div class="ask"><strong>Ask the agent</strong> Set a default, add a named alias, and migrate your global CLIs to a new version.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://github.com/nvm-sh/nvm">nvm on GitHub</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-lts-current-and-the-release-schedule.html">← Lesson 6</a></span>
+  <span class="nav-next"><a href="0008-team-reproducibility-and-ci.html">Lesson 8: team reproducibility &amp; CI →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/nvm-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

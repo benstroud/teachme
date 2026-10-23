@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — Version Drift</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 10</span><span>nvm &middot; Node Version Management</span></div>
+  <h1>Version Drift</h1>
+  <p class="subtitle">Why one global Node fails, and why pinning is a reproducibility practice.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>One global Node install cannot serve projects that need different majors — without explicit version pinning, "what runs" silently drifts between your laptop, a teammate, and CI.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The failure modes</h2>
+<table>
+  <tr><th>Symptom</th><th>Underlying cause</th></tr>
+  <tr><td>Old project fails after an upgrade</td><td>Global Node moved to a new major.<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td>CI green, local red (or vice versa)</td><td>Different Node versions in each environment.</td></tr>
+  <tr><td>Native module build errors</td><td>Compiled for a different Node ABI.</td></tr>
+  <tr><td>"Works on my machine"</td><td>The runtime was never pinned.<sup><a href="#r3">3</a></sup></td></tr>
+</table>
+
+<h2>The fix is a practice, not a command</h2>
+<ul>
+  <li>Declare the expected runtime in the project (<code>engines</code>, <code>.nvmrc</code>).<sup><a href="#r3">3</a></sup></li>
+  <li>Switch per project with a version manager instead of one global install.<sup><a href="#r1">1</a></sup></li>
+  <li>Make CI use the same version the project declares.</li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> Version drift is a <em>reproducibility</em> bug. The moment two developers or a CI runner disagree on the runtime, every other guarantee is conditional.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. A single global Node install fails across projects because…</h4>
+  <button class="opt" data-fb="No — package.json declares dependencies.">projects cannot declare dependencies</button>
+  <button class="opt" data-fb="Correct — one runtime cannot satisfy both.">different projects need different majors</button>
+  <button class="opt" data-fb="No — npm ships with Node.">Node has no package manager</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Native module build errors usually mean…</h4>
+  <button class="opt" data-fb="Correct — native code targets a Node ABI.">the module was built for another ABI</button>
+  <button class="opt" data-fb="No — a lockfile does not fix ABI mismatch.">the lockfile is missing</button>
+  <button class="opt" data-fb="No — documentation is unrelated.">the project has no README</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. The durable fix for version drift is to…</h4>
+  <button class="opt" data-fb="No — that is what causes drift.">always install the newest Node</button>
+  <button class="opt" data-fb="No — CI is where parity matters most.">avoid CI entirely</button>
+  <button class="opt" data-fb="Correct — declare the runtime, switch to it.">pin and switch versions per project</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the nvm README intro and the Node release schedule to see why majors matter.</p>
+<div class="ask"><strong>Ask the agent</strong> List three projects you own and the Node version each expects; note which ones would break on a single global upgrade.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://github.com/nvm-sh/nvm">nvm on GitHub</a></li>
+    <li id="r2"><a href="https://github.com/nodejs/Release">Node.js Release Working Group</a></li>
+    <li id="r3"><a href="https://docs.npmjs.com/cli/v10/configuring-npm/package-json">npm — package.json (engines/devEngines)</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="0002-what-nvm-is.html">Lesson 2: what nvm is →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/nvm-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

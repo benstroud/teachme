@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — What nvm Is</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 10</span><span>nvm &middot; Node Version Management</span></div>
+  <h1>What nvm Is</h1>
+  <p class="subtitle">A sourced shell function that rewrites PATH per shell — not a global binary.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p><strong>nvm is a POSIX shell function</strong>, not a global binary: it lives in the shell that sourced it and switches which <code>node</code> your <code>PATH</code> points at, per shell.<sup><a href="#r1">1</a></sup></p>
+
+<h2>What that means in practice</h2>
+<table>
+  <tr><th>Because it is a function…</th><th>Consequence</th></tr>
+  <tr><td>It is defined by sourcing a script</td><td>Add it to your shell rc file.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>It edits <code>PATH</code> per shell</td><td>Each terminal can run a different version.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>It is not on disk as <code>/usr/bin/nvm</code></td><td>Non-interactive shells may not find it.<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+
+<h2>Where it lives</h2>
+<pre><code>export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] &amp;&amp; \. "$NVM_DIR/nvm.sh"</code></pre>
+<p>That snippet goes in <code>~/.bashrc</code> or <code>~/.zshrc</code>. Every new interactive shell sources it, defining the <code>nvm</code> function and setting up the <code>PATH</code> shims.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> If a script, cron job, or IDE task says <code>nvm: command not found</code>, it is not broken — that shell simply never sourced the function. Source nvm explicitly or call the versioned binary directly.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. nvm is best described as…</h4>
+  <button class="opt" data-fb="No — it is a shell function, not a binary.">a global binary in /usr/bin</button>
+  <button class="opt" data-fb="No — it manages Node itself.">an npm plugin</button>
+  <button class="opt" data-fb="Correct — it lives in the shell.">a shell function you source</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. Switching versions changes…</h4>
+  <button class="opt" data-fb="Correct — nvm rewrites PATH per shell.">the PATH in the current shell</button>
+  <button class="opt" data-fb="No — it only affects the shell environment.">the operating system kernel</button>
+  <button class="opt" data-fb="No — it does not edit your manifest.">the project package.json</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. A non-interactive shell often lacks nvm because…</h4>
+  <button class="opt" data-fb="No — nvm is not removed automatically.">nvm uninstalls itself</button>
+  <button class="opt" data-fb="Correct — the function was never defined.">it never sourced the rc file</button>
+  <button class="opt" data-fb="No — a global Node is a separate issue.">Node was installed globally</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the nvm README install and "how it works" sections.</p>
+<div class="ask"><strong>Ask the agent</strong> Explain why two terminal tabs can run different Node versions at the same time.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://github.com/nvm-sh/nvm">nvm on GitHub</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-version-drift.html">← Lesson 1</a></span>
+  <span class="nav-next"><a href="0003-install-and-first-node.html">Lesson 3: install &amp; first Node →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/nvm-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

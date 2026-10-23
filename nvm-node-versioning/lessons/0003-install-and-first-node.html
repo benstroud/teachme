@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — Install &amp; First Node</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 10</span><span>nvm &middot; Node Version Management</span></div>
+  <h1>Install &amp; First Node</h1>
+  <p class="subtitle">Script, source, install LTS, verify — the bootstrap sequence.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Install the nvm script, source it from your rc file, then <code>nvm install --lts</code> — from that point you have a Node you can switch to instead of a single global one.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The install steps</h2>
+<pre><code># 1) run the install script (see the nvm README for the current URL)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | bash
+
+# 2) ensure your rc file sources nvm, then reload the shell
+source ~/.zshrc      # or ~/.bashrc
+
+# 3) install a version and switch to it
+nvm install --lts     # latest LTS
+nvm use --lts
+
+# 4) verify
+node -v
+nvm current</code></pre>
+
+<h2>Why <code>--lts</code> first</h2>
+<p>LTS lines are the stable, long-support choice for most work; install Current only when a project needs it.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> Always verify with <code>nvm current</code> and <code>node -v</code> after switching. A shell that did not source nvm will still show the old binary.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. After running the install script you must…</h4>
+  <button class="opt" data-fb="No — reloading the shell is enough.">reboot the machine</button>
+  <button class="opt" data-fb="Correct — the function is defined on source.">source nvm from your rc file</button>
+  <button class="opt" data-fb="No — nvm can coexist with it.">uninstall global Node manually</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. nvm install --lts installs…</h4>
+  <button class="opt" data-fb="Correct — the stable long-support line.">the latest LTS release</button>
+  <button class="opt" data-fb="No — Current is not LTS.">the newest Current release</button>
+  <button class="opt" data-fb="No — install takes one target.">every version at once</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. To confirm the active version you run…</h4>
+  <button class="opt" data-fb="No — that installs dependencies.">npm install</button>
+  <button class="opt" data-fb="No — that reports repository state.">git status</button>
+  <button class="opt" data-fb="Correct — it reports the active version.">nvm current (and node -v)</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Follow the nvm README install section and the Node downloads page for LTS guidance.</p>
+<div class="ask"><strong>Ask the agent</strong> Install nvm in a fresh shell, install LTS, and prove the version changed with node -v.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://github.com/nvm-sh/nvm">nvm on GitHub</a></li>
+    <li id="r2"><a href="https://github.com/nodejs/Release">Node.js Release Working Group</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-what-nvm-is.html">← Lesson 2</a></span>
+  <span class="nav-next"><a href="0004-the-core-commands.html">Lesson 4: the core commands →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/nvm-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

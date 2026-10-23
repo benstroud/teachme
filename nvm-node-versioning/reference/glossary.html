@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nvm &amp; Node Version Management — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>nvm &middot; Node Version Management</span></div>
+  <h1>nvm Glossary</h1>
+  <p class="subtitle">Every term in this course, in one place. Return here when a lesson uses a word you do not fully own.</p>
+</header>
+
+<section>
+<h2>Versions &amp; releases</h2>
+<dl>
+  <dt><strong>Node.js version</strong></dt>
+  <dd>A runtime release identified by a semver number, e.g. 20.11.1.</dd>
+  <dt><strong>semver</strong></dt>
+  <dd>Major.minor.patch numbering; ranges like ^20 or ~20.11 select versions.<sup><a href="#r5">5</a></sup></dd>
+  <dt><strong>Current</strong></dt>
+  <dd>The newest release line, still stabilizing; not yet LTS.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>LTS (Long Term Support)</strong></dt>
+  <dd>A line promoted for stable, long support — the default choice for production.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>Active LTS / Maintenance</strong></dt>
+  <dd>LTS phases: active feature/backport support, then maintenance fixes only.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>End-of-Life (EOL)</strong></dt>
+  <dd>The date a line stops receiving support.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>codename</strong></dt>
+  <dd>A friendly name for an LTS line (e.g. Krypton, Jod).<sup><a href="#r2">2</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>nvm mechanics</h2>
+<dl>
+  <dt><strong>nvm</strong></dt>
+  <dd>Node Version Manager: a POSIX-compliant bash script (a shell function) to manage multiple Node versions.<sup><a href="#r1">1</a></sup></dd>
+  <dt><strong>NVM_DIR</strong></dt>
+  <dd>The directory nvm installs into and sources from.<sup><a href="#r1">1</a></sup></dd>
+  <dt><strong>shell function</strong></dt>
+  <dd>A function defined in your shell, not a global binary — it only exists where sourced.<sup><a href="#r1">1</a></sup></dd>
+  <dt><strong>PATH</strong></dt>
+  <dd>The list of directories the shell searches for commands; nvm rewrites it to point at a version.</dd>
+  <dt><strong>rc file</strong></dt>
+  <dd>A shell startup file (~/.bashrc, ~/.zshrc) where nvm is sourced.<sup><a href="#r1">1</a></sup></dd>
+  <dt><strong>alias</strong></dt>
+  <dd>A named version pointer (e.g. default, lts/*) managed with nvm alias.<sup><a href="#r1">1</a></sup></dd>
+  <dt><strong>default alias</strong></dt>
+  <dd>The version used when a new shell starts with no .nvmrc.<sup><a href="#r1">1</a></sup></dd>
+  <dt><strong>nvm which</strong></dt>
+  <dd>Shows the path to the node binary for a version.<sup><a href="#r1">1</a></sup></dd>
+  <dt><strong>nvm exec</strong></dt>
+  <dd>Runs a command under a specific Node version.<sup><a href="#r1">1</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Project pinning</h2>
+<dl>
+  <dt><strong>.nvmrc</strong></dt>
+  <dd>A file in a project naming the Node version nvm should use.<sup><a href="#r1">1</a></sup></dd>
+  <dt><strong>--install-if-missing</strong></dt>
+  <dd>An nvm use flag that installs the requested version if absent.<sup><a href="#r1">1</a></sup></dd>
+  <dt><strong>engines</strong></dt>
+  <dd>A package.json field declaring the expected Node/npm versions.<sup><a href="#r4">4</a></sup></dd>
+  <dt><strong>engine-strict</strong></dt>
+  <dd>An npm setting that turns engines mismatches into install failures.<sup><a href="#r4">4</a></sup></dd>
+  <dt><strong>devEngines</strong></dt>
+  <dd>A newer package.json field to declare/enforce runtime and package manager.<sup><a href="#r4">4</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Team &amp; tooling</h2>
+<dl>
+  <dt><strong>Corepack</strong></dt>
+  <dd>A Node-bundled bridge that runs the package manager a project pins.<sup><a href="#r3">3</a></sup></dd>
+  <dt><strong>packageManager</strong></dt>
+  <dd>A package.json field naming the package manager and version (pinned via Corepack).<sup><a href="#r3">3</a></sup></dd>
+  <dt><strong>CI matrix</strong></dt>
+  <dd>Running CI across multiple Node versions to verify compatibility.</dd>
+</dl>
+</section>
+<section>
+<h2>Alternatives</h2>
+<dl>
+  <dt><strong>nvm-windows</strong></dt>
+  <dd>A separate Windows implementation (nvm itself targets POSIX shells).<sup><a href="#r6">6</a></sup></dd>
+  <dt><strong>fnm</strong></dt>
+  <dd>A fast, cross-platform Node version manager.<sup><a href="#r7">7</a></sup></dd>
+  <dt><strong>Volta</strong></dt>
+  <dd>A toolchain manager that pins tools per project, shell-agnostic.<sup><a href="#r8">8</a></sup></dd>
+  <dt><strong>asdf</strong></dt>
+  <dd>A multi-language version manager with Node plugins.<sup><a href="#r9">9</a></sup></dd>
+</dl>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://github.com/nvm-sh/nvm">nvm on GitHub</a></li>
+    <li id="r2"><a href="https://github.com/nodejs/Release">Node.js Release Working Group</a></li>
+    <li id="r3"><a href="https://nodejs.org/api/corepack.html">Node.js — Corepack</a></li>
+    <li id="r4"><a href="https://docs.npmjs.com/cli/v10/configuring-npm/package-json">npm — package.json (engines/devEngines)</a></li>
+    <li id="r5"><a href="https://semver.org/">Semantic Versioning</a></li>
+    <li id="r6"><a href="https://github.com/coreybutler/nvm-windows">nvm-windows</a></li>
+    <li id="r7"><a href="https://github.com/Schniz/fnm">fnm</a></li>
+    <li id="r8"><a href="https://volta.sh/">Volta</a></li>
+    <li id="r9"><a href="https://asdf-vm.com/">asdf</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Mission &amp; notes</span>
+  <span class="nav-next"><a href="../lessons/0001-version-drift.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../NOTES.md">Notes</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>
