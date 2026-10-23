@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — Access Tokens &amp; Grants</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 10</span><span>Twilio API · Programmable Voice</span></div>
+  <h1>Access Tokens &amp; Grants</h1>
+  <p class="subtitle">Short-lived JWTs, identity, and the VoiceGrant that points at your TwiML app.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>An <strong>Access Token</strong> is a short-lived JWT your server mints to authorize a client-side Twilio SDK — it carries the user's <strong>identity</strong> plus a <strong>grant</strong> (for voice, a <code>VoiceGrant</code>) that names the TwiML app to use.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Minting a voice token</h2>
+<pre><code>const AccessToken = require("twilio").jwt.AccessToken;
+const VoiceGrant = AccessToken.VoiceGrant;
+
+const grant = new VoiceGrant({
+  outgoingApplicationSid: process.env.TWILIO_TWIML_APP_SID,
+});
+
+const token = new AccessToken(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_API_KEY,
+  process.env.TWILIO_API_SECRET,
+  { identity: userId }          // who this token belongs to
+);
+token.addGrant(grant);
+
+const jwt = token.toJwt();       // send this string to the browser</code></pre>
+
+<h2>What matters about the token</h2>
+<table>
+  <tr><th>Property</th><th>Guidance</th></tr>
+  <tr><td>Lifetime</td><td>Configurable up to 24h; use the shortest feasible.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Created where</td><td>On your server, never in the browser.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Revocation</td><td>Delete the API key that signed it.<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> <code>outgoingApplicationSid</code> is the linchpin: without it, the Voice SDK has no TwiML app to ask what to do with an outbound call.<sup><a href="#r2">2</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. An Access Token should be created…</h4>
+  <button class="opt" data-fb="No — the secret must never reach the client.">in the browser for speed</button>
+  <button class="opt" data-fb="Correct — the server signs the JWT.">on the server, then sent to the client</button>
+  <button class="opt" data-fb="No — TwiML is call instructions, not auth.">inside TwiML</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A VoiceGrant carries…</h4>
+  <button class="opt" data-fb="Correct — the TwiML app for outbound calls.">the outgoingApplicationSid</button>
+  <button class="opt" data-fb="No — the app URL is fetched later.">the TwiML XML itself</button>
+  <button class="opt" data-fb="No — that secret stays on the server.">the account auth token</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. To revoke tokens signed with an API key you…</h4>
+  <button class="opt" data-fb="No — you can revoke immediately.">wait for them to expire</button>
+  <button class="opt" data-fb="No — that does not revoke the token.">change the identity</button>
+  <button class="opt" data-fb="Correct — that invalidates its tokens.">delete the API key</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Access Tokens docs for the payload, grants, and lifecycle.</p>
+<div class="ask"><strong>Ask the agent</strong> Write a server handler that mints a Voice token for a logged-in user and explain each field.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.twilio.com/docs/iam/access-tokens">Twilio — Access Tokens</a></li>
+    <li id="r2"><a href="https://twilio.com/docs/voice/client">Twilio — Voice SDK overview</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-the-node-helper-library.html">← Lesson 2</a></span>
+  <span class="nav-next"><a href="0004-the-browser-voice-sdk.html">Lesson 4: the browser Voice SDK →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/twilio-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

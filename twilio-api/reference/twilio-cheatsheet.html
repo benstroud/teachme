@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Twilio API — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style> code i { color: var(--accent); font-style: normal; } td code { white-space: pre-wrap; } </style>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Twilio API · Programmable Voice</span></div>
+  <h1>Twilio Voice Cheat Sheet</h1>
+  <p class="subtitle">The compressed essence of the course. Skim before a lesson, study it fully before an interview.</p>
+</header>
+<section>
+<h2>1. The flow</h2>
+<pre><code>POST /token  -> Access Token (identity + VoiceGrant)
+browser SDK  -> connect(To)
+Twilio       -> POST /twiml (must validate signature)
+/twiml       -> &lt;Dial callerId=owned to=To&gt;</code></pre>
+<ul>
+  <li>The token authorizes the client; TwiML decides the call.<sup><a href="#r2">2</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>2. Accounts &amp; subaccounts</h2>
+<pre><code>main account
+  └─ subaccount (one per org)
+       numbers, calls, usage -> billed to main</code></pre>
+<ul>
+  <li>Up to 1,000 subaccounts by default; closing releases numbers; deleted after 30 days.<sup><a href="#r1">1</a></sup></li>
+  <li>All subaccount usage bills to one main balance.<sup><a href="#r1">1</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>3. Node helper library</h2>
+<pre><code>const twilio = require("twilio");
+const client = twilio(SID, TOKEN); // or API key + secret
+// pin twilio@5.5.1; v6 requires Node.js 20</code></pre>
+<ul>
+  <li>API Keys are scopable/rotatable; deleting one revokes its tokens.<sup><a href="#r2">2</a></sup></li>
+  <li>v6 has no breaking API changes but needs Node 20.<sup><a href="#r10">10</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>4. Access tokens &amp; grants</h2>
+<pre><code>const { AccessToken, VoiceGrant } = require("twilio").jwt;
+const t = new AccessToken(SID, KEY, SECRET, { identity });
+t.addGrant(new VoiceGrant({ outgoingApplicationSid }));
+const jwt = t.toJwt();</code></pre>
+<ul>
+  <li>Short-lived JWT created server-side; lifetime up to 24h (use shorter).<sup><a href="#r2">2</a></sup></li>
+  <li>outgoingApplicationSid names the TwiML app.<sup><a href="#r2">2</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>5. Browser Voice SDK</h2>
+<pre><code>const device = new Twilio.Device(jwt);
+device.connect({ params: { To: "+15551234567" } });</code></pre>
+<ul>
+  <li>Use the current v2 SDK, not old 1.x quickstarts.<sup><a href="#r3">3</a></sup></li>
+  <li>The SDK is transport; routing lives in TwiML.<sup><a href="#r3">3</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>6. TwiML &lt;Dial&gt;</h2>
+<pre><code>const r = new VoiceResponse();
+r.dial({ callerId: FROM }, req.body.To);
+res.type("text/xml").send(r.toString());</code></pre>
+<ul>
+  <li>callerId must be an owned or verified number.<sup><a href="#r4">4</a></sup></li>
+  <li>The destination comes from the To param on connect.<sup><a href="#r4">4</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>7. Webhook security</h2>
+<pre><code>twilio.validateRequest(
+  AUTH_TOKEN, req.headers["x-twilio-signature"],
+  EXACT_URL, req.body
+);
+// JSON: validateRequestWithBody + bodySHA256</code></pre>
+<ul>
+  <li>Use the exact URL (no decode/re-encode); pass sorted form params.<sup><a href="#r5">5</a></sup></li>
+  <li>Unvalidated /twiml lets anyone drive your calls.<sup><a href="#r5">5</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>8. Phone numbers</h2>
+<pre><code>// 1) search
+client.availablePhoneNumbers("US").local.list({ areaCode: 415 });
+// 2) buy + bind
+client.incomingPhoneNumbers.create({ phoneNumber, voiceApplicationSid });</code></pre>
+<ul>
+  <li>Search returns candidates; purchase creates ownership.<sup><a href="#r6">6</a></sup></li>
+  <li>voiceApplicationSid binds the number to your handler.<sup><a href="#r7">7</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>9. Limits &amp; compliance</h2>
+<pre><code>~1 CPS default (excess queued)  •  concurrent caps  •  4-hour max call
+SHAKEN/STIR trusted calling  •  US outbound rules</code></pre>
+<ul>
+  <li>Design retries/UI around CPS, not around 200 OK.<sup><a href="#r8">8</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>10. Hardening checklist</h2>
+<pre><code>validate every webhook  •  dedupe on CallSid  •  queue outbound
+transfer numbers before closing a subaccount  •  alert on CallSid + errors</code></pre>
+<ul>
+  <li>Bump the library deliberately; Node 20 before twilio v6.<sup><a href="#r10">10</a></sup></li>
+</ul>
+</section>
+<footer class="citation">
+  Primary sources: <a href="https://www.twilio.com/docs/iam/access-tokens">Access Tokens</a>, 
+  <a href="https://www.twilio.com/docs/usage/webhooks/webhooks-security">Secure webhooks</a>, 
+  <a href="https://www.twilio.com/docs/iam/api/subaccounts">Subaccounts</a>.
+  <ol>
+    <li id="r1"><a href="https://www.twilio.com/docs/iam/api/subaccounts">Twilio — Subaccounts API</a></li>
+    <li id="r2"><a href="https://www.twilio.com/docs/iam/access-tokens">Twilio — Access Tokens</a></li>
+    <li id="r3"><a href="https://twilio.com/docs/voice/client">Twilio — Voice SDK overview</a></li>
+    <li id="r4"><a href="https://www.twilio.com/docs/voice/twiml/dial">Twilio — TwiML <Dial></a></li>
+    <li id="r5"><a href="https://www.twilio.com/docs/usage/webhooks/webhooks-security">Twilio — Secure webhooks</a></li>
+    <li id="r6"><a href="https://www.twilio.com/docs/phone-numbers/api/availablephonenumber-resource">Twilio — AvailablePhoneNumber</a></li>
+    <li id="r7"><a href="https://www.twilio.com/docs/phone-numbers/api/incomingphonenumber-resource">Twilio — IncomingPhoneNumber</a></li>
+    <li id="r8"><a href="https://support.twilio.com/hc/en-us/articles/40868960307995-Understanding-CPS-and-Concurrent-Call-Limits-in-Twilio">Twilio Support — CPS & concurrent call limits</a></li>
+    <li id="r9"><a href="https://github.com/twilio/twilio-node">twilio-node (GitHub)</a></li>
+    <li id="r10"><a href="https://www.twilio.com/docs/libraries/node/migration-guide">Twilio — Node migration guide</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">← Glossary</a></span>
+  <span class="nav-next"><a href="../lessons/0001-accounts-and-subaccounts.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

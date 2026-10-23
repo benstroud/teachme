@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — TwiML &amp; &lt;Dial&gt;</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 10</span><span>Twilio API · Programmable Voice</span></div>
+  <h1>TwiML &amp; &lt;Dial&gt;</h1>
+  <p class="subtitle">The XML your /twiml route returns, and the caller-ID rules that gate it.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Your <code>/twiml</code> route returns XML: an <strong><code>&lt;Dial&gt;</code></strong> verb connects the caller to a destination, and <code>callerId</code> sets what the callee sees — which must be a number you own.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Building the TwiML</h2>
+<pre><code>const { VoiceResponse } = require("twilio").twiml;
+
+function twimlHandler(req, res) {
+  const response = new VoiceResponse();
+  response.dial(
+    { callerId: process.env.TWILIO_FROM_NUMBER },  // an owned number
+    req.body.To                                     // destination
+  );
+  res.type("text/xml").send(response.toString());
+}</code></pre>
+
+<h2>Caller ID rules</h2>
+<table>
+  <tr><th>Rule</th><th>Consequence</th></tr>
+  <tr><td>Use an owned Twilio number</td><td>Allowed as <code>callerId</code>.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Use a verified number</td><td>Allowed once verified on the account.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Use an arbitrary number</td><td>Rejected or fails — Twilio blocks it.<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> The browser never decides the final route — it sends <code>To</code>, and your server owns the policy: which caller ID, whether to record, and whether the call is allowed at all.<sup><a href="#r2">2</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. The /twiml route must return…</h4>
+  <button class="opt" data-fb="Correct — Twilio parses the XML.">TwiML XML instructions</button>
+  <button class="opt" data-fb="No — the token is issued before the call.">a JSON access token</button>
+  <button class="opt" data-fb="No — TwiML is a specific XML vocabulary.">an HTML page</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. callerId must be…</h4>
+  <button class="opt" data-fb="No — Twilio blocks arbitrary numbers.">any number you choose</button>
+  <button class="opt" data-fb="No — that is the destination, not the caller.">the callee phone number</button>
+  <button class="opt" data-fb="Correct — otherwise the call is rejected.">an owned or verified number</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. The destination for <Dial> comes from…</h4>
+  <button class="opt" data-fb="No — that points at the handler.">the TwiML app SID</button>
+  <button class="opt" data-fb="Correct — the browser sends To.">the To parameter sent on connect</button>
+  <button class="opt" data-fb="No — identity identifies the caller.">the Access Token identity</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the TwiML Dial docs for attributes and allowed caller IDs.</p>
+<div class="ask"><strong>Ask the agent</strong> Write the /twiml handler that dials the requested To from your owned number.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.twilio.com/docs/voice/twiml/dial">Twilio — TwiML <Dial></a></li>
+    <li id="r2"><a href="https://twilio.com/docs/voice/client">Twilio — Voice SDK overview</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-the-browser-voice-sdk.html">← Lesson 4</a></span>
+  <span class="nav-next"><a href="0006-webhook-security.html">Lesson 6: webhook security →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/twilio-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

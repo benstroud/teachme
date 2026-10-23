@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 9 — Limits &amp; Compliance</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 9 of 10</span><span>Twilio API · Programmable Voice</span></div>
+  <h1>Limits &amp; Compliance</h1>
+  <p class="subtitle">CPS, concurrency, the 4-hour cap, and outbound trust.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Twilio throttles calls by account: about <strong>1 call per second</strong> by default (requests above that are queued), a cap on concurrent calls, and a <strong>4-hour</strong> maximum per call.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The numbers to design around</h2>
+<table>
+  <tr><th>Limit</th><th>Default / behavior</th></tr>
+  <tr><td>Calls per second</td><td>~1 CPS per account or subaccount; excess is queued.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Concurrent calls</td><td>Limited per account; raise with support as needed.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Call duration</td><td>At most 4 hours.<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+
+<h2>Compliance for outbound voice</h2>
+<ul>
+  <li><strong>Trusted calling (SHAKEN/STIR)</strong> authenticates caller ID for outbound calls.<sup><a href="#r2">2</a></sup></li>
+  <li>US outbound rules apply to how and when you may call.<sup><a href="#r2">2</a></sup></li>
+  <li>High-volume senders need to plan capacity and reputation.<sup><a href="#r3">3</a></sup></li>
+</ul>
+
+<aside class="note"><strong>Key idea</strong> Queueing hides bursts from your code but not from your users: if you fan out many calls at once, expect the extra calls to wait. Design retries and user feedback around CPS, not around "it returned 200".<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. The default call rate is about…</h4>
+  <button class="opt" data-fb="Correct — excess requests are queued.">1 call per second per account</button>
+  <button class="opt" data-fb="No — that is far above the default.">100 calls per second per account</button>
+  <button class="opt" data-fb="No — CPS limits always apply.">unlimited calls per account</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. Requests above the CPS limit are…</h4>
+  <button class="opt" data-fb="No — Twilio queues them.">silently dropped</button>
+  <button class="opt" data-fb="No — queueing is the documented behavior.">rejected with 500 errors</button>
+  <button class="opt" data-fb="Correct — bursts wait rather than vanish.">queued until capacity frees up</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. A single call can last at most…</h4>
+  <button class="opt" data-fb="No — the cap is much longer.">30 minutes</button>
+  <button class="opt" data-fb="Correct — the documented maximum.">4 hours</button>
+  <button class="opt" data-fb="No — that is the token lifetime, not a call.">24 hours</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the CPS/concurrent-limit support article and the US voice guidelines.</p>
+<div class="ask"><strong>Ask the agent</strong> Estimate how long a 50-call fan-out takes at 1 CPS and what your UI should show meanwhile.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://support.twilio.com/hc/en-us/articles/40868960307995-Understanding-CPS-and-Concurrent-Call-Limits-in-Twilio">Twilio Support — CPS & concurrent call limits</a></li>
+    <li id="r2"><a href="https://www.twilio.com/en-us/guidelines/us/voice">Twilio — US voice guidelines</a></li>
+    <li id="r3"><a href="https://www.twilio.com/en-us/blog/high-volume-voice-considerations">Twilio — High-volume voice considerations</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0008-wiring-the-voice-app.html">← Lesson 8</a></span>
+  <span class="nav-next"><a href="0010-production-hardening.html">Lesson 10: production hardening →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/twilio-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

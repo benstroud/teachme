@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — Phone Numbers: Search &amp; Buy</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 10</span><span>Twilio API · Programmable Voice</span></div>
+  <h1>Phone Numbers: Search &amp; Buy</h1>
+  <p class="subtitle">Find a candidate, purchase it, and bind it to your TwiML app.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Buying a number is two steps: <strong>search</strong> <code>AvailablePhoneNumber</code> for something that fits, then <strong>purchase</strong> an <code>IncomingPhoneNumber</code> and bind it to your TwiML app.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Search, then buy</h2>
+<pre><code>// 1) search US local numbers (also toll-free)
+const matches = await client
+  .availablePhoneNumbers("US")
+  .local.list({ areaCode: 415, limit: 5 });
+
+// 2) purchase one and point it at your TwiML app
+const number = await client.incomingPhoneNumbers.create({
+  phoneNumber: matches[0].phoneNumber,
+  voiceApplicationSid: process.env.TWILIO_TWIML_APP_SID,
+});</code></pre>
+
+<h2>What each resource is</h2>
+<table>
+  <tr><th>Resource</th><th>Meaning</th></tr>
+  <tr><td><code>AvailablePhoneNumber</code></td><td>A candidate you can buy.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>AvailablePhoneNumberLocal</code></td><td>Local numbers for a country/area code.<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td><code>IncomingPhoneNumber</code></td><td>A number your account now owns.<sup><a href="#r3">3</a></sup></td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> Search returns candidates; only the purchase creates ownership and bills you. Setting <code>voiceApplicationSid</code> at purchase time is what makes inbound calls hit your handler.<sup><a href="#r3">3</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. Buying a number requires…</h4>
+  <button class="opt" data-fb="Correct — two distinct API steps.">search, then purchase the match</button>
+  <button class="opt" data-fb="No — search and purchase are separate.">one call that does both</button>
+  <button class="opt" data-fb="No — TwiML is the call handler.">a TwiML document only</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. An AvailablePhoneNumber is…</h4>
+  <button class="opt" data-fb="No — that is an IncomingPhoneNumber.">a number you already own</button>
+  <button class="opt" data-fb="No — apps and numbers are different resources.">a TwiML app SID</button>
+  <button class="opt" data-fb="Correct — search returns candidates.">a candidate number you can buy</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. voiceApplicationSid on a number binds it to…</h4>
+  <button class="opt" data-fb="No — billing follows the account, not the app.">the billing account</button>
+  <button class="opt" data-fb="Correct — inbound calls use that handler.">the TwiML app that handles calls</button>
+  <button class="opt" data-fb="No — tokens are per user session.">a browser Access Token</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the AvailablePhoneNumber, Local, and IncomingPhoneNumber docs.</p>
+<div class="ask"><strong>Ask the agent</strong> Search for a 415-area local number, then buy it and bind it to your TwiML app.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.twilio.com/docs/phone-numbers/api/availablephonenumber-resource">Twilio — AvailablePhoneNumber</a></li>
+    <li id="r2"><a href="https://www.twilio.com/docs/phone-numbers/api/availablephonenumberlocal-resource">Twilio — AvailablePhoneNumberLocal</a></li>
+    <li id="r3"><a href="https://www.twilio.com/docs/phone-numbers/api/incomingphonenumber-resource">Twilio — IncomingPhoneNumber</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-webhook-security.html">← Lesson 6</a></span>
+  <span class="nav-next"><a href="0008-wiring-the-voice-app.html">Lesson 8: wiring the voice app →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/twilio-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

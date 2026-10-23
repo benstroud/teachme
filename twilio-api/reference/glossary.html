@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Twilio API — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Twilio API · Programmable Voice</span></div>
+  <h1>Twilio Glossary</h1>
+  <p class="subtitle">Every term in this course, in one place. Return here when a lesson uses a word you do not fully own.</p>
+</header>
+
+<section>
+<h2>Accounts &amp; tenancy</h2>
+<dl>
+  <dt><strong>main account</strong></dt>
+  <dd>The top-level Twilio account that owns subaccounts and pays for their usage.<sup><a href="#r1">1</a></sup></dd>
+  <dt><strong>subaccount</strong></dt>
+  <dd>An account owned by the main account, used to segment a customer's usage and resources.<sup><a href="#r1">1</a></sup></dd>
+  <dt><strong>AccountSid</strong></dt>
+  <dd>The identifier for an account (AC…); it scopes every API resource.</dd>
+  <dt><strong>billing roll-up</strong></dt>
+  <dd>All subaccount usage bills to the main account's single balance.<sup><a href="#r1">1</a></sup></dd>
+  <dt><strong>closed subaccount</strong></dt>
+  <dd>A subaccount that Twilio deletes 30 days after closure by default.<sup><a href="#r1">1</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Tokens &amp; grants</h2>
+<dl>
+  <dt><strong>Access Token</strong></dt>
+  <dd>A short-lived JWT created on your server to authenticate a client-side Twilio SDK.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>JWT</strong></dt>
+  <dd>A signed, base64url-encoded token with header, payload, and signature parts.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>identity</strong></dt>
+  <dd>The user identifier embedded in a token, associating it with a person.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>grant</strong></dt>
+  <dd>A permission added to a token (e.g. VoiceGrant) enabling a client capability.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>VoiceGrant</strong></dt>
+  <dd>The grant enabling Voice SDK use; it carries an outgoingApplicationSid.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>outgoingApplicationSid</strong></dt>
+  <dd>The TwiML app a VoiceGrant points at, so the SDK knows where to ask for instructions.</dd>
+  <dt><strong>API Key</strong></dt>
+  <dd>A credential used to sign access tokens; deleting it revokes tokens signed with it.<sup><a href="#r2">2</a></sup></dd>
+  <dt><strong>TTL</strong></dt>
+  <dd>Token lifetime; configurable up to 24 hours, but use the shortest feasible.<sup><a href="#r2">2</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Voice flow &amp; TwiML</h2>
+<dl>
+  <dt><strong>Voice SDK</strong></dt>
+  <dd>The browser/client SDK that connects using an Access Token.<sup><a href="#r3">3</a></sup></dd>
+  <dt><strong>TwiML</strong></dt>
+  <dd>Twilio Markup Language: XML instructions returned to Twilio for a call.</dd>
+  <dt><strong><Dial></strong></dt>
+  <dd>The TwiML verb that connects a call to a number.<sup><a href="#r4">4</a></sup></dd>
+  <dt><strong>callerId</strong></dt>
+  <dd>The number a call appears to come from; must be an owned/verified number.<sup><a href="#r4">4</a></sup></dd>
+  <dt><strong>TwiML app</strong></dt>
+  <dd>An application that points at your webhook URL; numbers and grants reference its SID.</dd>
+</dl>
+</section>
+<section>
+<h2>Webhook security</h2>
+<dl>
+  <dt><strong>webhook</strong></dt>
+  <dd>An HTTP request Twilio makes to your URL when an event happens.</dd>
+  <dt><strong>X-Twilio-Signature</strong></dt>
+  <dd>The header Twilio uses to sign webhook requests.<sup><a href="#r5">5</a></sup></dd>
+  <dt><strong>validateRequest</strong></dt>
+  <dd>The SDK helper that verifies the signature using the exact URL and form params.<sup><a href="#r5">5</a></sup></dd>
+  <dt><strong>bodySHA256</strong></dt>
+  <dd>The query parameter Twilio appends for JSON bodies; use validateRequestWithBody.<sup><a href="#r5">5</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Phone numbers</h2>
+<dl>
+  <dt><strong>AvailablePhoneNumber</strong></dt>
+  <dd>A number you can buy, found by searching by area code/pattern.<sup><a href="#r6">6</a></sup></dd>
+  <dt><strong>IncomingPhoneNumber</strong></dt>
+  <dd>A number owned by your account; purchasing/updating it configures voice.<sup><a href="#r7">7</a></sup></dd>
+  <dt><strong>voiceApplicationSid</strong></dt>
+  <dd>The TwiML app a number is bound to, so inbound calls use your handler.<sup><a href="#r7">7</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Limits &amp; compliance</h2>
+<dl>
+  <dt><strong>CPS</strong></dt>
+  <dd>Calls per second; accounts start at about 1 CPS and queue above it.<sup><a href="#r8">8</a></sup></dd>
+  <dt><strong>concurrent calls</strong></dt>
+  <dd>How many calls can be active at once for an account.<sup><a href="#r8">8</a></sup></dd>
+  <dt><strong>4-hour cap</strong></dt>
+  <dd>A single call can last at most four hours.<sup><a href="#r8">8</a></sup></dd>
+  <dt><strong>SHAKEN/STIR</strong></dt>
+  <dd>Caller-ID authentication (trusted calling) for outbound calls.<sup><a href="#r9">9</a></sup></dd>
+</dl>
+</section>
+<section>
+<h2>Library</h2>
+<dl>
+  <dt><strong>twilio-node</strong></dt>
+  <dd>The official Node helper library for the Twilio API.<sup><a href="#r10">10</a></sup></dd>
+  <dt><strong>version pin</strong></dt>
+  <dd>Locking the library version (here 5.5.1) for reproducible installs.</dd>
+  <dt><strong>v6 upgrade</strong></dt>
+  <dd>The next major, with no breaking API changes but a minimum Node.js of 20.<sup><a href="#r11">11</a></sup></dd>
+</dl>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.twilio.com/docs/iam/api/subaccounts">Twilio — Subaccounts API</a></li>
+    <li id="r2"><a href="https://www.twilio.com/docs/iam/access-tokens">Twilio — Access Tokens</a></li>
+    <li id="r3"><a href="https://twilio.com/docs/voice/client">Twilio — Voice SDK overview</a></li>
+    <li id="r4"><a href="https://www.twilio.com/docs/voice/twiml/dial">Twilio — TwiML <Dial></a></li>
+    <li id="r5"><a href="https://www.twilio.com/docs/usage/webhooks/webhooks-security">Twilio — Secure webhooks</a></li>
+    <li id="r6"><a href="https://www.twilio.com/docs/phone-numbers/api/availablephonenumber-resource">Twilio — AvailablePhoneNumber</a></li>
+    <li id="r7"><a href="https://www.twilio.com/docs/phone-numbers/api/incomingphonenumber-resource">Twilio — IncomingPhoneNumber</a></li>
+    <li id="r8"><a href="https://support.twilio.com/hc/en-us/articles/40868960307995-Understanding-CPS-and-Concurrent-Call-Limits-in-Twilio">Twilio Support — CPS & concurrent call limits</a></li>
+    <li id="r9"><a href="https://www.twilio.com/en-us/guidelines/us/voice">Twilio — US voice guidelines</a></li>
+    <li id="r10"><a href="https://github.com/twilio/twilio-node">twilio-node (GitHub)</a></li>
+    <li id="r11"><a href="https://www.twilio.com/docs/libraries/node/migration-guide">Twilio — Node migration guide</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev">← Mission &amp; notes</span>
+  <span class="nav-next"><a href="../lessons/0001-accounts-and-subaccounts.html">Start lessons →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../NOTES.md">Notes</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

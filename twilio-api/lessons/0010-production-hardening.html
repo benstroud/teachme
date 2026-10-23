@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 10 — Production Hardening</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 10 of 10</span><span>Twilio API · Programmable Voice</span></div>
+  <h1>Production Hardening</h1>
+  <p class="subtitle">Verified, idempotent, rate-aware, and observable — the last mile.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Production voice is mostly about the edges: <strong>verify</strong> every webhook, <strong>tolerate retries</strong> idempotently, <strong>respect CPS</strong>, manage the <strong>subaccount lifecycle</strong>, and keep an eye on <strong>CallSid</strong> end to end.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Hardening checklist</h2>
+<table>
+  <tr><th>Concern</th><th>Practice</th></tr>
+  <tr><td>Webhook trust</td><td>Validate <code>X-Twilio-Signature</code> on every request.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Retries</td><td>Assume duplicate callbacks; dedupe on <code>CallSid</code>.</td></tr>
+  <tr><td>Rate limits</td><td>Queue/serialize outbound calls; back off above ~1 CPS.<sup><a href="#r4">4</a></sup></td></tr>
+  <tr><td>Tenancy</td><td>One subaccount per org; transfer numbers before closing.<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td>Upgrades</td><td>Bump the library deliberately; v6 needs Node 20.<sup><a href="#r3">3</a></sup></td></tr>
+</table>
+
+<h2>A reference shape</h2>
+<pre><code>POST /token    -> mint Access Token (identity + VoiceGrant)
+POST /twiml    -> validate signature -> TwiML &lt;Dial&gt;
+POST /status   -> verify + dedupe on CallSid -> update call state
+GET  /numbers  -> search/buy, bind voiceApplicationSid
+     logs      -> CallSid, AccountSid, errors, latency</code></pre>
+
+<aside class="note"><strong>Key idea</strong> The happy path is the easy 10%. The senior move is making the failure path boring: verified, idempotent, rate-aware, and observable.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. Every Twilio webhook should be…</h4>
+  <button class="opt" data-fb="Correct — trust nothing unverified.">validated against X-Twilio-Signature</button>
+  <button class="opt" data-fb="No — caching is unrelated to trust.">cached for a day</button>
+  <button class="opt" data-fb="No — TwiML or a status code is expected.">answered with HTML</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. Duplicate callbacks are handled by…</h4>
+  <button class="opt" data-fb="No — you need them for state changes.">ignoring all callbacks</button>
+  <button class="opt" data-fb="No — dedupe on a stable id.">trusting the first and last one</button>
+  <button class="opt" data-fb="Correct — CallSid identifies the call.">deduping on CallSid</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. Before closing a subaccount you should…</h4>
+  <button class="opt" data-fb="No — closing releases numbers too.">delete its API keys only</button>
+  <button class="opt" data-fb="Correct — closure releases them.">transfer numbers you want to keep</button>
+  <button class="opt" data-fb="No — that suspends everything.">suspend the main account</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Secure webhooks, Subaccounts, CPS limits, and Node migration docs together.</p>
+<div class="ask"><strong>Ask the agent</strong> Write the hardening checklist for your voice service and the one metric you would alert on first.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.twilio.com/docs/usage/webhooks/webhooks-security">Twilio — Secure webhooks</a></li>
+    <li id="r2"><a href="https://www.twilio.com/docs/iam/api/subaccounts">Twilio — Subaccounts API</a></li>
+    <li id="r3"><a href="https://www.twilio.com/docs/libraries/node/migration-guide">Twilio — Node migration guide</a></li>
+    <li id="r4"><a href="https://support.twilio.com/hc/en-us/articles/40868960307995-Understanding-CPS-and-Concurrent-Call-Limits-in-Twilio">Twilio Support — CPS & concurrent call limits</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0009-limits-and-compliance.html">← Lesson 9</a></span>
+  <span class="nav-next"><a href="../reference/twilio-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/twilio-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

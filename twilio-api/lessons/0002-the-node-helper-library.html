@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — The Node Helper Library</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 10</span><span>Twilio API · Programmable Voice</span></div>
+  <h1>The Node Helper Library</h1>
+  <p class="subtitle">Client setup, credential choice, and the v5 to v6 Node 20 upgrade.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>The <strong>twilio-node</strong> helper library is your typed-ish gateway to the REST API: you construct a client with credentials and call resources as methods — and you pin a version so installs are reproducible.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Client setup</h2>
+<pre><code>// CommonJS
+const twilio = require("twilio");
+
+// Account credentials (simplest) …
+const client = twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+);
+
+// … or API Key credentials (preferred for scoped access)
+const keyClient = twilio(
+  process.env.TWILIO_API_KEY,
+  process.env.TWILIO_API_SECRET,
+  { accountSid: process.env.TWILIO_ACCOUNT_SID }
+);</code></pre>
+
+<h2>Version pinning and the v6 upgrade</h2>
+<table>
+  <tr><th>Fact</th><th>Why it matters</th></tr>
+  <tr><td>App pins <code>twilio@5.5.1</code></td><td>Reproducible installs; upgrade deliberately.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>v6 has no breaking API changes</td><td>Your calls keep working after the bump.<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td>v6 requires Node.js 20</td><td>Upgrade Node <em>before</em> bumping the library.<sup><a href="#r2">2</a></sup></td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> API Keys are the better long-term credential: they can be scoped and rotated, and you can revoke tokens signed with a key by deleting it.<sup><a href="#r3">3</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. The twilio-node library is…</h4>
+  <button class="opt" data-fb="Correct — it wraps the REST API.">the official Node helper library</button>
+  <button class="opt" data-fb="No — that is the Voice SDK, a separate package.">a browser-only SDK</button>
+  <button class="opt" data-fb="No — it builds and sends API requests.">a TwiML parser</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. twilio-node v6 requires…</h4>
+  <button class="opt" data-fb="No — the minimum jumped to 20.">Node.js 14 or newer</button>
+  <button class="opt" data-fb="No — it is still a Node library.">Deno instead of Node</button>
+  <button class="opt" data-fb="Correct — upgrade Node before the bump.">Node.js 20 or newer</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. Compared with the auth token, API Keys are…</h4>
+  <button class="opt" data-fb="No — deleting a key revokes its tokens.">impossible to revoke</button>
+  <button class="opt" data-fb="Correct — better for long-term credentials.">scopable and rotatable</button>
+  <button class="opt" data-fb="No — they are server credentials.">only usable in the browser</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the twilio-node repo and the Node migration guide for the v6 requirements.</p>
+<div class="ask"><strong>Ask the agent</strong> Show two ways to construct a client (auth token vs API key) and state which you would ship.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://github.com/twilio/twilio-node">twilio-node (GitHub)</a></li>
+    <li id="r2"><a href="https://www.twilio.com/docs/libraries/node/migration-guide">Twilio — Node migration guide</a></li>
+    <li id="r3"><a href="https://www.twilio.com/docs/iam/access-tokens">Twilio — Access Tokens</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-accounts-and-subaccounts.html">← Lesson 1</a></span>
+  <span class="nav-next"><a href="0003-access-tokens-and-grants.html">Lesson 3: access tokens &amp; grants →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/twilio-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

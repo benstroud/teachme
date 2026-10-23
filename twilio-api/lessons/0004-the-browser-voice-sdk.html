@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — The Browser Voice SDK</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 10</span><span>Twilio API · Programmable Voice</span></div>
+  <h1>The Browser Voice SDK</h1>
+  <p class="subtitle">Token in, connect out — and why Twilio then calls your TwiML URL.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>The browser <strong>Voice SDK</strong> connects to Twilio using the Access Token; then, for an outbound call, Twilio requests the <strong>TwiML app URL</strong> (your <code>/twiml</code> route) to learn what to do.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The flow, end to end</h2>
+<pre><code>browser --(Access Token)--&gt; Twilio
+browser --(connect: To=+1555...)--&gt; Twilio
+Twilio --(HTTP POST /twiml)--> your server
+your server --(TwiML &lt;Dial&gt;)--> Twilio --&gt; callee</code></pre>
+
+<h2>The client side</h2>
+<pre><code>// current Voice SDK (v2.x); check the docs for the latest version
+const device = new Twilio.Device(token, { codec: "opus" });
+
+device.on("ready", () =&gt; console.log("ready"));
+device.connect({ params: { To: "+15551234567" } });</code></pre>
+<p>The token authenticates the device; the <code>To</code> value is what your TwiML handler will dial. Older quickstarts often pin an outdated SDK (e.g. 1.14) — prefer the current v2 docs.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Key idea</strong> The SDK is a <em>transport</em>, not the logic. Routing decisions live on your server in TwiML, which is why the same browser code can dial, conference, or record by changing only the handler.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. After the browser connects, Twilio asks…</h4>
+  <button class="opt" data-fb="No — the token already authenticated it.">the browser for a new token</button>
+  <button class="opt" data-fb="No — the number is chosen by the caller app.">the Marketplace for a number</button>
+  <button class="opt" data-fb="Correct — the app URL returns call instructions.">your server for TwiML</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The Access Token authenticates…</h4>
+  <button class="opt" data-fb="Correct — it authorizes the Voice SDK.">the client device to Twilio</button>
+  <button class="opt" data-fb="No — the callee is a normal phone.">the callee's phone</button>
+  <button class="opt" data-fb="No — TwiML is not authenticated by the token.">the TwiML document</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. A common pitfall in old quickstarts is…</h4>
+  <button class="opt" data-fb="No — server tokens are required.">using a server token</button>
+  <button class="opt" data-fb="Correct — prefer the current v2 docs.">pinning an outdated SDK version</button>
+  <button class="opt" data-fb="No — the To value is passed on connect.">omitting the destination number</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Voice SDK overview and follow the current v2 quickstart.</p>
+<div class="ask"><strong>Ask the agent</strong> Trace a browser call: what is sent at connect, and what your server must return.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://twilio.com/docs/voice/client">Twilio — Voice SDK overview</a></li>
+    <li id="r2"><a href="https://www.twilio.com/docs/voice/twiml/dial">Twilio — TwiML <Dial></a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-access-tokens-and-grants.html">← Lesson 3</a></span>
+  <span class="nav-next"><a href="0005-twiml-and-dial.html">Lesson 5: TwiML &amp; Dial →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/twilio-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — Wiring the Voice App End-to-End</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 10</span><span>Twilio API · Programmable Voice</span></div>
+  <h1>Wiring the Voice App End-to-End</h1>
+  <p class="subtitle">Token, app, handler, number — making the four SIDs agree.</p>
+</header>
+
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>Four pieces must line up: the <strong>Access Token</strong> names the <strong>TwiML app</strong>, the app points at <strong><code>/twiml</code></strong>, and the owned <strong>number</strong> is bound to the same app for inbound calls.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The wiring</h2>
+<pre><code>Access Token
+  └─ VoiceGrant.outgoingApplicationSid ─┐
+TwiML App (voice URL = /twiml) &lt;────────┘
+  └─ returns &lt;Dial callerId=owned to=To&gt;
+IncomingPhoneNumber.voiceApplicationSid ──&gt; same TwiML App</code></pre>
+
+<h2>The checklist</h2>
+<table>
+  <tr><th>Piece</th><th>Check</th></tr>
+  <tr><td>Token</td><td>Has identity + VoiceGrant with the app SID.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>TwiML app</td><td>Voice URL points at your public <code>/twiml</code>.<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td>Handler</td><td>Validates the signature, then dials <code>To</code>.<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td>Number</td><td>Owned, with <code>voiceApplicationSid</code> set.<sup><a href="#r3">3</a></sup></td></tr>
+</table>
+
+<aside class="note"><strong>Key idea</strong> Most "it doesn't work" bugs in this flow are a mismatched SID: the token, the app, and the number silently point at different apps. Log the SIDs at startup and keep them in one config.<sup><a href="#r3">3</a></sup></aside>
+</section>
+
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. The VoiceGrant points at…</h4>
+  <button class="opt" data-fb="No — the number is bound separately.">the owned phone number</button>
+  <button class="opt" data-fb="No — the account scopes resources generally.">the AccountSid</button>
+  <button class="opt" data-fb="Correct — the app whose URL handles calls.">the TwiML app SID</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. A number uses your handler for inbound calls when…</h4>
+  <button class="opt" data-fb="Correct — it binds the number to the app.">voiceApplicationSid is set on it</button>
+  <button class="opt" data-fb="No — searching does not buy or bind.">it is searched for</button>
+  <button class="opt" data-fb="No — tokens authenticate clients.">a token is minted</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. A common cause of a broken flow is…</h4>
+  <button class="opt" data-fb="No — verb count is not the issue.">too many TwiML verbs</button>
+  <button class="opt" data-fb="Correct — token, app, and number must align.">mismatched SIDs across the pieces</button>
+  <button class="opt" data-fb="No — that is the required runtime.">using Node 20</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<h2>Primary sources (read these next)</h2>
+<p>Read the Access Tokens, TwiML Dial, and IncomingPhoneNumber docs together.</p>
+<div class="ask"><strong>Ask the agent</strong> Draw the four pieces for your app and identify where a mismatched SID would break outbound vs inbound calls.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://www.twilio.com/docs/iam/access-tokens">Twilio — Access Tokens</a></li>
+    <li id="r2"><a href="https://www.twilio.com/docs/voice/twiml/dial">Twilio — TwiML <Dial></a></li>
+    <li id="r3"><a href="https://www.twilio.com/docs/phone-numbers/api/incomingphonenumber-resource">Twilio — IncomingPhoneNumber</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-phone-numbers-search-and-buy.html">← Lesson 7</a></span>
+  <span class="nav-next"><a href="0009-limits-and-compliance.html">Lesson 9: limits &amp; compliance →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/twilio-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
