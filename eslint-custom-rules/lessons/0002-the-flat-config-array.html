@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — The Flat Config Array</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 10</span><span>ESLint &middot; Custom Rules</span></div>
+  <h1>The Flat Config Array</h1>
+  <p class="subtitle">One exported array, scoped objects, last write wins.</p>
+</header>
+
+<section>
+<h2>One file, an array of objects</h2>
+<p>A flat config file default-exports an <strong>array of config objects</strong>. ESLint reads the array top to bottom and applies every object whose <code>files</code> patterns match the file being linted.<sup><a href="#r1">1</a></sup></p>
+<pre><code>// eslint.config.js  (ESM)
+import js from "@eslint/js";
+
+export default [
+  js.configs.recommended,                 // an object: shared baseline
+  {
+    files: ["src/**/*.js"],
+    languageOptions: {
+      ecmaVersion: 2024,
+      sourceType: "module",
+    },
+    rules: {
+      "no-console": "warn",
+    },
+  },
+  {
+    files: ["**/*.test.js"],
+    rules: { "no-console": "off" },
+  },
+  {
+    ignores: ["dist/**", "coverage/**"],  // global ignore: no other keys
+  },
+];</code></pre>
+<p>That is the whole mental model: <em>an ordered list of scoped objects</em>. There are no magic sections, no <code>overrides</code> nesting, no implicit inheritance chain.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>The keys that matter</h2>
+<table>
+  <tr><th>Key</th><th>What it does</th></tr>
+  <tr><td><code>files</code></td><td>Limits the object to matching paths; omit it to apply everywhere.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>ignores</code></td><td>Excludes paths — but only globally when it is the object's only key.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>languageOptions</code></td><td><code>ecmaVersion</code>, <code>sourceType</code>, <code>globals</code>, and an optional <code>parser</code>.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>linterOptions</code></td><td>Linter behaviour such as <code>noInlineConfig</code> and unused-directive reporting.<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td><code>plugins</code></td><td>An object map of name to plugin object — not an array of strings.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>rules</code></td><td>Rule IDs to severities (and options).<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td><code>settings</code></td><td>Shared data for rules that want cross-rule configuration.<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+</section>
+
+<section>
+<h2>Order is semantics</h2>
+<p>Later objects win. In the example above, <code>no-console</code> is a warning for <code>src/**/*.js</code> and off for test files, purely because the test object comes after the source object. There is no "merge conflict" — it is a last-write-wins cascade over matching objects.<sup><a href="#r1">1</a></sup></p>
+<pre><code>{
+  files: ["**/*.ts"],
+  rules: { "no-console": "error" },
+},
+{
+  files: ["**/*.test.ts"],
+  rules: { "no-console": "off" },   // wins for test files
+},</code></pre>
+</section>
+
+<section>
+<h2>How ESLint finds the file</h2>
+<p>ESLint starts at the file being linted and searches upward for a config, which is what makes per-package configs work in a monorepo. If several exist, the order of precedence is <code>eslint.config.js</code>, <code>.mjs</code>, <code>.cjs</code>, <code>.ts</code>, <code>.mts</code>, <code>.cts</code>.<sup><a href="#r1">1</a></sup></p>
+<pre><code>npx eslint --config some-other-file.js "**/*.js"   # skip the search
+npx eslint --no-config-lookup .                    # use no config at all</code></pre>
+</section>
+
+<section>
+<h2>If you have seen <code>.eslintrc</code></h2>
+<table>
+  <tr><th>Old (eslintrc)</th><th>Flat config</th></tr>
+  <tr><td><code>extends: ["plugin:x/recommended"]</code></td><td>Spread the imported config object into the array.<sup><a href="#r3">3</a></sup></td></tr>
+  <tr><td><code>plugins: ["x"]</code></td><td><code>plugins: { x: pluginObject }</code>.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>env: { node: true }</code></td><td><code>languageOptions.globals</code>.<sup><a href="#r3">3</a></sup></td></tr>
+  <tr><td><code>parserOptions</code></td><td><code>languageOptions</code>.<sup><a href="#r3">3</a></sup></td></tr>
+  <tr><td><code>overrides: [...]</code></td><td>Additional array elements with <code>files</code>.<sup><a href="#r3">3</a></sup></td></tr>
+</table>
+<div class="ask"><strong>Ask the agent</strong> Open your project's config and translate it into a flat array on paper. Mark every object that has only <code>ignores</code> — those are global.</div>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. In flat config, <code>plugins</code> is&hellip;</h4>
+  <button class="opt" data-fb="No — that was the eslintrc shape.">an array of package name strings</button>
+  <button class="opt" data-fb="Correct — the key becomes the rule namespace.">an object mapping names to plugins</button>
+  <button class="opt" data-fb="No — each entry needs a name to namespace rules.">a single plugin object, unnamed</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. A config object whose only key is <code>ignores</code>&hellip;</h4>
+  <button class="opt" data-fb="No — with no other keys it is global.">ignores files for that object only</button>
+  <button class="opt" data-fb="No — it is the documented way to ignore globally.">is not allowed in flat config</button>
+  <button class="opt" data-fb="Correct — an ignores-only object is global.">ignores matching files everywhere</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. When several objects match one file, later objects&hellip;</h4>
+  <button class="opt" data-fb="Correct — the cascade is last-write-wins.">override earlier rule settings</button>
+  <button class="opt" data-fb="No — rule IDs stay exactly as written.">are merged under a new rule name</button>
+  <button class="opt" data-fb="No — files narrows scope; it does not skip objects.">are skipped unless they set files</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://eslint.org/docs/latest/use/configure/configuration-files">ESLint — Configuration Files</a></li>
+    <li id="r2"><a href="https://eslint.org/docs/latest/use/configure/rules">ESLint — Configure Rules</a></li>
+    <li id="r3"><a href="https://eslint.org/docs/latest/use/configure/migration-guide">ESLint — Migration to Flat Config</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-what-eslint-actually-does.html">&larr; Lesson 1</a></span>
+  <span class="nav-next"><a href="0003-severity-options-and-silence.html">Lesson 3: severity and silence &rarr;</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> &middot; <a href="../RESOURCES.md">Resources</a> &middot; <a href="../reference/glossary.html">Glossary</a> &middot; <a href="../reference/eslint-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESLint &amp; Custom Rules — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style> code i { color: var(--accent); font-style: normal; } td code { white-space: pre-wrap; } </style>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>ESLint &middot; Custom Rules</span></div>
+  <h1>ESLint Cheat Sheet</h1>
+  <p class="subtitle">The compressed essence of the course. Skim before a lesson, study it fully before an interview.</p>
+</header>
+<section>
+<h2>1. The model</h2>
+<pre><code>source -&gt; parser -&gt; ESTree AST -&gt; rule visitors -&gt; reports -&gt; formatter
+                    (+ tokens, comments)</code></pre>
+<ul>
+  <li>Static analysis: the code is read, never executed.<sup><a href="#r1">1</a></sup></li>
+  <li>A rule is a function from an AST node to zero or more messages.<sup><a href="#r2">2</a></sup></li>
+  <li>Severity changes reporting and exit codes, not detection.<sup><a href="#r3">3</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>2. Flat config skeleton</h2>
+<pre><code>// eslint.config.js
+import js from "@eslint/js";
+
+export default [
+  js.configs.recommended,
+  {
+    files: ["src/**/*.js"],
+    languageOptions: { ecmaVersion: 2024, sourceType: "module" },
+    linterOptions: { reportUnusedDisableDirectives: "error" },
+    plugins: { acme },                     // object map, not an array
+    rules: { "acme/no-todo": "error" },
+  },
+  { ignores: ["dist/**"] },                // global: only key
+];</code></pre>
+<ul>
+  <li>Later matching objects win; config is a cascade.<sup><a href="#r4">4</a></sup></li>
+  <li>An <code>ignores</code>-only object ignores globally.<sup><a href="#r4">4</a></sup></li>
+  <li>Precedence: <code>.js</code>, <code>.mjs</code>, <code>.cjs</code>, <code>.ts</code>, <code>.mts</code>, <code>.cts</code>.<sup><a href="#r4">4</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>3. Severity &amp; options</h2>
+<pre><code>"no-console": "off"      // 0
+"no-console": "warn"     // 1  -> exit code unchanged
+"no-console": "error"    // 2  -> exit 1
+"eqeqeq": ["error", "always", { "null": "ignore" }]
+                              ^ context.options = ["always", {...}]</code></pre>
+<ul>
+  <li>Warnings never fail the run unless <code>--max-warnings</code> says so.<sup><a href="#r3">3</a></sup></li>
+  <li>Inline: <code>// eslint-disable-next-line rule -- reason</code>.<sup><a href="#r3">3</a></sup></li>
+  <li>Stale suppressions: <code>linterOptions.reportUnusedDisableDirectives</code>.<sup><a href="#r3">3</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>4. Rule module skeleton</h2>
+<pre><code>module.exports = {
+  meta: {
+    type: "suggestion",              // problem | suggestion | layout
+    docs: { description: "...", url: "..." },
+    schema: [],                      // no options
+    messages: { banned: "Do not call {{name}}()." },
+    fixable: "code",                 // only if you fix
+    hasSuggestions: true,            // only if you suggest
+  },
+  create(context) {
+    const sourceCode = context.sourceCode;
+    return {
+      "CallExpression[callee.name='eval']"(node) {
+        context.report({ node, messageId: "banned", data: { name: "eval" } });
+      },
+    };
+  },
+};</code></pre>
+<ul>
+  <li><code>create()</code> runs once per file; closure state is file-local.<sup><a href="#r2">2</a></sup></li>
+  <li><code>messageId</code> over literal messages: one wording, one place.<sup><a href="#r2">2</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>5. Selectors</h2>
+<pre><code>"CallExpression[callee.name='require']"
+"MemberExpression[object.name='console'][computed=false]"
+"FunctionDeclaration[params.length&gt;3]"
+"Identifier[name=/^on[A-Z]/]"
+"IfStatement &gt; BlockStatement CallExpression"
+":matches(ArrowFunctionExpression, FunctionExpression)"
+"CallExpression:exit"</code></pre>
+<ul>
+  <li>Child <code>&gt;</code>, descendant space, siblings <code>~</code> and <code>+</code>.<sup><a href="#r5">5</a></sup></li>
+  <li><code>:exit</code> fires on the way back up — use it to unwind state.<sup><a href="#r5">5</a></sup></li>
+  <li>More attributes/pseudo-classes means more specific, so it runs later.<sup><a href="#r5">5</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>6. Fixers &amp; suggestions</h2>
+<pre><code>meta: { fixable: "code" },             // mandatory to fix
+fix(fixer) {
+  const op = context.sourceCode.getTokenAfter(node.left);
+  return fixer.replaceText(op, node.operator + "=");
+}
+
+meta: { hasSuggestions: true },        // mandatory to suggest
+suggest: [{ messageId: "remove", fix: (f) =&gt; f.removeRange(range) }]</code></pre>
+<ul>
+  <li>Fixer: <code>insertTextBefore/After</code>, <code>replaceText</code>, <code>remove</code>, plus <code>*Range</code> variants.<sup><a href="#r2">2</a></sup></li>
+  <li>Multiple fixes must not overlap; ESLint re-runs rules up to 10 passes.<sup><a href="#r2">2</a></sup></li>
+  <li>Suggestions are stand-alone, chosen by a human, and dropped if the fix returns null.<sup><a href="#r2">2</a></sup></li>
+  <li>CLI: <code>--fix</code>, <code>--fix-dry-run</code>, <code>--fix-type</code>.<sup><a href="#r6">6</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>7. Options &amp; schema</h2>
+<pre><code>meta: {
+  schema: [{
+    type: "object",
+    properties: { forbidden: { type: "array", items: { type: "string" } } },
+    additionalProperties: false,
+  }],
+  defaultOptions: [{ forbidden: ["eval"] }],
+},
+create(context) {
+  const [{ forbidden }] = context.options;   // defaults merged under user values
+}</code></pre>
+<ul>
+  <li>Validation: wrap -&gt; severity -&gt; stop if off -&gt; copy options -&gt; validate schema.<sup><a href="#r2">2</a></sup></li>
+  <li>No schema (or <code>[]</code>) means options are rejected; <code>false</code> opts out.<sup><a href="#r2">2</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>8. RuleTester</h2>
+<pre><code>const { RuleTester } = require("eslint");
+const ruleTester = new RuleTester({ languageOptions: { ecmaVersion: 2022 } });
+
+ruleTester.run("strict-equality", rule, {
+  valid: [{ code: "a === b;" }],
+  invalid: [{
+    code: "a == b;",
+    output: "a === b;",
+    errors: [{ messageId: "strict", type: "BinaryExpression" }],
+  }],
+});</code></pre>
+<ul>
+  <li>At least one valid and one invalid case, or <code>run()</code> refuses.<sup><a href="#r7">7</a></sup></li>
+  <li><code>output</code> asserts the fixed text; <code>errors</code> takes a count or shapes.<sup><a href="#r7">7</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>9. Plugin</h2>
+<pre><code>const plugin = {
+  meta: { name: "eslint-plugin-acme", version: "1.0.0" },
+  rules: { "no-todo": noTodo },
+  configs: {},
+};
+plugin.configs.recommended = [
+  { plugins: { acme: plugin }, rules: { "acme/no-todo": "error" } },
+];
+module.exports = plugin;</code></pre>
+<ul>
+  <li>Rule ID is <code>namespace/rule-name</code> from the <code>plugins</code> key.<sup><a href="#r8">8</a></sup></li>
+  <li><code>configs</code> are never auto-applied; the user includes them.<sup><a href="#r8">8</a></sup></li>
+  <li>Publishing: <code>eslint-plugin-*</code> name, eslint as a peer dependency.<sup><a href="#r8">8</a></sup></li>
+</ul>
+</section>
+<section>
+<h2>10. Scope &amp; rollout</h2>
+<pre><code>const scope = context.sourceCode.getScope(node);   // v9: not context.getScope()
+for (const v of scope.variables) {
+  const used = v.references.some((ref) =&gt; ref.isRead());
+}
+context.sourceCode.markVariableAsUsed("name", node);</code></pre>
+<ul>
+  <li>Scope kinds: global, module, function, block, class, catch, switch&hellip;<sup><a href="#r2">2</a></sup></li>
+  <li>Rollout: warn -&gt; measure -&gt; fix or suppress -&gt; error, with <code>--max-warnings 0</code>.<sup><a href="#r6">6</a></sup></li>
+  <li>Verify with <code>eslint --print-config &lt;file&gt;</code>.<sup><a href="#r6">6</a></sup></li>
+</ul>
+</section>
+<footer class="citation">
+  Primary sources:
+  <a href="https://eslint.org/docs/latest/extend/custom-rules">Custom Rules</a>,
+  <a href="https://eslint.org/docs/latest/use/configure/configuration-files">Configuration Files</a>,
+  <a href="https://eslint.org/docs/latest/extend/selectors">Selectors</a>.
+  <ol>
+    <li id="r1"><a href="https://eslint.org/docs/latest/use/core-concepts">ESLint — Core Concepts</a></li>
+    <li id="r2"><a href="https://eslint.org/docs/latest/extend/custom-rules">ESLint — Custom Rules</a></li>
+    <li id="r3"><a href="https://eslint.org/docs/latest/use/configure/rules">ESLint — Configure Rules</a></li>
+    <li id="r4"><a href="https://eslint.org/docs/latest/use/configure/configuration-files">ESLint — Configuration Files</a></li>
+    <li id="r5"><a href="https://eslint.org/docs/latest/extend/selectors">ESLint — Selectors</a></li>
+    <li id="r6"><a href="https://eslint.org/docs/latest/use/command-line-interface">ESLint — Command Line Interface</a></li>
+    <li id="r7"><a href="https://eslint.org/docs/latest/extend/custom-rule-tutorial">ESLint — Custom Rule Tutorial</a></li>
+    <li id="r8"><a href="https://eslint.org/docs/latest/extend/plugins">ESLint — Create Plugins</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">&larr; Glossary</a></span>
+  <span class="nav-next"><a href="../lessons/0001-what-eslint-actually-does.html">Start lessons &rarr;</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · This workspace. Ask the agent anything that is unclear.
+</footer>
+</body>
+</html>

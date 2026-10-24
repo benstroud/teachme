@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 10 — Scope, Performance &amp; Rollout</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 10 of 10</span><span>ESLint &middot; Custom Rules</span></div>
+  <h1>Scope, Performance &amp; Rollout</h1>
+  <p class="subtitle">Resolve names properly, stay fast, and land the rule without a revolt.</p>
+</header>
+
+<section>
+<h2>Text matching breaks on names</h2>
+<pre><code>import { log } from "./logger.js";
+
+function outer() {
+  const log = () =&gt; {};
+  log();            // a different `log`
+}</code></pre>
+<p>A rule that greps for <code>log()</code> cannot tell these apart. The linter can: it builds scopes and resolves each identifier to the binding it actually refers to.<sup><a href="#r1">1</a></sup></p>
+<pre><code>const sourceCode = context.sourceCode;
+const scope = sourceCode.getScope(node);</code></pre>
+<p>In ESLint v9 the old <code>context.getScope()</code> was removed; <code>sourceCode.getScope(node)</code> is the supported way to ask "what scope is this node in?".<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>Variables and references</h2>
+<pre><code>create(context) {
+  const sourceCode = context.sourceCode;
+
+  return {
+    "Program:exit"(node) {
+      const scope = sourceCode.getScope(node);
+
+      for (const variable of scope.variables) {
+        const used = variable.references.some((ref) =&gt; ref.isRead());
+        if (used) { continue; }
+
+        context.report({
+          node: variable.identifiers[0],
+          messageId: "unused",
+          data: { name: variable.name },
+        });
+      }
+    },
+  };
+}</code></pre>
+<p>Each <code>Variable</code> carries its <code>defs</code> (where it was declared) and <code>references</code> (every read and write in the module). <code>Reference#isRead()</code> distinguishes consuming a value from assigning one.<sup><a href="#r1">1</a></sup></p>
+<p>Scopes come in kinds — <code>global</code>, <code>module</code>, <code>function</code>, <code>block</code>, <code>class</code>, <code>catch</code>, <code>switch</code>, and more — so a complete rule walks child scopes rather than only the top one.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>When your rule creates a use</h2>
+<pre><code>sourceCode.markVariableAsUsed("myCustomVar", node);</code></pre>
+<p>If a rule makes a variable genuinely used in a way ESLint cannot see — a template, a generated reference — mark it, or <code>no-unused-vars</code> will keep complaining about a variable your rule just consumed.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>Performance is a correctness feature</h2>
+<ul>
+  <li><strong>Let selectors do the filtering.</strong> <code>"CallExpression[callee.name='eval']"</code> visits a handful of nodes; a <code>Program</code> listener that loops every node visits all of them.<sup><a href="#r2">2</a></sup></li>
+  <li><strong>Do work on exit, not on every child.</strong> Accumulate during traversal, decide in <code>:exit</code>.<sup><a href="#r2">2</a></sup></li>
+  <li><strong>Cache per file.</strong> <code>create()</code> runs once per file, so anything derived from <code>sourceCode</code> can be computed once and closed over.<sup><a href="#r1">1</a></sup></li>
+  <li><strong>Avoid quadratic token scans.</strong> Repeated <code>getTokenBefore</code> inside a loop over nodes is the usual culprit.</li>
+</ul>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. <code>context.getScope()</code> in ESLint v9&hellip;</h4>
+  <button class="opt" data-fb="Correct — it throws the familiar TypeError otherwise.">was removed in favour of <code>sourceCode.getScope()</code></button>
+  <button class="opt" data-fb="No — it is gone, not deprecated-but-working.">still works but logs a warning</button>
+  <button class="opt" data-fb="No — it does not exist on context at all.">only works inside <code>Program</code> listeners</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>2. <code>variable.references</code> contains&hellip;</h4>
+  <button class="opt" data-fb="No — declarations live in &lt;code&gt;defs&lt;/code&gt;.">only the declaration site</button>
+  <button class="opt" data-fb="Correct — that is how unused analysis works.">every read and write of that binding</button>
+  <button class="opt" data-fb="No — you want &lt;code&gt;scope.variables&lt;/code&gt; for that.">every variable in the same scope</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. Before promoting a new rule to error, you should&hellip;</h4>
+  <button class="opt" data-fb="No — suppression or fixes, but deletion is rarely right.">delete all existing violations</button>
+  <button class="opt" data-fb="Correct — you need the real count before enforcing zero.">run it as a warning and measure</button>
+  <button class="opt" data-fb="No — rules do not compete for a quota.">disable other rules to make room</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section><div class="ask"><strong>Ask the agent</strong> Run <code>eslint --print-config</code> on one file and find your rule's resolved options. Then pick the rule you would promote from warn to error next, and state the number that would have to reach zero first.</div>
+
+<section>
+<h2>Rollout checklist</h2>
+<pre><code>npx eslint --print-config src/app.js | grep acme   # is it on, with which options?
+npx eslint . --max-warnings 0                      # no new debt slips in
+npx eslint . --fix-dry-run                         # preview autofixes in CI</code></pre>
+<ol>
+  <li>Land the rule as <code>"warn"</code>, with tests in CI, and measure the count.<sup><a href="#r3">3</a></sup></li>
+  <li>Fix or explicitly suppress the backlog; set <code>reportUnusedDisableDirectives</code> so suppressions do not rot.<sup><a href="#r4">4</a></sup></li>
+  <li>Promote to <code>"error"</code> only when the count is zero.<sup><a href="#r3">3</a></sup></li>
+  <li>Document the rule at <code>meta.docs.url</code> so the editor link explains the fix, not just the complaint.<sup><a href="#r1">1</a></sup></li>
+</ol>
+<aside class="note"><strong>Key idea</strong> A rule nobody can act on is noise. Ship the rule, the test, the docs link, and the migration path together.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://eslint.org/docs/latest/extend/custom-rules">ESLint — Custom Rules</a></li>
+    <li id="r2"><a href="https://eslint.org/docs/latest/extend/selectors">ESLint — Selectors</a></li>
+    <li id="r3"><a href="https://eslint.org/docs/latest/use/command-line-interface">ESLint — Command Line Interface</a></li>
+    <li id="r4"><a href="https://eslint.org/docs/latest/use/configure/rules">ESLint — Configure Rules</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0009-packaging-a-plugin.html">&larr; Lesson 9</a></span>
+  <span class="nav-next"><a href="../reference/eslint-cheatsheet.html">Cheat sheet &rarr;</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> &middot; <a href="../RESOURCES.md">Resources</a> &middot; <a href="../reference/glossary.html">Glossary</a> &middot; <a href="../reference/eslint-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — Autofix and Suggestions</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 10</span><span>ESLint &middot; Custom Rules</span></div>
+  <h1>Autofix and Suggestions</h1>
+  <p class="subtitle">Fix what is mechanical; suggest what needs a decision.</p>
+</header>
+
+<section>
+<h2>A fix is a description, not an edit</h2>
+<pre><code>module.exports = {
+  meta: {
+    type: "suggestion",
+    fixable: "code",                       // mandatory
+    schema: [],
+    messages: { strict: "Use the strict equality operator." },
+  },
+
+  create(context) {
+    const sourceCode = context.sourceCode;
+
+    return {
+      BinaryExpression(node) {
+        if (node.operator !== "==" &amp;&amp; node.operator !== "!=") { return; }
+
+        context.report({
+          node,
+          messageId: "strict",
+          fix(fixer) {
+            const operator = sourceCode.getTokenAfter(node.left);
+            return fixer.replaceText(operator, node.operator + "=");
+          },
+        });
+      },
+    };
+  },
+};</code></pre>
+<p>You never mutate the file. You return a <em>fixing object</em> — a range plus replacement text — and ESLint decides whether and when to apply it. The tutorial's worked example does exactly this with <code>fixer.replaceText</code>.<sup><a href="#r1">1</a></sup><sup><a href="#r3">3</a></sup></p>
+</section>
+
+<section>
+<h2>The fixer API</h2>
+<table>
+  <tr><th>Method</th><th>Effect</th></tr>
+  <tr><td><code>insertTextBefore(nodeOrToken, text)</code></td><td>Insert just before the range.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>insertTextAfter(nodeOrToken, text)</code></td><td>Insert just after the range.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>replaceText(nodeOrToken, text)</code></td><td>Swap the whole range.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>remove(nodeOrToken)</code></td><td>Delete the whole range.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>&hellip;Range(range, text)</code></td><td>Same operations against explicit <code>[start, end)</code> offsets.<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+<p>A <code>fix()</code> may return one fixing object, an array, any iterable, or a generator — but the ranges must not overlap. Overlap means ESLint cannot know which text wins.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>Why fixes are deferred</h2>
+<ul>
+  <li>Fixes from different rules can collide, so ESLint applies only non-overlapping ones per pass.<sup><a href="#r1">1</a></sup></li>
+  <li>After applying, ESLint <strong>re-runs every rule</strong> on the new text and repeats, up to <strong>10 passes</strong>, until nothing more is fixable.<sup><a href="#r1">1</a></sup></li>
+  <li>Therefore a fixer does not need to chase another rule's style: guess a quote style, and the style rule will correct it on the next pass.<sup><a href="#r1">1</a></sup></li>
+</ul>
+<p>Best practices: never change runtime behaviour, keep the range as small as possible, and emit one fix per message.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>When there is no single right answer: suggestions</h2>
+<pre><code>meta: {
+  hasSuggestions: true,                    // mandatory
+  messages: {
+    escape: "Unnecessary escape character.",
+    removeSlash: "Remove the backslash.",
+    doubleSlash: "Keep a literal backslash instead.",
+  },
+},
+
+context.report({
+  node,
+  messageId: "escape",
+  suggest: [
+    { messageId: "removeSlash",  fix: (fixer) =&gt; fixer.removeRange(range) },
+    { messageId: "doubleSlash",  fix: (fixer) =&gt; fixer.insertTextBeforeRange(range, '\\') },
+  ],
+});</code></pre>
+<p>Suggestions appear in editors for a human to choose. They are applied as stand-alone changes, do not trigger multipass fixing, and are dropped entirely if their fix returns null or empty.<sup><a href="#r1">1</a></sup></p>
+<div class="ask"><strong>Ask the agent</strong> Add a fix to your <code>debugger</code> rule: remove the statement, plus its semicolon if it has one. Then run <code>--fix-dry-run</code> to inspect the diff without touching disk.</div>
+</section>
+
+<section>
+<h2>The CLI switches</h2>
+<pre><code>npx eslint . --fix                     # apply fixes, write files
+npx eslint . --fix-dry-run             # show what would change
+npx eslint . --fix-type problem        # only fix rules typed "problem"
+npx eslint . --fix-type layout,suggestion</code></pre>
+<p><code>--fix-type</code> takes the same vocabulary as <code>meta.type</code>, plus <code>directive</code> for disabling-comment fixes.<sup><a href="#r2">2</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. After applying a round of fixes, ESLint&hellip;</h4>
+  <button class="opt" data-fb="Correct — multipass fixing continues until stable.">re-runs the rules up to ten times</button>
+  <button class="opt" data-fb="No — one pass would miss fixes unlocked by the first.">stops and reports the fixed file</button>
+  <button class="opt" data-fb="No — new problems are simply reported next pass.">reverts fixes that caused new problems</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>2. A suggestion is the right tool when&hellip;</h4>
+  <button class="opt" data-fb="No — whitespace is a safe autofix candidate.">the fix is purely whitespace</button>
+  <button class="opt" data-fb="Correct — several valid repairs need a human choice.">the correct fix depends on intent</button>
+  <button class="opt" data-fb="No — options are unrelated to suggestions.">the rule has no options declared</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. <code>--fix-dry-run</code> is useful because it&hellip;</h4>
+  <button class="opt" data-fb="No — it writes nothing at all.">rewrites files without a backup</button>
+  <button class="opt" data-fb="No — it computes fixes but applies none.">disables all fixable rules</button>
+  <button class="opt" data-fb="Correct — you see the diff, disk stays untouched.">shows fixes without writing files</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://eslint.org/docs/latest/extend/custom-rules">ESLint — Custom Rules</a></li>
+    <li id="r2"><a href="https://eslint.org/docs/latest/use/command-line-interface">ESLint — Command Line Interface</a></li>
+    <li id="r3"><a href="https://eslint.org/docs/latest/extend/custom-rule-tutorial">ESLint — Custom Rule Tutorial</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-reading-the-ast-and-selectors.html">&larr; Lesson 5</a></span>
+  <span class="nav-next"><a href="0007-options-schema-and-defaults.html">Lesson 7: options and schema &rarr;</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> &middot; <a href="../RESOURCES.md">Resources</a> &middot; <a href="../reference/glossary.html">Glossary</a> &middot; <a href="../reference/eslint-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — Anatomy of a Rule</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 10</span><span>ESLint &middot; Custom Rules</span></div>
+  <h1>Anatomy of a Rule</h1>
+  <p class="subtitle">meta describes, create observes, report speaks.</p>
+</header>
+
+<section>
+<h2>Every rule is the same three parts</h2>
+<pre><code>// rules/no-todo.js  (CommonJS)
+"use strict";
+
+module.exports = {
+  meta: {
+    type: "suggestion",
+    docs: {
+      description: "Disallow TODO comments in shipped code.",
+      url: "https://example.com/rules/no-todo",
+    },
+    schema: [],                     // no options accepted
+    messages: {
+      todo: "Remove this TODO before shipping.",
+    },
+  },
+
+  create(context) {
+    const sourceCode = context.sourceCode;
+
+    return {
+      Program() {
+        for (const comment of sourceCode.getAllComments()) {
+          if (/^\s*todo\b/i.test(comment.value)) {
+            context.report({ loc: comment.loc, messageId: "todo" });
+          }
+        }
+      },
+    };
+  },
+};</code></pre>
+<p><code>meta</code> describes the rule, <code>create</code> subscribes to nodes, and <code>context.report</code> emits a problem. That is the entire contract, and the official tutorial builds exactly this shape from an empty file.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+</section>
+
+<section>
+<h2>meta: the fields that change behaviour</h2>
+<table>
+  <tr><th>Field</th><th>Why it matters</th></tr>
+  <tr><td><code>type</code></td><td><code>"problem"</code>, <code>"suggestion"</code>, or <code>"layout"</code>; filters with <code>--fix-type</code>.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>docs.description</code></td><td>Human summary; <code>docs.url</code> is what editors link to.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>schema</code></td><td>Validates options; omit or <code>[]</code> to accept none.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>messages</code></td><td>Named message templates, addressed by <code>messageId</code>.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>fixable</code></td><td><strong>Required</strong> to return a fix (<code>"code"</code> or <code>"whitespace"</code>).<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>hasSuggestions</code></td><td><strong>Required</strong> to return <code>suggest</code> entries.<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+<p>Omit <code>fixable</code> and <code>hasSuggestions</code> unless you use them — declaring them falsely is also an error, because ESLint validates that the rule behaved as advertised.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>create: a map of visitors</h2>
+<pre><code>create(context) {
+  let depth = 0;                      // fresh per file: create runs once per file
+
+  return {
+    FunctionDeclaration() { depth += 1; },
+    "FunctionDeclaration:exit"() { depth -= 1; },
+    CallExpression(node) {
+      if (depth > 2 &amp;&amp; node.callee.name === "eval") {
+        context.report({ node, messageId: "tooDeep" });
+      }
+    },
+  };
+}</code></pre>
+<p>Keys are node types or selectors; values run when traversal reaches them. <code>:exit</code> fires on the way back up, which is how you maintain a stack. Because a fresh <code>create</code> call happens per file, closure state cannot leak between files. The node type names themselves come from ESTree.<sup><a href="#r1">1</a></sup><sup><a href="#r3">3</a></sup></p>
+</section>
+
+<section>
+<h2>Report with message IDs, not strings</h2>
+<pre><code>messages: {
+  tooDeep: "Do not call eval() more than two functions deep.",
+  todo: "{{tag}} left in shipped code.",
+},
+
+// later
+context.report({
+  node,
+  messageId: "todo",
+  data: { tag: "TODO" },
+});</code></pre>
+<p>Placeholders in <code>{{double_braces}}</code> are filled from <code>data</code>. Using <code>messageId</code> keeps every wording in one place and lets tooling treat messages as data rather than prose.<sup><a href="#r1">1</a></sup></p>
+<aside class="note"><strong>Key idea</strong> A rule should be a pure observer: same AST plus same options produces the same reports. No network, no filesystem, no module-level mutable state.<sup><a href="#r1">1</a></sup></aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. Returning a fix without declaring <code>meta.fixable</code> causes&hellip;</h4>
+  <button class="opt" data-fb="Correct — the declaration is mandatory, not advisory.">ESLint to throw an error</button>
+  <button class="opt" data-fb="No — ESLint fails loudly instead of ignoring it.">the fix to be silently dropped</button>
+  <button class="opt" data-fb="No — the rule runs; reporting the fix is what fails.">the rule to be skipped entirely</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>2. The object returned from <code>create()</code> is&hellip;</h4>
+  <button class="opt" data-fb="No — problems are emitted by calling context.report.">a list of problems to report</button>
+  <button class="opt" data-fb="Correct — keys are node types or selectors.">a map of node visitors</button>
+  <button class="opt" data-fb="No — the schema lives on meta.">the rule's JSON Schema</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. Reporting with <code>messageId</code> instead of a literal message&hellip;</h4>
+  <button class="opt" data-fb="No — placeholders still interpolate from data.">skips message interpolation</button>
+  <button class="opt" data-fb="No — it is a maintainability choice, not a speed one.">makes the rule run faster</button>
+  <button class="opt" data-fb="Correct — one place for every message the rule emits.">centralises wording in <code>meta.messages</code></button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section><div class="ask"><strong>Ask the agent</strong> Write a rule that reports every <code>debugger</code> statement. Give it one message ID, no options, and no fix. Run it with <code>RuleTester</code> after lesson 8.</div>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://eslint.org/docs/latest/extend/custom-rules">ESLint — Custom Rules</a></li>
+    <li id="r2"><a href="https://eslint.org/docs/latest/extend/custom-rule-tutorial">ESLint — Custom Rule Tutorial</a></li>
+    <li id="r3"><a href="https://github.com/estree/estree">ESTree specification</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-severity-options-and-silence.html">&larr; Lesson 3</a></span>
+  <span class="nav-next"><a href="0005-reading-the-ast-and-selectors.html">Lesson 5: AST and selectors &rarr;</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> &middot; <a href="../RESOURCES.md">Resources</a> &middot; <a href="../reference/glossary.html">Glossary</a> &middot; <a href="../reference/eslint-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

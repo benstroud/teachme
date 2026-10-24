@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — Reading the AST &amp; Selectors</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 10</span><span>ESLint &middot; Custom Rules</span></div>
+  <h1>Reading the AST &amp; Selectors</h1>
+  <p class="subtitle">Stop matching text. Start querying shapes.</p>
+</header>
+
+<section>
+<h2>The shapes you will meet most</h2>
+<table>
+  <tr><th>Node type</th><th>Interesting fields</th></tr>
+  <tr><td><code>Program</code></td><td><code>body</code> — the top-level statements.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>VariableDeclaration</code></td><td><code>kind</code> (<code>"const"</code>, <code>"let"</code>, <code>"var"</code>), <code>declarations</code>.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>VariableDeclarator</code></td><td><code>id</code> (the pattern), <code>init</code> (may be <code>null</code>).<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>CallExpression</code></td><td><code>callee</code>, <code>arguments</code>, <code>optional</code>.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>MemberExpression</code></td><td><code>object</code>, <code>property</code>, <code>computed</code>, <code>optional</code>.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>BinaryExpression</code></td><td><code>operator</code>, <code>left</code>, <code>right</code>.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>IfStatement</code></td><td><code>test</code>, <code>consequent</code>, <code>alternate</code>.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>FunctionDeclaration</code></td><td><code>id</code>, <code>params</code>, <code>body</code>, <code>async</code>.<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+<p>Read the shape, not the text. <code>console.log(x)</code> is a <code>CallExpression</code> whose <code>callee</code> is a <code>MemberExpression</code> with <code>object.name === "console"</code> and <code>property.name === "log"</code>.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>Selectors: write the shape as a query</h2>
+<pre><code>// calls to require()
+"CallExpression[callee.name='require']"
+
+// console.log / console.warn, but not console["log"]
+"MemberExpression[object.name='console'][computed=false]"
+
+// functions taking more than three parameters
+"FunctionDeclaration[params.length>3]"
+
+// any call that appears directly inside an if body
+"IfStatement > BlockStatement CallExpression"
+
+// identifiers that look like event handlers
+"Identifier[name=/^on[A-Z]/]"
+
+// arrows or function expressions, either one
+":matches(ArrowFunctionExpression, FunctionExpression)"
+
+// on the way back up the tree
+"CallExpression:exit"</code></pre>
+<p>That grammar comes from esquery: node types, attribute predicates, regex values, comparisons, child (<code>&gt;</code>) and descendant (space) combinators, <code>:not</code>, <code>:matches</code>/<code>:is</code>, and the positional pseudo-classes.<sup><a href="#r2">2</a></sup></p>
+</section>
+
+<section>
+<h2>Two rules of the road</h2>
+<ul>
+  <li><strong>Specificity decides order.</strong> If several selectors match the same node, listeners run from least to most specific — more attributes and pseudo-classes means later. Ties break alphabetically.<sup><a href="#r2">2</a></sup></li>
+  <li><strong><code>:exit</code> is for unwinding.</strong> Enter the node to push state, exit it to pop. Anything that needs "after the children" — scope exits, trailing comments, block boundaries — belongs there.<sup><a href="#r2">2</a></sup></li>
+</ul>
+</section>
+
+<section>
+<h2>The SourceCode toolbox</h2>
+<table>
+  <tr><th>Call</th><th>Returns</th></tr>
+  <tr><td><code>sourceCode.getText(node)</code></td><td>The exact source slice for that node or token.<sup><a href="#r3">3</a></sup></td></tr>
+  <tr><td><code>sourceCode.getTokenBefore(t)</code></td><td>The previous token, skipping comments unless asked.<sup><a href="#r3">3</a></sup></td></tr>
+  <tr><td><code>sourceCode.getFirstToken(node)</code></td><td>The first token inside the node.<sup><a href="#r3">3</a></sup></td></tr>
+  <tr><td><code>sourceCode.getCommentsBefore(node)</code></td><td>Attached leading comments.<sup><a href="#r3">3</a></sup></td></tr>
+  <tr><td><code>sourceCode.getAllComments()</code></td><td>Every comment in the file.<sup><a href="#r3">3</a></sup></td></tr>
+  <tr><td><code>node.range</code> / <code>node.loc</code></td><td>Character offsets / line and column.<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+<aside class="note"><strong>Key idea</strong> Discover node shapes empirically, not from memory: paste the code into ESLint Code Explorer, click the syntax you care about, and read the node type off the tree.<sup><a href="#r4">4</a></sup></aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. <code>CallExpression[callee.name='require']</code> matches&hellip;</h4>
+  <button class="opt" data-fb="Correct — callee.name is the identifier being called.">every call to a function named require</button>
+  <button class="opt" data-fb="No — that would be an ImportDeclaration or declarator.">every declaration of require</button>
+  <button class="opt" data-fb="No — that is a MemberExpression, not a call.">every member access named require</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>2. A listener keyed <code>"CallExpression:exit"</code> runs&hellip;</h4>
+  <button class="opt" data-fb="No — that is the default enter phase.">before the node's children are visited</button>
+  <button class="opt" data-fb="Correct — exit fires on the way back up.">after the node's children are visited</button>
+  <button class="opt" data-fb="No — exit fires for every matching node.">only when the node has no children</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. <code>sourceCode.getText(node)</code> returns&hellip;</h4>
+  <button class="opt" data-fb="No — that is node.type.">the node's type name</button>
+  <button class="opt" data-fb="No — no formatting is applied.">the node's normalised value</button>
+  <button class="opt" data-fb="Correct — characters as written, comments included.">the exact source for that node</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section><div class="ask"><strong>Ask the agent</strong> Take a rule you use and rewrite its visitor key as a selector. Confirm in Code Explorer that the selector highlights the same code the rule complains about.</div>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://github.com/estree/estree">ESTree specification</a></li>
+    <li id="r2"><a href="https://eslint.org/docs/latest/extend/selectors">ESLint — Selectors</a></li>
+    <li id="r3"><a href="https://eslint.org/docs/latest/integrate/nodejs-api">ESLint — Node.js API Reference</a></li>
+    <li id="r4"><a href="https://explorer.eslint.org/">ESLint Code Explorer</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-anatomy-of-a-rule.html">&larr; Lesson 4</a></span>
+  <span class="nav-next"><a href="0006-autofix-and-suggestions.html">Lesson 6: fixes and suggestions &rarr;</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> &middot; <a href="../RESOURCES.md">Resources</a> &middot; <a href="../reference/glossary.html">Glossary</a> &middot; <a href="../reference/eslint-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

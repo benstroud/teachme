@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — Options, Schema, and Defaults</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 10</span><span>ESLint &middot; Custom Rules</span></div>
+  <h1>Options, Schema, and Defaults</h1>
+  <p class="subtitle">Give a rule a dial, and validate the dial before it turns.</p>
+</header>
+
+<section>
+<h2>A dial on the rule</h2>
+<pre><code>// eslint.config.js
+rules: {
+  "example/no-banned-calls": ["error", { "forbidden": ["eval", "Function"] }],
+}</code></pre>
+<p>Validation runs in a fixed order: a non-array config is wrapped; element 0 is checked as a severity; if the rule is off, validation stops; every remaining element is copied into <code>context.options</code>; then <code>meta.schema</code> is validated against exactly those elements.<sup><a href="#r1">1</a></sup></p>
+<p>Consequence worth remembering: a schema can never validate the severity, because severity is stripped before the rule or its schema sees anything.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+</section>
+
+<section>
+<h2>Declaring the schema</h2>
+<pre><code>meta: {
+  schema: [
+    {
+      type: "object",
+      properties: {
+        forbidden: { type: "array", items: { type: "string" }, minItems: 1 },
+        allowInTests: { type: "boolean" },
+      },
+      additionalProperties: false,      // reject typos instead of ignoring them
+    },
+  ],
+  defaultOptions: [{ forbidden: ["eval"], allowInTests: true }],
+}</code></pre>
+<p>An array schema is positional: element <em>i</em> validates <code>context.options[i]</code>. If the user passes more options than there are schemas, validation fails; fewer is fine and the unmatched schemas are ignored.<sup><a href="#r1">1</a></sup></p>
+<p><code>defaultOptions</code> is merged recursively <em>under</em> whatever the user supplied, so a partial object still gets every default filled in.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>The rule that consumes it</h2>
+<pre><code>create(context) {
+  const [{ forbidden }] = context.options;   // defaults already merged
+  const sourceCode = context.sourceCode;
+
+  return {
+    CallExpression(node) {
+      if (node.callee.type !== "Identifier") { return; }
+      const name = node.callee.name;
+      if (!forbidden.includes(name)) { return; }
+
+      context.report({
+        node,
+        messageId: "banned",
+        data: { name },
+      });
+    },
+  };
+}</code></pre>
+<p>Declare <code>messages: { banned: "Do not call {{name}}()." }</code> and the interpolated value comes from <code>data</code>. One wording, one place, parameterised by the matched node.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>Why bother with a schema</h2>
+<ul>
+  <li>A bad config fails <em>before</em> linting, with a message pointing at the offending option — not a <code>TypeError</code> deep inside your rule.<sup><a href="#r1">1</a></sup></li>
+  <li>Omitting <code>schema</code> (or writing <code>[]</code>) means "no options accepted"; passing options then throws.<sup><a href="#r1">1</a></sup></li>
+  <li><code>schema: false</code> opts out of validation entirely. It is allowed, and discouraged.<sup><a href="#r1">1</a></sup></li>
+</ul>
+<aside class="note"><strong>Key idea</strong> Options are part of the rule's public contract. If two teams need different behaviour, that is a second option — not a second fork of the rule.<sup><a href="#r1">1</a></sup></aside>
+<div class="ask"><strong>Ask the agent</strong> Add an <code>allowInTests</code> option to your rule and honour it by checking <code>context.filename</code>. Then write the config that turns the rule off for test files without changing the rule at all.</div>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. A rule that declares no <code>schema</code> and receives options will&hellip;</h4>
+  <button class="opt" data-fb="Correct — the default contract accepts no options.">fail configuration validation</button>
+  <button class="opt" data-fb="No — that only happens when a schema allows them.">receive them in <code>context.options</code></button>
+  <button class="opt" data-fb="No — ESLint refuses rather than guessing.">silently ignore the extra elements</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>2. <code>meta.defaultOptions</code> is applied&hellip;</h4>
+  <button class="opt" data-fb="No — user values take precedence.">instead of user options, always</button>
+  <button class="opt" data-fb="Correct — a recursive merge fills the gaps.">underneath the user's options</button>
+  <button class="opt" data-fb="No — severity plays no part in option merging.">only when the rule is set to error</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. A rule's schema can validate its severity because&hellip;</h4>
+  <button class="opt" data-fb="No — the opposite: it is removed before validation.">severity is the first array element</button>
+  <button class="opt" data-fb="No — severity lives in the config, not the rule.">severity is stored on <code>meta</code></button>
+  <button class="opt" data-fb="Correct — only post-severity elements reach it.">it cannot — the schema never sees severity</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://eslint.org/docs/latest/extend/custom-rules">ESLint — Custom Rules</a></li>
+    <li id="r2"><a href="https://eslint.org/docs/latest/use/configure/rules">ESLint — Configure Rules</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-autofix-and-suggestions.html">&larr; Lesson 6</a></span>
+  <span class="nav-next"><a href="0008-testing-with-rule-tester.html">Lesson 8: RuleTester &rarr;</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> &middot; <a href="../RESOURCES.md">Resources</a> &middot; <a href="../reference/glossary.html">Glossary</a> &middot; <a href="../reference/eslint-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

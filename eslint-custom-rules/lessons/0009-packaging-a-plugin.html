@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 9 — Packaging a Plugin</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 9 of 10</span><span>ESLint &middot; Custom Rules</span></div>
+  <h1>Packaging a Plugin</h1>
+  <p class="subtitle">Rules travel in plugins. Configs are opt-in, always.</p>
+</header>
+
+<section>
+<h2>A plugin is a plain object</h2>
+<pre><code>// eslint-plugin-acme.js  (CommonJS)
+const noTodo = require("./rules/no-todo");
+const noBannedCalls = require("./rules/no-banned-calls");
+
+const plugin = {
+  meta: { name: "eslint-plugin-acme", version: "1.0.0" },
+  rules: {
+    "no-todo": noTodo,
+    "no-banned-calls": noBannedCalls,
+  },
+  configs: {},
+};
+
+// A config is just another array of config objects.
+plugin.configs.recommended = [
+  {
+    plugins: { acme: plugin },        // self-reference is expected
+    rules: {
+      "acme/no-todo": "error",
+      "acme/no-banned-calls": ["warn", { "forbidden": ["eval"] }],
+    },
+  },
+];
+
+module.exports = plugin;</code></pre>
+<p><code>meta</code> identifies the plugin, <code>rules</code> is the rule registry, and <code>configs</code> holds ready-made arrays. Nothing else is required, and the tutorial walks this exact file into existence.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+</section>
+
+<section>
+<h2>Registering it locally, before publishing</h2>
+<pre><code>// eslint.config.js
+const acme = require("./eslint-plugin-acme");
+
+module.exports = [
+  {
+    files: ["**/*.js"],
+    plugins: { acme },                    // name it here, use it below
+    rules: { "acme/no-todo": "error" },
+  },
+  // or consume the plugin's own config, explicitly:
+  ...acme.configs.recommended,
+];</code></pre>
+<p>The key in <code>plugins</code> becomes the namespace: <code>acme</code> plus <code>no-todo</code> yields the rule ID <code>acme/no-todo</code>. Rename the key and every rule reference changes with it.<sup><a href="#r1">1</a></sup></p>
+<p>Note what is <em>not</em> happening: ESLint does not discover or auto-apply <code>configs.recommended</code>. The user has to put it in the array. Shipping configuration as its own package is a separate, documented pattern.<sup><a href="#r1">1</a></sup><sup><a href="#r3">3</a></sup></p>
+</section>
+
+<section>
+<h2>Publishing</h2>
+<pre><code>// package.json
+{
+  "name": "eslint-plugin-acme",
+  "peerDependencies": { "eslint": "&gt;=9.0.0" },
+  "keywords": ["eslint", "eslintplugin", "eslint-plugin"]
+}</code></pre>
+<ul>
+  <li>Name the package <code>eslint-plugin-&lt;name&gt;</code> so it is discoverable and the namespace is obvious.<sup><a href="#r1">1</a></sup></li>
+  <li>List <code>eslint</code> as a <strong>peer dependency</strong> — the plugin is a guest in the user's linter, not a second copy of it.<sup><a href="#r1">1</a></sup></li>
+  <li>Keep <code>meta.name</code> and <code>meta.version</code> in sync with the package; tooling uses them to identify and cache the plugin.<sup><a href="#r1">1</a></sup></li>
+</ul>
+<p>Supporting the old config system too? Export flat configs under their plain names and keep the legacy objects prefixed, or keep <code>recommended</code> for legacy and add <code>flat/recommended</code>. Both are documented compatibility paths.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. With <code>plugins: { acme }</code>, the rule <code>no-todo</code> is configured as&hellip;</h4>
+  <button class="opt" data-fb="No — the plugin name comes first, not the rule."><code>no-todo/acme</code></button>
+  <button class="opt" data-fb="Correct — namespace, slash, rule name."><code>acme/no-todo</code></button>
+  <button class="opt" data-fb="No — use the key you registered, not the package name."><code>eslint-plugin-acme/no-todo</code></button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>2. A plugin's <code>configs</code> are&hellip;</h4>
+  <button class="opt" data-fb="No — nothing is auto-applied; the user opts in.">applied automatically when installed</button>
+  <button class="opt" data-fb="Correct — they are ordinary config arrays.">available for the user to include</button>
+  <button class="opt" data-fb="No — merging is explicit, by array position.">merged into every flat config file</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>3. A published plugin should declare eslint as&hellip;</h4>
+  <button class="opt" data-fb="No — bundling a second linter causes duplicate instances.">a bundled dependency</button>
+  <button class="opt" data-fb="No — it is required, not optional.">an optional peer dependency</button>
+  <button class="opt" data-fb="Correct — the host project supplies ESLint.">a required peer dependency</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section><div class="ask"><strong>Ask the agent</strong> Wrap your two rules in a plugin object, register it locally, and confirm the namespaced ID appears in <code>eslint --print-config</code> output for one file.</div>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://eslint.org/docs/latest/extend/plugins">ESLint — Create Plugins</a></li>
+    <li id="r2"><a href="https://eslint.org/docs/latest/extend/custom-rule-tutorial">ESLint — Custom Rule Tutorial</a></li>
+    <li id="r3"><a href="https://eslint.org/docs/latest/extend/shareable-configs">ESLint — Shareable Configs</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0008-testing-with-rule-tester.html">&larr; Lesson 8</a></span>
+  <span class="nav-next"><a href="0010-scope-performance-and-rollout.html">Lesson 10: scope and rollout &rarr;</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> &middot; <a href="../RESOURCES.md">Resources</a> &middot; <a href="../reference/glossary.html">Glossary</a> &middot; <a href="../reference/eslint-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

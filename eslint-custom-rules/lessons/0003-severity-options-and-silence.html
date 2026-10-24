@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — Severity, Options, and Silence</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 10</span><span>ESLint &middot; Custom Rules</span></div>
+  <h1>Severity, Options, and Silence</h1>
+  <p class="subtitle">Turn rules into policy — and keep the signal readable.</p>
+</header>
+
+<section>
+<h2>Three severities, one dial</h2>
+<table>
+  <tr><th>Value</th><th>Meaning</th><th>Exit code</th></tr>
+  <tr><td><code>"off"</code> / <code>0</code></td><td>Rule disabled</td><td>unaffected</td></tr>
+  <tr><td><code>"warn"</code> / <code>1</code></td><td>Reported, not blocking</td><td>unchanged<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>"error"</code> / <code>2</code></td><td>Reported, blocking</td><td><code>1</code> when triggered<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+<p>This is why "warn" is the right first step when adopting a rule: the team sees the problem, and CI stays green long enough to fix the backlog.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>Options ride behind the severity</h2>
+<pre><code>export default [
+  {
+    rules: {
+      "eqeqeq": ["error", "always", { "null": "ignore" }],
+      "no-console": "warn",
+      "example/no-todo": "error",   // namespaced plugin rule
+    },
+  },
+];</code></pre>
+<p>Only the elements <em>after</em> the severity reach the rule. For the config above the rule sees <code>context.options</code> equal to <code>["always", { "null": "ignore" }]</code>. A rule can never read its own severity — that is a linter concern, not a rule concern.<sup><a href="#r2">2</a></sup></p>
+</section>
+
+<section>
+<h2>Silencing, precisely</h2>
+<pre><code>// one line, with a reason
+// eslint-disable-next-line no-console -- CLI output is the feature here
+console.log(summary);
+
+// a region
+/* eslint-disable no-console */
+console.log("still migrating");
+/* eslint-enable no-console */
+
+// reconfigure one rule for the rest of the file
+/* eslint eqeqeq: "off" */</code></pre>
+<p>Two or more dashes introduce a justification, which is worth enforcing by convention: an unexplained disable is indistinguishable from a mistake six months later.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>Keep the signal honest</h2>
+<pre><code>// eslint.config.js
+{
+  linterOptions: {
+    reportUnusedDisableDirectives: "error",  // defaults to "warn"
+    // noInlineConfig: true,                 // ban directives entirely
+  },
+}</code></pre>
+<ul>
+  <li><strong>Unused directives</strong> are dead suppressions. Reporting them turns "we disabled it years ago" into a cleanup task.<sup><a href="#r1">1</a></sup></li>
+  <li><code>--quiet</code> hides warnings while still reporting errors; <code>--max-warnings 0</code> makes any warning fail the run.<sup><a href="#r3">3</a></sup></li>
+  <li><code>--no-inline-config</code> ignores all directive comments — useful to prove the config alone passes.<sup><a href="#r3">3</a></sup></li>
+</ul>
+<div class="ask"><strong>Ask the agent</strong> Pick one rule you have disabled inline and explain, in a comment, why it is still needed. If you cannot, delete the directive and let the linter speak.</div>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="0">
+  <h4>1. A rule set to <code>"warn"</code> reports a problem and&hellip;</h4>
+  <button class="opt" data-fb="Correct — warnings do not fail the run by default.">leaves the exit code unchanged</button>
+  <button class="opt" data-fb="No — that is what an error severity does.">sets the exit code to one</button>
+  <button class="opt" data-fb="No — warning still reports the problem.">suppresses the rule entirely</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>2. For <code>["error", "always", { "null": "ignore" }]</code>, the rule receives&hellip;</h4>
+  <button class="opt" data-fb="No — severity is stripped before the rule runs."><code>["error", "always", { "null": "ignore" }]</code></button>
+  <button class="opt" data-fb="Correct — context.options excludes the severity."><code>["always", { "null": "ignore" }]</code></button>
+  <button class="opt" data-fb="No — every element after severity is passed through."><code>[{ "null": "ignore" }]</code></button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. Dead suppression comments are surfaced by&hellip;</h4>
+  <button class="opt" data-fb="No — that disables all directive comments."><code>linterOptions.noInlineConfig</code></button>
+  <button class="opt" data-fb="Correct — it reports directives that suppressed nothing."><code>reportUnusedDisableDirectives</code></button>
+  <button class="opt" data-fb="No — that fails on warnings; it does not detect stale ones."><code>--max-warnings 0</code> alone</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://eslint.org/docs/latest/use/configure/rules">ESLint — Configure Rules</a></li>
+    <li id="r2"><a href="https://eslint.org/docs/latest/extend/custom-rules">ESLint — Custom Rules</a></li>
+    <li id="r3"><a href="https://eslint.org/docs/latest/use/command-line-interface">ESLint — Command Line Interface</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-the-flat-config-array.html">&larr; Lesson 2</a></span>
+  <span class="nav-next"><a href="0004-anatomy-of-a-rule.html">Lesson 4: anatomy of a rule &rarr;</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> &middot; <a href="../RESOURCES.md">Resources</a> &middot; <a href="../reference/glossary.html">Glossary</a> &middot; <a href="../reference/eslint-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

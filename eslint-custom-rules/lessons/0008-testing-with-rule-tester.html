@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — Testing with RuleTester</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 10</span><span>ESLint &middot; Custom Rules</span></div>
+  <h1>Testing with RuleTester</h1>
+  <p class="subtitle">A rule you cannot test is a rule you cannot leave on.</p>
+</header>
+
+<section>
+<h2>The whole test file</h2>
+<pre><code>// strict-equality.test.js  (CommonJS)
+const { RuleTester } = require("eslint");
+const rule = require("./rules/strict-equality");
+
+const ruleTester = new RuleTester({
+  languageOptions: { ecmaVersion: 2022, sourceType: "module" },
+});
+
+ruleTester.run("strict-equality", rule, {
+  valid: [
+    { code: "if (a === b) {}" },
+    { code: "if (a !== b) {}" },
+  ],
+  invalid: [
+    {
+      code: "if (a == b) {}",
+      output: "if (a === b) {}",           // asserts the autofix
+      errors: [{ messageId: "strict", type: "BinaryExpression" }],
+    },
+  ],
+});
+
+console.log("All tests passed!");</code></pre>
+<p><code>RuleTester</code> ships with ESLint — no test framework required, though it composes with one. <code>run()</code> throws if any case fails, and it insists on at least one valid and one invalid case.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>What a case can assert</h2>
+<table>
+  <tr><th>Field</th><th>Meaning</th></tr>
+  <tr><td><code>code</code></td><td>The source to lint (required).<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>options</code></td><td>The rule's options array, exactly as in config.<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td><code>filename</code></td><td>Virtual path, for rules that branch on filename.<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td><code>errors</code></td><td>A count, or an array of expected problem shapes.<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td><code>output</code></td><td>The exact code after autofixing; <code>null</code> means "no fix".<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><code>suggestions</code></td><td>Expected suggestions, with their own <code>output</code>.<sup><a href="#r2">2</a></sup></td></tr>
+</table>
+<pre><code>errors: [
+  { messageId: "banned", data: { name: "eval" }, type: "CallExpression", line: 1 },
+]</code></pre>
+<p>Assert <code>messageId</code> rather than the rendered message: the id is the contract, the wording is presentation.<sup><a href="#r1">1</a></sup></p>
+</section>
+
+<section>
+<h2>Test the silence, not just the noise</h2>
+<p>False positives are what get a rule deleted from a codebase. For every invalid case, ask what near-miss should stay quiet and write it as a valid case.<sup><a href="#r2">2</a></sup></p>
+<pre><code>valid: [
+  { code: "eval('safe');", options: [{ forbidden: [] }] },   // option disables it
+  { code: "obj.eval('safe');" },                             // not a bare identifier
+  { code: "const eval2 = () =&gt; {}; eval2();" },              // similar name
+],</code></pre>
+<aside class="note"><strong>Key idea</strong> A rule is only as good as its valid cases. The invalid cases prove it fires; the valid cases prove it is safe to leave on.<sup><a href="#r2">2</a></sup></aside>
+<div class="ask"><strong>Ask the agent</strong> Write three valid cases for the rule you built in lesson 7 that must produce zero problems. Run <code>node --test</code> or plain <code>node your.test.js</code> until all pass.</div>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="1">
+  <h4>1. <code>ruleTester.run()</code> requires&hellip;</h4>
+  <button class="opt" data-fb="No — both categories are mandatory.">only invalid cases with outputs</button>
+  <button class="opt" data-fb="Correct — a rule must be shown to fire and to stay quiet.">at least one valid and one invalid case</button>
+  <button class="opt" data-fb="No — RuleTester is self-contained.">a Jest or Mocha test runner</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>2. The <code>output</code> field asserts&hellip;</h4>
+  <button class="opt" data-fb="Correct — it is the fixed source, compared exactly.">the code after autofixing</button>
+  <button class="opt" data-fb="No — formatting is a separate concern.">the formatter's terminal text</button>
+  <button class="opt" data-fb="No — that is errors[].messageId.">the rule's reported message</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="0">
+  <h4>3. The most valuable valid case is one that&hellip;</h4>
+  <button class="opt" data-fb="Correct — it pins down the rule&#x27;s boundary.">looks similar but must not fire</button>
+  <button class="opt" data-fb="No — it proves nothing about the rule.">contains no JavaScript at all</button>
+  <button class="opt" data-fb="No — unrelated rules only add noise.">triggers several other rules</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://eslint.org/docs/latest/extend/custom-rule-tutorial">ESLint — Custom Rule Tutorial</a></li>
+    <li id="r2"><a href="https://eslint.org/docs/latest/integrate/nodejs-api">ESLint — Node.js API Reference</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-options-schema-and-defaults.html">&larr; Lesson 7</a></span>
+  <span class="nav-next"><a href="0009-packaging-a-plugin.html">Lesson 9: packaging a plugin &rarr;</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> &middot; <a href="../RESOURCES.md">Resources</a> &middot; <a href="../reference/glossary.html">Glossary</a> &middot; <a href="../reference/eslint-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

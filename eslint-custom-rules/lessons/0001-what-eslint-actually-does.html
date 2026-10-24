@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — What ESLint Actually Does</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 10</span><span>ESLint &middot; Custom Rules</span></div>
+  <h1>What ESLint Actually Does</h1>
+  <p class="subtitle">A linter is a reader, not a runner: parse, traverse, report.</p>
+</header>
+
+<section>
+<h2>The pipeline, in one picture</h2>
+<pre><code>source text
+   |  parser (espree by default)
+   v
+ESTree AST + tokens + comments
+   |  config resolution: which rules, at what severity
+   v
+rule visitors  ->  context.report(...)
+   |
+   v
+formatter  ->  terminal, CI, editor</code></pre>
+<p>ESLint is a <strong>static analyser</strong>. It reads your source, builds a syntax tree, and walks that tree. It never executes your program, so it can flag a <code>console.log</code> inside a branch that never runs.<sup><a href="#r1">1</a></sup></p>
+<p>Everything else in ESLint is plumbing around one idea: <em>a rule is a function from the tree to a list of messages</em>.<sup><a href="#r2">2</a></sup></p>
+</section>
+
+<section>
+<h2>What it does not do</h2>
+<table>
+  <tr><th>Question</th><th>The linter's answer</th></tr>
+  <tr><td>Will this line throw at runtime?</td><td>Unknown — it never runs the code.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Is this value a <code>string</code>?</td><td>Unknown — the default parser sees syntax, not types.</td></tr>
+  <tr><td>Is this variable used anywhere?</td><td>Knowable — it can resolve bindings and references.<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td>Does this match our team convention?</td><td>Knowable — that is exactly what rules encode.</td></tr>
+</table>
+<p>Type-aware rules exist, but they need a parser wired to a TypeScript program (the typescript-eslint stack). That is a different machine bolted onto the same pipeline, not a feature of the default one.<sup><a href="#r3">3</a></sup></p>
+</section>
+
+<section>
+<h2>Anatomy of a problem</h2>
+<pre><code>/Users/me/app/src/index.js
+  3:7  error  Unexpected console statement  no-console
+
+&#10007; 1 problem (1 error, 0 warnings)</code></pre>
+<p>A problem carries a <code>ruleId</code>, a severity, a message, a line and column, and sometimes a fix. Note what the severity does: it decides whether the problem is reported as a warning or an error, and therefore whether the process exits non-zero. It does <em>not</em> change what the rule inspects.<sup><a href="#r4">4</a></sup></p>
+<pre><code>npx eslint .                     # report everything
+npx eslint src/index.js --fix    # apply safe fixes for this file
+npx eslint . --max-warnings 0    # warnings now fail the build</code></pre>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="q" data-correct="2">
+  <h4>1. ESLint finds problems by&hellip;</h4>
+  <button class="opt" data-fb="No — there is no baseline to diff against.">diffing against a snapshot</button>
+  <button class="opt" data-fb="No — that would be a runtime test, not linting.">running code in a sandbox</button>
+  <button class="opt" data-fb="Correct — the tree is the whole input to a rule.">parsing code into an AST</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="2">
+  <h4>2. A rule can report code that never runs because&hellip;</h4>
+  <button class="opt" data-fb="No — parsers keep every branch they can parse.">the parser deletes dead branches</button>
+  <button class="opt" data-fb="No — nothing is executed, so no trace exists.">reports come from runtime traces</button>
+  <button class="opt" data-fb="Correct — analysis is static, so reachability is irrelevant.">linting never executes the branch</button>
+  <div class="fb"></div>
+</div>
+<div class="q" data-correct="1">
+  <h4>3. Raising a rule from warn to error changes&hellip;</h4>
+  <button class="opt" data-fb="No — the visitor map is unchanged.">the nodes the rule visits</button>
+  <button class="opt" data-fb="Correct — severity decides reporting and exit status.">the exit code, not detection</button>
+  <button class="opt" data-fb="No — parsing happens before severity is applied.">the parser's node output shape</button>
+  <div class="fb"></div>
+</div>
+<div class="score" id="quiz-score"></div>
+</section>
+
+<section>
+<aside class="note"><strong>Key idea</strong> When a rule surprises you, ask which <em>node</em> it looked at, not which line you were thinking of. The line number is an output; the node is the input.<sup><a href="#r2">2</a></sup></aside>
+<h2>What to hold onto</h2>
+<ul>
+  <li>Linting is reading, not running.</li>
+  <li>The input to every rule is an AST node plus the surrounding source.</li>
+  <li>Severity controls reporting and exit codes, never detection.</li>
+</ul>
+<div class="ask"><strong>Ask the agent</strong> Run <code>npx eslint .</code> in a project and pick one reported problem. Name the rule, then guess which AST node it must have matched. We will verify your guess in lesson 5.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://eslint.org/docs/latest/use/core-concepts">ESLint — Core Concepts</a></li>
+    <li id="r2"><a href="https://eslint.org/docs/latest/extend/custom-rules">ESLint — Custom Rules</a></li>
+    <li id="r3"><a href="https://typescript-eslint.io/getting-started/typed-linting/">typescript-eslint — Typed Linting</a></li>
+    <li id="r4"><a href="https://eslint.org/docs/latest/use/configure/rules">ESLint — Configure Rules</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/glossary.html">&larr; Glossary</a></span>
+  <span class="nav-next"><a href="0002-the-flat-config-array.html">Lesson 2: the flat config array &rarr;</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> &middot; <a href="../RESOURCES.md">Resources</a> &middot; <a href="../reference/glossary.html">Glossary</a> &middot; <a href="../reference/eslint-cheatsheet.html">Cheat sheet</a>
+</footer>
+
+<script>
+(function () {
+  var scoreEl = document.getElementById('quiz-score');
+  var questions = document.querySelectorAll('.q');
+  var total = questions.length;
+  var correct = 0;
+  function render() { if (scoreEl) { scoreEl.textContent = 'Score: ' + correct + ' / ' + total; } }
+  render();
+  questions.forEach(function (q) {
+    var btns = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+    var fb = q.querySelector('.fb');
+    var ci = parseInt(q.getAttribute('data-correct'), 10);
+    btns.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (q.classList.contains('done')) { return; }
+        q.classList.add('done');
+        btns.forEach(function (b) { b.disabled = true; });
+        var right = (i === ci);
+        btn.classList.add(right ? 'correct' : 'wrong');
+        btns[ci].classList.add('correct');
+        fb.textContent = btn.getAttribute('data-fb') || '';
+        fb.classList.add(right ? 'ok' : 'no');
+        if (right) { correct += 1; }
+        render();
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

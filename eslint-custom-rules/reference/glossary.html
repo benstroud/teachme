@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESLint &amp; Custom Rules — Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>ESLint &middot; Custom Rules</span></div>
+  <h1>Glossary</h1>
+  <p class="subtitle">The vocabulary used throughout this workspace. When a lesson and this page disagree, this page is the one to fix.</p>
+</header>
+
+<section>
+<h2>Foundations</h2>
+<table>
+  <tr><th>Term</th><th>Meaning</th></tr>
+  <tr><td><strong>Lint</strong></td><td>To analyse source code for suspicious patterns without running it.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><strong>Static analysis</strong></td><td>Reasoning about a program from its text and structure, not its execution.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><strong>AST</strong></td><td>Abstract syntax tree: a tree of typed nodes representing the program's structure.<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td><strong>ESTree</strong></td><td>The node-type specification ESLint follows (<code>CallExpression</code>, <code>VariableDeclarator</code>, &hellip;).<sup><a href="#r2">2</a></sup></td></tr>
+  <tr><td><strong>espree</strong></td><td>ESLint's default parser: source text in, ESTree AST plus tokens and comments out.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><strong>Token</strong></td><td>A lexical unit (identifier, punctuator, literal) with a range; fixers work on nodes and tokens.<sup><a href="#r3">3</a></sup></td></tr>
+</table>
+</section>
+
+<section>
+<h2>Configuration</h2>
+<table>
+  <tr><th>Term</th><th>Meaning</th></tr>
+  <tr><td><strong>Flat config</strong></td><td>The current system: an exported array of config objects, default from v9.<sup><a href="#r3">3</a></sup></td></tr>
+  <tr><td><strong>Config object</strong></td><td>One element of that array, optionally scoped by <code>files</code>.<sup><a href="#r3">3</a></sup></td></tr>
+  <tr><td><strong>Cascade</strong></td><td>Objects are applied in order; later matching objects override earlier settings.<sup><a href="#r3">3</a></sup></td></tr>
+  <tr><td><strong>Global ignore</strong></td><td>An object whose only key is <code>ignores</code>; it excludes files everywhere.<sup><a href="#r3">3</a></sup></td></tr>
+  <tr><td><strong>languageOptions</strong></td><td>Parser-facing settings: <code>ecmaVersion</code>, <code>sourceType</code>, <code>globals</code>, <code>parser</code>.<sup><a href="#r3">3</a></sup></td></tr>
+  <tr><td><strong>linterOptions</strong></td><td>Linter behaviour: <code>noInlineConfig</code>, <code>reportUnusedDisableDirectives</code>.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><strong>Severity</strong></td><td><code>off</code>/<code>0</code>, <code>warn</code>/<code>1</code>, <code>error</code>/<code>2</code>; controls reporting and exit code.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><strong>Options</strong></td><td>The array elements after the severity; delivered to the rule as <code>context.options</code>.<sup><a href="#r3">3</a></sup></td></tr>
+  <tr><td><strong>Rule ID</strong></td><td><code>rule-name</code> for core rules, <code>namespace/rule-name</code> for plugin rules.<sup><a href="#r3">3</a></sup></td></tr>
+  <tr><td><strong>Directive comment</strong></td><td>An inline <code>eslint-disable</code>/<code>eslint-enable</code> or rule-setting comment.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td><strong>Suppression</strong></td><td>A directive that hides a known problem; track it or it rots.<sup><a href="#r1">1</a></sup></td></tr>
+</table>
+</section>
+
+<section>
+<h2>Authoring</h2>
+<table>
+  <tr><th>Term</th><th>Meaning</th></tr>
+  <tr><td><strong>Rule</strong></td><td>An object with <code>meta</code> and <code>create</code> that inspects nodes and reports problems.<sup><a href="#r4">4</a></sup></td></tr>
+  <tr><td><strong>meta</strong></td><td>Rule metadata: <code>type</code>, <code>docs</code>, <code>schema</code>, <code>messages</code>, <code>fixable</code>, <code>hasSuggestions</code>.<sup><a href="#r4">4</a></sup></td></tr>
+  <tr><td><strong>Visitor</strong></td><td>A function in the object returned by <code>create</code>, keyed by node type or selector.<sup><a href="#r4">4</a></sup></td></tr>
+  <tr><td><strong>Selector</strong></td><td>An esquery query used as a visitor key, e.g. <code>"CallExpression[callee.name='eval']"</code>.<sup><a href="#r5">5</a></sup></td></tr>
+  <tr><td><strong>context</strong></td><td>The rule's environment: <code>options</code>, <code>filename</code>, <code>sourceCode</code>, <code>report</code>.<sup><a href="#r4">4</a></sup></td></tr>
+  <tr><td><strong>report</strong></td><td><code>context.report({ node, messageId, data, fix, suggest })</code> — emits a problem.<sup><a href="#r4">4</a></sup></td></tr>
+  <tr><td><strong>messageId</strong></td><td>A key into <code>meta.messages</code>; preferred over inline message strings.<sup><a href="#r4">4</a></sup></td></tr>
+  <tr><td><strong>Placeholder</strong></td><td><code>{{name}}</code> inside a message, filled from the report's <code>data</code>.<sup><a href="#r4">4</a></sup></td></tr>
+  <tr><td><strong>Fixable</strong></td><td><code>meta.fixable: "code" | "whitespace"</code>; mandatory before returning a fix.<sup><a href="#r4">4</a></sup></td></tr>
+  <tr><td><strong>Fixing object</strong></td><td><code>{ range, text }</code> produced by a fixer call.<sup><a href="#r4">4</a></sup></td></tr>
+  <tr><td><strong>Multipass fix</strong></td><td>ESLint applies non-overlapping fixes, then re-runs rules, up to ten passes.<sup><a href="#r4">4</a></sup></td></tr>
+  <tr><td><strong>Suggestion</strong></td><td>A fix offered for a human to choose; requires <code>meta.hasSuggestions</code>.<sup><a href="#r4">4</a></sup></td></tr>
+  <tr><td><strong>Schema</strong></td><td>JSON Schema for rule options; positional array or a single object schema.<sup><a href="#r4">4</a></sup></td></tr>
+  <tr><td><strong>defaultOptions</strong></td><td>Defaults merged recursively underneath user-supplied options.<sup><a href="#r4">4</a></sup></td></tr>
+  <tr><td><strong>Plugin</strong></td><td>An object with <code>meta</code>, <code>rules</code> and <code>configs</code> that ships rules together.<sup><a href="#r6">6</a></sup></td></tr>
+  <tr><td><strong>Namespace</strong></td><td>The key a plugin is registered under in <code>plugins</code>; prefixes its rule IDs.<sup><a href="#r6">6</a></sup></td></tr>
+</table>
+</section>
+
+<section>
+<h2>Analysis &amp; tooling</h2>
+<table>
+  <tr><th>Term</th><th>Meaning</th></tr>
+  <tr><td><strong>Scope</strong></td><td>A region owning declarations: global, module, function, block, class, catch, switch&hellip;<sup><a href="#r4">4</a></sup></td></tr>
+  <tr><td><strong>Variable</strong></td><td>A binding in a scope, with <code>defs</code> and <code>references</code>.<sup><a href="#r4">4</a></sup></td></tr>
+  <tr><td><strong>Reference</strong></td><td>A read or write of a variable; <code>isRead()</code> tells them apart.<sup><a href="#r4">4</a></sup></td></tr>
+  <tr><td><strong>RuleTester</strong></td><td>Built-in harness: <code>run(name, rule, { valid, invalid })</code>.<sup><a href="#r7">7</a></sup></td></tr>
+  <tr><td><strong>Code Explorer</strong></td><td>Official tool for inspecting the AST and tokens of a snippet.<sup><a href="#r8">8</a></sup></td></tr>
+  <tr><td><strong>--print-config</strong></td><td>CLI flag that prints the fully resolved config for one file.<sup><a href="#r9">9</a></sup></td></tr>
+  <tr><td><strong>Formatter</strong></td><td>Pluggable output renderer; it never changes which problems exist.<sup><a href="#r9">9</a></sup></td></tr>
+</table>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://eslint.org/docs/latest/use/configure/rules">ESLint — Configure Rules</a></li>
+    <li id="r2"><a href="https://github.com/estree/estree">ESTree specification</a></li>
+    <li id="r3"><a href="https://eslint.org/docs/latest/use/configure/configuration-files">ESLint — Configuration Files</a></li>
+    <li id="r4"><a href="https://eslint.org/docs/latest/extend/custom-rules">ESLint — Custom Rules</a></li>
+    <li id="r5"><a href="https://eslint.org/docs/latest/extend/selectors">ESLint — Selectors</a></li>
+    <li id="r6"><a href="https://eslint.org/docs/latest/extend/plugins">ESLint — Create Plugins</a></li>
+    <li id="r7"><a href="https://eslint.org/docs/latest/extend/custom-rule-tutorial">ESLint — Custom Rule Tutorial</a></li>
+    <li id="r8"><a href="https://explorer.eslint.org/">ESLint Code Explorer</a></li>
+    <li id="r9"><a href="https://eslint.org/docs/latest/use/command-line-interface">ESLint — Command Line Interface</a></li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="../reference/eslint-cheatsheet.html">&larr; Cheat sheet</a></span>
+  <span class="nav-next"><a href="../lessons/0001-what-eslint-actually-does.html">Lesson 1 &rarr;</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · Terms are grounded in the sources above.
+</footer>
+</body>
+</html>
+
