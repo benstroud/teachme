@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — Errors</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 10</span><span>Axum 0.8</span></div>
+  <h1>Errors</h1>
+  <p class="subtitle">Every failure must become a response. Define one error type, decide its shape once in <code>IntoResponse</code>, and let <code>?</code> convert into it.</p>
+</header>
+
+<section>
+<h2>Why errors become responses</h2>
+<p>Axum services are built on Tower's <code>Service</code>, and Axum requires them to use <code>Infallible</code> as the error type. An error that escaped the service would reach the HTTP server, which closes the connection without sending a response.<sup><a href="#r1">1</a></sup> So a handler that fails must return a value that is already a response.</p>
+<p>That is why a handler may return <code>Result&lt;T, E&gt;</code> where <code>E</code> implements <code>IntoResponse</code>. The <code>Err</code> arm becomes a response, and the client sees a status code and a body.</p>
+
+<h2>One error type, one shape</h2>
+<p>The lab's <a href="../code/examples/l07_errors.rs"><code>l07_errors.rs</code></a> defines one enum and decides its wire format in one place:</p>
+<pre><code>#[derive(Debug)]
+pub enum AppError {
+    BadInput(String),
+    NotFound,
+}
+
+impl IntoResponse for AppError {
+    fn into_response(self) -&gt; Response {
+        let (status, message) = match self {
+            AppError::BadInput(msg) =&gt; (StatusCode::BAD_REQUEST, msg),
+            AppError::NotFound =&gt; (StatusCode::NOT_FOUND, "not found".to_string()),
+        };
+        (status, Json(json!({ "error": message }))).into_response()
+    }
+}</code></pre>
+
+<p>Every error now has the same JSON shape, <code>{"error": "..."}</code>, and the status is chosen in one <code>match</code>. A handler never builds an error response by hand.</p>
+
+<h2>Let ? convert the error</h2>
+<p>The <code>?</code> operator calls <code>From</code> to turn one error type into another. Implement <code>From&lt;ParseIntError&gt;</code> for <code>AppError</code>, and a parse failure in a handler becomes a 400:</p>
+<pre><code>impl From&lt;std::num::ParseIntError&gt; for AppError {
+    fn from(err: std::num::ParseIntError) -&gt; Self {
+        AppError::BadInput(err.to_string())
+    }
+}
+
+async fn double(Query(q): Query&lt;DoubleQuery&gt;) -&gt; Result&lt;Json&lt;serde_json::Value&gt;, AppError&gt; {
+    let n: i64 = q.n.parse()?; // ParseIntError -&gt; AppError::BadInput
+    if n &lt; 0 {
+        return Err(AppError::BadInput("n must not be negative".into()));
+    }
+    Ok(Json(json!({ "double": n * 2 })))
+}</code></pre>
+
+<p>The lab test <code>parse_error_becomes_400_json</code> sends <code>?n=abc</code> and checks that the body's <code>error</code> field contains <em>invalid digit</em>, the text from the standard library's parse error.</p>
+
+<aside class="note"><strong>Two kinds of 400</strong> A parse error inside your handler is your <code>AppError</code>, with your JSON body. A missing required <code>Query</code> field is an extractor rejection, and Axum writes that response. The lab test <code>missing_query_field_is_axum_rejection_not_ours</code> checks that the body is not your JSON at all. Both are 400, but they come from different code.</aside>
+
+<section>
+<h2>Beyond the basics</h2>
+<p>The docs describe <code>HandleError</code> and <code>HandleErrorLayer</code> for services and middleware that can fail with an error type you do not control.<sup><a href="#r1">1</a></sup> You will need them when a third-party layer returns an error. They are not covered by a lab test here.</p>
+</section>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Run <code>cargo test --example l07_errors</code>. Confirm all five tests pass.</li>
+  <li>Add a variant <code>Conflict(String)</code> with status 409. Add a route <code>/conflict</code> that returns it. Write the test first, then the code.</li>
+  <li>Remove the <code>From</code> impl and read the compiler error on the <code>?</code> line. Restore it.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">Why must a failing handler return a value that is already a response, instead of letting the error propagate?</p>
+    <button class="quiz-option">Rust does not allow <code>?</code> inside an async fn</button>
+    <button class="quiz-option">Handlers are not allowed to return a Result</button>
+    <button class="quiz-option">An escaped error drops the connection with no response</button>
+    <button class="quiz-option">The Json extractor converts every error automatically</button>
+    <p class="quiz-explanation">Axum services must be infallible at the Tower level. An error reaching the server closes the connection, so errors become responses inside the handler's return type.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">Which trait does <code>?</code> use to convert a <code>ParseIntError</code> into <code>AppError</code>?</p>
+    <button class="quiz-option">From</button>
+    <button class="quiz-option">Default</button>
+    <button class="quiz-option">Deref</button>
+    <button class="quiz-option">Drop</button>
+    <p class="quiz-explanation">The <code>?</code> operator calls <code>From::from</code> on the error. That is why the lab implements <code>From&lt;ParseIntError&gt;</code> for <code>AppError</code>.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">A required <code>Query</code> field is missing. Who writes the 400 response?</p>
+    <button class="quiz-option">AppError::BadInput, through its IntoResponse impl</button>
+    <button class="quiz-option">The fallback handler</button>
+    <button class="quiz-option">A middleware layer</button>
+    <button class="quiz-option">Axum's Query extractor, before the handler runs</button>
+    <p class="quiz-explanation">An extractor that fails returns its own response, and your handler is never called. The lab test checks that the body is not your error JSON.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://docs.rs/axum/latest/axum/error_handling/index.html">error handling module</a> on docs.rs. Then read the <a href="https://github.com/tokio-rs/axum/blob/main/examples/error-handling/src/main.rs">error-handling example</a> in the Axum repository, which uses a larger <code>AppError</code>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Ask me to design an error type for a "transfer money" endpoint with insufficient funds, unknown account, and database failure. Ask which of those should leak detail to the client and which should not.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.rs/axum/latest/axum/error_handling/index.html">docs.rs — axum::error_handling</a> — why services are infallible; <code>HandleError</code> and <code>HandleErrorLayer</code>. The <code>?</code> and <code>From</code> behaviour and the extractor rejection behaviour are verified by the lab tests named above.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-shared-state.html">← Lesson 6: Shared State</a></span>
+  <span class="nav-next"><a href="0008-middleware.html">Lesson 8: Middleware →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/axum-cheatsheet.html">Cheat sheet</a> · <a href="../code/">Lab code</a>
+</footer>
+</body>
+</html>

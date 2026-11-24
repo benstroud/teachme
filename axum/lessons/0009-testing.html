@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 9 — Testing Without a Socket</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 9 of 10</span><span>Axum 0.8</span></div>
+  <h1>Testing Without a Socket</h1>
+  <p class="subtitle">A Router is a Tower service. You can send it a request in memory, check the response, and never open a port. Use a real socket only for the one thing a socket test proves.</p>
+</header>
+
+<section>
+<h2>Build the router in a function</h2>
+<p>The Axum testing example builds the router in a function, so tests and the real program share the same code.<sup><a href="#r1">1</a></sup> The lab does the same with <code>app(state)</code> in every example. Nothing in <code>main</code> is special, so a test that calls <code>app()</code> is testing the real thing.</p>
+
+<h2>One request: oneshot</h2>
+<p><code>ServiceExt::oneshot</code> sends one request and returns the response. You need the <code>tower</code> crate with its <code>util</code> feature, and <code>http-body-util</code> to read the body:<sup><a href="#r1">1</a></sup></p>
+<pre><code>use axum::{body::Body, http::Request};
+use http_body_util::BodyExt;
+use tower::ServiceExt;
+
+#[tokio::test]
+async fn health_with_oneshot() {
+    let response = app(AppState::default())
+        .oneshot(Request::builder().uri("/health").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let bytes = response.into_body().collect().await.unwrap().to_bytes();
+    assert_eq!(&amp;bytes[..], b"ok");
+}</code></pre>
+<p>The lab test <code>health_with_oneshot</code> is exactly this. Converting the body with <code>collect().await.to_bytes()</code> is the step most people look up.</p>
+
+<h2>Several requests: ready and call</h2>
+<p>To send more than one request to the same service, turn the router into a service with a fixed body type, then call it in a loop:</p>
+<pre><code>let mut service = app(AppState::default()).into_service::&lt;Body&gt;();
+
+for _ in 0..2 {
+    let req = Request::builder()
+        .method("POST")
+        .uri("/count")
+        .body(Body::empty())
+        .unwrap();
+    let response = service.ready().await.unwrap().call(req).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+}</code></pre>
+
+<aside class="note"><strong>The annotation you may need</strong> Without <code>into_service::&lt;Body&gt;()</code>, the compiler cannot infer the body type, and <code>ready()</code> fails with E0283, "type annotations needed". The lab probe reproduced that error. Pinning the body type fixes it.</aside>
+
+<p><code>ready()</code> waits until the service can accept a request, and <code>call()</code> sends it. Both come from Tower's <code>Service</code> trait, which is why the test imports <code>tower::Service</code>.<sup><a href="#r2">2</a></sup> The lab test <code>stateful_sequence_with_ready_and_call</code> uses this pattern to show state changing between calls.</p>
+
+<h2>A real socket, once</h2>
+<p>Sometimes a test should prove that the server actually listens and shuts down. The lab test <code>real_socket_round_trip</code> binds port 0, which asks the operating system for a free port, starts the server with graceful shutdown, sends one raw HTTP request, and stops the server:<sup><a href="#r2">2</a></sup></p>
+<pre><code>let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+let addr = listener.local_addr().unwrap();
+let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::&lt;()&gt;();
+let server = tokio::spawn(async move {
+    axum::serve(listener, app(AppState::default()))
+        .with_graceful_shutdown(async {
+            let _ = shutdown_rx.await;
+        })
+        .await
+        .unwrap();
+});
+// ...connect to addr, send a request, read the reply...
+shutdown_tx.send(()).unwrap();
+server.await.unwrap();</code></pre>
+<p>This test is slower and needs an operating system port, so use <code>oneshot</code> for everything else. Keep one socket test per server, to check the wiring.</p>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Run <code>cargo test --example l09_testing</code>. Confirm three tests pass and note how long the socket test takes compared with the others.</li>
+  <li>Remove <code>into_service::&lt;Body&gt;()</code> from the loop test, and read the E0283 error. Restore it.</li>
+  <li>Add a test that calls <code>/count</code> once with <code>GET</code> and asserts the body is <code>{"count":0}</code>. Predict the exact text first, since <code>serde_json</code> prints compact JSON.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">Why does the lab build the router in an <code>app()</code> function?</p>
+    <button class="quiz-option">Routers cannot be stored in a variable</button>
+    <button class="quiz-option">A fresh function makes the tests run faster</button>
+    <button class="quiz-option">Only functions are allowed to take state</button>
+    <button class="quiz-option">Tests and main share one router, so tests run real code</button>
+    <p class="quiz-explanation">The testing example builds the router in a function so tests call the same code that <code>main</code> serves.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">Why does a loop of <code>ready().call()</code> need <code>into_service::&lt;Body&gt;()</code>?</p>
+    <button class="quiz-option">To start a new server for each request</button>
+    <button class="quiz-option">To make the router safe to send between threads</button>
+    <button class="quiz-option">The compiler cannot infer which request body type to use</button>
+    <button class="quiz-option">To convert the router into a Tokio listener</button>
+    <p class="quiz-explanation">Without the pinned body type the compiler reports E0283. The probe in the lab showed exactly that error.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">What is the main cost of a real-socket test, compared with <code>oneshot</code>?</p>
+    <button class="quiz-option">It cannot read the response body at all</button>
+    <button class="quiz-option">It is slower and needs a free port</button>
+    <button class="quiz-option">It cannot check status codes or headers</button>
+    <button class="quiz-option">It needs a Docker container to run in CI</button>
+    <p class="quiz-explanation">A socket test binds a port and runs a real server. That proves the wiring, but it costs time and a port. Most checks belong in <code>oneshot</code>.</p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://github.com/tokio-rs/axum/blob/main/examples/testing/src/main.rs">testing example</a> in the Axum repository. It shows <code>oneshot</code>, the <code>ServiceExt</code> imports, and a <code>ConnectInfo</code> mock.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Ask me which of your handlers in an app you use should be tested with oneshot, which with a socket, and which not at all, and why.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://github.com/tokio-rs/axum/blob/main/examples/testing/src/main.rs">Axum example — testing</a> — <code>app()</code> function; <code>oneshot</code>; <code>BodyExt::collect</code>; the <code>tower</code> <code>util</code> feature.</li>
+    <li id="r2"><a href="https://docs.rs/tower/latest/tower/trait.ServiceExt.html">docs.rs — tower::ServiceExt</a> — <code>ready</code>, <code>oneshot</code>, and <code>call</code>. The E0283 probe and the socket test are verified by the lab.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0008-middleware.html">← Lesson 8: Middleware</a></span>
+  <span class="nav-next"><a href="0010-shipping.html">Lesson 10: Shipping →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/axum-cheatsheet.html">Cheat sheet</a> · <a href="../code/">Lab code</a>
+</footer>
+</body>
+</html>

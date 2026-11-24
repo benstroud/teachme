@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — Responses</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 10</span><span>Axum 0.8</span></div>
+  <h1>Responses</h1>
+  <p class="subtitle">A handler returns a value. If that value implements <code>IntoResponse</code>, Axum makes the HTTP response from it: the body, the status, and the headers.</p>
+</header>
+
+<section>
+<h2>IntoResponse is the contract</h2>
+<p>The handler docs say a handler is an async function that returns <em>something that can be converted into a response</em>.<sup><a href="#r1">1</a></sup> The trait that does the conversion is <code>IntoResponse</code>. Strings, status codes, <code>Json</code>, tuples, and <code>Result</code> all implement it, so you rarely write the conversion yourself.</p>
+
+<h2>Json as a response</h2>
+<p><code>Json&lt;T&gt;</code> serializes <code>T</code> with <code>serde</code> and sets the content type. The lab's <code>one_user</code> handler returns it directly:<sup><a href="#r2">2</a></sup></p>
+<pre><code>#[derive(Serialize)]
+struct User {
+    id: u32,
+    name: String,
+}
+
+async fn one_user() -&gt; Json&lt;User&gt; {
+    Json(User { id: 1, name: "Ada".into() })
+}</code></pre>
+<p>The lab test <code>json_sets_content_type_and_body</code> checks that the response is <code>application/json</code> and that the body parses with <code>name</code> equal to <code>Ada</code>.</p>
+
+<h2>Tuples set the status and headers</h2>
+<p>A tuple puts a status code and extra parts in front of the body. The first element can be a <code>StatusCode</code>, and the docs describe the other elements as header or extension parts.<sup><a href="#r1">1</a></sup></p>
+<pre><code>async fn created() -&gt; (StatusCode, Json&lt;User&gt;) {
+    (StatusCode::CREATED, Json(User { id: 2, name: "Ben".into() }))
+}
+
+async fn plain() -&gt; impl IntoResponse {
+    ([(header::CONTENT_TYPE, "text/plain; charset=utf-8")], "hello")
+}</code></pre>
+<p>The first handler returns <code>201 Created</code> with a JSON body. The second is a header array in front of a string: the array sets <code>content-type</code>, and the string becomes the body. The lab tests <code>tuple_overrides_status</code> and <code>header_array_sets_content_type</code> check both.</p>
+
+<h2>Result sends errors as status codes</h2>
+<p><code>Result&lt;T, E&gt;</code> works as a response when both <code>T</code> and <code>E</code> implement <code>IntoResponse</code>. A <code>StatusCode</code> is a valid error type, so an <code>Err</code> becomes a status-only response:<sup><a href="#r1">1</a></sup></p>
+<pre><code>async fn find(Path(id): Path&lt;u32&gt;) -&gt; Result&lt;Json&lt;User&gt;, StatusCode&gt; {
+    if id == 1 {
+        Ok(Json(User { id, name: "Ada".into() }))
+    } else {
+        Err(StatusCode::NOT_FOUND)
+    }
+}</code></pre>
+
+<aside class="note"><strong>Prefer a concrete error type</strong> The response docs advise against <code>Result&lt;impl IntoResponse, impl IntoResponse&gt;</code>, because it does not always work with <code>?</code>. A concrete error type, such as <code>StatusCode</code> here or your own <code>AppError</code> in lesson 7, avoids the problem.<sup><a href="#r1">1</a></sup></aside>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Run <code>cargo test --example l05_responses</code> and confirm four passing tests.</li>
+  <li>Predict the status for <code>GET /users/2</code>, then run <code>curl -i http://127.0.0.1:3000/users/2</code> after starting the example.</li>
+  <li>Change the <code>plain</code> handler to return <code>text/html</code>. Predict which test breaks, then run it.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">A handler returns <code>Json&lt;User&gt;</code>. What does the client get, by default?</p>
+    <button class="quiz-option">200 OK with <code>text/plain</code></button>
+    <button class="quiz-option">200 OK with <code>text/html</code></button>
+    <button class="quiz-option">200 OK with <code>application/json</code></button>
+    <button class="quiz-option">201 Created with <code>application/json</code></button>
+    <p class="quiz-explanation">A bare <code>Json</code> response has status 200 and sets <code>application/json</code>. The test <code>json_sets_content_type_and_body</code> checks it.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">A handler returns <code>(StatusCode::CREATED, Json(user))</code>. What does the client get?</p>
+    <button class="quiz-option">201 Created with the JSON body</button>
+    <button class="quiz-option">200 OK with no body</button>
+    <button class="quiz-option">The JSON is ignored and the body is empty</button>
+    <button class="quiz-option">500, because tuples are not allowed as responses</button>
+    <p class="quiz-explanation">A tuple with a status code first sets that status. The rest of the tuple is the body and parts.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">A handler returns <code>Err(StatusCode::NOT_FOUND)</code> from a <code>Result&lt;Json&lt;User&gt;, StatusCode&gt;</code>. What does the client get?</p>
+    <button class="quiz-option">200 OK with an empty body</button>
+    <button class="quiz-option">404 Not Found</button>
+    <button class="quiz-option">500 Internal Server Error</button>
+    <button class="quiz-option">The connection closes without a response</button>
+    <p class="quiz-explanation"><code>StatusCode</code> implements <code>IntoResponse</code>, so the <code>Err</code> arm becomes a 404 response. Axum does not drop the connection.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://docs.rs/axum/latest/axum/response/index.html">response module</a> on docs.rs. Its tuple table lists which parts may appear where.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Ask me to design the response for a "create order" endpoint: the success status, the body, and the response for an out-of-stock item. Then check your design against the tuple rules.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.rs/axum/latest/axum/response/index.html">docs.rs — axum::response</a> — tuples with status and parts; <code>Result</code> as a response; the advice to use a concrete error type.</li>
+    <li id="r2"><a href="https://docs.rs/axum/latest/axum/struct.Json.html">docs.rs — axum::Json</a> — <code>Json</code> as a response sets the JSON content type.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-extractors.html">← Lesson 4: Extractors</a></span>
+  <span class="nav-next"><a href="0006-shared-state.html">Lesson 6: Shared State →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/axum-cheatsheet.html">Cheat sheet</a> · <a href="../code/">Lab code</a>
+</footer>
+</body>
+</html>

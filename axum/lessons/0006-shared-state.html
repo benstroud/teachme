@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — Shared State</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 10</span><span>Axum 0.8</span></div>
+  <h1>Shared State</h1>
+  <p class="subtitle">Every request is a separate call. State that must outlive one request is bound to the router once, then handed to each handler that asks for it.</p>
+</header>
+
+<section>
+<h2>Bind state to the router</h2>
+<p>A router can be built with a state type <code>S</code>. Handlers that take <code>State&lt;T&gt;</code> need <code>S</code> to provide a <code>T</code>. Calling <code>with_state</code> supplies a value of <code>S</code>, and the result is a <code>Router</code> with no unbound state. That is the only kind <code>axum::serve</code> accepts.<sup><a href="#r1">1</a></sup></p>
+
+<pre><code>#[derive(Clone, Default)]
+pub struct AppState {
+    pub notes: Arc&lt;Mutex&lt;Vec&lt;String&gt;&gt;&gt;,
+}
+
+pub fn app(state: AppState) -&gt; Router {
+    Router::new()
+        .route("/notes", post(add_note))
+        .route("/notes/count", get(count_notes))
+        .with_state(state)
+}
+
+// State first, body last.
+async fn add_note(State(state): State&lt;AppState&gt;, body: String) -&gt; StatusCode {
+    state.notes.lock().unwrap().push(body);
+    StatusCode::CREATED
+}</code></pre>
+
+<p>The lab's <a href="../code/examples/l06_state.rs"><code>l06_state.rs</code></a> runs this exactly. <code>add_note</code> follows the rule from lesson 4: the state extractor is a parts extractor, so it comes first, and the body comes last.</p>
+
+<h2>Why Arc</h2>
+<p>Axum clones the state for each handler call. <code>AppState</code> derives <code>Clone</code>, and cloning it clones the <code>Arc</code>, not the notes. Every clone points at the same <code>Mutex</code>. The lab test <code>state_is_shared_across_requests</code> keeps a clone outside the router and checks that it sees both notes.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Substates with FromRef</h2>
+<p>A handler that needs only one part of the state can ask for that part. Implement <code>FromRef</code> to say how to get it from the whole state:<sup><a href="#r2">2</a></sup></p>
+<pre><code>impl FromRef&lt;AppState&gt; for Arc&lt;Mutex&lt;Vec&lt;String&gt;&gt;&gt; {
+    fn from_ref(app: &amp;AppState) -&gt; Self {
+        app.notes.clone()
+    }
+}
+
+async fn count_notes(State(notes): State&lt;Arc&lt;Mutex&lt;Vec&lt;String&gt;&gt;&gt;&gt;) -&gt; String {
+    notes.lock().unwrap().len().to_string()
+}</code></pre>
+
+<aside class="note"><strong>Choosing a mutex</strong> The lab uses <code>std::sync::Mutex</code>, and no handler holds the guard across an <code>.await</code>. The docs say a Tokio mutex is needed only when the guard must cross an await point.<sup><a href="#r2">2</a></sup> A <code>std</code> guard held across an <code>.await</code> is the mistake to avoid.</aside>
+
+<h2>Compared with Tauri</h2>
+<p>If you did the Tauri set, the shape is familiar. Tauri's <code>app.manage</code> and <code>State&lt;T&gt;</code> play the same role as Axum's <code>with_state</code> and <code>State&lt;T&gt;</code>.<sup><a href="#r3">3</a></sup> The difference is where the state is bound: Tauri binds it to the app at setup, while Axum binds it to the router, and the router's type parameter records whether state is still missing.</p>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Run <code>cargo test --example l06_state</code>. Confirm the test passes.</li>
+  <li>Remove <code>.with_state(state)</code> from <code>app</code>, and read the error from <code>cargo check --example l06_state</code>. Put it back.</li>
+  <li>Change <code>count_notes</code> to take <code>State&lt;AppState&gt;</code> and return the count from <code>state.notes</code>. Confirm the test still passes and that <code>FromRef</code> is no longer used for it.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">Why must the router have no unbound state before <code>axum::serve</code> takes it?</p>
+    <button class="quiz-option">serve requires every router to contain a Mutex</button>
+    <button class="quiz-option">serve only accepts a Router whose state is bound</button>
+    <button class="quiz-option">State must live in a static for serve to see it</button>
+    <button class="quiz-option">serve reads state from the first request</button>
+    <p class="quiz-explanation"><code>with_state</code> binds the state. The result is a <code>Router</code> with no unbound state, which is what <code>serve</code> needs. The probe in the lab confirmed the compile failure.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">You clone an <code>AppState</code> that holds <code>Arc&lt;Mutex&lt;Vec&lt;String&gt;&gt;&gt;</code>. What do you get?</p>
+    <button class="quiz-option">An independent copy of all the notes</button>
+    <button class="quiz-option">A compile error, because AppState is not Copy</button>
+    <button class="quiz-option">An empty state, because clones start fresh</button>
+    <button class="quiz-option">A second Arc pointing at the same notes</button>
+    <p class="quiz-explanation">Cloning an <code>Arc</code> produces another pointer to the same allocation. The test <code>state_is_shared_across_requests</code> depends on this.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">The state holds a lock that a handler must keep across an <code>.await</code>. What do the docs recommend?</p>
+    <button class="quiz-option">A Tokio async Mutex, because the guard must cross the await</button>
+    <button class="quiz-option">A std Mutex, held across the await without any change</button>
+    <button class="quiz-option">No lock at all, because handlers cannot share state</button>
+    <button class="quiz-option">A static Mutex declared outside the handler</button>
+    <p class="quiz-explanation">The state docs say a Tokio mutex is needed when the guard must be held across an <code>.await</code>. Otherwise the std mutex is often preferred.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://docs.rs/axum/latest/axum/extract/struct.State.html">State documentation</a> on docs.rs. Its three sections (router, method router, handler) show where <code>with_state</code> may be called, and its <code>FromRef</code> example is the one above.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Ask me to explain why a handler that takes <code>State&lt;AppState&gt;</code> and a second handler that takes <code>State&lt;Arc&lt;Mutex&lt;...&gt;&gt;&gt;</code> can read the same data.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.rs/axum/latest/axum/routing/struct.Router.html">docs.rs — Router::with_state</a> — binding state; <code>serve</code> needs unbound state. The compile failure was verified by a probe program.</li>
+    <li id="r2"><a href="https://docs.rs/axum/latest/axum/extract/struct.State.html">docs.rs — axum::extract::State</a> — <code>FromRef</code> substates; the note on <code>Arc&lt;Mutex&lt;_&gt;&gt;</code> and <code>tokio::sync::Mutex</code> across await points.</li>
+    <li id="r3"><a href="../../tauri/lessons/0006-managed-state.html">Tauri set — Lesson 6: Managed State</a> — <code>app.manage</code> and <code>State&lt;T&gt;</code>, for comparison.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-responses.html">← Lesson 5: Responses</a></span>
+  <span class="nav-next"><a href="0007-errors.html">Lesson 7: Errors →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/axum-cheatsheet.html">Cheat sheet</a> · <a href="../code/">Lab code</a>
+</footer>
+</body>
+</html>

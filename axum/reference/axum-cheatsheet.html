@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Axum 0.8 Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Axum 0.8</span></div>
+  <h1>Axum 0.8 Cheat Sheet</h1>
+  <p class="subtitle">One page for building, testing, and debugging. Entries marked <em>verified</em> were checked by a lab test or probe. Code blocks marked as patterns are sketches; the lab examples are the compiled versions.</p>
+</header>
+
+<section>
+<h2>Commands (run from the <code>code/</code> folder)</h2>
+<table class="ref">
+  <tr><th>Command</th><th>What it does</th></tr>
+  <tr><td>cargo run --example l02_hello</td><td>Run any lesson's program</td></tr>
+  <tr><td>cargo test --examples</td><td>Run every lesson's tests (32 at authoring)</td></tr>
+  <tr><td>cargo test --example l09_testing</td><td>Run one lesson's tests</td></tr>
+  <tr><td>cargo clippy --examples -- -D warnings</td><td>Lint every example; clean at authoring</td></tr>
+  <tr><td>cargo add axum</td><td>Add Axum to your own project (0.8.x)</td></tr>
+  <tr><td>cargo add tokio --features full</td><td>Runtime, <code>#[tokio::main]</code>, and sockets</td></tr>
+</table>
+</section>
+
+<section>
+<h2>Skeleton</h2>
+<pre><code>use axum::{routing::get, Router};
+
+#[tokio::main]
+async fn main() {
+    let app = Router::new().route("/", get(|| async { "Hello, World!" }));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await.unwrap();
+    axum::serve(listener, app).await.unwrap();
+}</code></pre>
+</section>
+
+<section>
+<h2>Routing</h2>
+<table class="ref">
+  <tr><th>Pattern</th><th>Meaning</th></tr>
+  <tr><td><code>.route("/users", get(a).post(b))</code></td><td>Two methods on one path</td></tr>
+  <tr><td><code>.route("/users/{id}", ...)</code></td><td>Path parameter (0.8 syntax)</td></tr>
+  <tr><td><code>.route("/files/{*rest}", ...)</code></td><td>Wildcard over several segments (docs)</td></tr>
+  <tr><td><code>.nest("/api", api())</code></td><td>Mount a router under a prefix (prefix stripped inside)</td></tr>
+  <tr><td><code>.merge(other)</code></td><td>Combine routers at one level; panics if both have a fallback (docs)</td></tr>
+  <tr><td><code>.fallback(handler)</code></td><td>Runs only when no path matches</td></tr>
+</table>
+<aside class="note"><strong>verified:</strong> <code>/:id</code> panics with <em>Path segments must not start with <code>:</code>. For capture groups, use <code>{capture}</code>.</em></aside>
+</section>
+
+<section>
+<h2>Extractors</h2>
+<table class="ref">
+  <tr><th>Extractor</th><th>Reads</th><th>Failure status (verified)</th></tr>
+  <tr><td><code>Path&lt;T&gt;</code></td><td>Route parameters; tuples for several</td><td>400</td></tr>
+  <tr><td><code>Query&lt;T&gt;</code></td><td>Query string into a struct</td><td>400 for a missing required field</td></tr>
+  <tr><td><code>Json&lt;T&gt;</code></td><td>JSON body (derives Deserialize)</td><td>400 broken syntax; 422 wrong shape; 415 no JSON content type</td></tr>
+  <tr><td><code>State&lt;T&gt;</code></td><td>Shared state bound with <code>with_state</code></td><td>Cannot fail</td></tr>
+  <tr><td><code>Method</code>, <code>HeaderMap</code></td><td>Request parts</td><td>Cannot fail</td></tr>
+</table>
+<p><strong>Order rule (verified):</strong> the body-consuming extractor (<code>String</code>, <code>Json</code>) is the last argument. Otherwise: E0277, "the trait bound ... <code>Handler&lt;_, _&gt;</code> is not satisfied".</p>
+</section>
+
+<section>
+<h2>Responses</h2>
+<pre><code>async fn a() -&gt; Json&lt;User&gt; { ... }                          // 200, application/json
+async fn b() -&gt; (StatusCode, Json&lt;User&gt;) { ... }              // status set by the tuple
+async fn c() -&gt; impl IntoResponse {
+    ([(header::CONTENT_TYPE, "text/plain")], "hello")         // header array, then body
+}
+async fn d(...) -&gt; Result&lt;Json&lt;User&gt;, StatusCode&gt; { ... }    // Err becomes a status response</code></pre>
+</section>
+
+<section>
+<h2>Errors</h2>
+<pre><code>enum AppError { BadInput(String), NotFound }
+
+impl IntoResponse for AppError {
+    fn into_response(self) -&gt; Response {
+        let (status, message) = match self {
+            AppError::BadInput(m) =&gt; (StatusCode::BAD_REQUEST, m),
+            AppError::NotFound =&gt; (StatusCode::NOT_FOUND, "not found".to_string()),
+        };
+        (status, Json(json!({ "error": message }))).into_response()
+    }
+}
+
+impl From&lt;ParseIntError&gt; for AppError { ... }   // lets ? convert</code></pre>
+<p>Extractor rejections are not your <code>AppError</code>. They return their own response before the handler runs.</p>
+</section>
+
+<section>
+<h2>State</h2>
+<pre><code>let app = Router::new()
+    .route("/notes", post(add_note))
+    .with_state(AppState::default());     // Router&lt;AppState&gt; becomes Router&lt;()&gt;
+
+async fn add_note(State(s): State&lt;AppState&gt;, body: String) -&gt; StatusCode { ... }
+
+impl FromRef&lt;AppState&gt; for Arc&lt;Mutex&lt;Vec&lt;String&gt;&gt;&gt; {  // substate
+    fn from_ref(app: &amp;AppState) -&gt; Self { app.notes.clone() }
+}</code></pre>
+<p><strong>verified:</strong> <code>axum::serve</code> does not compile with a <code>Router</code> whose state is still unbound.</p>
+</section>
+
+<section>
+<h2>Middleware</h2>
+<table class="ref">
+  <tr><th>Call</th><th>Scope</th></tr>
+  <tr><td><code>.layer(middleware::from_fn(f))</code></td><td>Every route added before the call</td></tr>
+  <tr><td><code>get(h).route_layer(middleware::from_fn(f))</code></td><td>Only that route, only when it matches</td></tr>
+  <tr><td><code>TraceLayer::new_for_http()</code></td><td>Request and response logging (tower-http)</td></tr>
+  <tr><td><code>CorsLayer::permissive()</code></td><td>Every origin. Lab only, not production</td></tr>
+</table>
+<pre><code>async fn guard(request: Request, next: Next) -&gt; Result&lt;Response, StatusCode&gt; {
+    if request.headers().contains_key("x-token") { Ok(next.run(request).await) }
+    else { Err(StatusCode::UNAUTHORIZED) }
+}</code></pre>
+</section>
+
+<section>
+<h2>Testing</h2>
+<pre><code>use axum::{body::Body, http::Request};
+use http_body_util::BodyExt;
+use tower::ServiceExt;
+
+let response = app().oneshot(Request::builder().uri("/").body(Body::empty()).unwrap()).await.unwrap();
+let bytes = response.into_body().collect().await.unwrap().to_bytes();
+
+// Many requests on one service:
+let mut service = app().into_service::&lt;Body&gt;();          // pin the body type, or E0283
+let response = service.ready().await.unwrap().call(req).await.unwrap();</code></pre>
+</section>
+
+<section>
+<h2>Shipping</h2>
+<pre><code>let listener = tokio::net::TcpListener::bind(addr).await?;
+axum::serve(listener, app())
+    .with_graceful_shutdown(async { tokio::signal::ctrl_c().await.ok(); })
+    .await?;</code></pre>
+<p>Environment variables for settings. <code>RUST_LOG</code> through <code>EnvFilter</code>. Before production: bind address, CORS origins, body limits, timeouts. See lesson 10.</p>
+</section>
+
+<section>
+<h2>Toolchain</h2>
+<table class="ref">
+  <tr><th>Item</th><th>Value at authoring</th></tr>
+  <tr><td>Axum</td><td>0.8.9; path syntax <code>/{id}</code></td></tr>
+  <tr><td>Minimum Rust for Axum 0.8.9</td><td>1.80</td></tr>
+  <tr><td>Lab crate</td><td><code>rust-version = "1.84"</code>, <code>resolver = "3"</code></td></tr>
+  <tr><td>Why the pin</td><td>Newer dependencies use edition 2024, which needs Cargo 1.85</td></tr>
+</table>
+</section>
+
+<section>
+<h2>Lesson map</h2>
+<table class="ref">
+  <tr><th>#</th><th>Topic</th><th>Lesson</th><th>Lab example</th></tr>
+  <tr><td>1</td><td>What Axum is</td><td><a href="../lessons/0001-what-axum-is.html">0001</a></td><td>—</td></tr>
+  <tr><td>2</td><td>Hello and serve</td><td><a href="../lessons/0002-hello-and-serve.html">0002</a></td><td>l02_hello</td></tr>
+  <tr><td>3</td><td>Routing</td><td><a href="../lessons/0003-routing.html">0003</a></td><td>l03_routing</td></tr>
+  <tr><td>4</td><td>Extractors</td><td><a href="../lessons/0004-extractors.html">0004</a></td><td>l04_extractors</td></tr>
+  <tr><td>5</td><td>Responses</td><td><a href="../lessons/0005-responses.html">0005</a></td><td>l05_responses</td></tr>
+  <tr><td>6</td><td>Shared state</td><td><a href="../lessons/0006-shared-state.html">0006</a></td><td>l06_state</td></tr>
+  <tr><td>7</td><td>Errors</td><td><a href="../lessons/0007-errors.html">0007</a></td><td>l07_errors</td></tr>
+  <tr><td>8</td><td>Middleware</td><td><a href="../lessons/0008-middleware.html">0008</a></td><td>l08_middleware</td></tr>
+  <tr><td>9</td><td>Testing</td><td><a href="../lessons/0009-testing.html">0009</a></td><td>l09_testing</td></tr>
+  <tr><td>10</td><td>Shipping</td><td><a href="../lessons/0010-shipping.html">0010</a></td><td>l10_shipping</td></tr>
+</table>
+</section>
+
+<footer class="lesson-footer">
+  <a href="../../index.html">Course home</a> · <a href="glossary.html">Glossary</a> · <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../code/">Lab code</a>
+</footer>
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Axum 0.8 Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Axum 0.8</span></div>
+  <h1>Axum 0.8 Glossary</h1>
+  <p class="subtitle">The canonical terms for this workspace. Lessons link here. Use these words in code comments and reviews so they match the docs.</p>
+</header>
+
+<section>
+<h2>Routing and handlers</h2>
+<dl class="terms">
+
+  <dt id="router">Router</dt>
+  <dd>The value that maps method and path pairs to handlers. A <code>Router&lt;S&gt;</code> is parameterised by its state type <code>S</code>. Only <code>Router&lt;()&gt;</code>, with no unbound state, can be passed to <code>axum::serve</code>. Lessons 2, 3, 6.</dd>
+
+  <dt id="handler">Handler</dt>
+  <dd>An <code>async fn</code> (or closure) that takes zero or more extractors and returns something that implements <code>IntoResponse</code>. At most 16 arguments. Lessons 2, 4.</dd>
+
+  <dt id="path-parameter">Path parameter</dt>
+  <dd>A segment captured from the URL, written <code>{id}</code> in Axum 0.8. The old <code>:id</code> form panics. Read it with <code>Path</code>. Lesson 3.</dd>
+
+  <dt id="nest">nest</dt>
+  <dd>A router method that mounts another router under a path prefix. Inside the nested router, the prefix is stripped from the path. Lesson 3.</dd>
+
+  <dt id="fallback">Fallback</dt>
+  <dd>The handler that runs when no route matches the path. It does not run for a method mismatch, which returns 405. Lesson 3.</dd>
+
+</dl>
+</section>
+
+<section>
+<h2>Requests and responses</h2>
+<dl class="terms">
+
+  <dt id="extractor">Extractor</dt>
+  <dd>A type that reads a value from the request, used as a handler argument. Extractors run left to right. The body-consuming extractor must be the last argument. Lesson 4.</dd>
+
+  <dt id="rejection">Rejection</dt>
+  <dd>The error an extractor returns when its input is wrong, such as 400 for a bad path value or 422 for JSON with the wrong shape. The handler is not called. Lesson 4.</dd>
+
+  <dt id="into-response">IntoResponse</dt>
+  <dd>The trait that turns a handler's return value into an HTTP response. Implemented by strings, status codes, <code>Json</code>, tuples with a status first, and <code>Result</code> when both arms implement it. Lessons 5, 7.</dd>
+
+</dl>
+</section>
+
+<section>
+<h2>State</h2>
+<dl class="terms">
+
+  <dt id="state">State</dt>
+  <dd>Shared data bound to a router with <code>with_state</code> and read by handlers through the <code>State&lt;T&gt;</code> extractor. Each clone of the state shares any <code>Arc</code> inside it. Lesson 6.</dd>
+
+  <dt id="from-ref">FromRef</dt>
+  <dd>The trait that lets a handler ask for a part of the state, such as <code>State&lt;Arc&lt;Mutex&lt;_&gt;&gt;&gt;</code>, instead of the whole state. Implement it on the state type for each part. Lesson 6.</dd>
+
+</dl>
+</section>
+
+<section>
+<h2>Middleware and services</h2>
+<dl class="terms">
+
+  <dt id="service">Service (Tower)</dt>
+  <dd>The Tower trait for a function from a request to a future of a response. A Router is a Service, which is why it can be tested without a socket. Lessons 1, 9.</dd>
+
+  <dt id="infallible">Infallible</dt>
+  <dd>The error type Axum requires its services to use. Errors must therefore become responses inside the handler, rather than escape the service. Lesson 7.</dd>
+
+  <dt id="layer">layer</dt>
+  <dd>A Router method that wraps every route added before the call with a Tower layer or middleware. Repeated <code>layer</code> calls mean the last one is outermost. Lesson 8.</dd>
+
+  <dt id="route-layer">route_layer</dt>
+  <dd>A method that attaches a layer to one route, which runs only when that route matches. Lesson 8.</dd>
+
+  <dt id="from-fn">from_fn</dt>
+  <dd>The function that turns an async function taking a request and a <code>Next</code> into a middleware layer. <code>Next</code> must be the last argument. Lesson 8.</dd>
+
+</dl>
+</section>
+
+<section>
+<h2>Testing and shipping</h2>
+<dl class="terms">
+
+  <dt id="oneshot">oneshot</dt>
+  <dd>The <code>ServiceExt</code> method that sends one request to a service and returns its response, with no network port involved. Lesson 9.</dd>
+
+  <dt id="graceful-shutdown">Graceful shutdown</dt>
+  <dd>Stopping <code>axum::serve</code> when a future given to <code>with_graceful_shutdown</code> completes, so that <code>serve</code> returns and the program can log and exit. Lesson 10.</dd>
+
+</dl>
+</section>
+
+<footer class="lesson-footer">
+  <a href="../../index.html">Course home</a> · <a href="axum-cheatsheet.html">Cheat sheet</a> · <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a>
+</footer>
+</body>
+</html>

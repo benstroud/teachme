@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — Extractors</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 10</span><span>Axum 0.8</span></div>
+  <h1>Extractors</h1>
+  <p class="subtitle">A handler declares the request data it needs as typed arguments. Axum fills them in, or returns an error response before your code runs.</p>
+</header>
+
+<section>
+<h2>The idea</h2>
+<p>An extractor is a type that pulls a value out of an incoming request. You write it as a handler argument, and Axum runs the extraction. The docs say extractors <em>always run in the order of the function parameters, from left to right</em>.<sup><a href="#r1">1</a></sup> If an extractor fails, the handler never runs, and the client receives the error response.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Path, Query, and Json</h2>
+<p>The lab's <a href="../code/examples/l04_extractors.rs"><code>l04_extractors.rs</code></a> uses the three most common extractors:</p>
+<pre><code>#[derive(Deserialize)]
+struct Pagination {
+    page: Option&lt;u32&gt;,
+    per_page: Option&lt;u32&gt;,
+}
+
+#[derive(Deserialize)]
+struct CreateUser {
+    name: String,
+    age: u8,
+}
+
+async fn list_things(Query(p): Query&lt;Pagination&gt;) -&gt; String {
+    format!("page {} of {}", p.page.unwrap_or(1), p.per_page.unwrap_or(20))
+}
+
+async fn show_team(Path((user_id, team_id)): Path&lt;(u32, u32)&gt;) -&gt; String {
+    format!("user {user_id} team {team_id}")
+}
+
+async fn create_user(Json(payload): Json&lt;CreateUser&gt;) -&gt; String {
+    format!("created {} aged {}", payload.name, payload.age)
+}</code></pre>
+
+<ul>
+  <li><strong><code>Path</code></strong> reads route parameters. A tuple matches several parameters in order: <code>/users/{user_id}/team/{team_id}</code> fills <code>(user_id, team_id)</code>.<sup><a href="#r2">2</a></sup></li>
+  <li><strong><code>Query</code></strong> reads the query string into a struct. Fields typed <code>Option</code> may be absent. The lab test <code>query_defaults_when_absent</code> checks that <code>/things</code> still works.</li>
+  <li><strong><code>Json</code></strong> reads a JSON body into a struct that derives <code>Deserialize</code>.<sup><a href="#r3">3</a></sup></li>
+</ul>
+
+<h2>The body must come last</h2>
+<p>The request body is a stream that can be read only once. Axum enforces this by requiring the body-consuming extractor to be the <em>last</em> argument. The other extractors read the parts of the request and leave the body alone.<sup><a href="#r1">1</a></sup></p>
+
+<pre><code>// Compiles: parts first, body last.
+async fn echo(method: Method, headers: HeaderMap, body: String) -&gt; String {
+    format!("{method} sent {} header(s), body of {} bytes", headers.len(), body.len())
+}
+
+// Does not compile: the body extractor is not last.
+// async fn bad(body: String, method: Method) -&gt; String { ... }</code></pre>
+
+<aside class="note"><strong>What the compiler says</strong> The probe for the broken version fails with E0277: <em>the trait bound ... Handler&lt;_, _&gt; is not satisfied</em>. The message names the handler, not the argument, so when you see it, check the order of the arguments first.<sup><a href="#r1">1</a></sup></aside>
+
+<section>
+<h2>When a request is rejected</h2>
+<p>Each extractor returns a status code when its input is wrong. The lab's tests record what the real server returns:</p>
+<table>
+  <tr><th>Input</th><th>Extractor</th><th>Status</th><th>Test</th></tr>
+  <tr><td><code>/users/abc/team/9</code></td><td>Path&lt;(u32, u32)&gt;</td><td>400</td><td><code>bad_path_value_is_400</code></td></tr>
+  <tr><td><code>/double</code> with no <code>n</code> field</td><td>Query, required field</td><td>400</td><td><code>missing_query_field_is_axum_rejection_not_ours</code> (lesson 7)</td></tr>
+  <tr><td>POST <code>/users</code>, body <code>{"name":</code> (broken syntax)</td><td>Json</td><td>400</td><td><code>json_with_broken_syntax_is_400</code></td></tr>
+  <tr><td>POST <code>/users</code>, valid JSON missing <code>age</code></td><td>Json</td><td>422</td><td><code>json_with_wrong_shape_is_422</code></td></tr>
+  <tr><td>POST <code>/users</code>, no <code>Content-Type: application/json</code></td><td>Json</td><td>415</td><td><code>json_without_content_type_is_415</code></td></tr>
+</table>
+<p>The split matters. Broken syntax is a 400. Well-formed JSON with the wrong shape is a 422. A missing content type is a 415. Your code does not choose these codes: the extractor does.<sup><a href="#r3">3</a></sup></p>
+</section>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Run <code>cargo test --example l04_extractors</code>. Count the tests and match each one to a row in the table above.</li>
+  <li>Add a field <code>email: String</code> to <code>CreateUser</code>. Predict which tests now fail, then run them.</li>
+  <li>Move <code>method: Method</code> after <code>body: String</code> in <code>echo</code>. Read the compiler error, then restore the order.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">A handler takes <code>(Json&lt;Body&gt;, Path&lt;u32&gt;)</code> in that order. What happens?</p>
+    <button class="quiz-option">It works, because argument order does not matter</button>
+    <button class="quiz-option">It runs, but the Path value is ignored</button>
+    <button class="quiz-option">It reads the body twice, which Axum allows</button>
+    <button class="quiz-option">It fails to compile, because the body extractor must be last</button>
+    <p class="quiz-explanation">The body can be read only once, so Axum requires the body-consuming extractor as the final argument. The probe fails with E0277.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">A JSON body is valid JSON, but it is missing a required field. Which status does the lab return?</p>
+    <button class="quiz-option">400 Bad Request</button>
+    <button class="quiz-option">422 Unprocessable Content</button>
+    <button class="quiz-option">415 Unsupported Media Type</button>
+    <button class="quiz-option">500 Internal Server Error</button>
+    <p class="quiz-explanation">Well-formed JSON that does not fit the target type is a 422. Test <code>json_with_wrong_shape_is_422</code> checks it.<sup><a href="#r3">3</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">A POST request has a JSON body but no <code>Content-Type: application/json</code> header. Which status does the lab return?</p>
+    <button class="quiz-option">200 OK, the body is still parsed</button>
+    <button class="quiz-option">400 Bad Request</button>
+    <button class="quiz-option">415 Unsupported Media Type</button>
+    <button class="quiz-option">422 Unprocessable Content</button>
+    <p class="quiz-explanation">Without the JSON content type, the Json extractor refuses the body with 415. Test <code>json_without_content_type_is_415</code> checks it.<sup><a href="#r3">3</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://docs.rs/axum/latest/axum/extract/index.html">extract module</a> on docs.rs, especially the section on the order of extractors. Then read the <a href="https://docs.rs/axum/latest/axum/struct.Json.html">Json page</a> for the rejection cases.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Paste a handler with three arguments and ask me which ones are parts and which one is the body. Ask what a 2 MB body limit means for a <code>Json</code> handler (the docs state a 2 MB default; the lab does not test it yet).</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.rs/axum/latest/axum/extract/index.html">docs.rs — axum::extract</a> — left-to-right order; body extractors must be last; failed extractors return a response. The E0277 error was verified with a probe program.</li>
+    <li id="r2"><a href="https://docs.rs/axum/latest/axum/extract/struct.Path.html">docs.rs — axum::extract::Path</a> — single values and tuples; a bad value returns 400.</li>
+    <li id="r3"><a href="https://docs.rs/axum/latest/axum/struct.Json.html">docs.rs — axum::Json</a> — JSON extraction and the rejection cases. The status codes in the table were verified by the lab tests named in each row.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-routing.html">← Lesson 3: Routing</a></span>
+  <span class="nav-next"><a href="0005-responses.html">Lesson 5: Responses →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/axum-cheatsheet.html">Cheat sheet</a> · <a href="../code/">Lab code</a>
+</footer>
+</body>
+</html>

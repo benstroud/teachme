@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — What Axum Is</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 10</span><span>Axum 0.8</span></div>
+  <h1>What Axum Is</h1>
+  <p class="subtitle">A web framework that turns plain async Rust functions into HTTP endpoints, with the routing, extraction, and middleware pieces already typed for you.</p>
+</header>
+
+<section>
+<h2>The one-sentence model</h2>
+<p>An Axum application is a <strong>Router</strong> that maps method and path pairs to <strong>handlers</strong>. Each handler is an <code>async fn</code> that asks for the request data it needs through <strong>extractors</strong>, and returns something that can become an HTTP response.<sup><a href="#r1">1</a></sup></p>
+
+<pre><code>request
+  → Router (matches method + path)
+    → middleware (optional layers, wrap the handler)
+      → handler (async fn with extractors as arguments)
+        → return value (anything that implements IntoResponse)
+→ response</code></pre>
+
+<h2>Where Axum sits</h2>
+<p>Axum is built on Tower. The Axum error-handling docs describe it as built on <code>tower::Service</code>, and middleware in Axum is Tower middleware.<sup><a href="#r2">2</a></sup> The network side runs on Tokio, and <code>axum::serve</code> takes a Tokio listener.<sup><a href="#r1">1</a></sup> You will meet three libraries in this set: Axum for routing and extraction, Tower for the service and layer model, and Tokio for the runtime that drives it.</p>
+
+<aside class="note"><strong>Why Tower matters</strong> Tower's <code>Service</code> trait is a function from a request to a future of a response. Because an Axum Router is a Service, you can test it by calling it directly, with no network port. Lesson 9 uses that.</aside>
+
+<h2>What you will not write by hand</h2>
+<p>You do not parse the URL, read the body, or set <code>Content-Type</code> yourself for the common cases. Extractors do that work. You declare the types you want, and Axum either produces them or returns an error response before your handler runs.<sup><a href="#r3">3</a></sup> Lesson 4 shows that behaviour, including the status codes.</p>
+
+<h2>The Rust you need first</h2>
+<p>Handlers are generic over their extractors and return types, and errors are <code>Result</code> values. The Rust set covers these: <a href="../../rust/lessons/0007-error-handling.html">error handling with <code>Result</code> and <code>?</code></a>, <a href="../../rust/lessons/0008-generics-traits-lifetimes.html">traits and generics</a>, and <a href="../../rust/lessons/0004-references-and-borrowing.html">borrowing</a>. If the phrase "trait bound not satisfied" is unfamiliar, read the generics lesson first.</p>
+
+<section>
+<h2>Version and toolchain</h2>
+<p>This set teaches Axum <strong>0.8</strong>. Its path syntax changed from <code>/:id</code> to <code>/{id}</code>, and the old form now panics. The changelog for 0.8.0 lists the change.<sup><a href="#r4">4</a></sup> The docs describe version 0.8.9, which needs Rust 1.80 or newer.<sup><a href="#r4">4</a></sup></p>
+</section>
+
+<section class="task">
+<h2>Look before you lesson 2</h2>
+<p>Open <a href="../code/examples/l02_hello.rs">the first example</a> in the lab. Before you run anything, predict what the browser shows at <code>http://127.0.0.1:3000/</code>. Then check your prediction in lesson 2.</p>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">Which library is Axum built on for its service and middleware model?</p>
+    <button class="quiz-option">Express</button>
+    <button class="quiz-option">Actix Web</button>
+    <button class="quiz-option">Tower</button>
+    <button class="quiz-option">Rocket</button>
+    <p class="quiz-explanation">Axum's error-handling docs describe it as built on <code>tower::Service</code>, and its middleware is Tower middleware.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">What can a handler return?</p>
+    <button class="quiz-option">Anything that implements IntoResponse</button>
+    <button class="quiz-option">Only a String</button>
+    <button class="quiz-option">Only a Result</button>
+    <button class="quiz-option">Only a JSON value</button>
+    <p class="quiz-explanation">The handler docs say a handler returns something that can be converted into a response. <code>IntoResponse</code> is that conversion.<sup><a href="#r3">3</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">Where does middleware run relative to the handler it wraps?</p>
+    <button class="quiz-option">After the response has been sent to the client</button>
+    <button class="quiz-option">Only when the handler returns an error</button>
+    <button class="quiz-option">Before the Router has matched the path</button>
+    <button class="quiz-option">Around the handler, before and after it runs</button>
+    <p class="quiz-explanation">Middleware is a Tower layer: it can act before the handler, after it, or both, and it can refuse the request entirely.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://docs.rs/axum/latest/axum/">axum crate overview</a> on docs.rs. It has the hello-world program you will run in lesson 2.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Ask me to compare a Node.js Express route with an Axum route side by side. Ask where the Express equivalent of "the body must be last" would show up, if it does at all.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.rs/axum/latest/axum/">docs.rs — axum crate overview</a> — the Router, handlers, and <code>axum::serve</code> with a Tokio listener.</li>
+    <li id="r2"><a href="https://docs.rs/axum/latest/axum/error_handling/index.html">docs.rs — axum::error_handling</a> — services are built on <code>tower::Service</code>.</li>
+    <li id="r3"><a href="https://docs.rs/axum/latest/axum/handler/index.html">docs.rs — axum::handler</a> — what a handler is and what it may return.</li>
+    <li id="r4"><a href="https://github.com/tokio-rs/axum/blob/main/axum/CHANGELOG.md">axum CHANGELOG, 0.8 section</a> — path syntax change; MSRV history.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"></span>
+  <span class="nav-next"><a href="0002-hello-and-serve.html">Lesson 2: Hello, Axum →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/axum-cheatsheet.html">Cheat sheet</a> · <a href="../code/">Lab code</a>
+</footer>
+</body>
+</html>

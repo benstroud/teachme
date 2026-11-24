@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — Hello, Axum</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 10</span><span>Axum 0.8</span></div>
+  <h1>Hello, Axum</h1>
+  <p class="subtitle">One route, one handler, one call to <code>axum::serve</code>. Every later lesson changes one of these three pieces.</p>
+</header>
+
+<section>
+<h2>Create the project</h2>
+<pre><code>cargo new hello-axum
+cd hello-axum
+cargo add axum
+cargo add tokio --features full</code></pre>
+<p><code>tokio</code> with the <code>full</code> feature provides the runtime and the <code>#[tokio::main]</code> macro. The Axum docs say <code>#[tokio::main]</code> needs the <code>macros</code> and <code>rt-multi-thread</code> features, or <code>full</code>, which covers both.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The program</h2>
+<p>This is the hello-world example from the crate docs, with the address set to the loopback interface.<sup><a href="#r1">1</a></sup> The lab version is <a href="../code/examples/l02_hello.rs"><code>code/examples/l02_hello.rs</code></a>.</p>
+
+<pre><code>use axum::{routing::get, Router};
+
+#[tokio::main]
+async fn main() {
+    // Build the application with a single route.
+    let app = Router::new().route("/", get(|| async { "Hello, World!" }));
+
+    // Bind a TCP listener, then hand it and the router to axum::serve.
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
+        .await
+        .unwrap();
+    println!("listening on {}", listener.local_addr().unwrap());
+    axum::serve(listener, app).await.unwrap();
+}</code></pre>
+
+<h2>Read it line by line</h2>
+<ul>
+  <li><code>Router::new().route("/", get(...))</code> adds one route. <code>get(...)</code> says the route answers only GET.</li>
+  <li>The closure <code>|| async { "Hello, World!" }</code> is a handler. It takes no extractors and returns a <code>&amp;str</code>, which Axum turns into a <code>text/plain</code> response.<sup><a href="#r2">2</a></sup></li>
+  <li><code>TcpListener::bind</code> is Tokio. It opens the port. Axum does not bind sockets for you.</li>
+  <li><code>axum::serve(listener, app)</code> runs the server until it stops. It accepts a listener and a Router with no unbound state.<sup><a href="#r3">3</a></sup></li>
+</ul>
+
+<aside class="note"><strong>A rule you will hit later</strong> <code>axum::serve</code> needs a <code>Router</code> whose state type is <code>()</code>. A router that still needs shared state does not compile here. Lesson 6 shows the fix, <code>with_state</code>. The lab probe that proves this is recorded in the notes file.</aside>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Run the lab example: <code>cargo run --example l02_hello</code> from the <code>code/</code> folder.</li>
+  <li>In another terminal, run <code>curl -i http://127.0.0.1:3000/</code>. Expect a <code>200 OK</code> status line, a <code>content-type: text/plain; charset=utf-8</code> header, and the body <code>Hello, World!</code>.</li>
+  <li>Change the body text, run again, and confirm the change in the response.</li>
+  <li>Try <code>curl -i -X POST http://127.0.0.1:3000/</code>. Predict the status before you run it. Lesson 3 explains the answer.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">What does <code>axum::serve</code> need as its first argument?</p>
+    <button class="quiz-option">A port number as a string</button>
+    <button class="quiz-option">A Tokio TcpListener</button>
+    <button class="quiz-option">A raw file descriptor</button>
+    <button class="quiz-option">A Tower Layer</button>
+    <p class="quiz-explanation">The listener comes from Tokio, bound to an address. <code>axum::serve</code> runs the router on it.<sup><a href="#r3">3</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">Why does <code>main</code> carry <code>#[tokio::main]</code>?</p>
+    <button class="quiz-option">Axum requires a special linker flag</button>
+    <button class="quiz-option">It makes the handler run in the browser</button>
+    <button class="quiz-option">It turns the Router into a static site</button>
+    <button class="quiz-option">Serving is async, so a runtime must drive it</button>
+    <p class="quiz-explanation">Axum serving is async. The runtime is Tokio, and the macro starts it around your <code>main</code>.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">What must the router's state type be for <code>axum::serve</code> to accept it?</p>
+    <button class="quiz-option">Unit, written <code>()</code></button>
+    <button class="quiz-option">Arc of a Mutex</button>
+    <button class="quiz-option">Any type that implements Clone</button>
+    <button class="quiz-option">Whatever the first handler asked for</button>
+    <p class="quiz-explanation">A Router with unbound state does not compile under <code>axum::serve</code>. Lesson 6 covers binding state with <code>with_state</code>.<sup><a href="#r3">3</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://docs.rs/axum/latest/axum/">crate overview</a> for the example and the required dependencies, then the <a href="https://docs.rs/axum/latest/axum/handler/index.html">handler page</a> for what a handler may return.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Paste the curl output you got back and ask me to explain each header. Ask why <code>content-length</code> is 13 for "Hello, World!".</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.rs/axum/latest/axum/">docs.rs — axum crate overview</a> — hello-world example; required dependencies; <code>#[tokio::main]</code> features.</li>
+    <li id="r2"><a href="https://docs.rs/axum/latest/axum/handler/index.html">docs.rs — axum::handler</a> — handlers may be closures returning an <code>IntoResponse</code>.</li>
+    <li id="r3"><a href="https://docs.rs/axum/latest/axum/">docs.rs — axum::serve</a> — serving a listener and a Router; the router state must be bound. Verified: a Router with unbound state fails to compile under <code>serve</code>.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-what-axum-is.html">← Lesson 1: What Axum Is</a></span>
+  <span class="nav-next"><a href="0003-routing.html">Lesson 3: Routing →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/axum-cheatsheet.html">Cheat sheet</a> · <a href="../code/">Lab code</a>
+</footer>
+</body>
+</html>

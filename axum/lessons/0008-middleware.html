@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — Middleware</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 10</span><span>Axum 0.8</span></div>
+  <h1>Middleware</h1>
+  <p class="subtitle">Code that runs around many handlers: adding headers, refusing unauthenticated requests, logging. Axum builds it from Tower layers, and <code>from_fn</code> lets you write one as a function.</p>
+</header>
+
+<section>
+<h2>A middleware is a function that calls next</h2>
+<p><code>middleware::from_fn</code> turns an async function into a layer. The function receives the request and a <code>Next</code>, and calls <code>next.run(request)</code> to pass the request on. The docs say the function takes zero or more parts extractors, then one body extractor, and <code>Next</code> must be last.<sup><a href="#r1">1</a></sup></p>
+
+<pre><code>// Runs after the handler: change the response.
+async fn add_app_header(request: Request, next: Next) -&gt; Response {
+    let mut response = next.run(request).await;
+    response
+        .headers_mut()
+        .insert("x-app", HeaderValue::from_static("axum-lesson"));
+    response
+}
+
+// Runs before the handler: refuse the request, or let it through.
+async fn require_token(request: Request, next: Next) -&gt; Result&lt;Response, StatusCode&gt; {
+    if request.headers().contains_key("x-token") {
+        Ok(next.run(request).await)
+    } else {
+        Err(StatusCode::UNAUTHORIZED)
+    }
+}</code></pre>
+
+<p>The first function acts after the handler, by editing the response. The second acts before it, and returns an error status when the check fails. In the second case the handler is never called.</p>
+
+<h2>layer versus route_layer</h2>
+<p>Both attach middleware, and the difference is which routes they cover:<sup><a href="#r2">2</a></sup></p>
+<table>
+  <tr><th>Call</th><th>Applies to</th><th>In the lab</th></tr>
+  <tr><td><code>.layer(m)</code> on a Router</td><td>Every route added <em>before</em> the call</td><td><code>add_app_header</code>: every response has <code>x-app</code></td></tr>
+  <tr><td><code>.route_layer(m)</code> on a method router</td><td>Only that route, and only when it matches</td><td><code>require_token</code>: only <code>/secret</code> needs a token</td></tr>
+</table>
+
+<pre><code>pub fn app() -&gt; Router {
+    Router::new()
+        // route_layer: only applies to /secret, and only when that route matches.
+        .route(
+            "/secret",
+            get(secret).route_layer(middleware::from_fn(require_token)),
+        )
+        .route("/hello", get(hello))
+        // layer: applies to every route added before it.
+        .layer(middleware::from_fn(add_app_header))
+        .layer(TraceLayer::new_for_http())
+        .layer(CorsLayer::permissive())
+}</code></pre>
+
+<aside class="note"><strong>Order of layers</strong> The docs note that with repeated <code>.layer()</code> calls the last one is the outermost, so a request reaches it first.<sup><a href="#r2">2</a></sup> The docs recommend <code>ServiceBuilder</code> when you want layers to run top to bottom, which reads more like the order of execution.</aside>
+
+<h2>Tower-HTTP layers</h2>
+<p>The <code>tower-http</code> crate provides ready-made layers. The lab uses two:<sup><a href="#r3">3</a></sup></p>
+<ul>
+  <li><code>TraceLayer::new_for_http()</code> logs each request and response. Lesson 10 shows the subscriber that prints them.</li>
+  <li><code>CorsLayer::permissive()</code> allows every origin. It is convenient for a lab, and it is <strong>not</strong> a production setting. Lesson 10 covers what to change.</li>
+</ul>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Run <code>cargo test --example l08_middleware</code>. Confirm three tests pass.</li>
+  <li>Predict whether the reply to <code>GET /secret</code> with <code>x-token: abc</code> includes an <code>x-app</code> header, and why. Then check it with <code>curl -i -H "x-token: abc" http://127.0.0.1:3000/secret</code> after running the example.</li>
+  <li>Replace the <code>route_layer</code> on <code>/secret</code> with a <code>.layer(middleware::from_fn(require_token))</code> placed after the <code>/hello</code> route, so it covers every route. Predict which test fails, and why, before you run <code>cargo test --example l08_middleware</code>.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">Which call attaches middleware to one route, and only when that route matches?</p>
+    <button class="quiz-option">layer</button>
+    <button class="quiz-option">route_layer</button>
+    <button class="quiz-option">fallback</button>
+    <button class="quiz-option">merge</button>
+    <p class="quiz-explanation"><code>route_layer</code> applies to a single method router and runs only when its route matches. <code>layer</code> covers every route added before it.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">A <code>from_fn</code> middleware returns <code>Err(StatusCode::UNAUTHORIZED)</code> before calling next. What does the client see?</p>
+    <button class="quiz-option">200 OK, because the handler still runs</button>
+    <button class="quiz-option">500 Internal Server Error, from the layer</button>
+    <button class="quiz-option">401 Unauthorized, and the handler never runs</button>
+    <button class="quiz-option">401 after the handler runs and returns</button>
+    <p class="quiz-explanation">The middleware decides whether to call <code>next.run</code>. If it returns an error response instead, the handler is not called. The lab test <code>route_layer_rejects_without_token</code> checks the 401.</p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">Which tower-http layer logs each request and response?</p>
+    <button class="quiz-option">TraceLayer</button>
+    <button class="quiz-option">CorsLayer</button>
+    <button class="quiz-option">ServeDir</button>
+    <button class="quiz-option">Json</button>
+    <p class="quiz-explanation"><code>TraceLayer::new_for_http()</code> logs requests and responses through <code>tracing</code>. Lesson 10 shows the subscriber.<sup><a href="#r3">3</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://docs.rs/axum/latest/axum/middleware/index.html">middleware module</a> on docs.rs, then the <a href="https://docs.rs/axum/latest/axum/middleware/fn.from_fn.html">from_fn page</a> for the signature. The <code>from_fn</code> page says it cannot extract <code>State</code>, and that <code>from_fn_with_state</code> is the variant for that.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Ask me to write a middleware that rejects requests larger than 1 KB, and ask whether it belongs before or after the body is read. Compare the answer with the body-last rule from lesson 4.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.rs/axum/latest/axum/middleware/fn.from_fn.html">docs.rs — axum::middleware::from_fn</a> — signature and extractor order; <code>from_fn_with_state</code> for state.</li>
+    <li id="r2"><a href="https://docs.rs/axum/latest/axum/routing/struct.Router.html">docs.rs — Router::layer and route_layer</a> — which routes each applies to; order of repeated layers. The lab tests <code>layer_adds_header_to_every_route</code> and <code>route_layer_rejects_without_token</code> check the behaviour.</li>
+    <li id="r3"><a href="https://docs.rs/tower-http/latest/tower_http/trace/index.html">docs.rs — tower-http trace</a> — <code>TraceLayer::new_for_http()</code>.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-errors.html">← Lesson 7: Errors</a></span>
+  <span class="nav-next"><a href="0009-testing.html">Lesson 9: Testing →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/axum-cheatsheet.html">Cheat sheet</a> · <a href="../code/">Lab code</a>
+</footer>
+</body>
+</html>

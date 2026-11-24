@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 10 — Shipping</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 10 of 10</span><span>Axum 0.8</span></div>
+  <h1>Shipping</h1>
+  <p class="subtitle">Read configuration from the environment, log with tracing, and stop cleanly on Ctrl+C. Then check the list of things the lab deliberately leaves out.</p>
+</header>
+
+<section>
+<h2>Configuration from the environment</h2>
+<p>A deployed service takes its settings from environment variables, not from edits to the source. The lab reads <code>PORT</code> and falls back to 3000 when it is missing or not a number:</p>
+<pre><code>let port: u16 = env::var("PORT")
+    .ok()
+    .and_then(|p| p.parse().ok())
+    .unwrap_or(3000);
+let addr = SocketAddr::from(([127, 0, 0, 1], port));</code></pre>
+<p>The lab test <code>port_defaults_when_env_is_missing_or_invalid</code> tests the same parsing as a pure function. Keeping parsing out of <code>main</code> makes it testable without touching the process environment.</p>
+
+<h2>Logging with tracing</h2>
+<p>The lab sets up <code>tracing</code> with an environment filter. If <code>RUST_LOG</code> is not set, the default is debug for the crate and for <code>tower_http</code>:</p>
+<pre><code>tracing_subscriber::registry()
+    .with(
+        tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+            format!("{}=debug,tower_http=debug", env!("CARGO_CRATE_NAME")).into()
+        }),
+    )
+    .with(tracing_subscriber::fmt::layer())
+    .init();</code></pre>
+<p>The router gets <code>TraceLayer::new_for_http()</code> from lesson 8, so each request is logged through the same subscriber. Run the binary with <code>RUST_LOG=info</code> and you get the lines the lab produced during verification:</p>
+<pre><code>INFO l10_shipping: listening on 127.0.0.1:3917
+INFO l10_shipping: shutdown signal received, finishing in-flight requests
+INFO l10_shipping: server stopped cleanly</code></pre>
+
+<h2>Stopping cleanly</h2>
+<p>Attach a shutdown future with <code>with_graceful_shutdown</code>. When that future completes, <code>axum::serve</code> stops and returns. The lab's future waits for Ctrl+C:</p>
+<pre><code>async fn shutdown_signal() {
+    tokio::signal::ctrl_c()
+        .await
+        .expect("failed to install Ctrl+C handler");
+    tracing::info!("shutdown signal received, finishing in-flight requests");
+}
+
+axum::serve(listener, app())
+    .with_graceful_shutdown(shutdown_signal())
+    .await
+    .unwrap();
+tracing::info!("server stopped cleanly");</code></pre>
+
+<p>The last log line prints only because <code>serve</code> returned. The lab verified that: sending SIGINT to the running binary produced the three lines above and exited.</p>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>From the <code>code/</code> folder, run <code>PORT=3917 RUST_LOG=info cargo run --example l10_shipping</code>.</li>
+  <li>In another terminal, run <code>curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3917/health</code>. Expect <code>200</code>, and a request line in the server log.</li>
+  <li>Press Ctrl+C in the server terminal. Confirm the shutdown and "stopped cleanly" lines appear.</li>
+  <li>Run it again with <code>RUST_LOG=warn</code>. Predict what disappears from the log, then check.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Before you ship: the lab left these out</h2>
+<p>The lab is a teaching program. Each item below is a decision a real deployment has to make, and the lab does not make it:</p>
+<ul>
+  <li><strong>Bind address.</strong> The lab binds to <code>127.0.0.1</code>, which is only reachable from the same machine. A service behind a proxy or inside a container usually binds to <code>0.0.0.0</code>. Decide it, and make it configuration.</li>
+  <li><strong>CORS.</strong> <code>CorsLayer::permissive()</code> allows every origin. Replace it with the origins your frontend actually uses.</li>
+  <li><strong>Body size.</strong> The docs set a default limit of 2 MB for <code>Bytes</code>, <code>String</code>, <code>Json</code>, and <code>Form</code> bodies.<sup><a href="#r2">2</a></sup> Decide whether that is right for each endpoint. The lab does not test it yet.</li>
+  <li><strong>Timeouts.</strong> A slow client or a slow dependency can hold a connection open. Add a timeout layer from <code>tower-http</code>. It is not in the lab.</li>
+  <li><strong>Secrets.</strong> Read them from the environment, and never log them. The <code>require_token</code> check in lesson 8 is a placeholder, not an authentication scheme.</li>
+  <li><strong>A health check.</strong> The <code>/health</code> route in the lab is the minimum a load balancer needs.</li>
+</ul>
+
+<h2>Where to go next</h2>
+<p>The Axum repository's <code>examples/</code> directory has about 56 examples. Useful ones after this set are <code>graceful-shutdown</code>, <code>testing</code>, <code>tracing-aka-logging</code>, <code>error-handling</code>, <code>jwt</code>, and the database examples, which need a persistence set first.<sup><a href="#r3">3</a></sup></p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">What makes <code>axum::serve</code> return in the lab after Ctrl+C?</p>
+    <button class="quiz-option">The future given to with_graceful_shutdown completes</button>
+    <button class="quiz-option">The process receives SIGKILL and exits immediately</button>
+    <button class="quiz-option">The router panics on the next request</button>
+    <button class="quiz-option">The tracing subscriber is dropped</button>
+    <p class="quiz-explanation">The shutdown future resolves on Ctrl+C. Then <code>serve</code> returns, and the final log line runs. The lab verified the sequence by sending SIGINT.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">Where do <code>PORT</code> and <code>RUST_LOG</code> come from in the lab?</p>
+    <button class="quiz-option">A config file the program writes on first run</button>
+    <button class="quiz-option">The Cargo.toml file in the project root</button>
+    <button class="quiz-option">Compile-time constants in the source</button>
+    <button class="quiz-option">Environment variables, read when the program starts</button>
+    <p class="quiz-explanation">The lab reads both from the environment at startup. <code>RUST_LOG</code> is read by the <code>EnvFilter</code>, and <code>PORT</code> by <code>env::var</code>.</p>
+  </div>
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">Why is <code>CorsLayer::permissive()</code> a problem in a production API?</p>
+    <button class="quiz-option">It makes the server slower than necessary</button>
+    <button class="quiz-option">It allows every origin to call the API from a browser</button>
+    <button class="quiz-option">It stops the server from logging requests</button>
+    <button class="quiz-option">It is not compatible with Axum 0.8</button>
+    <p class="quiz-explanation">A permissive CORS policy lets any website's frontend call your API from a browser. The lab uses it for convenience, and production should list the origins it needs.</p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://docs.rs/axum/latest/axum/fn.serve.html">axum::serve</a> documentation and the <a href="https://github.com/tokio-rs/axum/tree/main/examples/graceful-shutdown">graceful-shutdown example</a> in the Axum repository.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Ask me to review the lab's <code>main</code> against the checklist above, and to rank the gaps by how much harm each would do if it reached production.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.rs/axum/latest/axum/fn.serve.html">docs.rs — axum::serve</a> — serving with a shutdown future. The log sequence and exit were verified by running the lab binary and sending SIGINT.</li>
+    <li id="r2"><a href="https://docs.rs/axum/latest/axum/extract/index.html">docs.rs — axum::extract</a> — the 2 MB default body limit. Cited, not yet tested in the lab.</li>
+    <li id="r3"><a href="https://github.com/tokio-rs/axum/tree/main/examples">Axum examples directory</a> — the list of examples at the time of reading.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0009-testing.html">← Lesson 9: Testing</a></span>
+  <span class="nav-next"><a href="../reference/axum-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/axum-cheatsheet.html">Cheat sheet</a> · <a href="../code/">Lab code</a>
+</footer>
+</body>
+</html>

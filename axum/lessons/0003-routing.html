@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — Routing</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 10</span><span>Axum 0.8</span></div>
+  <h1>Routing</h1>
+  <p class="subtitle">Routes match a path first, then a method. Learn the three decisions the router makes, and the 0.8 path syntax that breaks old code.</p>
+</header>
+
+<section>
+<h2>Methods on one path</h2>
+<p>A route takes a path and a <em>method router</em>. Chain the methods you accept on the same path:<sup><a href="#r1">1</a></sup></p>
+<pre><code>Router::new().route("/users", get(list_users).post(create_user))</code></pre>
+<p>Here <code>GET /users</code> reaches <code>list_users</code> and <code>POST /users</code> reaches <code>create_user</code>. The lab program does exactly this in <a href="../code/examples/l03_routing.rs"><code>l03_routing.rs</code></a>.</p>
+
+<h2>Path parameters use braces</h2>
+<p>In Axum 0.8, a path parameter is written <code>{id}</code>. The docs say a wildcard that matches several segments is written <code>{*rest}</code>.<sup><a href="#r2">2</a></sup></p>
+<pre><code>.route("/users/{id}", get(show_user))
+
+async fn show_user(Path(id): Path&lt;u32&gt;) -&gt; String {
+    format!("user {id}")
+}</code></pre>
+
+<aside class="note"><strong>The old syntax now panics</strong> Axum 0.7 used <code>/:id</code>. In 0.8 that form is rejected when the route is built. A probe in the lab confirmed the message: <em>Path segments must not start with <code>:</code>. For capture groups, use <code>{capture}</code>.</em> If you copy an older tutorial, change every <code>:name</code> to <code>{name}</code>.<sup><a href="#r3">3</a></sup></aside>
+
+<p>The parameter is extracted with <code>Path</code>, covered in lesson 4. A value that does not parse, such as <code>/users/abc</code> for a <code>u32</code>, returns <code>400 Bad Request</code>. The lab test <code>non_numeric_id_is_400</code> checks it.</p>
+
+<h2>Nesting a router under a prefix</h2>
+<p><code>nest</code> mounts a whole router under a path. Inside the nested router the prefix is stripped, so its routes are written without it:<sup><a href="#r4">4</a></sup></p>
+<pre><code>fn api() -&gt; Router {
+    Router::new()
+        .route("/users", get(list_users).post(create_user))
+        .route("/users/{id}", get(show_user))
+}
+
+pub fn app() -&gt; Router {
+    Router::new()
+        .route("/health", get(health))
+        .nest("/api", api())
+}</code></pre>
+<p>Now <code>/api/users/42</code> reaches <code>show_user</code>. <code>merge</code> is the sibling operation: it combines two routers at the same level, and the docs say it panics if both routers define a fallback.<sup><a href="#r4">4</a></sup></p>
+
+<h2>Three things that are not routing</h2>
+<p>The router makes three decisions, and each has a different response. The lab's <code>app()</code> adds a fallback, so the three cases are visible:</p>
+<table>
+  <tr><th>Request</th><th>What happens</th><th>Status</th></tr>
+  <tr><td><code>GET /health</code></td><td>Path and method match. Handler runs.</td><td>200</td></tr>
+  <tr><td><code>POST /health</code></td><td>Path matches, method does not. Fallback does not run.</td><td>405 Method Not Allowed</td></tr>
+  <tr><td><code>GET /nope</code></td><td>No route matches the path. Fallback runs.</td><td>404, from the fallback</td></tr>
+</table>
+<p>The fallback is for unmatched paths. The docs say it does not run for a method mismatch, and the lab test <code>wrong_method_is_405_not_the_fallback</code> confirms that.<sup><a href="#r4">4</a></sup></p>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Run <code>cargo test --example l03_routing</code> and read the five test names. Each one describes a routing decision.</li>
+  <li>Predict, then check: what does <code>POST /api/users/42</code> return?</li>
+  <li>Change <code>show_user</code> to take <code>Path&lt;String&gt;</code>. Predict which test fails, then run it and check. Explain why <code>abc</code> stops being rejected.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">In the lab app, what does <code>POST /health</code> return?</p>
+    <button class="quiz-option">405 Method Not Allowed</button>
+    <button class="quiz-option">404 from the fallback</button>
+    <button class="quiz-option">200 OK with the health body</button>
+    <button class="quiz-option">500 Internal Server Error</button>
+    <p class="quiz-explanation">The path matches but the method does not. The fallback runs only when no route matches the path.<sup><a href="#r4">4</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">What does <code>{id}</code> replace in Axum 0.8 path syntax?</p>
+    <button class="quiz-option">A regular expression</button>
+    <button class="quiz-option">A query string parameter</button>
+    <button class="quiz-option">The <code>/:id</code> form, which now panics</button>
+    <button class="quiz-option">A wildcard that matches the root path</button>
+    <p class="quiz-explanation">The 0.8 changelog changed capture syntax from <code>/:single</code> to <code>/{single}</code>. The old form panics when the route is built.<sup><a href="#r3">3</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">When does a router's fallback handler run?</p>
+    <button class="quiz-option">On every request, before routing</button>
+    <button class="quiz-option">Only when no route matches the path</button>
+    <button class="quiz-option">Only for POST requests</button>
+    <button class="quiz-option">Whenever a handler returns 404</button>
+    <p class="quiz-explanation">The fallback handles unmatched paths. It does not run for a method mismatch, and it does not run because a handler chose to return 404.<sup><a href="#r4">4</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://docs.rs/axum/latest/axum/routing/struct.Router.html">Router documentation</a> on docs.rs. Its <code>route</code>, <code>nest</code>, <code>merge</code>, and <code>fallback</code> entries list the panic conditions.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Ask me to add a <code>DELETE /api/users/{id}</code> route to the lab and predict which test would break first.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://docs.rs/axum/latest/axum/routing/struct.Router.html">docs.rs — Router::route</a> — chaining method handlers on one path.</li>
+    <li id="r2"><a href="https://docs.rs/axum/latest/axum/routing/struct.Router.html">docs.rs — Router::route</a> — <code>{id}</code> and <code>{*key}</code> path syntax.</li>
+    <li id="r3"><a href="https://github.com/tokio-rs/axum/blob/main/axum/CHANGELOG.md">axum CHANGELOG, 0.8.0</a> — path syntax change. Verified: the old <code>/:id</code> form panics with the message quoted above.</li>
+    <li id="r4"><a href="https://docs.rs/axum/latest/axum/routing/struct.Router.html">docs.rs — Router::nest, merge, fallback</a> — prefix stripping, panic conditions, and fallback scope. The 405 behaviour is verified by the lab test <code>wrong_method_is_405_not_the_fallback</code>.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-hello-and-serve.html">← Lesson 2: Hello, Axum</a></span>
+  <span class="nav-next"><a href="0004-extractors.html">Lesson 4: Extractors →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/axum-cheatsheet.html">Cheat sheet</a> · <a href="../code/">Lab code</a>
+</footer>
+</body>
+</html>
