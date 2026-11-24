@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — Managed State</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 10</span><span>Tauri 2</span></div>
+  <h1>Managed State</h1>
+  <p class="subtitle">Commands are separate calls, so anything they must share between calls lives in state the core manages. Learn how to register it, reach it, and avoid the one mistake the compiler will not catch.</p>
+</header>
+
+<section>
+<h2>The problem</h2>
+<p>Each <code>invoke</code> is a separate request. A counter, a settings object, or a database handle has to outlive any one call. The core process is the right owner, because it holds global state by design.<sup><a href="#r1">1</a></sup> Tauri's answer is <em>managed state</em>: you hand a value to the app once, and every command can ask for it.</p>
+
+<h2>Register it in setup</h2>
+<p>Add the state inside the builder's <code>setup</code> hook with <code>app.manage</code>. The state docs use a <code>Mutex</code> wrapper so the value can be changed safely across calls.<sup><a href="#r1">1</a></sup></p>
+<pre><code>use std::sync::Mutex;
+
+#[derive(Default)]
+struct AppState {
+    counter: u32,
+}
+
+tauri::Builder::default()
+    .setup(|app| {
+        app.manage(Mutex::new(AppState::default()));
+        Ok(())
+    })</code></pre>
+
+<h2>Reach it from a command</h2>
+<p>Declare a <code>State&lt;'_, T&gt;</code> parameter with the exact type you registered. Tauri supplies it:<sup><a href="#r1">1</a></sup></p>
+<pre><code>use tauri::State;
+
+#[tauri::command]
+fn increase_counter(state: State&lt;'_, Mutex&lt;AppState&gt;&gt;) -&gt; u32 {
+    let mut app_state = state.lock().unwrap();
+    app_state.counter += 1;
+    app_state.counter
+}</code></pre>
+
+<p>The <code>'_</code> is a lifetime the compiler infers, which is the borrowing idea from the <a href="../../rust/lessons/0004-references-and-borrowing.html">Rust set</a>. The state is borrowed from the app for the duration of the call. Lesson 5 showed why that borrow makes a command async-unfriendly.</p>
+
+<h2>Reach it outside a command</h2>
+<p>Code that is not a command gets state through the <code>Manager</code> trait. Import it, then ask the app for the state by type:<sup><a href="#r1">1</a></sup></p>
+<pre><code>use tauri::Manager;
+
+let state = app.state::&lt;Mutex&lt;AppState&gt;&gt;();</code></pre>
+
+<aside class="note"><strong>The mistake the compiler will not catch</strong> If a command asks for <code>State&lt;'_, Mutex&lt;Other&gt;&gt;</code> but you registered <code>Mutex&lt;AppState&gt;</code>, the project still compiles. The invoke is rejected at runtime with a "state not managed" error. <code>Manager::state()</code> panics instead. Keep the type in one type alias and use it everywhere.<sup><a href="#r1">1</a></sup></aside>
+
+<h2>Async commands</h2>
+<p>An async command that uses state runs into the borrowing rule from lesson 5. The docs' async example returns <code>Result&lt;u32, ()&gt;</code> because <code>State&lt;'_, T&gt;</code> is a borrowed argument.<sup><a href="#r1">1</a></sup> The docs also say the standard library's <code>Mutex</code> is often preferred even in async code. A Tokio async mutex is needed only when the lock guard has to be held across an <code>.await</code>.<sup><a href="#r1">1</a></sup></p>
+
+<p>You do not need to learn the mutex internals here. Concurrency belongs to a later set. What you need is the rule: hold a lock for the shortest time you can, and do not hold a standard <code>Mutex</code> guard across an <code>.await</code>.</p>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Add an <code>AppState</code> with a <code>counter</code> field, and register it with <code>app.manage(Mutex::new(...))</code> in <code>setup</code>.</li>
+  <li>Add the <code>increase_counter</code> command above and register it.</li>
+  <li>Add a button in the frontend that calls <code>invoke('increase_counter')</code> and shows the returned number. Click it three times. You should see 1, 2, 3.</li>
+  <li>Deliberately change the command's parameter to <code>State&lt;'_, Mutex&lt;String&gt;&gt;</code>. Rebuild, click the button, and read the runtime error. Then restore the type.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">A command asks for <code>State&lt;'_, Mutex&lt;Other&gt;&gt;</code>, but the app manages <code>Mutex&lt;AppState&gt;</code>. What happens?</p>
+    <button class="quiz-option">The invoke is rejected at runtime with a state-not-managed error</button>
+    <button class="quiz-option">Tauri creates an empty <code>Other</code> automatically</button>
+    <button class="quiz-option">The compiler stops the build with a type error</button>
+    <button class="quiz-option">The command runs with the default value of AppState</button>
+    <p class="quiz-explanation">The project still compiles. The mismatch surfaces at runtime as a rejected invoke, and <code>Manager::state()</code> panics.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">Which statement about sharing managed state is correct?</p>
+    <button class="quiz-option">You must wrap the state in Arc before calling app.manage</button>
+    <button class="quiz-option">Tauri does the sharing, so the examples need no Arc</button>
+    <button class="quiz-option">Each command call receives its own copy of the state</button>
+    <button class="quiz-option">Only one command may touch the state, for the app's lifetime</button>
+    <p class="quiz-explanation">The state docs' examples use <code>Mutex</code> without <code>Arc</code>, because Tauri handles the sharing.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">When does the docs' guidance say the standard library's Mutex is still the right choice in async code?</p>
+    <button class="quiz-option">Never, async code always needs Tokio</button>
+    <button class="quiz-option">Only when the state is a simple counter</button>
+    <button class="quiz-option">Only when the app runs on Windows</button>
+    <button class="quiz-option">When the guard is not held across an await</button>
+    <p class="quiz-explanation">The docs say a Tokio async mutex is needed only when the guard must be held across an <code>.await</code>.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://v2.tauri.app/develop/state-management/">State Management</a> in full. Its async and pitfall notes are short and worth reading twice.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Ask me to explain why the state is a <code>Mutex</code> at all when the frontend only makes one call at a time. Ask what would change if two windows called <code>increase_counter</code> at once.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://v2.tauri.app/develop/state-management/">Tauri — State Management</a> — <code>app.manage</code> in <code>setup</code>; <code>State&lt;T&gt;</code>; <code>Manager::state</code>; runtime "state not managed" error; async guidance on Mutex.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-arguments-return-values-and-errors.html">← Lesson 5: Arguments and Errors</a></span>
+  <span class="nav-next"><a href="0007-events-and-channels.html">Lesson 7: Events and Channels →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/tauri-cheatsheet.html">Cheat sheet</a>
+</footer>
+</body>
+</html>

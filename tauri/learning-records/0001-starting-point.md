@@ -1,0 +1,3 @@
+# Starting Point: Tauri 2 Desktop Apps
+
+The learner is a self-taught TypeScript and Node.js developer working through the Rust set in this repository. He has a working Rust toolchain (rustc 1.84.1) and no recorded experience with Tauri. Because the Tauri lessons depend on Rust ownership, `Result`, and borrowing, he should be comfortable with the Rust set's lessons 0003, 0004, and 0007 before lessons 0005 and 0006. Plugin crates require Rust 1.90 or newer, so the first hands-on plugin step needs a toolchain update. This lesson set is independent of other courses except for references to the Rust set.

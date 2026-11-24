@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 10 — Build, Sign, and Ship</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 10 of 10</span><span>Tauri 2</span></div>
+  <h1>Build, Sign, and Ship</h1>
+  <p class="subtitle">A build produces an installer. Shipping it to real users means signing it, and, for updates, signing those too. Each platform asks for something different.</p>
+</header>
+
+<section>
+<h2>Build the app</h2>
+<p>The distribute page's build command is <code>npm run tauri build</code>. The same build can also be run with <code>cargo tauri build</code>, or with your package manager's equivalent.<sup><a href="#r1">1</a></sup> If you want to split the steps, the docs show compiling first and bundling second:<sup><a href="#r1">1</a></sup></p>
+<pre><code>npm run tauri build -- --no-bundle
+npm run tauri bundle -- --bundles app,dmg</code></pre>
+
+<h2>What each OS produces</h2>
+<table>
+  <tr><th>Platform</th><th>Formats named on the distribute page</th></tr>
+  <tr><td>Linux</td><td>Debian package, Snap, AppImage, Flatpak, RPM, AUR</td></tr>
+  <tr><td>macOS</td><td>App Store, DMG, App Bundle</td></tr>
+  <tr><td>Windows</td><td>Microsoft Store, Windows Installer</td></tr>
+</table>
+<p>The bundle settings live under <code>bundle</code> in <code>tauri.conf.json</code>. The reference lists <code>bundle.active</code>, which defaults to false, and <code>bundle.targets</code>, which defaults to <code>all</code>. Platform-specific keys sit under the platform name, for example <code>macOS.dmg</code> and <code>windows.nsis</code>.<sup><a href="#r2">2</a></sup> Check the file your project generated before you rely on those defaults.</p>
+
+<aside class="note"><strong>Identifier check</strong> The build fails with the placeholder identifier <code>com.tauri.dev</code>. Set your own reverse-domain identifier from lesson 2 before you build for distribution.<sup><a href="#r2">2</a></sup></aside>
+
+<h2>Code signing</h2>
+<p>The distribute page states that most platforms require code signing. On macOS, you name a signing identity in <code>bundle</code> under <code>macOS</code> as <code>signingIdentity</code>, or set the <code>APPLE_SIGNING_IDENTITY</code> environment variable.<sup><a href="#r1">1</a></sup> Two practical limits the macOS guide states: ad-hoc signing with <code>"-"</code> does not stop macOS from asking the user for approval, and a free Apple account cannot notarize.<sup><a href="#r3">3</a></sup></p>
+
+<p>Distributing outside the App Store also requires <em>notarization</em>. The docs give two credential routes: App Store Connect API keys (<code>APPLE_API_ISSUER</code>, <code>APPLE_API_KEY</code>, <code>APPLE_API_KEY_PATH</code>) or an Apple ID (<code>APPLE_ID</code>, <code>APPLE_PASSWORD</code>, <code>APPLE_TEAM_ID</code>).<sup><a href="#r3">3</a></sup> In CI, the certificate is provided with <code>APPLE_CERTIFICATE</code> and <code>APPLE_CERTIFICATE_PASSWORD</code>.<sup><a href="#r3">3</a></sup></p>
+
+<h2>The updater</h2>
+<p>Automatic updates use the updater plugin. The updater docs state that its signature check <em>cannot be disabled</em>. An update must be signed by a key your app trusts, so a compromised update server cannot push code on its own.<sup><a href="#r4">4</a></sup></p>
+<ol>
+  <li><strong>Install and register.</strong> Run <code>npm run tauri add updater</code>. The docs register the plugin on desktop only, inside <code>setup</code>, behind a <code>#[cfg(desktop)]</code> guard.<sup><a href="#r4">4</a></sup></li>
+  <li><strong>Generate keys.</strong> Run <code>npm run tauri signer generate -- -w ~/.tauri/myapp.key</code>. Keep the private key out of the repository.<sup><a href="#r4">4</a></sup></li>
+  <li><strong>Provide the private key at build time</strong> through the <code>TAURI_SIGNING_PRIVATE_KEY</code> environment variable. The docs say <code>.env</code> files do not work for this.<sup><a href="#r4">4</a></sup></li>
+  <li><strong>Configure the updater.</strong> Set <code>bundle.createUpdaterArtifacts</code> to true, and under <code>plugins.updater</code> give the <code>pubkey</code> and the <code>endpoints</code>.<sup><a href="#r4">4</a></sup></li>
+</ol>
+
+<pre><code>"bundle": { "createUpdaterArtifacts": true },
+"plugins": {
+  "updater": {
+    "pubkey": "&lt;the public key content, not a file path&gt;",
+    "endpoints": [
+      "https://releases.example.com/{{target}}/{{arch}}/{{current_version}}"
+    ]
+  }
+}</code></pre>
+
+<aside class="note"><strong>Two traps</strong> The <code>pubkey</code> value is the key content, not the path to a key file. And the endpoint URL uses template variables such as <code>{{target}}</code>, <code>{{arch}}</code>, and <code>{{current_version}}</code>, which the updater fills in.<sup><a href="#r4">4</a></sup></aside>
+
+<h2>Before you ship: a checklist</h2>
+<ul>
+  <li>The identifier is your own reverse-domain name, not <code>com.tauri.dev</code>.</li>
+  <li>Every capability grants only what each window needs. Lesson 8 is the review.</li>
+  <li>No command reads or writes a path without a check in Rust. Lesson 5 is the review.</li>
+  <li>Signing identities and notarization credentials are in environment variables, not in the repository.</li>
+  <li>The updater private key is stored outside the repository, and the public key is in the config.</li>
+  <li>You have run the bundle on each OS you plan to ship to. The same HTML renders through a different engine on each.</li>
+</ul>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Set your own <code>identifier</code> in <code>tauri.conf.json</code>, then run <code>npm run tauri build</code> for your OS. Note the bundle output folder the build prints.</li>
+  <li>Open one installer or bundle and confirm the app name and icon look right.</li>
+  <li>Optional: generate an updater key pair with <code>npm run tauri signer generate -- -w ~/.tauri/tauri-hello.key</code>. Do not commit the key, and do not publish it.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">Which bundle format does the distribute page name for macOS?</p>
+    <button class="quiz-option">AppImage</button>
+    <button class="quiz-option">Flatpak</button>
+    <button class="quiz-option">Windows Installer</button>
+    <button class="quiz-option">DMG</button>
+    <p class="quiz-explanation">The distribute page lists DMG, App Store, and App Bundle for macOS. AppImage and Flatpak are Linux formats, and Windows Installer is a Windows format.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">Which statement about updater signatures is correct?</p>
+    <button class="quiz-option">They can be turned off in development builds</button>
+    <button class="quiz-option">They cannot be disabled</button>
+    <button class="quiz-option">They are needed on macOS only</button>
+    <button class="quiz-option">They are needed on Windows only</button>
+    <p class="quiz-explanation">The updater docs say the signature check cannot be disabled. An update must be signed by a trusted key.<sup><a href="#r4">4</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">Where is <code>TAURI_SIGNING_PRIVATE_KEY</code> supplied for an updater build?</p>
+    <button class="quiz-option">In a .env file in the project root</button>
+    <button class="quiz-option">In the identifier field of tauri.conf.json</button>
+    <button class="quiz-option">As an environment variable at build time</button>
+    <button class="quiz-option">In the default capability file, beside permissions</button>
+    <p class="quiz-explanation">The docs say to set it as an environment variable at build time, and that <code>.env</code> files do not work for it.<sup><a href="#r4">4</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://v2.tauri.app/distribute/">Distribute</a>, then <a href="https://v2.tauri.app/distribute/sign/macos/">Sign for macOS</a> if you ship to Apple users, and the <a href="https://v2.tauri.app/plugin/updater/">Updater</a> page before you enable automatic updates.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Ask me to turn the checklist above into a short review of a real Tauri project, then rank the items by risk. Ask what you would fix first if you had one afternoon.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://v2.tauri.app/distribute/">Tauri — Distribute</a> — build command; bundle formats per OS; code signing; <code>signingIdentity</code>.</li>
+    <li id="r2"><a href="https://v2.tauri.app/reference/config/">Tauri — Configuration Reference</a> — <code>identifier</code>; <code>bundle</code> defaults and platform keys.</li>
+    <li id="r3"><a href="https://v2.tauri.app/distribute/sign/macos/">Tauri — Sign for macOS</a> — ad-hoc signing; notarization; App Store Connect and Apple ID credentials; CI certificate variables.</li>
+    <li id="r4"><a href="https://v2.tauri.app/plugin/updater/">Tauri — Updater plugin</a> — installation; desktop-only registration; signer generation; <code>createUpdaterArtifacts</code>; <code>pubkey</code>; <code>endpoints</code>.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0009-plugins-dialog-fs-store.html">← Lesson 9: Plugins</a></span>
+  <span class="nav-next"><a href="../reference/tauri-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/tauri-cheatsheet.html">Cheat sheet</a>
+</footer>
+</body>
+</html>

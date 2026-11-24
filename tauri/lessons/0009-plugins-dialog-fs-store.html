@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 9 — Plugins: Dialog, File System, Store</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 9 of 10</span><span>Tauri 2</span></div>
+  <h1>Plugins: Dialog, File System, Store</h1>
+  <p class="subtitle">Plugins add ready-made, permission-gated powers. Learn the install pattern once, then reuse it for every official plugin.</p>
+</header>
+
+<section>
+<h2>What a plugin is</h2>
+<p>An official plugin is two halves: a Rust crate that runs in the core process, and a JavaScript package that the frontend imports. The Rust crate is named <code>tauri-plugin-&lt;name&gt;</code>. The JavaScript package is named <code>@tauri-apps/plugin-&lt;name&gt;</code>. The plugin's powers are gated by permissions, exactly as lesson 8 described, so a plugin you install does nothing for a window until a capability grants it.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Toolchain requirement</strong> The dialog, file system, and store plugin pages each state a Rust version of at least 1.90. If <code>rustc --version</code> shows an older version, run <code>rustup update stable</code> first.<sup><a href="#r2">2</a></sup><sup><a href="#r3">3</a></sup><sup><a href="#r4">4</a></sup></aside>
+
+<h2>The install pattern</h2>
+<p>From the <code>src-tauri</code> folder, add the Rust crate. From the project root, add the JavaScript package. The docs also show an automatic route that does both in one step:<sup><a href="#r2">2</a></sup></p>
+<pre><code># Rust side, inside src-tauri/
+cargo add tauri-plugin-dialog
+
+# JavaScript side, at the project root
+npm install @tauri-apps/plugin-dialog
+
+# Or do both in one step, from the project root
+npm run tauri add dialog</code></pre>
+
+<h2>Register it on the builder</h2>
+<p>The Rust side must be registered in the builder, in <code>lib.rs</code>. The dialog and file system plugins use an <code>init()</code> function, and the store plugin uses a builder:<sup><a href="#r2">2</a></sup><sup><a href="#r3">3</a></sup><sup><a href="#r4">4</a></sup></p>
+<pre><code>tauri::Builder::default()
+    .plugin(tauri_plugin_dialog::init())
+    .plugin(tauri_plugin_fs::init())
+    .plugin(tauri_plugin_store::Builder::new().build())</code></pre>
+
+<h2>Grant its permissions</h2>
+<p>Installing the plugin is not enough. Add the permissions the plugin's page lists to your capability file. The file system docs use <code>fs:default</code> as the baseline, and the store docs use <code>store:default</code>.<sup><a href="#r3">3</a></sup><sup><a href="#r4">4</a></sup> The dialog page does not show a literal snippet in the form these notes captured, so copy the identifiers directly from its permissions section rather than guessing.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Remember the scope</strong> The file system docs warn that enabling a permission such as <code>fs:allow-exists</code> by itself does not allow access to any path. A scope is also required (lesson 8).<sup><a href="#r3">3</a></sup></aside>
+
+<h2>The three plugins in this set</h2>
+<table>
+  <tr><th>Plugin</th><th>What it gives the frontend</th><th>Permission baseline named in the docs</th></tr>
+  <tr><td>Dialog</td><td>Native message and file dialogs</td><td>See the dialog page's permissions section</td></tr>
+  <tr><td>File system</td><td>Reading and writing files, within scopes</td><td><code>fs:default</code>, plus scopes</td></tr>
+  <tr><td>Store</td><td>Persistent key-value storage</td><td><code>store:default</code></td></tr>
+</table>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Run <code>rustc --version</code>. If it is below 1.90, run <code>rustup update stable</code>.</li>
+  <li>In <code>tauri-hello</code>, run <code>npm run tauri add dialog</code>. Then open <code>src-tauri/src/lib.rs</code> and find the registration. Note what changed in the capability file, if anything.</li>
+  <li>Open the dialog plugin page and add the permission identifiers it lists to your capability.</li>
+  <li>Add a button that uses the dialog plugin's JavaScript API, described on the same page, to show a message box. Confirm the box appears.</li>
+  <li>Stretch, optional: repeat with the store plugin, storing a counter that survives an app restart.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">Which command adds the dialog plugin's Rust crate?</p>
+    <button class="quiz-option">npm install tauri-plugin-dialog</button>
+    <button class="quiz-option">cargo add @tauri-apps/plugin-dialog</button>
+    <button class="quiz-option">cargo add tauri-plugin-dialog</button>
+    <button class="quiz-option">npm run tauri build dialog</button>
+    <p class="quiz-explanation">The Rust crate is <code>tauri-plugin-dialog</code>, added with <code>cargo add</code> inside <code>src-tauri</code>. The JavaScript package is <code>@tauri-apps/plugin-dialog</code>, added with npm.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">What is true of <code>fs:allow-exists</code> on its own, according to the file system docs?</p>
+    <button class="quiz-option">Alone, it grants no path access; a scope is needed</button>
+    <button class="quiz-option">It grants access to every path on the disk</button>
+    <button class="quiz-option">It replaces the need for any capability file</button>
+    <button class="quiz-option">It works only on macOS, not elsewhere</button>
+    <p class="quiz-explanation">The docs warn that enabling the permission alone grants no path access. The scope decides where.<sup><a href="#r3">3</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">What minimum Rust version do the dialog, file system, and store plugin pages state?</p>
+    <button class="quiz-option">1.70 or newer</button>
+    <button class="quiz-option">1.90 or newer</button>
+    <button class="quiz-option">2.0 or newer</button>
+    <button class="quiz-option">Any version works</button>
+    <p class="quiz-explanation">Each plugin page states a Rust version of at least 1.90. Run <code>rustup update stable</code> if you are older.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://v2.tauri.app/plugin/">Plugins overview</a>, then the <a href="https://v2.tauri.app/plugin/dialog/">Dialog</a> page for its permission identifiers and JavaScript API.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Ask me to walk through one real use case, such as "let the user pick a file, then save notes to it". Ask which plugin does each step and which permission each step needs.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://v2.tauri.app/plugin/">Tauri — Plugins</a> — official plugin model and naming.</li>
+    <li id="r2"><a href="https://v2.tauri.app/plugin/dialog/">Tauri — Dialog plugin</a> — <code>cargo add</code>, <code>npm install</code>, <code>npm run tauri add</code>, Rust 1.90 requirement.</li>
+    <li id="r3"><a href="https://v2.tauri.app/plugin/file-system/">Tauri — File System plugin</a> — <code>fs:default</code>; <code>fs:allow-exists</code> warning; scopes.</li>
+    <li id="r4"><a href="https://v2.tauri.app/plugin/store/">Tauri — Store plugin</a> — <code>store:default</code>; builder registration; Rust 1.90 requirement.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0008-capabilities-and-permissions.html">← Lesson 8: Capabilities and Permissions</a></span>
+  <span class="nav-next"><a href="0010-build-sign-and-ship.html">Lesson 10: Build, Sign, and Ship →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/tauri-cheatsheet.html">Cheat sheet</a>
+</footer>
+</body>
+</html>

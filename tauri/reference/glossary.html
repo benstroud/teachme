@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tauri 2 Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Tauri 2</span></div>
+  <h1>Tauri 2 Glossary</h1>
+  <p class="subtitle">The canonical terms for this workspace. Lessons link here. Use these words in your own notes and code comments so they match the docs.</p>
+</header>
+
+<section>
+<h2>Architecture</h2>
+<dl class="terms">
+
+  <dt id="tauri">Tauri</dt>
+  <dd>A framework for desktop applications in which a Rust core process owns the operating system and a webview renders the frontend you write in HTML, CSS, and TypeScript. <em>Avoid:</em> "Electron-like" as a shorthand, because the engines differ.</dd>
+
+  <dt id="core-process">Core process</dt>
+  <dd>The Rust process that is the only component with full access to the operating system. It creates windows and tray menus, routes all IPC, and should hold global state. Lessons 1, 3.</dd>
+
+  <dt id="webview-process">WebView process</dt>
+  <dd>A process started by the core to render the user interface, using the operating system's web engine. <em>Avoid:</em> "renderer", which is a different term in other frameworks.</dd>
+
+  <dt id="ipc">IPC (inter-process communication)</dt>
+  <dd>The asynchronous message passing between the webview and the core. Every request goes through the core. Arguments and return values must serialize to JSON. Lesson 3.</dd>
+
+</dl>
+</section>
+
+<section>
+<h2>Calling and communicating</h2>
+<dl class="terms">
+
+  <dt id="command">Command</dt>
+  <dd>A Rust function marked <code>#[tauri::command]</code> and registered with <code>generate_handler!</code>, which the frontend may call by name. A command is a request that returns one answer. Lessons 4, 5.</dd>
+
+  <dt id="invoke">invoke</dt>
+  <dd>The frontend function, from <code>@tauri-apps/api/core</code>, that calls a command. It works like the browser's fetch API and returns a promise. Lesson 4.</dd>
+
+  <dt id="event">Event</dt>
+  <dd>A one-way, fire-and-forget message that either side can emit. Its payload must implement <code>Serialize</code> and <code>Clone</code>. Use events for notifications, not for large streams. Lesson 7.</dd>
+
+  <dt id="channel">Channel</dt>
+  <dd>A typed <code>Channel&lt;T&gt;</code> passed to a command as an argument, for ordered streaming from Rust to one JavaScript caller, such as progress updates. Lesson 7.</dd>
+
+  <dt id="managed-state">Managed state</dt>
+  <dd>A value registered with <code>app.manage</code>, borrowed by commands through <code>State&lt;'_, T&gt;</code> or fetched with <code>Manager::state</code>. A type mismatch is a runtime error. Lesson 6.</dd>
+
+</dl>
+</section>
+
+<section>
+<h2>Security</h2>
+<dl class="terms">
+
+  <dt id="capability">Capability</dt>
+  <dd>A JSON file in <code>src-tauri/capabilities/</code> that names the windows it applies to and the permissions they receive. Only enabled capabilities are used in the build. Lesson 8.</dd>
+
+  <dt id="permission">Permission</dt>
+  <dd>A named grant for a core or plugin API, written as <code>&lt;name&gt;:default</code> or <code>&lt;name&gt;:&lt;command&gt;</code>, such as <code>fs:default</code>. Granting a permission does not, by itself, grant access to any path. Lessons 8, 9.</dd>
+
+  <dt id="scope">Scope</dt>
+  <dd>A granular allow or deny rule that narrows where or on what a permitted command may act. Deny always supersedes allow. Scopes are plugin-specific TOML. Lesson 8.</dd>
+
+  <dt id="window-label">Window label</dt>
+  <dd>The identifier of a window, such as <code>main</code>. Capabilities match windows by label, not title, and the security boundary depends on labels. Lesson 8.</dd>
+
+  <dt id="csp">CSP (Content Security Policy)</dt>
+  <dd>A policy that limits what a page may load and run. Tauri restricts it and enables the protection only when the policy is set in the configuration file. Lesson 8.</dd>
+
+</dl>
+</section>
+
+<section>
+<h2>Building and shipping</h2>
+<dl class="terms">
+
+  <dt id="plugin">Plugin</dt>
+  <dd>An official extension made of a Rust crate named <code>tauri-plugin-&lt;name&gt;</code> and a JavaScript package named <code>@tauri-apps/plugin-&lt;name&gt;</code>. Its APIs are gated by permissions. Lesson 9.</dd>
+
+  <dt id="identifier">Identifier</dt>
+  <dd>The required reverse-domain name of the app in <code>tauri.conf.json</code>, such as <code>com.example.app</code>. The placeholder <code>com.tauri.dev</code> is rejected by <code>tauri build</code>. Lessons 2, 10.</dd>
+
+  <dt id="bundle">Bundle</dt>
+  <dd>An installer or package produced by <code>tauri build</code>, in a format for one OS, such as a DMG on macOS or a Debian package on Linux. Lesson 10.</dd>
+
+  <dt id="updater-signature">Updater signature</dt>
+  <dd>A signature that the updater verifies before installing an update, against a public key in the configuration. The check cannot be disabled. Lesson 10.</dd>
+
+</dl>
+</section>
+
+<footer class="lesson-footer">
+  <a href="../../index.html">Course home</a> · <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="tauri-cheatsheet.html">Cheat sheet</a>
+</footer>
+</body>
+</html>

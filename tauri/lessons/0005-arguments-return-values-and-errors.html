@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — Arguments, Return Values, and Errors</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 10</span><span>Tauri 2</span></div>
+  <h1>Arguments, Return Values, and Errors</h1>
+  <p class="subtitle">A command that can fail needs <code>Result</code>. On the JavaScript side, a failure becomes a rejected promise.</p>
+</header>
+
+<section>
+<h2>Returning a Result</h2>
+<p>Commands return <code>Result&lt;T, E&gt;</code>, the same type you met in the <a href="../../rust/lessons/0007-error-handling.html">Rust set's error handling lesson</a>. The docs describe the consequence on the JavaScript side: if the command returns an error, <em>the promise will reject, otherwise, it resolves</em>.<sup><a href="#r1">1</a></sup></p>
+
+<pre><code>#[tauri::command]
+fn read_note(path: String) -&gt; Result&lt;String, String&gt; {
+    std::fs::read_to_string(&amp;path).map_err(|err| err.to_string())
+}</code></pre>
+
+<pre><code>import { invoke } from '@tauri-apps/api/core';
+
+try {
+  const text = await invoke('read_note', { path: '/notes/todo.txt' });
+  console.log(text);
+} catch (err) {
+  // The Rust Err arrives here, as the rejection value.
+  console.error('could not read note:', err);
+}</code></pre>
+
+<h2>The error type must serialize</h2>
+<p>The error type <code>E</code> has to implement <code>serde::Serialize</code>, because the error crosses the IPC boundary as JSON. The simplest route is the one above: <code>map_err(|err| err.to_string())</code>, which turns the error into a string.<sup><a href="#r1">1</a></sup></p>
+<p>For a structured error, the docs show a hand-written <code>Serialize</code> implementation that produces an object such as <code>{ kind: 'io', message: '...' }</code>. That lets the frontend branch on <code>kind</code> instead of parsing text. The docs' full example is the reference for the code; this lesson just asks you to recognise the target shape.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Your own Rust is not sandboxed</strong> The capability system (lesson 8) governs Tauri's core and plugin APIs for the frontend. The <code>std::fs</code> call above runs in your Rust code, and no capability stops it. A command that reads a path from JavaScript must check that the path is allowed. This is the "incorrect scope checks inside a command" risk named in the security overview.<sup><a href="#r2">2</a></sup></aside>
+
+<h2>Arguments</h2>
+<p>Arguments follow the casing rule from lesson 4 and must be JSON-serializable. Use plain types: <code>String</code>, numbers, booleans, and structs that derive <code>serde</code> traits. Lesson 3 explained why live Rust values cannot cross the boundary.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Async commands and borrowing</h2>
+<p>A command can be declared <code>async</code>. The docs describe two threading rules. A non-async command runs on the main thread, unless you mark it <code>#[tauri::command(async)]</code>. An async command runs on a separate async task.<sup><a href="#r1">1</a></sup></p>
+
+<pre><code>#[tauri::command]
+async fn word_count(text: String) -&gt; usize {
+    text.split_whitespace().count()
+}</code></pre>
+
+<p>Notice the argument is an owned <code>String</code>, not <code>&amp;str</code>. The docs say borrowed arguments do not work in async functions. Use an owned type, or return <code>Result&lt;T, ()&gt;</code> when a borrowed argument such as <code>State&lt;'_, T&gt;</code> is unavoidable. Lesson 6 shows the <code>State</code> case.<sup><a href="#r1">1</a></sup> The reason traces back to borrowing: a reference must stay valid while the task runs, and the Rust set's lessons on <a href="../../rust/lessons/0004-references-and-borrowing.html">borrowing</a> explain why that is hard to guarantee across an await point.</p>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Add an <code>async fn word_count(text: String) -&gt; usize</code> command to your project, register it, and call it from the frontend with some sample text.</li>
+  <li>Add a second command that returns <code>Result&lt;String, String&gt;</code>. Make it return <code>Err</code> for an empty input string.</li>
+  <li>From the frontend, catch the rejection and show the message on the page. Confirm that a non-empty input resolves normally.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">A command returns <code>Err</code>. What does the JavaScript caller see?</p>
+    <button class="quiz-option">The promise resolves with the error as its value</button>
+    <button class="quiz-option">The app crashes with a panic in the core</button>
+    <button class="quiz-option">The promise rejects with the error</button>
+    <button class="quiz-option">The error is logged and the promise stays pending</button>
+    <p class="quiz-explanation">The docs say the promise rejects when the command returns an error, and resolves otherwise.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">Which argument type is the safe default for an async command?</p>
+    <button class="quiz-option">An owned String</button>
+    <button class="quiz-option">A borrowed &amp;str</button>
+    <button class="quiz-option">A raw pointer into the frontend</button>
+    <button class="quiz-option">A reference to a local variable</button>
+    <p class="quiz-explanation">Borrowed arguments do not work in async functions. An owned type avoids the lifetime problem.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">What does <code>#[tauri::command(async)]</code> do on a non-async function?</p>
+    <button class="quiz-option">It compiles the function to WebAssembly</button>
+    <button class="quiz-option">It allows the function to accept borrowed arguments</button>
+    <button class="quiz-option">It removes the need for serde on the error type</button>
+    <button class="quiz-option">It runs the function off the main thread</button>
+    <p class="quiz-explanation">Non-async commands run on the main thread unless marked <code>async</code> this way.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the error-handling and async sections of <a href="https://v2.tauri.app/develop/calling-rust/">Calling Rust from the Frontend</a>. The structured-error example there is worth copying by hand once.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Ask me to review your <code>read_note</code> command for path safety. Ask what a path like <code>../../etc/passwd</code> would do, and what check belongs in Rust rather than in the frontend.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://v2.tauri.app/develop/calling-rust/">Tauri — Calling Rust from the Frontend</a> — <code>Result</code> and promise rejection; <code>E: Serialize</code>; <code>async</code> and <code>#[tauri::command(async)]</code>; borrowed arguments in async functions.</li>
+    <li id="r2"><a href="https://v2.tauri.app/security/">Tauri — Security</a> — incorrect scope checks inside a command are outside what Tauri protects against.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-commands-write-and-call.html">← Lesson 4: Commands</a></span>
+  <span class="nav-next"><a href="0006-managed-state.html">Lesson 6: Managed State →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/tauri-cheatsheet.html">Cheat sheet</a>
+</footer>
+</body>
+</html>

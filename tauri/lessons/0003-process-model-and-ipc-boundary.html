@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — The Process Model and the IPC Boundary</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 10</span><span>Tauri 2</span></div>
+  <h1>The Process Model and the IPC Boundary</h1>
+  <p class="subtitle">Every request from the interface crosses one boundary. Learn what crosses it, what does not, and why that matters for the design of the whole app.</p>
+</header>
+
+<section>
+<h2>The picture</h2>
+<pre><code>  ┌──────────────────────────┐          ┌──────────────────────────┐
+  │   Core process (Rust)    │  IPC     │  WebView process         │
+  │                          │◄────────►│  (your HTML/CSS/TS)      │
+  │  windows, tray, OS APIs  │ messages │                          │
+  │  global state, commands  │          │  calls invoke(...)       │
+  └──────────────────────────┘          │  listens for events      │
+                                        └──────────────────────────┘</code></pre>
+
+<p>The core process <em>routes all Inter-Process Communication</em>.<sup><a href="#r1">1</a></sup> Nothing reaches the operating system from the webview directly. Every request goes through the core, and the core decides whether to honour it.</p>
+
+<h2>Two ways the frontend talks to Rust</h2>
+<ul>
+  <li><strong>Commands</strong> are requests. The frontend calls <code>invoke</code>, which the docs describe as <em>similar to the browser's fetch API</em>. It returns a promise with the answer.<sup><a href="#r2">2</a></sup></li>
+  <li><strong>Events</strong> are notifications. They are <em>fire-and-forget, one-way IPC messages</em>, and either the frontend or the core can emit them.<sup><a href="#r2">2</a></sup></li>
+</ul>
+<p>Lesson 4 builds commands and lesson 7 covers events and channels. For now, notice that both are <em>asynchronous message passing</em>. The frontend never waits on a Rust function the way one JavaScript function waits on another.<sup><a href="#r2">2</a></sup></p>
+
+<h2>What is allowed to cross</h2>
+<p>The IPC layer uses a <em>JSON-RPC like protocol</em>, so arguments and return values must be serializable to JSON.<sup><a href="#r2">2</a></sup> You cannot pass a live Rust struct, a file handle, or a pointer across the boundary. You pass data, and the core rebuilds what it needs on its side.</p>
+
+<aside class="note"><strong>Design consequence</strong> Think of the boundary as an API you publish to your own frontend. Every command you expose is a door. Lessons 8 and 9 are about deciding which doors exist and which windows may open them.</aside>
+
+<h2>Where the trust lies</h2>
+<p>The security overview describes the model plainly. Code running in the webview has only the access to system resources that is exposed through the IPC layer.<sup><a href="#r3">3</a></sup> Tauri aims to limit the damage a compromised frontend can do. It does not make your own Rust code safe. The same overview says Tauri does not protect against malicious or insecure Rust code, scopes that are too lax, or incorrect scope checks inside a command.<sup><a href="#r3">3</a></sup></p>
+
+<p>So the practical split is this: the frontend is code you wrote, but it is treated as the less privileged side. Put decisions that touch files, the network, or the OS in Rust, validate what the frontend sends, and grant each window only the permissions it needs.</p>
+
+<h2>Why a process boundary at all</h2>
+<p>The process model is the reason a bug in the interface does not automatically become a bug in the OS layer. The core and the webview are separate processes, and the core is the only component with full access to the operating system.<sup><a href="#r1">1</a></sup> Rendering can crash, and the core still holds the state and the windows.</p>
+
+<section class="task">
+<h2>Think it through (no code)</h2>
+<p>Your app needs to save a user's document to disk. Decide, on paper, which side of the boundary does what: who opens the file, who chooses the path, and who checks that the path is allowed. Write one sentence for each. You will compare your answers with the lesson 8 approach later.</p>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">From the frontend's point of view, a call to <code>invoke</code> is most like which browser API?</p>
+    <button class="quiz-option">A synchronous loop that blocks the page</button>
+    <button class="quiz-option">A direct pointer into the Rust heap</button>
+    <button class="quiz-option">A WebSocket left open for the app's lifetime</button>
+    <button class="quiz-option">A call similar to the browser's fetch API</button>
+    <p class="quiz-explanation">The IPC docs say <code>invoke</code> is similar to fetch: an asynchronous request that returns a promise.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">Which IPC mechanism is described as fire-and-forget, one-way messages?</p>
+    <button class="quiz-option">Commands, because they return a value to the caller</button>
+    <button class="quiz-option">Channels, because they stream data in order to the caller</button>
+    <button class="quiz-option">Events, which carry no reply from the receiver</button>
+    <button class="quiz-option">Plugins, which register handlers with the core process</button>
+    <p class="quiz-explanation">Events are one-way and fire-and-forget. Commands are request-and-response, and channels are ordered streams.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">What must be true of the arguments and return values that cross the IPC boundary?</p>
+    <button class="quiz-option">They must be serializable to JSON</button>
+    <button class="quiz-option">They must be raw pointers into shared memory</button>
+    <button class="quiz-option">They must first be compiled to WebAssembly</button>
+    <button class="quiz-option">They must be plain strings and nothing else</button>
+    <p class="quiz-explanation">The IPC protocol is JSON-RPC-like, so arguments and return values are JSON-serializable.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://v2.tauri.app/concept/inter-process-communication/">Inter-Process Communication</a> page, then the <a href="https://v2.tauri.app/security/">Security overview</a> for the threat model.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Ask me to play a skeptical reviewer of your answer to the "Think it through" task. Ask what would go wrong if the frontend chose the file path itself.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://v2.tauri.app/concept/process-model/">Tauri — Process Model</a> — core as the only component with full OS access; core routes all IPC.</li>
+    <li id="r2"><a href="https://v2.tauri.app/concept/inter-process-communication/">Tauri — Inter-Process Communication</a> — async message passing; invoke like fetch; events fire-and-forget; JSON-RPC-like protocol.</li>
+    <li id="r3"><a href="https://v2.tauri.app/security/">Tauri — Security</a> — threat model: what the webview may access; what Tauri does not protect against.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-scaffolding-and-project-anatomy.html">← Lesson 2: Scaffolding</a></span>
+  <span class="nav-next"><a href="0004-commands-write-and-call.html">Lesson 4: Commands →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/tauri-cheatsheet.html">Cheat sheet</a>
+</footer>
+</body>
+</html>

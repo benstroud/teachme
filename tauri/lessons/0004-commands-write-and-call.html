@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — Commands: Write One and Call It</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 10</span><span>Tauri 2</span></div>
+  <h1>Commands: Write One and Call It</h1>
+  <p class="subtitle">A command is a Rust function the frontend may call. Three steps make one: annotate it, register it, invoke it.</p>
+</header>
+
+<section>
+<h2>Step 1: write the function in Rust</h2>
+<p>Mark an ordinary function with <code>#[tauri::command]</code>. Here is a small one in <code>src-tauri/src/lib.rs</code>:<sup><a href="#r1">1</a></sup></p>
+<pre><code>#[tauri::command]
+fn greet(name: &amp;str) -&gt; String {
+    format!("Hello, {name}! Welcome to Tauri.")
+}</code></pre>
+
+<p>Note the signature. The argument is a borrowed <code>&amp;str</code>, and the return value is an owned <code>String</code>. Those are Rust ownership choices from the <a href="../../rust/lessons/0004-references-and-borrowing.html">Rust set's borrowing lesson</a>. Lesson 5 explains why the choice changes for async commands.</p>
+
+<h2>Step 2: register it on the builder</h2>
+<p>A command does nothing until you list it in the builder's handler. Use <code>generate_handler!</code> with every command name inside it:<sup><a href="#r1">1</a></sup></p>
+<pre><code>tauri::Builder::default()
+    .invoke_handler(tauri::generate_handler![greet])
+    // ...the rest of the builder chain from your template</code></pre>
+
+<aside class="note"><strong>Two rules from the docs</strong> First, call <code>invoke_handler</code> only once. The docs say that only the last call is used, so put every command in one <code>generate_handler!</code> list.<sup><a href="#r1">1</a></sup> Second, command names must be unique across the app.</aside>
+
+<h2>Commands in other modules</h2>
+<p>A command in <code>lib.rs</code> must not be <code>pub</code>. Once you move commands into their own module, the function must be <code>pub</code>, and you list it by its module path:<sup><a href="#r1">1</a></sup></p>
+<pre><code>// src-tauri/src/commands.rs
+#[tauri::command]
+pub fn greet(name: &amp;str) -&gt; String {
+    format!("Hello, {name}!")
+}
+
+// src-tauri/src/lib.rs
+.invoke_handler(tauri::generate_handler![commands::greet])</code></pre>
+
+<h2>Step 3: call it from the frontend</h2>
+<p>Import <code>invoke</code> from the core API module and call the command by its name. Arguments travel as a JSON object:<sup><a href="#r1">1</a></sup></p>
+<pre><code>import { invoke } from '@tauri-apps/api/core';
+
+const message = await invoke('greet', { name: 'Ben' });
+console.log(message); // "Hello, Ben! Welcome to Tauri."</code></pre>
+
+<p>The docs note that the same call works from a global script through <code>window.__TAURI__.core.invoke</code>, when the app enables that option.<sup><a href="#r1">1</a></sup> Most TypeScript projects use the import.</p>
+
+<h2>Argument names: the casing rule</h2>
+<p>By default, Rust <code>snake_case</code> argument names become <code>camelCase</code> keys in JavaScript. The docs use this example: a Rust argument <code>invoke_message: String</code> is sent as <code>invokeMessage</code>.<sup><a href="#r1">1</a></sup></p>
+<pre><code>#[tauri::command]
+fn save_note(note_title: String) { /* ... */ }
+
+// JavaScript sends:
+invoke('save_note', { noteTitle: 'Groceries' });</code></pre>
+<p>To keep the snake_case keys on the JavaScript side, set the attribute: <code>#[tauri::command(rename_all = "snake_case")]</code>.<sup><a href="#r1">1</a></sup></p>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>In your <code>tauri-hello</code> project from lesson 2, add the <code>greet</code> function above to <code>src-tauri/src/lib.rs</code>. If your template already has a <code>greet</code> command, rename yours.</li>
+  <li>Register it in <code>invoke_handler(tauri::generate_handler![...])</code>.</li>
+  <li>Call it from the frontend script with <code>invoke('greet', { name: 'your name' })</code> and write the result into an element on the page.</li>
+  <li>Change the Rust argument to <code>user_name: &amp;str</code>. Find the JavaScript key that now works, and find the key that stops working.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">If <code>invoke_handler</code> is called twice on the builder, which commands does Tauri use?</p>
+    <button class="quiz-option">Commands from both calls, merged into one list</button>
+    <button class="quiz-option">Only the commands from the last call</button>
+    <button class="quiz-option">Only the commands from the first call</button>
+    <button class="quiz-option">None, because the builder refuses to start</button>
+    <p class="quiz-explanation">The docs say only the last call is used, so every command must appear in one <code>generate_handler!</code> list.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">A Rust argument named <code>note_title</code> is passed from JavaScript under which key by default?</p>
+    <button class="quiz-option">note_title</button>
+    <button class="quiz-option">NoteTitle</button>
+    <button class="quiz-option">note-title</button>
+    <button class="quiz-option">noteTitle</button>
+    <p class="quiz-explanation">The default is camelCase on the JavaScript side. Add <code>rename_all = "snake_case"</code> to keep the snake_case key.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">Which statement about a command defined directly in <code>lib.rs</code> is correct?</p>
+    <button class="quiz-option">It must be declared pub so the builder can find it</button>
+    <button class="quiz-option">It must be async, or it will never be called</button>
+    <button class="quiz-option">It must not be declared pub, unlike module commands</button>
+    <button class="quiz-option">It must return a String and nothing else</button>
+    <p class="quiz-explanation">The command docs say a command in <code>lib.rs</code> must not be <code>pub</code>. Commands in a separate module are the opposite: they must be <code>pub</code>.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://v2.tauri.app/develop/calling-rust/">Calling Rust from the Frontend</a> in full. It covers commands, argument casing, and errors, and is the page these snippets are drawn from.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Ask me what the compiler says if you forget to add a command to <code>generate_handler!</code>, then try it. Ask why the argument type is <code>&amp;str</code> here but a <code>String</code> in the async lesson.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://v2.tauri.app/develop/calling-rust/">Tauri — Calling Rust from the Frontend</a> — <code>#[tauri::command]</code>, <code>generate_handler!</code>, <code>invoke</code>, camelCase keys, <code>rename_all</code>, <code>pub</code> rules, single <code>invoke_handler</code> call.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-process-model-and-ipc-boundary.html">← Lesson 3: The Process Model</a></span>
+  <span class="nav-next"><a href="0005-arguments-return-values-and-errors.html">Lesson 5: Arguments, Returns, and Errors →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/tauri-cheatsheet.html">Cheat sheet</a>
+</footer>
+</body>
+</html>

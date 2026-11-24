@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — Scaffolding and Project Anatomy</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 10</span><span>Tauri 2</span></div>
+  <h1>Scaffolding and Project Anatomy</h1>
+  <p class="subtitle">Generate a project, run it, and learn which file controls what before you change any code.</p>
+</header>
+
+<section>
+<h2>What you need installed</h2>
+<p>Tauri needs system build dependencies, Rust, and, if your frontend is JavaScript-based, Node.js LTS. The per-OS list is in the official prerequisites.<sup><a href="#r1">1</a></sup> On Windows you need Microsoft C++ Build Tools and the WebView2 runtime. On macOS you need Xcode or the command-line tools (<code>xcode-select --install</code>). On Linux you need the WebKit and build packages for your distribution.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>Toolchain check</strong> Run <code>rustc --version</code>. The plugin crates in lesson 9 require Rust 1.90 or newer, and the plugin pages say so. If you are on an older toolchain, run <code>rustup update stable</code> before lesson 9. The authoring machine had 1.84.1.</aside>
+
+<h2>Create a project</h2>
+<p>The docs recommend the interactive scaffolder. The npm form is one of several equivalent entry points.<sup><a href="#r2">2</a></sup></p>
+<pre><code>npm create tauri-app@latest
+cd your-app-name
+npm install
+npm run tauri dev</code></pre>
+<p><code>npm run tauri dev</code> starts the frontend dev server and opens the app window. Changes to the frontend reload without a rebuild. Changes to the Rust side recompile and restart.</p>
+
+<h2>Read the project tree</h2>
+<p>A new project looks roughly like this. The frontend folder names depend on the template you pick at scaffold time (for example, <code>src/main.js</code> or <code>src/main.ts</code>).<sup><a href="#r3">3</a></sup></p>
+<pre><code>your-app/
+├── package.json
+├── index.html
+├── src/                    ← frontend
+│   └── main.js  (or main.ts)
+└── src-tauri/              ← Rust core
+    ├── Cargo.toml          ← Rust dependencies (crates)
+    ├── Cargo.lock
+    ├── build.rs
+    ├── tauri.conf.json     ← app identifier, windows, build settings
+    ├── capabilities/
+    │   └── default.json    ← which permissions each window has
+    ├── icons/
+    └── src/
+        ├── main.rs         ← thin entry point
+        └── lib.rs          ← put your app code here</code></pre>
+
+<p>Two conventions matter from the start. The docs say to keep <code>src/main.rs</code> thin and put app code in <code>lib.rs</code>.<sup><a href="#r3">3</a></sup> And the <code>capabilities/</code> folder is where the permissions for each window are declared.<sup><a href="#r3">3</a></sup> Lesson 8 covers that folder in depth.</p>
+
+<h2>The config file that matters first</h2>
+<p><code>tauri.conf.json</code> holds the app's name, its reverse-domain <code>identifier</code>, the build settings, and the windows the app opens. The configuration reference lists these top-level keys: <code>productName</code>, <code>version</code>, <code>identifier</code>, <code>build</code>, <code>app</code>, <code>bundle</code>, and <code>plugins</code>.<sup><a href="#r4">4</a></sup></p>
+<pre><code>{
+  "productName": "your-app",
+  "version": "0.1.0",
+  "identifier": "com.example.yourapp",
+  "build": {
+    "devUrl": "http://localhost:3000",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      { "title": "Your App", "width": 800, "height": 600, "label": "main" }
+    ]
+  }
+}</code></pre>
+
+<aside class="note"><strong>Watch the identifier</strong> The reference says <code>identifier</code> is required and reverse-domain. The value <code>com.tauri.dev</code> is rejected by <code>tauri build</code>. Pick your own domain-style name now, because changing it later affects app data locations and updates.<sup><a href="#r4">4</a></sup></aside>
+
+<p>The values in your generated file may differ from this sample (for example, the dev server port). Trust the file in your project over the sample here.</p>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Scaffold a project with <code>npm create tauri-app@latest</code>. Name it <code>tauri-hello</code>.</li>
+  <li>Run <code>npm install</code>, then <code>npm run tauri dev</code>. Confirm a window opens.</li>
+  <li>Stop the dev process. Open <code>src-tauri/tauri.conf.json</code> and change the window <code>title</code>.</li>
+  <li>Run <code>npm run tauri dev</code> again. Confirm the new title appears.</li>
+</ol>
+<p>If the Rust build fails with a version error, run <code>rustup update stable</code> and retry.</p>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">Which file holds the app identifier and the window settings?</p>
+    <button class="quiz-option">package.json</button>
+    <button class="quiz-option">Cargo.lock</button>
+    <button class="quiz-option">tauri.conf.json</button>
+    <button class="quiz-option">build.rs</button>
+    <p class="quiz-explanation"><code>tauri.conf.json</code> holds the identifier, build settings, and windows. <code>package.json</code> is for npm, <code>Cargo.lock</code> pins Rust versions, and <code>build.rs</code> is a build script.<sup><a href="#r4">4</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">The project docs suggest where to put most of your Rust application code?</p>
+    <button class="quiz-option">In src-tauri/src/lib.rs, keeping src/main.rs thin</button>
+    <button class="quiz-option">In src-tauri/src/main.rs, with everything in one file</button>
+    <button class="quiz-option">In the capabilities folder next to the permissions</button>
+    <button class="quiz-option">In index.html, beside the frontend markup</button>
+    <p class="quiz-explanation">The structure docs say to keep <code>main.rs</code> thin and put app code in <code>lib.rs</code>.<sup><a href="#r3">3</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">What is the capabilities/ folder for?</p>
+    <button class="quiz-option">Storing the app's icon files and sizes</button>
+    <button class="quiz-option">Declaring which permissions each window has</button>
+    <button class="quiz-option">Holding the compiled binary for each platform</button>
+    <button class="quiz-option">Caching npm packages between builds</button>
+    <p class="quiz-explanation">Capability files declare the permissions granted to windows. Lesson 8 is entirely about them.<sup><a href="#r3">3</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://v2.tauri.app/start/project-structure/">Project Structure</a> page, then the <a href="https://v2.tauri.app/reference/config/">Configuration Reference</a> for the keys you will meet in later lessons.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Paste your <code>tauri.conf.json</code> here and ask what each key controls. Ask what would break if you deleted the <code>capabilities/</code> folder.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://v2.tauri.app/start/prerequisites/">Tauri — Prerequisites</a> — system dependencies per OS, Rust, and Node.js for JS frontends.</li>
+    <li id="r2"><a href="https://v2.tauri.app/start/create-project/">Tauri — Create a Project</a> — <code>npm create tauri-app@latest</code> and alternatives.</li>
+    <li id="r3"><a href="https://v2.tauri.app/start/project-structure/">Tauri — Project Structure</a> — file layout, <code>main.rs</code> thin, <code>capabilities/</code>.</li>
+    <li id="r4"><a href="https://v2.tauri.app/reference/config/">Tauri — Configuration Reference</a> — top-level keys; identifier rules.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-what-tauri-is.html">← Lesson 1: What Tauri Is</a></span>
+  <span class="nav-next"><a href="0003-process-model-and-ipc-boundary.html">Lesson 3: The Process Model →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/tauri-cheatsheet.html">Cheat sheet</a>
+</footer>
+</body>
+</html>

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — Events and Channels</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 10</span><span>Tauri 2</span></div>
+  <h1>Events and Channels</h1>
+  <p class="subtitle">Commands answer a question. Events announce a change. Channels stream ordered updates to one caller. Pick the one that matches the shape of the data.</p>
+</header>
+
+<section>
+<h2>Three shapes of communication</h2>
+<table>
+  <tr><th>You need</th><th>Use</th><th>Why</th></tr>
+  <tr><td>Ask for data and get one answer</td><td>Command</td><td>Request and response, the lessons 4–5 pattern.</td></tr>
+  <tr><td>Announce something that any listener may react to</td><td>Event</td><td>One-way and fire-and-forget. The sender does not wait for a reply.<sup><a href="#r1">1</a></sup></td></tr>
+  <tr><td>Stream many ordered updates to one caller, such as progress</td><td>Channel</td><td>Built for fast, ordered streaming from Rust to JavaScript.<sup><a href="#r2">2</a></sup></td></tr>
+</table>
+
+<h2>Events: Rust to JavaScript</h2>
+<p>From Rust, emit an event by name. Use <code>emit_to</code> to target one window. Import the <code>Emitter</code> trait first:<sup><a href="#r2">2</a></sup></p>
+<pre><code>use tauri::{AppHandle, Emitter};
+
+#[tauri::command]
+fn start_download(app: AppHandle, url: String) {
+    app.emit("download-started", &amp;url).unwrap();
+}
+
+// Only the window labelled "login" receives this:
+// app.emit_to("login", "login-result", result).unwrap();</code></pre>
+
+<p>In JavaScript, <code>listen</code> registers a handler. It returns a promise that resolves to an <code>unlisten</code> function, so await it before you call the function:<sup><a href="#r2">2</a></sup></p>
+<pre><code>import { listen } from '@tauri-apps/api/event';
+
+const unlisten = await listen&lt;string&gt;('download-started', (event) =&gt; {
+  console.log('started:', event.payload);
+});
+
+// Later, when no longer interested:
+unlisten();</code></pre>
+
+<p>Events also flow the other way. The frontend can emit with <code>emit</code> from the same module, and Rust can listen with <code>app.listen</code> after importing <code>Listener</code>.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Payloads and limits</h2>
+<p>An event payload must implement <code>Serialize</code> and <code>Clone</code>, and it travels as JSON. The docs add two limits: events are not type-safe, and the event system is not suited to sending large amounts of data.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>A common mistake</strong> Developers often reach for events for everything, because they are the easiest to write. Use them for notifications: "the file changed", "the user signed out". For a stream of 10,000 progress updates, use a channel.</aside>
+
+<h2>Channels: an ordered stream to one caller</h2>
+<p>A channel is a command parameter typed <code>Channel&lt;T&gt;</code>. Rust sends values into it, and the JavaScript caller creates the channel and handles each message:<sup><a href="#r2">2</a></sup></p>
+<pre><code>use tauri::ipc::Channel;
+
+#[tauri::command]
+fn download(url: String, on_event: Channel&lt;u32&gt;) {
+    on_event.send(0).unwrap();
+    on_event.send(50).unwrap();
+    on_event.send(100).unwrap();
+}</code></pre>
+
+<pre><code>import { invoke, Channel } from '@tauri-apps/api/core';
+
+const onEvent = new Channel&lt;number&gt;();
+onEvent.onmessage = (percent) =&gt; {
+  console.log('progress', percent);
+};
+
+await invoke('download', { url, onEvent });</code></pre>
+
+<p>The docs' example sends a richer enum of download events. A number is enough to learn the pattern. The channel fits progress and output streams because it preserves order and is designed for this traffic.<sup><a href="#r2">2</a></sup></p>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Add a command <code>start_work</code> that takes an <code>AppHandle</code> and emits a <code>work-started</code> event with a string payload.</li>
+  <li>In the frontend, <code>listen</code> for <code>work-started</code> and show the payload on the page. Keep the <code>unlisten</code> function and call it on a second button click.</li>
+  <li>Add a second command <code>count_to_three</code> that takes a <code>Channel&lt;u32&gt;</code> and sends 1, 2, 3. Show each value as it arrives.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">Which mechanism lets Rust push an ordered stream of progress updates to one specific caller?</p>
+    <button class="quiz-option">A command polled in a loop by the frontend</button>
+    <button class="quiz-option">A plugin registered at startup</button>
+    <button class="quiz-option">A capability file listing the window</button>
+    <button class="quiz-option">A channel passed in as an argument</button>
+    <p class="quiz-explanation">Channels are built for ordered streaming from Rust to JavaScript, and they are passed as a command argument.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">What must an event payload type implement?</p>
+    <button class="quiz-option">Be a raw pointer into shared memory</button>
+    <button class="quiz-option">Implement Serialize and Clone</button>
+    <button class="quiz-option">Be a plain String and nothing else</button>
+    <button class="quiz-option">Implement Copy and nothing else</button>
+    <p class="quiz-explanation">The events docs require <code>Serialize</code> and <code>Clone</code>. The payload travels as JSON.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">What does <code>listen</code> return in JavaScript?</p>
+    <button class="quiz-option">The payload itself, synchronously</button>
+    <button class="quiz-option">A WebSocket connected to the core</button>
+    <button class="quiz-option">A promise that resolves to an unlisten function</button>
+    <button class="quiz-option">Nothing, because listeners cannot be removed</button>
+    <p class="quiz-explanation">The docs say <code>listen</code> returns a promise that resolves to <code>unlisten</code>. Await it before you call the function.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://v2.tauri.app/develop/calling-frontend/">Calling the Frontend from Rust</a>. It covers events, targeted emits, and channels with the full API.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Describe a feature in an app you know, such as upload progress or a sync status badge. Ask me whether it should be an event or a channel, and why.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://v2.tauri.app/concept/inter-process-communication/">Tauri — Inter-Process Communication</a> — events are fire-and-forget, one-way messages.</li>
+    <li id="r2"><a href="https://v2.tauri.app/develop/calling-frontend/">Tauri — Calling the Frontend from Rust</a> — <code>emit</code>, <code>emit_to</code>, <code>listen</code>, <code>unlisten</code>, payload rules, channels.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-managed-state.html">← Lesson 6: Managed State</a></span>
+  <span class="nav-next"><a href="0008-capabilities-and-permissions.html">Lesson 8: Capabilities and Permissions →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/tauri-cheatsheet.html">Cheat sheet</a>
+</footer>
+</body>
+</html>

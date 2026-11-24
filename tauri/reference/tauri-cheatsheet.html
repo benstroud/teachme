@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tauri 2 Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Tauri 2</span></div>
+  <h1>Tauri 2 Cheat Sheet</h1>
+  <p class="subtitle">One page to keep open while you build. Every entry traces to a lesson and to the official docs.</p>
+</header>
+
+<section>
+<h2>CLI</h2>
+<table class="ref">
+  <tr><th>Command</th><th>What it does</th><th>Lesson</th></tr>
+  <tr><td>npm create tauri-app@latest</td><td>Scaffold a new project</td><td>2</td></tr>
+  <tr><td>npm run tauri dev</td><td>Run the app in development</td><td>2</td></tr>
+  <tr><td>npm run tauri build</td><td>Compile and bundle for distribution</td><td>10</td></tr>
+  <tr><td>npm run tauri build -- --no-bundle</td><td>Compile without bundling</td><td>10</td></tr>
+  <tr><td>npm run tauri bundle -- --bundles app,dmg</td><td>Bundle an existing build (macOS example)</td><td>10</td></tr>
+  <tr><td>npm run tauri add dialog</td><td>Add a plugin on both the Rust and JS sides</td><td>9</td></tr>
+  <tr><td>npm run tauri add updater</td><td>Add the updater plugin</td><td>10</td></tr>
+  <tr><td>npm run tauri signer generate -- -w ~/.tauri/app.key</td><td>Create an updater key pair</td><td>10</td></tr>
+  <tr><td>rustup update stable</td><td>Move to Rust 1.90+ for the plugin crates</td><td>2, 9</td></tr>
+</table>
+</section>
+
+<section>
+<h2>Where things live</h2>
+<table class="ref">
+  <tr><th>Path</th><th>Contents</th></tr>
+  <tr><td>src/</td><td>Frontend (HTML, CSS, TypeScript)</td></tr>
+  <tr><td>src-tauri/src/lib.rs</td><td>App code, commands, and the builder</td></tr>
+  <tr><td>src-tauri/src/main.rs</td><td>Thin entry point</td></tr>
+  <tr><td>src-tauri/tauri.conf.json</td><td>Identifier, build, windows, bundle, plugins</td></tr>
+  <tr><td>src-tauri/capabilities/*.json</td><td>Permissions per window</td></tr>
+  <tr><td>src-tauri/Cargo.toml</td><td>Rust crates (including <code>tauri-plugin-*</code>)</td></tr>
+</table>
+</section>
+
+<section>
+<h2>Commands (Rust to JS)</h2>
+<pre><code>#[tauri::command]
+fn greet(name: &amp;str) -&gt; String {
+    format!("Hello, {name}!")
+}
+
+// Register in lib.rs. Call invoke_handler ONCE; only the last call is used.
+tauri::Builder::default()
+    .invoke_handler(tauri::generate_handler![greet])</code></pre>
+
+<pre><code>import { invoke } from '@tauri-apps/api/core';
+
+const msg = await invoke('greet', { name: 'Ben' }); // rust snake_case → JS camelCase</code></pre>
+
+<table class="ref">
+  <tr><th>Rule</th><th>Detail</th></tr>
+  <tr><td>Argument keys</td><td>camelCase by default; <code>#[tauri::command(rename_all = "snake_case")]</code> keeps snake_case</td></tr>
+  <tr><td>Errors</td><td><code>Err</code> rejects the promise; the error type must implement <code>Serialize</code></td></tr>
+  <tr><td>Async</td><td>Use owned arguments (<code>String</code>), not <code>&amp;str</code> or <code>State&lt;'_, T&gt;</code></td></tr>
+  <tr><td>Sync off-thread</td><td><code>#[tauri::command(async)]</code> on a non-async function</td></tr>
+  <tr><td><code>lib.rs</code> vs module</td><td>In <code>lib.rs</code>, not <code>pub</code>; in a module, <code>pub</code> and listed by path</td></tr>
+  <tr><td>Access</td><td>Commands are callable from all windows by default; restrict in <code>build.rs</code></td></tr>
+</table>
+</section>
+
+<section>
+<h2>Managed state</h2>
+<pre><code>use std::sync::Mutex;
+use tauri::State;
+
+tauri::Builder::default()
+    .setup(|app| {
+        app.manage(Mutex::new(AppState::default()));
+        Ok(())
+    })
+
+#[tauri::command]
+fn increase(state: State&lt;'_, Mutex&lt;AppState&gt;&gt;) -&gt; u32 {
+    let mut s = state.lock().unwrap();
+    s.counter += 1;
+    s.counter
+}
+
+// Outside a command (needs use tauri::Manager):
+let state = app.state::&lt;Mutex&lt;AppState&gt;&gt;();</code></pre>
+<p><strong>Mismatch:</strong> wrong <code>State</code> type compiles, then fails at runtime with a state-not-managed error.</p>
+</section>
+
+<section>
+<h2>Events and channels</h2>
+<table class="ref">
+  <tr><th>Need</th><th>Rust</th><th>JavaScript</th></tr>
+  <tr><td>Emit to all listeners</td><td><code>app.emit("name", &amp;payload)</code> (import <code>Emitter</code>)</td><td><code>emit('name', payload)</code> from <code>@tauri-apps/api/event</code></td></tr>
+  <tr><td>Emit to one window</td><td><code>app.emit_to("label", "name", payload)</code></td><td>—</td></tr>
+  <tr><td>Listen</td><td><code>app.listen("name", |event| …)</code> (import <code>Listener</code>)</td><td><code>const un = await listen&lt;T&gt;('name', e =&gt; e.payload)</code>; call <code>un()</code> to stop</td></tr>
+  <tr><td>Stream to one caller</td><td>Command takes <code>Channel&lt;T&gt;</code>; <code>send(value)</code></td><td><code>new Channel&lt;T&gt;()</code>; set <code>onmessage</code>; pass in <code>invoke</code> args</td></tr>
+</table>
+<p>Payloads implement <code>Serialize</code> and <code>Clone</code>. Events are not type-safe and not suited to large data.</p>
+</section>
+
+<section>
+<h2>Capabilities and scopes</h2>
+<pre><code>// src-tauri/capabilities/default.json
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main-capability",
+  "description": "Capability for the main window",
+  "windows": ["main"],
+  "permissions": [
+    "core:path:default",
+    "core:window:allow-set-title",
+    "fs:default"
+  ]
+}</code></pre>
+
+<pre><code>// tauri.conf.json: enable explicitly (otherwise every file in the folder is used)
+"app": { "security": { "capabilities": ["main-capability"] } }</code></pre>
+
+<table class="ref">
+  <tr><th>Concept</th><th>Rule</th></tr>
+  <tr><td>Permission format</td><td><code>&lt;name&gt;:default</code> or <code>&lt;name&gt;:&lt;command&gt;</code>, e.g. <code>fs:allow-mkdir</code></td></tr>
+  <tr><td>Windows</td><td>Match by window <strong>label</strong>, never by title</td></tr>
+  <tr><td>Scope</td><td>Narrows where a permitted action applies; <strong>deny supersedes allow</strong></td></tr>
+  <tr><td><code>fs:allow-exists</code> alone</td><td>Grants no path access; add a scope</td></tr>
+  <tr><td>Remote URLs</td><td>Off by default; a capability's <code>remote</code> key opts in</td></tr>
+  <tr><td>CSP</td><td>Enforced only when set in the configuration file</td></tr>
+</table>
+</section>
+
+<section>
+<h2>Plugins</h2>
+<pre><code># src-tauri/
+cargo add tauri-plugin-dialog
+
+# project root
+npm install @tauri-apps/plugin-dialog</code></pre>
+<pre><code>tauri::Builder::default()
+    .plugin(tauri_plugin_dialog::init())
+    .plugin(tauri_plugin_fs::init())
+    .plugin(tauri_plugin_store::Builder::new().build())</code></pre>
+<p>Official plugin pages require Rust 1.90 or newer.</p>
+</section>
+
+<section>
+<h2>Configuration keys</h2>
+<table class="ref">
+  <tr><th>Key</th><th>Purpose</th></tr>
+  <tr><td><code>productName</code>, <code>version</code></td><td>App name and version</td></tr>
+  <tr><td><code>identifier</code></td><td>Required reverse-domain name; <code>com.tauri.dev</code> is rejected by build</td></tr>
+  <tr><td><code>build.devUrl</code>, <code>build.frontendDist</code></td><td>Dev server URL and built frontend folder</td></tr>
+  <tr><td><code>app.windows[]</code></td><td>Window <code>title</code>, <code>width</code>, <code>height</code>, <code>label</code> (default <code>main</code>)</td></tr>
+  <tr><td><code>app.security.capabilities</code></td><td>Explicit list of capability identifiers</td></tr>
+  <tr><td><code>bundle.active</code>, <code>bundle.targets</code></td><td>Whether to bundle (default false) and which formats (default all)</td></tr>
+  <tr><td><code>bundle.createUpdaterArtifacts</code></td><td>Produce signed updater artifacts</td></tr>
+  <tr><td><code>plugins.updater.pubkey</code></td><td>Public key content (not a path)</td></tr>
+  <tr><td><code>plugins.updater.endpoints</code></td><td>Update URLs with <code>{{target}}</code>, <code>{{arch}}</code>, <code>{{current_version}}</code></td></tr>
+</table>
+</section>
+
+<section>
+<h2>Signing environment (build time)</h2>
+<table class="ref">
+  <tr><th>Variable</th><th>Used for</th></tr>
+  <tr><td><code>TAURI_SIGNING_PRIVATE_KEY</code></td><td>Signing updater artifacts (set in the environment; <code>.env</code> does not work)</td></tr>
+  <tr><td><code>APPLE_SIGNING_IDENTITY</code></td><td>macOS signing identity</td></tr>
+  <tr><td><code>APPLE_API_ISSUER</code>, <code>APPLE_API_KEY</code>, <code>APPLE_API_KEY_PATH</code></td><td>Notarization via App Store Connect API key</td></tr>
+  <tr><td><code>APPLE_ID</code>, <code>APPLE_PASSWORD</code>, <code>APPLE_TEAM_ID</code></td><td>Notarization via Apple ID</td></tr>
+  <tr><td><code>APPLE_CERTIFICATE</code>, <code>APPLE_CERTIFICATE_PASSWORD</code></td><td>Certificate in CI</td></tr>
+</table>
+</section>
+
+<section>
+<h2>Which tool for which job</h2>
+<table class="ref">
+  <tr><th>Job</th><th>Use</th></tr>
+  <tr><td>Ask for data, get one answer</td><td>Command</td></tr>
+  <tr><td>Announce a change to any listener</td><td>Event</td></tr>
+  <tr><td>Stream ordered updates to one caller</td><td>Channel</td></tr>
+  <tr><td>Keep data across calls</td><td>Managed state</td></tr>
+  <tr><td>Let a window use a built-in or plugin API</td><td>Permission in a capability</td></tr>
+  <tr><td>Limit where a permitted API may act</td><td>Scope</td></tr>
+</table>
+</section>
+
+<section>
+<h2>Lesson map</h2>
+<table class="ref">
+  <tr><th>#</th><th>Topic</th><th>Lesson</th></tr>
+  <tr><td>1</td><td>What Tauri is</td><td><a href="../lessons/0001-what-tauri-is.html">0001</a></td></tr>
+  <tr><td>2</td><td>Scaffolding and project anatomy</td><td><a href="../lessons/0002-scaffolding-and-project-anatomy.html">0002</a></td></tr>
+  <tr><td>3</td><td>Process model and IPC boundary</td><td><a href="../lessons/0003-process-model-and-ipc-boundary.html">0003</a></td></tr>
+  <tr><td>4</td><td>Commands: write and call</td><td><a href="../lessons/0004-commands-write-and-call.html">0004</a></td></tr>
+  <tr><td>5</td><td>Arguments, returns, and errors</td><td><a href="../lessons/0005-arguments-return-values-and-errors.html">0005</a></td></tr>
+  <tr><td>6</td><td>Managed state</td><td><a href="../lessons/0006-managed-state.html">0006</a></td></tr>
+  <tr><td>7</td><td>Events and channels</td><td><a href="../lessons/0007-events-and-channels.html">0007</a></td></tr>
+  <tr><td>8</td><td>Capabilities and permissions</td><td><a href="../lessons/0008-capabilities-and-permissions.html">0008</a></td></tr>
+  <tr><td>9</td><td>Plugins: dialog, fs, store</td><td><a href="../lessons/0009-plugins-dialog-fs-store.html">0009</a></td></tr>
+  <tr><td>10</td><td>Build, sign, and ship</td><td><a href="../lessons/0010-build-sign-and-ship.html">0010</a></td></tr>
+</table>
+</section>
+
+<footer class="lesson-footer">
+  <a href="../../index.html">Course home</a> · <a href="glossary.html">Glossary</a> · <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a>
+</footer>
+</body>
+</html>

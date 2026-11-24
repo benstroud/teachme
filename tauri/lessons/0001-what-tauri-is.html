@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — What Tauri Is</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 10</span><span>Tauri 2</span></div>
+  <h1>What Tauri Is</h1>
+  <p class="subtitle">Two programs in one app: a Rust core that owns the operating system, and a webview that renders the interface you write in HTML, CSS, and TypeScript.</p>
+</header>
+
+<section>
+<h2>The mental model in one sentence</h2>
+<p>A Tauri app is a <strong>Rust core process</strong> with full access to the operating system, plus one or more <strong>webview processes</strong> that render your frontend, and the two talk through a message boundary.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Who does what</h2>
+<ul>
+  <li><strong>The core process</strong> is <em>the only component with full access to the operating system</em>. It creates windows, tray menus, and notifications, routes all communication between processes, and should hold global state.<sup><a href="#r2">2</a></sup></li>
+  <li><strong>The webview process</strong> renders the user interface. The core <em>doesn't render the actual user interface itself; it spins up WebView processes</em>.<sup><a href="#r2">2</a></sup></li>
+</ul>
+
+<p>In practice this means the frontend is ordinary web code (HTML, CSS, and TypeScript, or a framework of your choice), and everything privileged, such as reading files or talking to the OS, is written in Rust and reached through an explicit interface.</p>
+
+<h2>Which web engine runs your UI</h2>
+<p>Tauri does not ship its own browser engine. It uses the one the operating system already provides: Microsoft Edge WebView2 on Windows, WKWebView on macOS, and webkitgtk on Linux. These libraries are dynamically linked at runtime and are not included in your executable.<sup><a href="#r2">2</a></sup></p>
+
+<aside class="note"><strong>Why this matters</strong> The same HTML can render slightly differently on each platform, because each uses a different engine. Test on every OS you ship to. Your TypeScript is not compiled to a single browser, it is run by whichever webview the user already has.</aside>
+
+<h2>Why the binary can be small</h2>
+<p>The docs say a minimal Tauri app can be less than 600 KB, and give the reason directly: <em>they are very small because they use the OS's webview</em>.<sup><a href="#r3">3</a></sup><sup><a href="#r1">1</a></sup> Your real app will be bigger. The number is a floor for a trivial app, not a promise about yours.</p>
+
+<h2>Where Tauri sits in your toolkit</h2>
+<p>Tauri is a framework for building desktop applications, not a web server or a general Rust library. Your Rust code lives in a <code>src-tauri/</code> folder, and your frontend lives beside it. The Rust side is the part this set spends most of its time on, because the boundary between the two sides is where Tauri's design decisions show up.</p>
+
+<h2>Prerequisites for this set</h2>
+<p>You will write small Rust programs. The <a href="../../rust/lessons/0001-why-rust.html">Rust set</a> covers the fundamentals used here, especially <a href="../../rust/lessons/0003-ownership-and-move-semantics.html">ownership</a>, <a href="../../rust/lessons/0007-error-handling.html">error handling with <code>Result</code></a>, and <a href="../../rust/lessons/0004-references-and-borrowing.html">borrowing</a>.</p>
+
+<aside class="note"><strong>Key idea</strong> Tauri does not put a browser inside your app. It asks the operating system for the browser it already has, and keeps the powerful parts in Rust behind an interface you define.</aside>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">Where does a Tauri app's HTML, CSS, and TypeScript interface actually run?</p>
+    <button class="quiz-option">Inside the Rust core process, as native widgets</button>
+    <button class="quiz-option">In a webview process that uses the operating system's web engine</button>
+    <button class="quiz-option">In a Chromium engine that the app bundles with itself</button>
+    <button class="quiz-option">In a separate Node.js server on localhost</button>
+    <p class="quiz-explanation">The core process does not draw the interface. It starts webview processes, and those use the OS's engine: WebView2, WKWebView, or webkitgtk.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">Which job belongs to the Rust core process rather than the webview?</p>
+    <button class="quiz-option">Laying out the buttons and text on screen</button>
+    <button class="quiz-option">Applying CSS styles to the page</button>
+    <button class="quiz-option">Running the TypeScript that updates the DOM</button>
+    <button class="quiz-option">Creating windows and routing messages between processes</button>
+    <p class="quiz-explanation">The core is the only component with full access to the OS. It creates windows and tray menus and routes all inter-process messages.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">Why is a minimal Tauri app so small?</p>
+    <button class="quiz-option">It relies on the operating system's own webview rather than shipping one</button>
+    <button class="quiz-option">It compresses the frontend with a special Rust-only bundler</button>
+    <button class="quiz-option">It removes the TypeScript compiler from the final build</button>
+    <button class="quiz-option">It runs without any user interface at all</button>
+    <p class="quiz-explanation">The architecture docs state it directly: Tauri apps are small because they use the OS's webview. The docs' figure of under 600 KB applies to a minimal app.<sup><a href="#r3">3</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://v2.tauri.app/concept/architecture/">Tauri Architecture</a> page first. Then read the <a href="https://v2.tauri.app/concept/process-model/">Process Model</a> page for the core and webview split.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Ask me to draw the core-and-webview split for an app you already use, such as a note-taking app. Then ask what would change if that app were built with a bundled browser instead.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://v2.tauri.app/concept/architecture/">Tauri — Architecture</a> — Rust tools plus HTML rendered in a webview.</li>
+    <li id="r2"><a href="https://v2.tauri.app/concept/process-model/">Tauri — Process Model</a> — core process as the only component with full OS access; WebView processes; WebView2, WKWebView, webkitgtk.</li>
+    <li id="r3"><a href="https://v2.tauri.app/start/">Tauri — Start</a> — "a minimal Tauri app can be less than 600KB in size."</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"></span>
+  <span class="nav-next"><a href="0002-scaffolding-and-project-anatomy.html">Lesson 2: Scaffolding and Project Anatomy →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/tauri-cheatsheet.html">Cheat sheet</a>
+</footer>
+</body>
+</html>

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — Capabilities and Permissions</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 10</span><span>Tauri 2</span></div>
+  <h1>Capabilities and Permissions</h1>
+  <p class="subtitle">Decide, in files you can review, which windows may use which powers. This is where a Tauri app's attack surface is shaped.</p>
+</header>
+
+<section>
+<h2>Two different questions</h2>
+<p>Tauri separates two things that are easy to confuse:</p>
+<ul>
+  <li><strong>Which of your commands can be called?</strong> By default, every registered command <em>is allowed to be used by all the windows and webviews of the app</em>.<sup><a href="#r1">1</a></sup> Restricting your own commands is a build-time setting in <code>build.rs</code> (the <code>AppManifest::commands</code> option). It is not a capability file.</li>
+  <li><strong>Which core and plugin powers may a window use?</strong> These are granted by <em>permissions</em>, collected into <em>capability</em> files. Core and plugin permissions are granted only when a capability references them.<sup><a href="#r1">1</a></sup></li>
+</ul>
+<aside class="note"><strong>Common assumption, corrected</strong> Many developers assume that commands are denied until granted. The capabilities docs say otherwise for your own commands. Read the command list you expose as the real boundary, and use capabilities to limit the built-in and plugin APIs.<sup><a href="#r1">1</a></sup></aside>
+
+<h2>A capability file</h2>
+<p>Capability files live in <code>src-tauri/capabilities/</code>. The docs' example for the main window looks like this:<sup><a href="#r1">1</a></sup></p>
+<pre><code>{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main-capability",
+  "description": "Capability for the main window",
+  "windows": ["main"],
+  "permissions": [
+    "core:path:default",
+    "core:window:allow-set-title"
+  ]
+}</code></pre>
+
+<p>Read it as a sentence: the <code>main</code> window may use the path APIs' default set and may set its own title. The <code>windows</code> key names windows by their label, not their title. Lesson 2's <code>label</code> setting is what this key matches. The security boundary depends on labels, so the docs warn not to rely on titles.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Turn a capability on</h2>
+<p>Files in the directory are enabled automatically. Once you list capabilities explicitly in <code>tauri.conf.json</code>, only the listed ones are used in the build.<sup><a href="#r1">1</a></sup></p>
+<pre><code>"app": {
+  "security": {
+    "capabilities": ["main-capability"]
+  }
+}</code></pre>
+
+<h2>Permission identifiers</h2>
+<p>A permission identifier has the form <code>&lt;name&gt;:default</code> or <code>&lt;name&gt;:&lt;command-name&gt;</code>. The name is the crate name without the <code>tauri-plugin-</code> prefix. Examples from the docs include <code>core:window:allow-set-title</code>, <code>core:path:default</code>, and, for a plugin, <code>fs:default</code> and <code>fs:allow-mkdir</code>.<sup><a href="#r3">3</a></sup></p>
+
+<h2>Scopes: where, not just what</h2>
+<p>A permission says what an API may do. A <em>scope</em> says where or on what it may do it. The docs define a scope as <em>a granular way to define (dis)allowed behavior of a Tauri command</em>, and say that <strong>deny always supersedes allow</strong>.<sup><a href="#r4">4</a></sup> Scopes are written as TOML in permission definitions, for example an allow entry that matches paths under <code>$HOME</code> in the file system plugin.<sup><a href="#r4">4</a></sup></p>
+
+<aside class="note"><strong>Permissions alone grant nothing for files</strong> The file system plugin's docs warn that enabling a permission such as <code>fs:allow-exists</code> by itself does not allow access to any path. A scope is also needed.<sup><a href="#r5">5</a></sup> The same logic applies to your own commands: a permission is not a check, and your code must enforce the scope, as lesson 5 noted.</aside>
+
+<h2>Remote content</h2>
+<p>By default, the API is only accessible to bundled code shipped with the app. A capability can opt in for remote URLs through a <code>remote</code> key, and the docs' example allows <code>https://*.tauri.app</code>.<sup><a href="#r1">1</a></sup> Do not add remote access for a site you do not control.</p>
+
+<h2>Content Security Policy</h2>
+<p>Tauri restricts the Content Security Policy of your HTML pages. The protection is only enabled when the policy is set in the Tauri configuration file, and the docs' example starts with <code>default-src 'self' customprotocol: asset:</code>.<sup><a href="#r6">6</a></sup> The exact key path under <code>app.security</code> is not confirmed in these notes, so check the CSP page against the file your scaffold generated before you copy it.</p>
+
+<h2>What Tauri protects against, and what it does not</h2>
+<p>The security overview states the scope of the protection plainly.<sup><a href="#r2">2</a></sup></p>
+<table>
+  <tr><th>Tauri helps with</th><th>Tauri does not protect against</th></tr>
+  <tr><td>Limiting the damage a compromised frontend can do</td><td>Malicious or insecure Rust code you wrote</td></tr>
+  <tr><td>Reducing exposure of local interfaces</td><td>Scopes that are too lax</td></tr>
+  <tr><td>Reducing frontend-to-backend privilege escalation</td><td>Incorrect scope checks inside a command</td></tr>
+  <tr><td>&nbsp;</td><td>WebView zero-day vulnerabilities</td></tr>
+</table>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>In your <code>tauri-hello</code> project, open <code>src-tauri/capabilities/default.json</code> (or the capability your template created) and note which permissions the <code>main</code> window has.</li>
+  <li>Pick one permission that a frontend call depends on, for example a window API. Remove it from the list, restart <code>npm run tauri dev</code>, and make the call.</li>
+  <li>Read the error the call produces. Write down which permission it names or implies.</li>
+  <li>Restore the permission and confirm the call works again.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">Which key in a capability file selects which windows receive its permissions?</p>
+    <button class="quiz-option">windows</button>
+    <button class="quiz-option">platforms</button>
+    <button class="quiz-option">remote</button>
+    <button class="quiz-option">scope</button>
+    <p class="quiz-explanation">The <code>windows</code> key lists window labels. The docs warn that the boundary depends on labels, not titles.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">By default, which windows may call a command you register with <code>generate_handler!</code>?</p>
+    <button class="quiz-option">Only the window labelled main</button>
+    <button class="quiz-option">None, until a capability grants it</button>
+    <button class="quiz-option">All the windows and webviews of the app</button>
+    <button class="quiz-option">None, because JavaScript cannot call commands</button>
+    <p class="quiz-explanation">The capabilities docs state that all registered commands may be used by all windows and webviews by default. Restrict them in <code>build.rs</code>.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">Which statement about scopes is correct?</p>
+    <button class="quiz-option">Scopes are written in the frontend TypeScript</button>
+    <button class="quiz-option">An allow scope works without any permission</button>
+    <button class="quiz-option">A scope entry can never be denied</button>
+    <button class="quiz-option">Deny always supersedes allow</button>
+    <p class="quiz-explanation">The scope docs say deny always supersedes allow. Scopes are plugin-specific TOML in permission definitions.<sup><a href="#r4">4</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://v2.tauri.app/security/capabilities/">Capabilities</a> and <a href="https://v2.tauri.app/security/">Security</a>. Then read <a href="https://v2.tauri.app/security/scope/">Scope</a> and <a href="https://v2.tauri.app/security/csp/">Content Security Policy</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Paste a capability file from an app you use or maintain. Ask me to list every power it grants and any window it might not need.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://v2.tauri.app/security/capabilities/">Tauri — Capabilities</a> — default command availability; <code>windows</code>, <code>permissions</code>, <code>app.security.capabilities</code>, <code>remote</code>.</li>
+    <li id="r2"><a href="https://v2.tauri.app/security/">Tauri — Security</a> — threat model; window labels; what is and is not protected.</li>
+    <li id="r3"><a href="https://v2.tauri.app/security/permissions/">Tauri — Permissions</a> — identifier format; TOML permission files.</li>
+    <li id="r4"><a href="https://v2.tauri.app/security/scope/">Tauri — Scope</a> — scope definition; deny supersedes allow.</li>
+    <li id="r5"><a href="https://v2.tauri.app/plugin/file-system/">Tauri — File System plugin</a> — <code>fs:allow-exists</code> does not allow access to any path by itself.</li>
+    <li id="r6"><a href="https://v2.tauri.app/security/csp/">Tauri — Content Security Policy</a> — CSP restriction; enabled only when set in the configuration file.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-events-and-channels.html">← Lesson 7: Events and Channels</a></span>
+  <span class="nav-next"><a href="0009-plugins-dialog-fs-store.html">Lesson 9: Plugins →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/tauri-cheatsheet.html">Cheat sheet</a>
+</footer>
+</body>
+</html>
