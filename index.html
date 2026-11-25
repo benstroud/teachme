@@ -18,222 +18,367 @@
   }
   * { box-sizing: border-box; }
   html { font-size: 17px; -webkit-font-smoothing: antialiased; }
-  body { font-family: var(--font-body); color: var(--ink); background: var(--paper); line-height: 1.7; max-width: 44em; margin: 0 auto; padding: 2.5rem 1.4rem 4rem; }
+  body { font-family: var(--font-body); color: var(--ink); background: var(--paper); line-height: 1.7; max-width: 44em; margin: 0 auto; padding: 2.5rem 1rem 4rem; }
   h1 { font-size: 2rem; line-height: 1.25; margin: 0 0 0.4rem; }
-  .subtitle { color: var(--muted); font-style: italic; font-size: 1.05rem; margin: 0 0 2rem; }
-  h2 { font-family: var(--font-ui); font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 2rem 0 0.6rem; padding-top: 1rem; border-top: 1px solid var(--rule); }
+  .subtitle { color: var(--muted); font-style: italic; font-size: 1.05rem; margin: 0 0 1.5rem; }
   a { color: var(--link); text-decoration: underline; text-underline-offset: 3px; }
   a:hover { color: var(--accent); text-decoration: none; }
+
+  /* Search and category navigation (sticky on phones and desktop) */
+  .toolbar { position: sticky; top: 0; z-index: 2; background: var(--paper); padding: 0.6rem 0 0.5rem; margin: 0 -1rem; padding-left: 1rem; padding-right: 1rem; }
+  #q { display: block; width: 100%; min-height: 44px; font: inherit; font-family: var(--font-ui); font-size: 16px; color: var(--ink); background: var(--paper-2); border: 1px solid var(--rule); border-radius: 8px; padding: 0.6rem 0.8rem; }
+  #q:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  #q::placeholder { color: var(--muted); }
+  .status { font-family: var(--font-ui); font-size: 0.78rem; color: var(--muted); margin: 0.4rem 0 0; min-height: 1.2em; }
+  .jump { display: flex; gap: 0.5rem; overflow-x: auto; white-space: nowrap; margin-top: 0.4rem; padding-bottom: 0.2rem; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .jump::-webkit-scrollbar { display: none; }
+  .jump a { flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 36px; padding: 0.3rem 0.8rem; border: 1px solid var(--rule); border-radius: 999px; font-family: var(--font-ui); font-size: 0.82rem; color: var(--ink); text-decoration: none; }
+  .jump a:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Sections */
+  details.section { margin-top: 1.2rem; }
+  details.section > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: 0.5rem; padding: 0.9rem 0 0.5rem; border-top: 1px solid var(--rule); scroll-margin-top: 7rem; }
+  details.section > summary::-webkit-details-marker { display: none; }
+  details.section > summary::before { content: "▾"; color: var(--muted); font-family: var(--font-ui); font-size: 0.8rem; transition: transform 0.15s; }
+  details.section:not([open]) > summary::before { transform: rotate(-90deg); }
+  h2 { font-family: var(--font-ui); font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 0; }
+  .count { font-family: var(--font-ui); font-size: 0.75rem; color: var(--muted); }
+  .empty { color: var(--muted); font-style: italic; margin: 2rem 0; }
+
+  /* Cards */
   .workspace { padding: 0.9rem 0 0.9rem 0.2rem; border-bottom: 1px solid var(--rule); }
   .workspace h3 { font-size: 1.15rem; margin: 0 0 0.2rem; }
   .workspace h3 a { color: var(--ink); text-decoration: none; }
   .workspace h3 a:hover { color: var(--accent); }
   .workspace p { margin: 0 0 0.4rem; color: var(--muted); font-size: 0.95rem; }
+  .workspace .meta { font-family: var(--font-ui); font-size: 0.75rem; color: var(--muted); margin: 0 0 0.3rem; }
   .workspace .links { font-family: var(--font-ui); font-size: 0.8rem; }
-  .workspace .links a { margin-right: 0.7rem; }
+  .workspace .links a { display: inline-block; margin: 0.3rem 0.9rem 0.2rem 0; padding: 0.2rem 0; }
+
   footer { margin-top: 2.5rem; font-size: 0.8rem; color: var(--muted); font-family: var(--font-ui); }
-  @media print { body { background: #fff; color: #000; } .workspace h3 a { color: #000; } a { color: #000; } }
+  @media print { body { background: #fff; color: #000; } .toolbar { display: none; } .workspace h3 a { color: #000; } a { color: #000; } details.section > summary::before { display: none; } }
 </style>
 </head>
 <body>
 <h1>Teaching Workspaces</h1>
 <p class="subtitle">Interactive HTML lessons — open any course below and work through it in your browser.</p>
 
-<h2>AWS Serverless</h2>
-<div class="workspace">
-  <h3><a href="aws-sqs/lessons/0001-why-queues-not-direct-calls.html">AWS SQS</a></h3>
-  <p>Queue-backed Lambda coordination: why queues, core concepts, standard vs FIFO, visibility &amp; idempotency, dead-letter queues, and picking SQS over SNS / EventBridge / Kafka / Redis / MQTT / NATS / RabbitMQ / gRPC.</p>
-  <div class="links"><a href="aws-sqs/lessons/0001-why-queues-not-direct-calls.html">Start course</a><a href="aws-sqs/reference/glossary.html">Glossary</a><a href="aws-sqs/reference/sqs-cheatsheet.html">Cheat sheet</a></div>
-</div>
-<div class="workspace">
-  <h3><a href="aws-eventbridge/lessons/0001-why-events-not-lambda-chains.html">AWS EventBridge</a></h3>
-  <p>Event-bus Lambda coordination: why events, core concepts, producing &amp; routing events, content patterns, targets, delivery guarantees, and schema design.</p>
-  <div class="links"><a href="aws-eventbridge/lessons/0001-why-events-not-lambda-chains.html">Start course</a><a href="aws-eventbridge/reference/glossary.html">Glossary</a><a href="aws-eventbridge/reference/eventbridge-cheatsheet.html">Cheat sheet</a></div>
+<div class="toolbar">
+  <input id="q" type="search" placeholder="Search courses, topics, tools…" aria-label="Search courses" autocomplete="off">
+  <p class="status" id="status" aria-live="polite"></p>
+  <nav class="jump" aria-label="Categories">
+    <a href="#languages">Languages</a>
+    <a href="#frontend">Frontend &amp; Desktop</a>
+    <a href="#backend">Backend &amp; APIs</a>
+    <a href="#graphql">GraphQL</a>
+    <a href="#architecture">Architecture &amp; Messaging</a>
+    <a href="#cloud">Cloud</a>
+    <a href="#data">Data &amp; Search</a>
+    <a href="#ai">AI &amp; LLMs</a>
+    <a href="#tools">Developer Tools</a>
+    <a href="#making">Making</a>
+  </nav>
 </div>
 
-<h2>TypeScript &amp; JavaScript</h2>
-<div class="workspace">
+<p class="empty" id="empty" hidden>No courses match. Try a shorter word, or clear the search.</p>
+
+<details class="section" id="languages" open>
+<summary><h2>Languages &amp; Runtimes</h2><span class="count"></span></summary>
+<div class="workspace" data-tags="typescript types generics javascript ts">
   <h3><a href="typescript/lessons/0001-types-as-sets.html">TypeScript</a></h3>
   <p>TypeScript type system mastery, complete: types as sets → narrowing → generics &amp; variance → conditional types &amp; infer → mapped types → template literals → recursion → type-safe APIs → reading any type error.</p>
+  <p class="meta">10 lessons</p>
   <div class="links"><a href="typescript/lessons/0001-types-as-sets.html">Start course</a><a href="typescript/lessons/0010-reading-and-decoding-type-errors.html">Final lesson</a><a href="typescript/reference/glossary.html">Glossary</a></div>
 </div>
-<div class="workspace">
-  <h3><a href="jest-ts/lessons/0001-from-zero-to-a-test-that-runs.html">Jest + TypeScript</a></h3>
-  <p>Testing from the ground up: a first passing test, matchers, mocks, async testing, config, and testing like a senior.</p>
-  <div class="links"><a href="jest-ts/lessons/0001-from-zero-to-a-test-that-runs.html">Start course</a><a href="jest-ts/reference/glossary.html">Glossary</a></div>
-</div>
-<div class="workspace">
+<div class="workspace" data-tags="javascript node runtime prototypes closures event loop streams http concurrency">
   <h3><a href="js-node-for-ts/lessons/0001-js-core-runtime-and-prototypes.html">JS Core for TS Devs</a></h3>
   <p>The JavaScript runtime and object model beneath TypeScript — prototypes, closures, the event loop, file I/O, streams, HTTP, and concurrency.</p>
+  <p class="meta">6 lessons</p>
   <div class="links"><a href="js-node-for-ts/lessons/0001-js-core-runtime-and-prototypes.html">Start course</a><a href="js-node-for-ts/reference/glossary.html">Glossary</a></div>
 </div>
-<div class="workspace">
-  <h3><a href="astro-web/lessons/0001-why-astro.html">Astro.js Web Framework</a></h3>
-  <p>The server-first, content-focused framework that ships zero JavaScript by default: why Astro exists, .astro components with server-only frontmatter, file-based routing &amp; dynamic routes, layouts &amp; slots, the islands architecture and client directives, scoped styles &amp; assets, typed content collections, choosing static vs on-demand rendering with an adapter, data fetching &amp; API endpoints, and shipping with prefetch, View Transitions &amp; deploy.</p>
-  <div class="links"><a href="astro-web/lessons/0001-why-astro.html">Start course</a><a href="astro-web/reference/glossary.html">Glossary</a><a href="astro-web/reference/astro-cheatsheet.html">Cheat sheet</a></div>
-</div>
-<div class="workspace">
-  <h3><a href="vscode-extensions/lessons/0001-how-extensions-work.html">VS Code Extension Development</a></h3>
-  <p>Build real VS Code extensions: how extensions work inside the extension host, the manifest, activation events, contribution points for commands, menus, keybindings, settings and views, using the vscode API (commands, window, workspace, disposables), language features from grammar &amp; snippets up to a Language Server, webviews &amp; the message bridge, testing in a real extension host, bundling with esbuild for speed and the web, and publishing with vsce.</p>
-  <div class="links"><a href="vscode-extensions/lessons/0001-how-extensions-work.html">Start course</a><a href="vscode-extensions/lessons/0010-publishing-and-deployment.html">Final lesson</a><a href="vscode-extensions/reference/glossary.html">Glossary</a><a href="vscode-extensions/reference/vscode-cheatsheet.html">Cheat sheet</a></div>
-</div>
-<div class="workspace">
-  <h3><a href="nvm-node-versioning/lessons/0001-version-drift.html">nvm &amp; Node Version Management</a></h3>
-  <p>Deterministic Node runtimes across projects and CI: why one global Node drifts, what nvm really is (a sourced shell function), installing and switching versions, the core commands, pinning with .nvmrc and engines, reading the LTS/Current release schedule and codenames, aliases and global packages, Corepack packageManager plus CI parity, alternatives (fnm, Volta, nvm-windows, asdf), and a workflow with troubleshooting.</p>
-  <div class="links"><a href="nvm-node-versioning/lessons/0001-version-drift.html">Start course</a><a href="nvm-node-versioning/reference/glossary.html">Glossary</a><a href="nvm-node-versioning/reference/nvm-cheatsheet.html">Cheat sheet</a></div>
-</div>
-<div class="workspace">
-  <h3><a href="eslint-custom-rules/lessons/0001-what-eslint-actually-does.html">ESLint &amp; Custom Rules</a></h3>
-  <p>Linting from the inside out: why ESLint is static analysis over an ESTree AST, the flat config array and its cascade, severities, options and inline directives, then authoring rules of your own — meta and visitors, selectors, autofixes and suggestions, schema-validated options with defaults, RuleTester, plugin packaging, scope-aware analysis, and a safe warn-to-error rollout.</p>
-  <div class="links"><a href="eslint-custom-rules/lessons/0001-what-eslint-actually-does.html">Start course</a><a href="eslint-custom-rules/lessons/0010-scope-performance-and-rollout.html">Final lesson</a><a href="eslint-custom-rules/reference/glossary.html">Glossary</a><a href="eslint-custom-rules/reference/eslint-cheatsheet.html">Cheat sheet</a></div>
-</div>
-
-<h2>Backend &amp; Systems</h2>
-<div class="workspace">
-  <h3><a href="node-ts-backend/lessons/0001-node-22-runtime-and-native-typescript.html">Node.js TypeScript Backend</a></h3>
-  <p>Building a Node.js backend with native TypeScript — runtime foundations and server patterns.</p>
-  <div class="links"><a href="node-ts-backend/lessons/0001-node-22-runtime-and-native-typescript.html">Start course</a></div>
-</div>
-<div class="workspace">
-  <h3><a href="grpc-typescript/lessons/0001-why-grpc-for-domain-services.html">gRPC TypeScript</a></h3>
-  <p>Contract-first service-to-service APIs: gRPC domain services under your GraphQL + REST BFFs — proto contracts, Node servers, channels &amp; retries, metadata &amp; auth, streaming, the BFF boundary, and hosting on AWS.</p>
-  <div class="links"><a href="grpc-typescript/lessons/0001-why-grpc-for-domain-services.html">Start course</a><a href="grpc-typescript/reference/glossary.html">Glossary</a><a href="grpc-typescript/reference/grpc-cheatsheet.html">Cheat sheet</a></div>
-</div>
-<div class="workspace">
-  <h3><a href="apollo-graphql/lessons/0001-why-a-graphql-api.html">Apollo GraphQL</a></h3>
-  <p>A schema-first, type-safe client-facing API layer in TypeScript: why GraphQL, the Schema Definition Language, Apollo Server v4 resolvers, arguments &amp; mutations, context &amp; authorization, data-layer integration, the DataLoader N+1 fix, Apollo Client's normalized cache, and Apollo Federation across teams.</p>
-  <div class="links"><a href="apollo-graphql/lessons/0001-why-a-graphql-api.html">Start course</a><a href="apollo-graphql/reference/glossary.html">Glossary</a><a href="apollo-graphql/reference/apollo-cheatsheet.html">Cheat sheet</a></div>
-</div>
-<div class="workspace">
-  <h3><a href="apollo-gateway-router/lessons/0001-why-a-graph-gateway.html">Apollo GraphQL Gateway &amp; Router</a></h3>
-  <p>The edge between clients and many GraphQL services: why a graph gateway, the supergraph &amp; entities, the Node @apollo/gateway vs the standalone Apollo Router, router.yaml configuration, authentication &amp; security, query planning across subgraphs, caching, and operating/scaling the router.</p>
-  <div class="links"><a href="apollo-gateway-router/lessons/0001-why-a-graph-gateway.html">Start course</a><a href="apollo-gateway-router/reference/glossary.html">Glossary</a><a href="apollo-gateway-router/reference/apollo-router-cheatsheet.html">Cheat sheet</a></div>
-</div>
-<div class="workspace">
-  <h3><a href="apollo-router-migration/lessons/0001-one-graph-many-services.html">Apollo Gateway → Router Migration</a></h3>
-  <p>Migrating a federated graph from the incumbent Apollo Gateway to the Apollo Router: federation fundamentals, the Node @apollo/gateway library vs the standalone Rust router, supergraph composition, query planning &amp; entities, configuring router.yaml, customization with Rhai &amp; coprocessors, a step-by-step migration (context → header propagation, plugins → config/customizations), a gradual proxy rollout, and operating the router with telemetry, traffic shaping &amp; caching.</p>
-  <div class="links"><a href="apollo-router-migration/lessons/0001-one-graph-many-services.html">Start course</a><a href="apollo-router-migration/reference/glossary.html">Glossary</a><a href="apollo-router-migration/reference/gateway-router-cheatsheet.html">Cheat sheet</a></div>
-</div>
-<div class="workspace">
-  <h3><a href="jev/lessons/0001-why-a-decision-model.html">Jev &amp; System One (TypeSafe)</a></h3>
-  <p>A decision layer for software, not a chatbot: what System One models are, Jev's Choice/Score/Noul primitives, writing atomic questions, preparing state, calling the Decisions &amp; System One APIs, reading probabilities &amp; confidence, putting decisions in control flow, and operating with thresholds and limits.</p>
-  <div class="links"><a href="jev/lessons/0001-why-a-decision-model.html">Start course</a><a href="jev/reference/glossary.html">Glossary</a><a href="jev/reference/jev-cheatsheet.html">Cheat sheet</a></div>
-</div>
-<div class="workspace">
-  <h3><a href="llm/lessons/0001-what-is-an-llm.html">Large Language Models</a></h3>
-  <p>A mental model for builders: what an LLM is (next-token prediction), tokens &amp; tokenization, the Transformer &amp; attention, pretraining &amp; scale, decoding &amp; sampling (temperature/top-k/top-p), the context window, prompting &amp; instruction following, alignment (RLHF), grounding with RAG, and evaluation &amp; limitations.</p>
-  <div class="links"><a href="llm/lessons/0001-what-is-an-llm.html">Start course</a><a href="llm/reference/glossary.html">Glossary</a><a href="llm/reference/llm-cheatsheet.html">Cheat sheet</a></div>
-</div>
-<div class="workspace">
-  <h3><a href="reasoning-llms/lessons/0001-the-two-kinds-of-model.html">Reasoning vs Non-Reasoning LLMs</a></h3>
-  <p>Understanding reasoning models (o1-style models that think before answering) in relation to standard LLMs: the two model classes, how a standard next-token model answers and where it fails, what RL-trained reasoning adds, how reasoning is trained (e.g. DeepSeek-R1), chain of thought shown vs hidden, reasoning-effort &amp; token/latency/cost trade-offs, when reasoning wins or does not, how to read reasoning benchmarks, and routing easy vs hard requests in production.</p>
-  <div class="links"><a href="reasoning-llms/lessons/0001-the-two-kinds-of-model.html">Start course</a><a href="reasoning-llms/reference/glossary.html">Glossary</a><a href="reasoning-llms/reference/reasoning-cheatsheet.html">Cheat sheet</a></div>
-</div>
-<div class="workspace">
-  <h3><a href="graphql-dataloader/lessons/0001-the-n-plus-one-problem.html">GraphQL DataLoader (Apollo Server + TypeScript)</a></h3>
-  <p>Killing the N+1 query problem in Apollo Server with a data-fetching layer: why N+1 happens, DataLoader batching &amp; caching, wiring loaders into per-request contextValue, index-aligned batch functions, cache keys &amp; priming, error handling, one-to-many and two-stage batching, and when to measure instead of guess.</p>
-  <div class="links"><a href="graphql-dataloader/lessons/0001-the-n-plus-one-problem.html">Start course</a><a href="graphql-dataloader/reference/glossary.html">Glossary</a><a href="graphql-dataloader/reference/dataloader-cheatsheet.html">Cheat sheet</a></div>
-</div>
-<div class="workspace">
-  <h3><a href="aws-cdk/lessons/0001-why-the-cdk.html">AWS CDK (TypeScript)</a></h3>
-  <p>Infrastructure as code with the Cloud Development Kit in TypeScript: what CDK is, the synth/bootstrap/deploy pipeline, App/Stack/Construct, L1/L2/L3 construct levels, authoring constructs with props &amp; tokens, the construct library, assets, wiring &amp; references, and context/Aspects &amp; best practices.</p>
-  <div class="links"><a href="aws-cdk/lessons/0001-why-the-cdk.html">Start course</a><a href="aws-cdk/reference/glossary.html">Glossary</a><a href="aws-cdk/reference/cdk-cheatsheet.html">Cheat sheet</a></div>
-</div>
-
-<div class="workspace">
-  <h3><a href="mongodb-aggregations/lessons/0001-why-aggregations.html">MongoDB Aggregations</a></h3>
-  <p>Analytics in the database: the pipeline, $match/$project/$sort, $group &amp; accumulators, $unwind, $lookup joins, in-place array operators, conditionals &amp; dates, $facet &amp; window fields, and the limits that keep it fast.</p>
-  <div class="links"><a href="mongodb-aggregations/lessons/0001-why-aggregations.html">Start course</a><a href="mongodb-aggregations/reference/glossary.html">Glossary</a><a href="mongodb-aggregations/reference/aggregations-cheatsheet.html">Cheat sheet</a></div>
-</div>
-<div class="workspace">
-  <h3><a href="mongodb-data-modeling/lessons/0001-why-data-modeling.html">MongoDB Data Modeling</a></h3>
-  <p>Designing documents around how the app reads and writes: embed vs reference, one-to-one/many-to-many shapes, the 16 MiB &amp; atomicity rules, the schema design process, $jsonSchema validation, schema versioning, tree structures, and anti-patterns.</p>
-  <div class="links"><a href="mongodb-data-modeling/lessons/0001-why-data-modeling.html">Start course</a><a href="mongodb-data-modeling/reference/glossary.html">Glossary</a><a href="mongodb-data-modeling/reference/data-modeling-cheatsheet.html">Cheat sheet</a></div>
-</div>
-<div class="workspace">
-  <h3><a href="mongodb-indexes/lessons/0001-why-indexes.html">MongoDB Indexes &amp; Query Performance</a></h3>
-  <p>Making queries fast: how B-tree indexes work, single-field &amp; compound indexes, the ESR field-order guideline, index-served sorting, multikey (array) indexes, unique/TTL/partial properties, and reading explain() query plans.</p>
-  <div class="links"><a href="mongodb-indexes/lessons/0001-why-indexes.html">Start course</a><a href="mongodb-indexes/reference/glossary.html">Glossary</a><a href="mongodb-indexes/reference/indexes-cheatsheet.html">Cheat sheet</a></div>
-</div>
-<div class="workspace">
-  <h3><a href="mongo-atlas-search/lessons/0001-why-full-text-search.html">MongoDB Atlas Search</a></h3>
-  <p>Full-text, relevance-ranked search inside MongoDB: why full-text search, the index/query/score model, defining search indexes &amp; field mappings, analyzers &amp; tokenization, the $search pipeline, operators (text/phrase/wildcard/regex/autocomplete/range/geo/nested), compound &amp; scoring, and facets, synonyms &amp; production.</p>
-  <div class="links"><a href="mongo-atlas-search/lessons/0001-why-full-text-search.html">Start course</a><a href="mongo-atlas-search/reference/glossary.html">Glossary</a><a href="mongo-atlas-search/reference/search-cheatsheet.html">Cheat sheet</a></div>
-</div>
-<div class="workspace">
+<div class="workspace" data-tags="rust cargo ownership borrowing systems language">
   <h3><a href="rust/lessons/0001-why-rust.html">Rust Programming</a></h3>
   <p>A systems-language command of Rust: getting started with cargo, variables &amp; types, ownership &amp; moves, references &amp; borrowing, structs &amp; enums, collections, Result-based error handling, and generics/traits/lifetimes.</p>
+  <p class="meta">9 lessons</p>
   <div class="links"><a href="rust/lessons/0001-why-rust.html">Start course</a><a href="rust/reference/glossary.html">Glossary</a><a href="rust/reference/rust-cheatsheet.html">Cheat sheet</a></div>
 </div>
-<div class="workspace">
+<div class="workspace" data-tags="nvm node version lts nvmrc corepack fnm volta asdf">
+  <h3><a href="nvm-node-versioning/lessons/0001-version-drift.html">nvm &amp; Node Version Management</a></h3>
+  <p>Deterministic Node runtimes across projects and CI: why one global Node drifts, what nvm really is (a sourced shell function), installing and switching versions, the core commands, pinning with .nvmrc and engines, reading the LTS/Current release schedule and codenames, aliases and global packages, Corepack packageManager plus CI parity, alternatives (fnm, Volta, nvm-windows, asdf), and a workflow with troubleshooting.</p>
+  <p class="meta">10 lessons</p>
+  <div class="links"><a href="nvm-node-versioning/lessons/0001-version-drift.html">Start course</a><a href="nvm-node-versioning/reference/glossary.html">Glossary</a><a href="nvm-node-versioning/reference/nvm-cheatsheet.html">Cheat sheet</a></div>
+</div>
+</details>
+
+<details class="section" id="frontend" open>
+<summary><h2>Frontend &amp; Desktop</h2><span class="count"></span></summary>
+<div class="workspace" data-tags="angular components signals templates dependency injection forms routing spa">
   <h3><a href="angular-webdev/lessons/0001-why-angular.html">Angular Web Development</a></h3>
   <p>A standalone-first command of Angular: the CLI &amp; components, templates &amp; data binding, control flow, signals for reactive state, services &amp; dependency injection, forms, the HTTP client, and routing.</p>
+  <p class="meta">9 lessons</p>
   <div class="links"><a href="angular-webdev/lessons/0001-why-angular.html">Start course</a><a href="angular-webdev/reference/glossary.html">Glossary</a><a href="angular-webdev/reference/angular-cheatsheet.html">Cheat sheet</a></div>
 </div>
-<div class="workspace">
-  <h3><a href="kafka/lessons/0001-why-kafka.html">Apache Kafka</a></h3>
-  <p>Event streaming on a durable, replayable log: topics &amp; partitions &amp; offsets, brokers &amp; replication (ISR), producers &amp; consumer groups, delivery semantics, retention &amp; log compaction, and choosing Kafka vs queues.</p>
-  <div class="links"><a href="kafka/lessons/0001-why-kafka.html">Start course</a><a href="kafka/reference/glossary.html">Glossary</a><a href="kafka/reference/kafka-cheatsheet.html">Cheat sheet</a></div>
+<div class="workspace" data-tags="astro islands static site ssr content collections frontend">
+  <h3><a href="astro-web/lessons/0001-why-astro.html">Astro.js Web Framework</a></h3>
+  <p>The server-first, content-focused framework that ships zero JavaScript by default: why Astro exists, .astro components with server-only frontmatter, file-based routing &amp; dynamic routes, layouts &amp; slots, the islands architecture and client directives, scoped styles &amp; assets, typed content collections, choosing static vs on-demand rendering with an adapter, data fetching &amp; API endpoints, and shipping with prefetch, View Transitions &amp; deploy.</p>
+  <p class="meta">10 lessons</p>
+  <div class="links"><a href="astro-web/lessons/0001-why-astro.html">Start course</a><a href="astro-web/reference/glossary.html">Glossary</a><a href="astro-web/reference/astro-cheatsheet.html">Cheat sheet</a></div>
 </div>
-<div class="workspace">
-  <h3><a href="git-merge-rebase/lessons/0001-the-commit-graph.html">Git Merge &amp; Rebase</a></h3>
-  <p>The commit graph &amp; why branches diverge, fetch vs pull, fast-forward and the merge commit, merge conflicts, rebase basics, rebase --onto, pull --rebase, and when not to rebase plus recovery via the reflog.</p>
-  <div class="links"><a href="git-merge-rebase/lessons/0001-the-commit-graph.html">Start course</a><a href="git-merge-rebase/reference/glossary.html">Glossary</a><a href="git-merge-rebase/reference/git-cheatsheet.html">Cheat sheet</a></div>
-</div>
-<div class="workspace">
-  <h3><a href="microservices/lessons/0001-what-is-a-microservice.html">Microservices</a></h3>
-  <p>Architecture for independently deployable, business-capability services: what a microservice is, monolith vs microservices &amp; the premium, finding service boundaries, sync vs async communication, database-per-service &amp; consistency, distributed data patterns (saga/outbox/composition), the API gateway, resilience, observability, and when not to split + strangler-fig migration.</p>
-  <div class="links"><a href="microservices/lessons/0001-what-is-a-microservice.html">Start course</a><a href="microservices/reference/glossary.html">Glossary</a><a href="microservices/reference/ms-cheatsheet.html">Cheat sheet</a></div>
-</div>
-
-<div class="workspace">
-  <h3><a href="microservices-cdc/lessons/0001-why-cdc-between-services.html">Microservices CDC</a></h3>
-  <p>Service-to-service change data capture on the AWS + MongoDB stack: why data changes must propagate between services, MongoDB Change Streams as the CDC source, designing versioned mutation events, the native Atlas→EventBridge integration, EventBridge events/rules/targets, a custom relay Lambda, idempotent TypeScript consumer Lambdas, wiring the bus &amp; consumers with the AWS CDK, and reliability (at-least-once, DLQs, replay) — with trade-offs vs a transactional outbox.</p>
-  <div class="links"><a href="microservices-cdc/lessons/0001-why-cdc-between-services.html">Start course</a><a href="microservices-cdc/reference/glossary.html">Glossary</a><a href="microservices-cdc/reference/cdc-cheatsheet.html">Cheat sheet</a></div>
-</div>
-<div class="workspace">
-  <h3><a href="opensearch/lessons/0001-what-is-opensearch.html">Elasticsearch · AWS OpenSearch</a></h3>
-  <p>Full-text search &amp; analytics on the Elasticsearch-compatible OpenSearch engine as run on AWS: what OpenSearch is and how it relates to Elasticsearch, documents/indices &amp; the REST API, mappings &amp; field types (text vs keyword), indexing with the Bulk API, match/term/bool queries, BM25 relevance ranking, analyzers &amp; tokenization, aggregations for faceted reporting, and scaling on Amazon OpenSearch Service (deep pagination with a point-in-time, provisioned domains vs OpenSearch Serverless).</p>
-  <div class="links"><a href="opensearch/lessons/0001-what-is-opensearch.html">Start course</a><a href="opensearch/reference/glossary.html">Glossary</a><a href="opensearch/reference/opensearch-cheatsheet.html">Cheat sheet</a></div>
-</div>
-<div class="workspace">
-  <h3><a href="tailscale/lessons/0001-what-is-tailscale.html">Tailscale</a></h3>
-  <p>Secure networking with the mesh VPN built on WireGuard: what Tailscale is vs a hub-and-spoke VPN, installing your first node, identity, users &amp; tags, MagicDNS names, access-control policies (deny-by-default, directional), subnet routers, exit nodes, keyless Tailscale SSH, Serve &amp; Funnel, and operating/automating a tailnet (netcheck, key expiry, auth keys, ephemeral nodes).</p>
-  <div class="links"><a href="tailscale/lessons/0001-what-is-tailscale.html">Start course</a><a href="tailscale/reference/glossary.html">Glossary</a><a href="tailscale/reference/tailscale-cheatsheet.html">Cheat sheet</a></div>
-</div>
-<div class="workspace">
-  <h3><a href="twilio-api/lessons/0001-accounts-and-subaccounts.html">Twilio API · Programmable Voice</a></h3>
-  <p>Build a multi-tenant browser-to-phone voice product: the main-account/subaccount model, the Node helper library (v5.5.1 → v6/Node 20), Access Tokens with identity + VoiceGrant (outgoingApplicationSid), the browser Voice SDK call flow, TwiML &lt;Dial&gt; with caller-ID rules, verifying X-Twilio-Signature on webhooks, searching &amp; purchasing phone numbers and binding voiceApplicationSid, CPS/concurrency and the 4-hour call cap, trusted calling/SHAKEN-STIR, and production hardening.</p>
-  <div class="links"><a href="twilio-api/lessons/0001-accounts-and-subaccounts.html">Start course</a><a href="twilio-api/reference/glossary.html">Glossary</a><a href="twilio-api/reference/twilio-cheatsheet.html">Cheat sheet</a></div>
-</div>
-
-<div class="workspace">
-  <h3><a href="axum/lessons/0001-what-axum-is.html">Axum 0.8</a></h3>
-  <p>HTTP APIs in Rust with Axum on Tower and Tokio: the Router and handlers, path and query extraction with the body-last rule, JSON responses and status codes, shared state with <code>with_state</code>, errors as responses, <code>from_fn</code> middleware, testing without a socket, and graceful shutdown. Every example runs in a tested lab crate. Cross-references the Rust and Tauri courses.</p>
-  <div class="links"><a href="axum/lessons/0001-what-axum-is.html">Start course</a><a href="axum/reference/glossary.html">Glossary</a><a href="axum/reference/axum-cheatsheet.html">Cheat sheet</a></div>
-</div>
-
-<h2>AI &amp; Tooling</h2>
-<div class="workspace">
-  <h3><a href="mcp/lessons/0001-what-mcp-is.html">MCP v2</a></h3>
-  <p>The Model Context Protocol for AI assistants: hosts, clients, and servers; tools, resources, and prompts; v1 and the 2026-07-28 revision compared on the wire; authoring, consuming, and deploying servers over stdio and Streamable HTTP; security rules from the spec; and when to choose an MCP server, a CLI, or a skill. Every example runs in a tested lab with a v1 interop check.</p>
-  <div class="links"><a href="mcp/lessons/0001-what-mcp-is.html">Start course</a><a href="mcp/reference/glossary.html">Glossary</a><a href="mcp/reference/mcp-cheatsheet.html">Cheat sheet</a></div>
-</div>
-
-<h2>Desktop</h2>
-<div class="workspace">
+<div class="workspace" data-tags="tauri rust desktop app webview ipc invoke capabilities signing updater">
   <h3><a href="tauri/lessons/0001-what-tauri-is.html">Tauri 2</a></h3>
   <p>Desktop apps with a Rust core and a web frontend: the process model and IPC boundary, scaffolding and project anatomy, commands with <code>invoke</code>, <code>Result</code> errors, managed state, events and channels, capability and permission security, official plugins (dialog, file system, store), and building, signing, and updating a bundle. Cross-references the Rust course.</p>
+  <p class="meta">10 lessons</p>
   <div class="links"><a href="tauri/lessons/0001-what-tauri-is.html">Start course</a><a href="tauri/reference/glossary.html">Glossary</a><a href="tauri/reference/tauri-cheatsheet.html">Cheat sheet</a></div>
 </div>
+</details>
 
-<h2>Making</h2>
-<div class="workspace">
+<details class="section" id="backend" open>
+<summary><h2>Backend &amp; APIs</h2><span class="count"></span></summary>
+<div class="workspace" data-tags="node backend server typescript native http">
+  <h3><a href="node-ts-backend/lessons/0001-node-22-runtime-and-native-typescript.html">Node.js TypeScript Backend</a></h3>
+  <p>Building a Node.js backend with native TypeScript — runtime foundations and server patterns.</p>
+  <p class="meta">8 lessons</p>
+  <div class="links"><a href="node-ts-backend/lessons/0001-node-22-runtime-and-native-typescript.html">Start course</a></div>
+</div>
+<div class="workspace" data-tags="axum rust http api router tower tokio server handlers middleware">
+  <h3><a href="axum/lessons/0001-what-axum-is.html">Axum 0.8</a></h3>
+  <p>HTTP APIs in Rust with Axum on Tower and Tokio: the Router and handlers, path and query extraction with the body-last rule, JSON responses and status codes, shared state with <code>with_state</code>, errors as responses, <code>from_fn</code> middleware, testing without a socket, and graceful shutdown. Every example runs in a tested lab crate. Cross-references the Rust and Tauri courses.</p>
+  <p class="meta">10 lessons</p>
+  <div class="links"><a href="axum/lessons/0001-what-axum-is.html">Start course</a><a href="axum/reference/glossary.html">Glossary</a><a href="axum/reference/axum-cheatsheet.html">Cheat sheet</a></div>
+</div>
+<div class="workspace" data-tags="grpc protobuf proto rpc streaming service-to-service bff contracts">
+  <h3><a href="grpc-typescript/lessons/0001-why-grpc-for-domain-services.html">gRPC TypeScript</a></h3>
+  <p>Contract-first service-to-service APIs: gRPC domain services under your GraphQL + REST BFFs — proto contracts, Node servers, channels &amp; retries, metadata &amp; auth, streaming, the BFF boundary, and hosting on AWS.</p>
+  <p class="meta">9 lessons</p>
+  <div class="links"><a href="grpc-typescript/lessons/0001-why-grpc-for-domain-services.html">Start course</a><a href="grpc-typescript/reference/glossary.html">Glossary</a><a href="grpc-typescript/reference/grpc-cheatsheet.html">Cheat sheet</a></div>
+</div>
+<div class="workspace" data-tags="twilio voice phone calls webrtc sms telephony twiml subaccounts webhooks">
+  <h3><a href="twilio-api/lessons/0001-accounts-and-subaccounts.html">Twilio API · Programmable Voice</a></h3>
+  <p>Build a multi-tenant browser-to-phone voice product: the main-account/subaccount model, the Node helper library (v5.5.1 → v6/Node 20), Access Tokens with identity + VoiceGrant (outgoingApplicationSid), the browser Voice SDK call flow, TwiML &lt;Dial&gt; with caller-ID rules, verifying X-Twilio-Signature on webhooks, searching &amp; purchasing phone numbers and binding voiceApplicationSid, CPS/concurrency and the 4-hour call cap, trusted calling/SHAKEN-STIR, and production hardening.</p>
+  <p class="meta">10 lessons</p>
+  <div class="links"><a href="twilio-api/lessons/0001-accounts-and-subaccounts.html">Start course</a><a href="twilio-api/reference/glossary.html">Glossary</a><a href="twilio-api/reference/twilio-cheatsheet.html">Cheat sheet</a></div>
+</div>
+</details>
+
+<details class="section" id="graphql" open>
+<summary><h2>GraphQL</h2><span class="count"></span></summary>
+<div class="workspace" data-tags="graphql apollo schema resolvers server client federation api">
+  <h3><a href="apollo-graphql/lessons/0001-why-a-graphql-api.html">Apollo GraphQL</a></h3>
+  <p>A schema-first, type-safe client-facing API layer in TypeScript: why GraphQL, the Schema Definition Language, Apollo Server v4 resolvers, arguments &amp; mutations, context &amp; authorization, data-layer integration, the DataLoader N+1 fix, Apollo Client's normalized cache, and Apollo Federation across teams.</p>
+  <p class="meta">10 lessons</p>
+  <div class="links"><a href="apollo-graphql/lessons/0001-why-a-graphql-api.html">Start course</a><a href="apollo-graphql/reference/glossary.html">Glossary</a><a href="apollo-graphql/reference/apollo-cheatsheet.html">Cheat sheet</a></div>
+</div>
+<div class="workspace" data-tags="graphql dataloader n+1 batching caching performance apollo">
+  <h3><a href="graphql-dataloader/lessons/0001-the-n-plus-one-problem.html">GraphQL DataLoader (Apollo Server + TypeScript)</a></h3>
+  <p>Killing the N+1 query problem in Apollo Server with a data-fetching layer: why N+1 happens, DataLoader batching &amp; caching, wiring loaders into per-request contextValue, index-aligned batch functions, cache keys &amp; priming, error handling, one-to-many and two-stage batching, and when to measure instead of guess.</p>
+  <p class="meta">10 lessons</p>
+  <div class="links"><a href="graphql-dataloader/lessons/0001-the-n-plus-one-problem.html">Start course</a><a href="graphql-dataloader/reference/glossary.html">Glossary</a><a href="graphql-dataloader/reference/dataloader-cheatsheet.html">Cheat sheet</a></div>
+</div>
+<div class="workspace" data-tags="graphql apollo gateway router supergraph federation subgraphs query planning">
+  <h3><a href="apollo-gateway-router/lessons/0001-why-a-graph-gateway.html">Apollo GraphQL Gateway &amp; Router</a></h3>
+  <p>The edge between clients and many GraphQL services: why a graph gateway, the supergraph &amp; entities, the Node @apollo/gateway vs the standalone Apollo Router, router.yaml configuration, authentication &amp; security, query planning across subgraphs, caching, and operating/scaling the router.</p>
+  <p class="meta">10 lessons</p>
+  <div class="links"><a href="apollo-gateway-router/lessons/0001-why-a-graph-gateway.html">Start course</a><a href="apollo-gateway-router/reference/glossary.html">Glossary</a><a href="apollo-gateway-router/reference/apollo-router-cheatsheet.html">Cheat sheet</a></div>
+</div>
+<div class="workspace" data-tags="graphql apollo migration gateway router rhai coprocessors federation rollout">
+  <h3><a href="apollo-router-migration/lessons/0001-one-graph-many-services.html">Apollo Gateway → Router Migration</a></h3>
+  <p>Migrating a federated graph from the incumbent Apollo Gateway to the Apollo Router: federation fundamentals, the Node @apollo/gateway library vs the standalone Rust router, supergraph composition, query planning &amp; entities, configuring router.yaml, customization with Rhai &amp; coprocessors, a step-by-step migration (context → header propagation, plugins → config/customizations), a gradual proxy rollout, and operating the router with telemetry, traffic shaping &amp; caching.</p>
+  <p class="meta">10 lessons</p>
+  <div class="links"><a href="apollo-router-migration/lessons/0001-one-graph-many-services.html">Start course</a><a href="apollo-router-migration/reference/glossary.html">Glossary</a><a href="apollo-router-migration/reference/gateway-router-cheatsheet.html">Cheat sheet</a></div>
+</div>
+</details>
+
+<details class="section" id="architecture" open>
+<summary><h2>Architecture &amp; Messaging</h2><span class="count"></span></summary>
+<div class="workspace" data-tags="microservices monolith services boundaries saga outbox architecture">
+  <h3><a href="microservices/lessons/0001-what-is-a-microservice.html">Microservices</a></h3>
+  <p>Architecture for independently deployable, business-capability services: what a microservice is, monolith vs microservices &amp; the premium, finding service boundaries, sync vs async communication, database-per-service &amp; consistency, distributed data patterns (saga/outbox/composition), the API gateway, resilience, observability, and when not to split + strangler-fig migration.</p>
+  <p class="meta">10 lessons</p>
+  <div class="links"><a href="microservices/lessons/0001-what-is-a-microservice.html">Start course</a><a href="microservices/reference/glossary.html">Glossary</a><a href="microservices/reference/ms-cheatsheet.html">Cheat sheet</a></div>
+</div>
+<div class="workspace" data-tags="cdc change data capture change streams mongodb eventbridge lambda events aws">
+  <h3><a href="microservices-cdc/lessons/0001-why-cdc-between-services.html">Microservices CDC</a></h3>
+  <p>Service-to-service change data capture on the AWS + MongoDB stack: why data changes must propagate between services, MongoDB Change Streams as the CDC source, designing versioned mutation events, the native Atlas→EventBridge integration, EventBridge events/rules/targets, a custom relay Lambda, idempotent TypeScript consumer Lambdas, wiring the bus &amp; consumers with the AWS CDK, and reliability (at-least-once, DLQs, replay) — with trade-offs vs a transactional outbox.</p>
+  <p class="meta">10 lessons</p>
+  <div class="links"><a href="microservices-cdc/lessons/0001-why-cdc-between-services.html">Start course</a><a href="microservices-cdc/reference/glossary.html">Glossary</a><a href="microservices-cdc/reference/cdc-cheatsheet.html">Cheat sheet</a></div>
+</div>
+<div class="workspace" data-tags="kafka streaming topics partitions offsets consumer groups log events">
+  <h3><a href="kafka/lessons/0001-why-kafka.html">Apache Kafka</a></h3>
+  <p>Event streaming on a durable, replayable log: topics &amp; partitions &amp; offsets, brokers &amp; replication (ISR), producers &amp; consumer groups, delivery semantics, retention &amp; log compaction, and choosing Kafka vs queues.</p>
+  <p class="meta">9 lessons</p>
+  <div class="links"><a href="kafka/lessons/0001-why-kafka.html">Start course</a><a href="kafka/reference/glossary.html">Glossary</a><a href="kafka/reference/kafka-cheatsheet.html">Cheat sheet</a></div>
+</div>
+<div class="workspace" data-tags="aws sqs queue lambda dead-letter visibility idempotency serverless">
+  <h3><a href="aws-sqs/lessons/0001-why-queues-not-direct-calls.html">AWS SQS</a></h3>
+  <p>Queue-backed Lambda coordination: why queues, core concepts, standard vs FIFO, visibility &amp; idempotency, dead-letter queues, and picking SQS over SNS / EventBridge / Kafka / Redis / MQTT / NATS / RabbitMQ / gRPC.</p>
+  <p class="meta">9 lessons</p>
+  <div class="links"><a href="aws-sqs/lessons/0001-why-queues-not-direct-calls.html">Start course</a><a href="aws-sqs/reference/glossary.html">Glossary</a><a href="aws-sqs/reference/sqs-cheatsheet.html">Cheat sheet</a></div>
+</div>
+<div class="workspace" data-tags="aws eventbridge events event bus lambda rules targets schema serverless">
+  <h3><a href="aws-eventbridge/lessons/0001-why-events-not-lambda-chains.html">AWS EventBridge</a></h3>
+  <p>Event-bus Lambda coordination: why events, core concepts, producing &amp; routing events, content patterns, targets, delivery guarantees, and schema design.</p>
+  <p class="meta">8 lessons</p>
+  <div class="links"><a href="aws-eventbridge/lessons/0001-why-events-not-lambda-chains.html">Start course</a><a href="aws-eventbridge/reference/glossary.html">Glossary</a><a href="aws-eventbridge/reference/eventbridge-cheatsheet.html">Cheat sheet</a></div>
+</div>
+</details>
+
+<details class="section" id="cloud" open>
+<summary><h2>Cloud &amp; Infrastructure</h2><span class="count"></span></summary>
+<div class="workspace" data-tags="aws cdk infrastructure as code cloudformation constructs synth deploy typescript">
+  <h3><a href="aws-cdk/lessons/0001-why-the-cdk.html">AWS CDK (TypeScript)</a></h3>
+  <p>Infrastructure as code with the Cloud Development Kit in TypeScript: what CDK is, the synth/bootstrap/deploy pipeline, App/Stack/Construct, L1/L2/L3 construct levels, authoring constructs with props &amp; tokens, the construct library, assets, wiring &amp; references, and context/Aspects &amp; best practices.</p>
+  <p class="meta">10 lessons</p>
+  <div class="links"><a href="aws-cdk/lessons/0001-why-the-cdk.html">Start course</a><a href="aws-cdk/reference/glossary.html">Glossary</a><a href="aws-cdk/reference/cdk-cheatsheet.html">Cheat sheet</a></div>
+</div>
+<div class="workspace" data-tags="tailscale vpn wireguard mesh networking tailnet ssh access control subnet">
+  <h3><a href="tailscale/lessons/0001-what-is-tailscale.html">Tailscale</a></h3>
+  <p>Secure networking with the mesh VPN built on WireGuard: what Tailscale is vs a hub-and-spoke VPN, installing your first node, identity, users &amp; tags, MagicDNS names, access-control policies (deny-by-default, directional), subnet routers, exit nodes, keyless Tailscale SSH, Serve &amp; Funnel, and operating/automating a tailnet (netcheck, key expiry, auth keys, ephemeral nodes).</p>
+  <p class="meta">10 lessons</p>
+  <div class="links"><a href="tailscale/lessons/0001-what-is-tailscale.html">Start course</a><a href="tailscale/reference/glossary.html">Glossary</a><a href="tailscale/reference/tailscale-cheatsheet.html">Cheat sheet</a></div>
+</div>
+</details>
+
+<details class="section" id="data" open>
+<summary><h2>Data &amp; Search</h2><span class="count"></span></summary>
+<div class="workspace" data-tags="mongodb mongo data modeling documents embed reference schema validation database">
+  <h3><a href="mongodb-data-modeling/lessons/0001-why-data-modeling.html">MongoDB Data Modeling</a></h3>
+  <p>Designing documents around how the app reads and writes: embed vs reference, one-to-one/many-to-many shapes, the 16 MiB &amp; atomicity rules, the schema design process, $jsonSchema validation, schema versioning, tree structures, and anti-patterns.</p>
+  <p class="meta">9 lessons</p>
+  <div class="links"><a href="mongodb-data-modeling/lessons/0001-why-data-modeling.html">Start course</a><a href="mongodb-data-modeling/reference/glossary.html">Glossary</a><a href="mongodb-data-modeling/reference/data-modeling-cheatsheet.html">Cheat sheet</a></div>
+</div>
+<div class="workspace" data-tags="mongodb indexes index query performance explain esr b-tree compound">
+  <h3><a href="mongodb-indexes/lessons/0001-why-indexes.html">MongoDB Indexes &amp; Query Performance</a></h3>
+  <p>Making queries fast: how B-tree indexes work, single-field &amp; compound indexes, the ESR field-order guideline, index-served sorting, multikey (array) indexes, unique/TTL/partial properties, and reading explain() query plans.</p>
+  <p class="meta">9 lessons</p>
+  <div class="links"><a href="mongodb-indexes/lessons/0001-why-indexes.html">Start course</a><a href="mongodb-indexes/reference/glossary.html">Glossary</a><a href="mongodb-indexes/reference/indexes-cheatsheet.html">Cheat sheet</a></div>
+</div>
+<div class="workspace" data-tags="mongodb aggregation pipeline group lookup match facet analytics database">
+  <h3><a href="mongodb-aggregations/lessons/0001-why-aggregations.html">MongoDB Aggregations</a></h3>
+  <p>Analytics in the database: the pipeline, $match/$project/$sort, $group &amp; accumulators, $unwind, $lookup joins, in-place array operators, conditionals &amp; dates, $facet &amp; window fields, and the limits that keep it fast.</p>
+  <p class="meta">9 lessons</p>
+  <div class="links"><a href="mongodb-aggregations/lessons/0001-why-aggregations.html">Start course</a><a href="mongodb-aggregations/reference/glossary.html">Glossary</a><a href="mongodb-aggregations/reference/aggregations-cheatsheet.html">Cheat sheet</a></div>
+</div>
+<div class="workspace" data-tags="mongodb atlas search full-text lucene analyzers relevance autocomplete fuzzy">
+  <h3><a href="mongo-atlas-search/lessons/0001-why-full-text-search.html">MongoDB Atlas Search</a></h3>
+  <p>Full-text, relevance-ranked search inside MongoDB: why full-text search, the index/query/score model, defining search indexes &amp; field mappings, analyzers &amp; tokenization, the $search pipeline, operators (text/phrase/wildcard/regex/autocomplete/range/geo/nested), compound &amp; scoring, and facets, synonyms &amp; production.</p>
+  <p class="meta">11 lessons</p>
+  <div class="links"><a href="mongo-atlas-search/lessons/0001-why-full-text-search.html">Start course</a><a href="mongo-atlas-search/reference/glossary.html">Glossary</a><a href="mongo-atlas-search/reference/search-cheatsheet.html">Cheat sheet</a></div>
+</div>
+<div class="workspace" data-tags="opensearch elasticsearch search bm25 analyzers aggregations indexing aws">
+  <h3><a href="opensearch/lessons/0001-what-is-opensearch.html">Elasticsearch · AWS OpenSearch</a></h3>
+  <p>Full-text search &amp; analytics on the Elasticsearch-compatible OpenSearch engine as run on AWS: what OpenSearch is and how it relates to Elasticsearch, documents/indices &amp; the REST API, mappings &amp; field types (text vs keyword), indexing with the Bulk API, match/term/bool queries, BM25 relevance ranking, analyzers &amp; tokenization, aggregations for faceted reporting, and scaling on Amazon OpenSearch Service (deep pagination with a point-in-time, provisioned domains vs OpenSearch Serverless).</p>
+  <p class="meta">10 lessons</p>
+  <div class="links"><a href="opensearch/lessons/0001-what-is-opensearch.html">Start course</a><a href="opensearch/reference/glossary.html">Glossary</a><a href="opensearch/reference/opensearch-cheatsheet.html">Cheat sheet</a></div>
+</div>
+</details>
+
+<details class="section" id="ai" open>
+<summary><h2>AI &amp; LLMs</h2><span class="count"></span></summary>
+<div class="workspace" data-tags="llm language model transformer tokens prompting rag context window ai">
+  <h3><a href="llm/lessons/0001-what-is-an-llm.html">Large Language Models</a></h3>
+  <p>A mental model for builders: what an LLM is (next-token prediction), tokens &amp; tokenization, the Transformer &amp; attention, pretraining &amp; scale, decoding &amp; sampling (temperature/top-k/top-p), the context window, prompting &amp; instruction following, alignment (RLHF), grounding with RAG, and evaluation &amp; limitations.</p>
+  <p class="meta">10 lessons</p>
+  <div class="links"><a href="llm/lessons/0001-what-is-an-llm.html">Start course</a><a href="llm/reference/glossary.html">Glossary</a><a href="llm/reference/llm-cheatsheet.html">Cheat sheet</a></div>
+</div>
+<div class="workspace" data-tags="reasoning llm o1 chain of thought r1 inference thinking models routing ai">
+  <h3><a href="reasoning-llms/lessons/0001-the-two-kinds-of-model.html">Reasoning vs Non-Reasoning LLMs</a></h3>
+  <p>Understanding reasoning models (o1-style models that think before answering) in relation to standard LLMs: the two model classes, how a standard next-token model answers and where it fails, what RL-trained reasoning adds, how reasoning is trained (e.g. DeepSeek-R1), chain of thought shown vs hidden, reasoning-effort &amp; token/latency/cost trade-offs, when reasoning wins or does not, how to read reasoning benchmarks, and routing easy vs hard requests in production.</p>
+  <p class="meta">10 lessons</p>
+  <div class="links"><a href="reasoning-llms/lessons/0001-the-two-kinds-of-model.html">Start course</a><a href="reasoning-llms/reference/glossary.html">Glossary</a><a href="reasoning-llms/reference/reasoning-cheatsheet.html">Cheat sheet</a></div>
+</div>
+<div class="workspace" data-tags="mcp model context protocol tools resources prompts servers clients agents">
+  <h3><a href="mcp/lessons/0001-what-mcp-is.html">MCP v2</a></h3>
+  <p>The Model Context Protocol for AI assistants: hosts, clients, and servers; tools, resources, and prompts; v1 and the 2026-07-28 revision compared on the wire; authoring, consuming, and deploying servers over stdio and Streamable HTTP; security rules from the spec; and when to choose an MCP server, a CLI, or a skill. Every example runs in a tested lab with a v1 interop check.</p>
+  <p class="meta">10 lessons</p>
+  <div class="links"><a href="mcp/lessons/0001-what-mcp-is.html">Start course</a><a href="mcp/reference/glossary.html">Glossary</a><a href="mcp/reference/mcp-cheatsheet.html">Cheat sheet</a></div>
+</div>
+<div class="workspace" data-tags="jev system one decisions decision model choice score noul typesafe ai">
+  <h3><a href="jev/lessons/0001-why-a-decision-model.html">Jev &amp; System One (TypeSafe)</a></h3>
+  <p>A decision layer for software, not a chatbot: what System One models are, Jev's Choice/Score/Noul primitives, writing atomic questions, preparing state, calling the Decisions &amp; System One APIs, reading probabilities &amp; confidence, putting decisions in control flow, and operating with thresholds and limits.</p>
+  <p class="meta">10 lessons</p>
+  <div class="links"><a href="jev/lessons/0001-why-a-decision-model.html">Start course</a><a href="jev/reference/glossary.html">Glossary</a><a href="jev/reference/jev-cheatsheet.html">Cheat sheet</a></div>
+</div>
+</details>
+
+<details class="section" id="tools" open>
+<summary><h2>Developer Tools</h2><span class="count"></span></summary>
+<div class="workspace" data-tags="git merge rebase commits branches history reflog conflicts">
+  <h3><a href="git-merge-rebase/lessons/0001-the-commit-graph.html">Git Merge &amp; Rebase</a></h3>
+  <p>The commit graph &amp; why branches diverge, fetch vs pull, fast-forward and the merge commit, merge conflicts, rebase basics, rebase --onto, pull --rebase, and when not to rebase plus recovery via the reflog.</p>
+  <p class="meta">10 lessons</p>
+  <div class="links"><a href="git-merge-rebase/lessons/0001-the-commit-graph.html">Start course</a><a href="git-merge-rebase/reference/glossary.html">Glossary</a><a href="git-merge-rebase/reference/git-cheatsheet.html">Cheat sheet</a></div>
+</div>
+<div class="workspace" data-tags="vscode extensions extension host api webview language server marketplace editor">
+  <h3><a href="vscode-extensions/lessons/0001-how-extensions-work.html">VS Code Extension Development</a></h3>
+  <p>Build real VS Code extensions: how extensions work inside the extension host, the manifest, activation events, contribution points for commands, menus, keybindings, settings and views, using the vscode API (commands, window, workspace, disposables), language features from grammar &amp; snippets up to a Language Server, webviews &amp; the message bridge, testing in a real extension host, bundling with esbuild for speed and the web, and publishing with vsce.</p>
+  <p class="meta">10 lessons</p>
+  <div class="links"><a href="vscode-extensions/lessons/0001-how-extensions-work.html">Start course</a><a href="vscode-extensions/lessons/0010-publishing-and-deployment.html">Final lesson</a><a href="vscode-extensions/reference/glossary.html">Glossary</a><a href="vscode-extensions/reference/vscode-cheatsheet.html">Cheat sheet</a></div>
+</div>
+<div class="workspace" data-tags="eslint lint linting rules ast plugins flat config static analysis typescript">
+  <h3><a href="eslint-custom-rules/lessons/0001-what-eslint-actually-does.html">ESLint &amp; Custom Rules</a></h3>
+  <p>Linting from the inside out: why ESLint is static analysis over an ESTree AST, the flat config array and its cascade, severities, options and inline directives, then authoring rules of your own — meta and visitors, selectors, autofixes and suggestions, schema-validated options with defaults, RuleTester, plugin packaging, scope-aware analysis, and a safe warn-to-error rollout.</p>
+  <p class="meta">10 lessons</p>
+  <div class="links"><a href="eslint-custom-rules/lessons/0001-what-eslint-actually-does.html">Start course</a><a href="eslint-custom-rules/lessons/0010-scope-performance-and-rollout.html">Final lesson</a><a href="eslint-custom-rules/reference/glossary.html">Glossary</a><a href="eslint-custom-rules/reference/eslint-cheatsheet.html">Cheat sheet</a></div>
+</div>
+<div class="workspace" data-tags="jest testing unit tests mocks matchers async typescript test">
+  <h3><a href="jest-ts/lessons/0001-from-zero-to-a-test-that-runs.html">Jest + TypeScript</a></h3>
+  <p>Testing from the ground up: a first passing test, matchers, mocks, async testing, config, and testing like a senior.</p>
+  <p class="meta">7 lessons</p>
+  <div class="links"><a href="jest-ts/lessons/0001-from-zero-to-a-test-that-runs.html">Start course</a><a href="jest-ts/reference/glossary.html">Glossary</a></div>
+</div>
+</details>
+
+<details class="section" id="making" open>
+<summary><h2>Making</h2><span class="count"></span></summary>
+<div class="workspace" data-tags="parade puppets papier-mache sculpting craft backpack costume">
   <h3><a href="parade-puppets/lessons/0001-anatomy-of-a-backpack-puppet.html">Parade Puppets</a></h3>
   <p>Design and build a backpack parade puppet — anatomy, materials, frame &amp; spine, papier-mâché, sculpting, control rods, costuming, and parade-day repair.</p>
+  <p class="meta">9 lessons</p>
   <div class="links"><a href="parade-puppets/lessons/0001-anatomy-of-a-backpack-puppet.html">Start course</a><a href="parade-puppets/reference/glossary.html">Glossary</a></div>
 </div>
+</details>
 
 <footer>Source lives in the <a href="https://github.com/benstroud/teachme">teachme repository</a>. Hosted with GitHub Pages.</footer>
+
+<script>
+(function () {
+  var q = document.getElementById('q');
+  var status = document.getElementById('status');
+  var empty = document.getElementById('empty');
+  var sections = Array.prototype.slice.call(document.querySelectorAll('details.section'));
+  var cards = Array.prototype.slice.call(document.querySelectorAll('.workspace'));
+  var total = cards.length;
+
+  // Build one lowercase search string per card: visible text plus hand-written tags.
+  cards.forEach(function (c) {
+    c.setAttribute('data-search', (c.textContent + ' ' + (c.getAttribute('data-tags') || '')).toLowerCase().replace(/\s+/g, ' '));
+  });
+  sections.forEach(function (s) {
+    s.querySelector('.count').setAttribute('data-total', s.querySelectorAll('.workspace').length);
+  });
+
+  function apply() {
+    var terms = q.value.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    var shown = 0;
+    sections.forEach(function (s) {
+      var n = 0;
+      s.querySelectorAll('.workspace').forEach(function (c) {
+        var ok = terms.every(function (t) { return c.getAttribute('data-search').indexOf(t) !== -1; });
+        c.hidden = !ok;
+        if (ok) n++;
+      });
+      s.hidden = n === 0;
+      if (terms.length && n) s.open = true;
+      s.querySelector('.count').textContent = terms.length ? n + ' of ' + s.querySelector('.count').getAttribute('data-total') : s.querySelector('.count').getAttribute('data-total') + ' courses';
+      shown += n;
+    });
+    status.textContent = terms.length ? 'Showing ' + shown + ' of ' + total : total + ' courses';
+    empty.hidden = shown > 0;
+  }
+
+  q.addEventListener('input', apply);
+  apply();
+})();
+</script>
 </body>
 </html>
