@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 9 — Boundaries and JSON Schema</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 9 of 10</span><span>Zod</span></div>
+  <h1>Boundaries and JSON Schema</h1>
+  <p class="subtitle">Zod earns its place at the edges of a program: request handlers, config loaders, and integrations. At those edges, a failed check becomes a clear response, and the same schema can be exported as JSON Schema for other tools.</p>
+</header>
+
+<section>
+<h2>Validate at the edge, trust inside</h2>
+<p>Parse data once, where it enters the program, and pass the typed result inward. Inside the program, the type is the contract, so you do not re-check the same value at every step. A handler that parses its body and returns a 400 for failures keeps the rest of the code simple.<sup><a href="#r1">1</a></sup></p>
+<pre><code>export function handleCreateUser(body: unknown) {
+  const result = UserSchema.safeParse(body);
+  if (!result.success) {
+    return { status: 400, issues: result.error.issues.map((i) =&gt; `${i.path.join(".")}: ${i.message}`) };
+  }
+  return { status: 201, user: result.data };
+}</code></pre>
+
+<h2>Export the schema as JSON Schema</h2>
+<p><code>z.toJSONSchema</code> converts a schema to JSON Schema, so documentation and other tools can share the same definition. The default target is draft 2020-12. Some Zod types have no JSON Schema equivalent, and the default is to throw for them.<sup><a href="#r2">2</a></sup></p>
+<pre><code>const js = z.toJSONSchema(UserSchema);
+// js.type === "object", with properties and a list of required keys</code></pre>
+
+<aside class="note"><strong>One definition, two consumers</strong> The schema checks data at run time, and the exported JSON Schema documents the same rules for a client or an API reference. Keeping one source avoids the documentation drifting from the check.</aside>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Open <a href="../code/src/boundary.ts"><code>boundary.ts</code></a>. Call <code>handleCreateUser</code> with a bad body and read the issue strings. Predict the first one before you check.</li>
+  <li>Decide which of your data sources is a boundary, and which values inside your program should be trusted without a second check.</li>
+  <li>Read the JSON Schema for <code>UserSchema</code> and name one rule from the Zod schema that appears as a property in it.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">Where is parsing with Zod most useful?</p>
+    <button class="quiz-option">Inside every function, to check each argument again</button>
+    <button class="quiz-option">Only in unit tests, never in running code</button>
+    <button class="quiz-option">Only in the browser, never on the server</button>
+    <button class="quiz-option">At the boundary where data enters the program</button>
+    <p class="quiz-explanation">Parse once where data enters, then pass the typed result inward. Re-checking at every step adds cost without adding safety.</p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">What does <code>z.toJSONSchema</code> produce?</p>
+    <button class="quiz-option">A JSON Schema document describing the same shape</button>
+    <button class="quiz-option">A database migration for the table</button>
+    <button class="quiz-option">A TypeScript file with hand-written types</button>
+    <button class="quiz-option">A sample JSON document with random values</button>
+    <p class="quiz-explanation">It converts the Zod schema to JSON Schema, so other tools can read the same definition.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">What does the failing branch of <code>handleCreateUser</code> return?</p>
+    <button class="quiz-option">A thrown exception that crashes the server</button>
+    <button class="quiz-option">The raw body, returned unchanged</button>
+    <button class="quiz-option">A status of 400 with a list of issue strings</button>
+    <button class="quiz-option">A status of 201 with the body inside</button>
+    <p class="quiz-explanation">It returns a 400 status with issue strings built from each issue's path and message.</p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the Zod JSON Schema page.<sup><a href="#r2">2</a></sup></p>
+
+<div class="ask"><strong>Ask the agent</strong> Show me a handler that receives data from outside your program. Ask me to mark the boundary, write the schema, and say what the 400 response should contain.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1">Zod documentation, <a href="https://zod.dev/basics">zod.dev/basics</a>. The lab's <a href="../code/src/boundary.ts">boundary.ts</a> runs the handler.</li>
+    <li id="r2">Zod documentation, <a href="https://zod.dev/json-schema">zod.dev/json-schema</a>, for <code>z.toJSONSchema</code>, its draft targets, and its default for unsupported types.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0008-coercion-and-its-traps.html">← Lesson 8: Coercion and Its Traps</a></span>
+  <span class="nav-next"><a href="0010-zod-4-and-reading-the-docs.html">Lesson 10: Zod 4 and Reading the Docs →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/zod-cheatsheet.html">Cheat sheet</a> · <a href="../code/README.md">Lab code</a>
+</footer>
+</body>
+</html>

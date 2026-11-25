@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — Refinements and Cross-Field Rules</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 10</span><span>Zod</span></div>
+  <h1>Refinements and Cross-Field Rules</h1>
+  <p class="subtitle">Some rules cannot be written on a single field: a minimum must not exceed a maximum, and two passwords must match. Refinements add those checks to an object, and point each error at the field that is wrong.</p>
+</header>
+
+<section>
+<h2>A refinement on an object</h2>
+<p><code>.refine(check, options)</code> adds a check that runs after the object's fields have passed. The check returns <code>true</code> or <code>false</code>. The <code>path</code> option decides which field the error is reported against.<sup><a href="#r1">1</a></sup></p>
+<pre><code>const Range = z
+  .object({ min: z.number(), max: z.number() })
+  .refine((v) =&gt; v.min &lt;= v.max, {
+    error: "min must not exceed max",
+    path: ["max"],
+  });</code></pre>
+<p>The rule runs only when the fields themselves are valid. A <code>min</code> that is not a number never reaches the comparison.</p>
+
+<h2>superRefine for several issues</h2>
+<p><code>.superRefine</code> receives a context and lets you add an issue directly with <code>ctx.addIssue</code>. Use it when one object may produce more than one error, or when you need a specific issue code.</p>
+<pre><code>const Password = z
+  .object({ password: z.string(), confirm: z.string() })
+  .superRefine((v, ctx) =&gt; {
+    if (v.password !== v.confirm) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Passwords do not match",
+        path: ["confirm"],
+        input: v.confirm,
+      });
+    }
+  });</code></pre>
+
+<aside class="note"><strong>Put the error where the user can fix it</strong> A password mismatch should point at <code>confirm</code>, not at the whole form. The path is what lets a form highlight the right input.</aside>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Open <a href="../code/src/refine.ts"><code>refine.ts</code></a>. Change <code>path</code> in <code>Range</code> to <code>["min"]</code> in your head. Say where the error would appear in a form.</li>
+  <li>Write a refinement for a date range where <code>end</code> must be after <code>start</code>. Choose the path.</li>
+  <li>Decide whether a rule like "at least one of email or phone" needs <code>refine</code> or <code>superRefine</code>. Explain what each one can report.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">When does an object-level refinement run?</p>
+    <button class="quiz-option">Before any field is checked</button>
+    <button class="quiz-option">After the object's fields have passed their checks</button>
+    <button class="quiz-option">Only in the test suite</button>
+    <button class="quiz-option">Instead of checking the fields</button>
+    <p class="quiz-explanation">The refinement runs once the fields are valid, so its comparison sees values of the right type.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">What does the <code>path</code> option of a refinement control?</p>
+    <button class="quiz-option">The file where the error is logged</button>
+    <button class="quiz-option">The URL the error is sent to</button>
+    <button class="quiz-option">The order the checks run in</button>
+    <button class="quiz-option">The field the error is reported against</button>
+    <p class="quiz-explanation">The path tells the caller which field the issue belongs to, so a form can show the error next to that input.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">Which tool fits a rule that may report more than one issue?</p>
+    <button class="quiz-option">superRefine, which adds issues through a context</button>
+    <button class="quiz-option">A plain z.string() with a longer name</button>
+    <button class="quiz-option">z.literal with an array of values</button>
+    <button class="quiz-option">z.coerce, which converts the input</button>
+    <p class="quiz-explanation">superRefine receives a context and can add several issues, each with its own path and code.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the Zod API reference sections on refinements and <code>superRefine</code>.<sup><a href="#r1">1</a></sup></p>
+
+<div class="ask"><strong>Ask the agent</strong> Show me a cross-field rule your code checks in an if statement. Ask me to write it as a refinement, and to choose the path that puts the error on the right input.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1">Zod documentation, <a href="https://zod.dev/api">zod.dev/api</a> (refinements). The lab's <a href="../code/src/refine.ts">refine.ts</a> and its tests check the paths.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-transforms-and-input-versus-output.html">← Lesson 6: Transforms and Input vs Output</a></span>
+  <span class="nav-next"><a href="0008-coercion-and-its-traps.html">Lesson 8: Coercion and Its Traps →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/zod-cheatsheet.html">Cheat sheet</a> · <a href="../code/README.md">Lab code</a>
+</footer>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — Why Validate at Runtime</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 10</span><span>Zod</span></div>
+  <h1>Why Validate at Runtime</h1>
+  <p class="subtitle">TypeScript checks your code at compile time. The data that arrives from a request, a file, or an API is only checked by a runtime library, and Zod is that library.</p>
+</header>
+
+<section>
+<h2>Types disappear when the program runs</h2>
+<p>TypeScript removes its types when it compiles to JavaScript. A function that says it takes a <code>User</code> has no way to know, at run time, whether the object it receives really has a name and an age. The compiler checked your code, not the data.<sup><a href="#r1">1</a></sup></p>
+<p>This matters most at the edges of a program. A request body, a parsed config file, or a response from another service arrives as data of unknown shape. Calling <code>response.json()</code> returns whatever the server sent, and the type you write on the result is a promise that the compiler cannot keep.</p>
+
+<h2>What Zod does</h2>
+<p>Zod is a TypeScript-first validation library. You describe the shape once, as a schema that exists at run time. Zod checks incoming data against that schema, and it derives the static type from the same definition, so the check and the type cannot disagree.<sup><a href="#r1">1</a></sup></p>
+<pre><code>import { z } from "zod";
+
+const User = z.object({ name: z.string(), age: z.number() });
+type User = z.infer&lt;typeof User&gt;;   // derived from the schema, not written twice</code></pre>
+
+<aside class="note"><strong>Two jobs, one definition</strong> A schema checks data at run time and gives you a type at compile time. Writing the type by hand and the check separately means they can drift apart.</aside>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Find one place in code you know where data enters the program unchecked, such as a <code>JSON.parse</code> call or a <code>response.json()</code>.</li>
+  <li>Write down the type the code assumes for that data, and the fields it reads.</li>
+  <li>Say what would happen at run time if the server sent a field as a string instead of a number.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">Why can a TypeScript type not protect a program from bad request data?</p>
+    <button class="quiz-option">Types are checked only in the test suite</button>
+    <button class="quiz-option">Types are slower than plain JavaScript</button>
+    <button class="quiz-option">Types are erased when the code runs</button>
+    <button class="quiz-option">Types cannot describe objects</button>
+    <p class="quiz-explanation">TypeScript types exist only at compile time. At run time the data is just a value, so nothing checks it against the type.</p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">What does <code>response.json()</code> give you, as far as the compiler knows?</p>
+    <button class="quiz-option">Whatever the server sent, unchecked</button>
+    <button class="quiz-option">Data that has already been validated</button>
+    <button class="quiz-option">A string that must be parsed again</button>
+    <button class="quiz-option">Only the fields listed in the API docs</button>
+    <p class="quiz-explanation">The JSON is parsed, but nothing checks its shape. Any type you assign to the result is an unverified promise.</p>
+  </div>
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">What is the main idea behind Zod?</p>
+    <button class="quiz-option">A faster replacement for the TypeScript compiler</button>
+    <button class="quiz-option">A runtime schema that checks data and derives the static type</button>
+    <button class="quiz-option">A database driver with typed queries</button>
+    <button class="quiz-option">A test runner for TypeScript projects</button>
+    <p class="quiz-explanation">Zod defines the shape once as a runtime value, checks data against it, and infers the TypeScript type from the same definition.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the Zod basics page for the first examples, and the <a href="https://zod.dev/">Zod home page</a> for the one-paragraph overview.<sup><a href="#r1">1</a></sup></p>
+
+<div class="ask"><strong>Ask the agent</strong> Paste a response handler from your code and ask me where the unchecked data enters, and which fields it assumes. Tell me where you think I am wrong.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1">Zod documentation, <a href="https://zod.dev/basics">zod.dev/basics</a> and <a href="https://zod.dev/">zod.dev</a>, read for this set. Lab code: <a href="../code/README.md">code/README.md</a>.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"></span>
+  <span class="nav-next"><a href="0002-schemas-parse-and-safeparse.html">Lesson 2: Schemas, parse, and safeParse →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/zod-cheatsheet.html">Cheat sheet</a> · <a href="../code/README.md">Lab code</a> · <a href="../../typescript/lessons/0010-reading-and-decoding-type-errors.html">TypeScript set</a>
+</footer>
+</body>
+</html>

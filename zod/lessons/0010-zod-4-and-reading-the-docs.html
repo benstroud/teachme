@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 10 — Zod 4 and Reading the Docs</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 10 of 10</span><span>Zod</span></div>
+  <h1>Zod 4 and Reading the Docs</h1>
+  <p class="subtitle">Much of the Zod you will find online was written for version 3. Version 4 moved several common forms to new names, and some older forms are now deprecated. Learn the changes, and check every example against the version you install.</p>
+</header>
+
+<section>
+<h2>Which version this set uses</h2>
+<p>The lab installs <code>zod@^4</code>. When this set was written, npm listed 4.6.7 as the latest release, and the Zod docs describe Zod 4 as the stable line.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup> Check the version in your own <code>package.json</code>, because the examples here depend on it.</p>
+
+<h2>Changes a learner meets first</h2>
+<table>
+  <tr><th>Zod 3 style</th><th>Zod 4 style</th><th>Why it matters</th></tr>
+  <tr><td><code>z.string().email()</code></td><td><code>z.email()</code></td><td>The method form is deprecated; the top-level function is the current form</td></tr>
+  <tr><td><code>z.object(...).strict()</code></td><td><code>z.strictObject(...)</code></td><td>Unknown keys are rejected by the named function</td></tr>
+  <tr><td><code>z.object(...).passthrough()</code></td><td><code>z.looseObject(...)</code></td><td>Unknown keys are kept by the named function</td></tr>
+  <tr><td><code>message:</code> or <code>invalid_type_error:</code></td><td><code>error:</code></td><td>One parameter now covers custom errors</td></tr>
+  <tr><td><code>error.format()</code> and <code>error.flatten()</code></td><td><code>z.treeifyError</code> and <code>z.flattenError</code></td><td>The top-level helpers are the current forms</td></tr>
+</table>
+<p>The Zod migration guide lists these changes and others, including the deprecation of <code>z.nativeEnum</code> in favour of <code>z.enum</code>, and a removal of <code>.deepPartial()</code>.<sup><a href="#r3">3</a></sup> The lessons in this set use the Zod 4 forms, and each deprecated form in the migration guide is noted as such.</p>
+
+<aside class="note"><strong>Check the version before you copy</strong> A snippet from a blog post may be the Zod 3 form. The error message and the object-strictness behaviour both differ between versions. Compare the import and the function names against the docs for the version you install.</aside>
+
+<h2>How to read the docs on a new feature</h2>
+<ol>
+  <li>Find the version the page documents, and the install line it shows.</li>
+  <li>Check whether the function is top-level (<code>z.email()</code>) or a method (<code>.email()</code>), and whether the method is marked deprecated.</li>
+  <li>Run the example in the lab's test file before you rely on it. A passing test is the cheapest proof that the docs and the code agree.</li>
+</ol>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Search your code for <code>.email()</code>, <code>.strict()</code>, <code>.passthrough()</code>, and <code>message:</code>. Count each one, and write the Zod 4 form next to it.</li>
+  <li>Install the lab, run <code>npm test</code>, and say which test would fail first if you swapped <code>z.strictObject</code> for <code>z.object</code>.</li>
+  <li>Choose one schema in your code, and write a one-paragraph note on where it is a boundary, what it rejects, and what it strips or keeps.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">Which form is the current Zod 4 way to validate an email address?</p>
+    <button class="quiz-option">z.string().email()</button>
+    <button class="quiz-option">z.email()</button>
+    <button class="quiz-option">z.string().regex(email)</button>
+    <button class="quiz-option">z.emailAddress()</button>
+    <p class="quiz-explanation">The top-level <code>z.email()</code> is the current form. The method form still works, but the docs mark it as deprecated.<sup><a href="#r3">3</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">What is the Zod 4 way to reject unknown keys?</p>
+    <button class="quiz-option">z.object with a comment on each key</button>
+    <button class="quiz-option">The passthrough method on a z.object schema</button>
+    <button class="quiz-option">A z.looseObject that keeps unknown keys</button>
+    <button class="quiz-option">A z.strictObject that rejects unknown keys</button>
+    <p class="quiz-explanation">The named function <code>z.strictObject</code> rejects unknown keys. <code>z.looseObject</code> keeps them.<sup><a href="#r3">3</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">Why should a learner run an example before trusting it?</p>
+    <button class="quiz-option">Because a passing test shows the docs match this version</button>
+    <button class="quiz-option">Because every example in the docs is wrong</button>
+    <button class="quiz-option">Because Zod examples only run in the browser</button>
+    <button class="quiz-option">Because the docs are never updated</button>
+    <p class="quiz-explanation">Running the example against the installed version is the cheapest check that the docs match the code you have.</p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the Zod 4 release notes and the migration guide, then the lab's <a href="../code/src/objects.ts"><code>objects.ts</code></a>.<sup><a href="#r2">2</a></sup><sup><a href="#r3">3</a></sup></p>
+
+<div class="ask"><strong>Ask the agent</strong> Paste a Zod snippet from a blog or an older project. Ask me to convert it to Zod 4, list each change I made, and say which changes I could not check without running it.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1">npm registry, <code>npm view zod version</code>, checked when this set was written. The latest tag was 4.6.7.</li>
+    <li id="r2">Zod documentation, <a href="https://zod.dev/">zod.dev</a>, which describes Zod 4 as stable and links to its release notes and migration guide.</li>
+    <li id="r3">Zod documentation, <a href="https://zod.dev/v4/changelog">zod.dev/v4/changelog</a> (migration guide). The table above is a summary; the changes not run in the lab are flagged in NOTES.md.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0009-boundaries-and-json-schema.html">← Lesson 9: Boundaries and JSON Schema</a></span>
+  <span class="nav-next"><a href="../reference/zod-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/zod-cheatsheet.html">Cheat sheet</a> · <a href="../code/README.md">Lab code</a>
+</footer>
+</body>
+</html>

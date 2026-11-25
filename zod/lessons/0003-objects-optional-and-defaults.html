@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — Objects, Optional, and Defaults</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 10</span><span>Zod</span></div>
+  <h1>Objects, Optional, and Defaults</h1>
+  <p class="subtitle">Most real data is an object with some keys missing, some null, and some extra keys nobody asked for. Zod has a choice for each case, and the default choice may not be the one you want.</p>
+</header>
+
+<section>
+<h2>Unknown keys</h2>
+<p>By default, <code>z.object</code> strips keys the schema does not list. The parsed result has only the declared fields. This is safe for most input, but it can hide a typo in a field name, since the extra key simply disappears.<sup><a href="#r1">1</a></sup></p>
+<table>
+  <tr><th>Schema</th><th>Unknown key</th></tr>
+  <tr><td><code>z.object</code></td><td>Stripped from the result</td></tr>
+  <tr><td><code>z.strictObject</code></td><td>Rejected with an error</td></tr>
+  <tr><td><code>z.looseObject</code></td><td>Kept in the result unchanged</td></tr>
+</table>
+<pre><code>const Plain = z.object({ id: z.string(), name: z.string() });
+Plain.parse({ id: "1", name: "a", extra: true });       // { id: "1", name: "a" }
+
+const StrictUser = z.strictObject({ id: z.string() });
+StrictUser.safeParse({ id: "1", extra: true }).success; // false
+
+const LooseUser = z.looseObject({ id: z.string() });
+LooseUser.parse({ id: "1", extra: true });              // { id: "1", extra: true }</code></pre>
+
+<h2>Optional, nullable, and default</h2>
+<p>These three words answer different questions. <code>.optional()</code> allows the value to be <code>undefined</code>. <code>.nullable()</code> allows <code>null</code>. <code>.default(x)</code> fills in <code>x</code> when the input is <code>undefined</code>.<sup><a href="#r1">1</a></sup></p>
+<pre><code>const Profile = z.object({
+  role: z.string().default("viewer"),
+  nickname: z.string().nullable(),
+  bio: z.string().optional(),
+});
+
+Profile.parse({ nickname: null });
+// { role: "viewer", nickname: null }   bio is absent, not undefined-valued</code></pre>
+
+<aside class="note"><strong>Nullable is not optional</strong> <code>nickname</code> must be present, even if its value is <code>null</code>. Only <code>bio</code> may be left out. Check which fields your data source really omits.</aside>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Open <a href="../code/src/objects.ts"><code>objects.ts</code></a>. For <code>Plain</code>, predict the result of parsing an object with an extra key <code>role</code>, then check in the test file.</li>
+  <li>Decide whether a user's <code>bio</code> should be optional, nullable, or both. Say what the difference would mean for a form that always sends the field.</li>
+  <li>Choose between <code>z.object</code> and <code>z.strictObject</code> for an API request body. Name one kind of bug each choice would catch or hide.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">A client sends an extra key that the schema does not declare, to an ordinary z.object. What happens?</p>
+    <button class="quiz-option">The request is rejected with an error</button>
+    <button class="quiz-option">The key is stripped from the parsed result</button>
+    <button class="quiz-option">The key is kept in the parsed result</button>
+    <button class="quiz-option">The key is converted to a string</button>
+    <p class="quiz-explanation">The default for <code>z.object</code> is to strip unknown keys from the result.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">What does <code>.default("viewer")</code> do?</p>
+    <button class="quiz-option">It allows null as well as the string</button>
+    <button class="quiz-option">It rejects any value that is not "viewer"</button>
+    <button class="quiz-option">It makes the field optional in the TypeScript type only</button>
+    <button class="quiz-option">It fills in "viewer" when the input is undefined</button>
+    <p class="quiz-explanation">A default applies when the input is undefined. It does not allow null, and it does not change which strings are valid.</p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">Which schema accepts a key that is present with the value <code>null</code>, but rejects the key being absent?</p>
+    <button class="quiz-option">z.string().nullable()</button>
+    <button class="quiz-option">z.string().optional()</button>
+    <button class="quiz-option">z.string().nullish()</button>
+    <button class="quiz-option">z.string().default(null)</button>
+    <p class="quiz-explanation">A nullable schema accepts null. It does not accept an absent key, since the key is still required. Optional and nullish both allow an absent key.</p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the Zod API reference for objects and for optional, nullable, and default, and the lab's <a href="../code/src/objects.ts"><code>objects.ts</code></a>.<sup><a href="#r1">1</a></sup></p>
+
+<div class="ask"><strong>Ask the agent</strong> Paste the body of an API you use. Ask me which fields should be optional, nullable, or defaulted, and which unknown keys should be stripped, rejected, or kept.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1">Zod documentation, <a href="https://zod.dev/api">zod.dev/api</a> (objects, optional, nullable, default). The lab's <a href="../code/src/objects.ts">objects.ts</a> and its tests are the runnable version.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-schemas-parse-and-safeparse.html">← Lesson 2: Schemas, parse, and safeParse</a></span>
+  <span class="nav-next"><a href="0004-errors-paths-and-messages.html">Lesson 4: Errors, Paths, and Messages →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/zod-cheatsheet.html">Cheat sheet</a> · <a href="../code/README.md">Lab code</a>
+</footer>
+</body>
+</html>

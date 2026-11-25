@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — Transforms and Input vs Output</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 10</span><span>Zod</span></div>
+  <h1>Transforms and Input vs Output</h1>
+  <p class="subtitle">A transform checks the input and then converts it: a string becomes a Date, a padded name becomes a trimmed one. Once a schema transforms, its input and output types differ, and Zod gives you both.</p>
+</header>
+
+<section>
+<h2>Transform after the check</h2>
+<p><code>.transform(fn)</code> runs after the schema has accepted the value. The function receives the checked value and returns the value the rest of the program will use.<sup><a href="#r1">1</a></sup></p>
+<pre><code>const DateFromString = z.string().transform((s) =&gt; new Date(s));
+const Trimmed = z.string().transform((s) =&gt; s.trim());
+
+DateFromString.parse("2026-01-02");  // a Date object
+Trimmed.parse("  hi  ");             // "hi"</code></pre>
+
+<h2>Input and output are different types</h2>
+<p>Once a schema transforms, the value that goes in and the value that comes out may have different types. Zod exposes both: <code>z.input</code> for the type that goes in, and <code>z.output</code> for the type that comes out. <code>z.infer</code> is the output type.<sup><a href="#r1">1</a></sup></p>
+<pre><code>const Payment = z.object({
+  amount: z.string().transform((s) =&gt; Number(s)),
+  paidOn: DateFromString,
+});
+
+type PaymentInput  = z.input&lt;typeof Payment&gt;;   // amount: string, paidOn: string
+type PaymentOutput = z.output&lt;typeof Payment&gt;;  // amount: number, paidOn: Date</code></pre>
+
+<aside class="note"><strong>Name the boundary</strong> Keep the input type for what the outside world sends, and the output type for what your code uses. Mixing them up is the usual cause of "this is a string, not a number" bugs far from the boundary.</aside>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Open <a href="../code/src/transforms.ts"><code>transforms.ts</code></a>. Predict the input type and output type of <code>Payment</code> for <code>amount</code> and <code>paidOn</code>, then check them against the two type aliases.</li>
+  <li>Write a transform that turns a comma-separated string such as <code>"a,b,c"</code> into an array. Say what the output type is.</li>
+  <li>Explain where the transform should run: at the boundary, or deeper in the code. Give one reason.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">When does <code>.transform</code> run, relative to the check?</p>
+    <button class="quiz-option">Before the check, to prepare the value</button>
+    <button class="quiz-option">Instead of the check, so the check is skipped</button>
+    <button class="quiz-option">After the check has accepted the value</button>
+    <button class="quiz-option">Only when the parse is async</button>
+    <p class="quiz-explanation">A transform runs after the schema has accepted the value, so the function receives a checked value.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">For <code>DateFromString</code>, what does <code>z.input</code> give?</p>
+    <button class="quiz-option">string, the type that goes in</button>
+    <button class="quiz-option">Date, the type that comes out</button>
+    <button class="quiz-option">unknown, because nothing is known yet</button>
+    <button class="quiz-option">never, because the transform cannot run</button>
+    <p class="quiz-explanation">The input type is what the outside world sends: a string. The output type is Date.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">Why keep the input type and output type separate?</p>
+    <button class="quiz-option">Zod cannot infer a type once a transform runs</button>
+    <button class="quiz-option">The output type always matches the input type</button>
+    <button class="quiz-option">Transforms exist only at compile time, not run time</button>
+    <button class="quiz-option">Data changes shape at the boundary, so the side must be known</button>
+    <p class="quiz-explanation">Transforms change the shape of the data. Naming the input and output types tells you which side of the boundary a value is on.</p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the Zod basics page on type inference, and the API reference on transforms.<sup><a href="#r1">1</a></sup></p>
+
+<div class="ask"><strong>Ask the agent</strong> Show me one value you read from a file or an API and convert in your code. Ask me to write its schema with a transform, and to name the input and output types.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1">Zod documentation, <a href="https://zod.dev/basics">zod.dev/basics</a> (type inference) and <a href="https://zod.dev/api">zod.dev/api</a> (transforms). The lab's <a href="../code/src/transforms.ts">transforms.ts</a> and its tests run these.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-unions-enums-and-literals.html">← Lesson 5: Unions, Enums, and Literals</a></span>
+  <span class="nav-next"><a href="0007-refinements-and-cross-field-rules.html">Lesson 7: Refinements and Cross-Field Rules →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/zod-cheatsheet.html">Cheat sheet</a> · <a href="../code/README.md">Lab code</a>
+</footer>
+</body>
+</html>

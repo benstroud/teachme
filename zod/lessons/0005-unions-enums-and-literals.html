@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — Unions, Enums, and Literals</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 10</span><span>Zod</span></div>
+  <h1>Unions, Enums, and Literals</h1>
+  <p class="subtitle">Real data has choices: a value is one of several shapes, or one of a fixed set of words. Zod models these with unions, enums, and literals, and a discriminated union picks its branch by one key.</p>
+</header>
+
+<section>
+<h2>Fixed values</h2>
+<p><code>z.literal</code> accepts exactly one value. <code>z.enum</code> accepts one of a list of strings. Use an enum where the set of allowed words is fixed and the code needs to check each one.<sup><a href="#r1">1</a></sup></p>
+<pre><code>const Status = z.enum(["open", "closed"]);
+type Status = z.infer&lt;typeof Status&gt;;   // "open" | "closed"
+
+const Kind = z.literal("circle");</code></pre>
+
+<h2>Plain unions</h2>
+<p><code>z.union</code> tries each option in order, and the first that validates is returned.<sup><a href="#r1">1</a></sup> It is simple, but it gives a poor error when every branch fails, since the issue list must cover all options.</p>
+<pre><code>const Id = z.union([z.string(), z.number()]);
+Id.parse(5);    // 5
+Id.parse("a");  // "a"</code></pre>
+
+<h2>Discriminated unions</h2>
+<p>When each branch has a key that says which one it is, use <code>z.discriminatedUnion</code>. Zod reads the key first and checks only the matching branch, so the errors describe the right shape.<sup><a href="#r1">1</a></sup></p>
+<pre><code>const Shape = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("circle"), radius: z.number().positive() }),
+  z.object({ kind: z.literal("square"), side: z.number().positive() }),
+]);
+
+Shape.parse({ kind: "circle", radius: 2 });   // ok
+Shape.safeParse({ kind: "triangle" }).success; // false</code></pre>
+
+<aside class="note"><strong>Model the variants as data</strong> A discriminated union turns "which kind of thing is this" into a checked key. That gives you a narrowed TypeScript type in each branch, which connects to the narrowing lesson in the TypeScript set.</aside>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Open <a href="../code/src/unions.ts"><code>unions.ts</code></a>. Add a <code>triangle</code> branch with three <code>sides</code> as an array, and predict whether the existing tests still pass.</li>
+  <li>Pick a value in your code that is one of a fixed set of words. Decide between <code>z.enum</code> and a plain <code>z.string()</code>, and say what you lose with the plain string.</li>
+  <li>Explain why a discriminated union gives a clearer error than a plain union for <code>{ kind: "square" }</code> with no <code>side</code>.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">What does <code>z.union</code> do with its options?</p>
+    <button class="quiz-option">It merges all options into one object</button>
+    <button class="quiz-option">It tries each option in order and returns the first that validates</button>
+    <button class="quiz-option">It validates every option and returns the last one</button>
+    <button class="quiz-option">It picks the option whose name matches the input</button>
+    <p class="quiz-explanation">A plain union checks options in order and returns the first success. Choosing by a key is the job of a discriminated union.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">What does a discriminated union use to choose a branch?</p>
+    <button class="quiz-option">The number of keys in the object</button>
+    <button class="quiz-option">The order of the branches in the list</button>
+    <button class="quiz-option">Whether the input is a string or number</button>
+    <button class="quiz-option">One shared key whose value is a literal</button>
+    <p class="quiz-explanation">Each branch declares the shared key with a literal, and Zod uses its value to pick the branch.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">Which schema allows exactly the words "open" and "closed"?</p>
+    <button class="quiz-option">z.enum(["open", "closed"])</button>
+    <button class="quiz-option">z.string().min(4)</button>
+    <button class="quiz-option">z.literal(["open", "closed"]) with no other options</button>
+    <button class="quiz-option">z.union() with no options</button>
+    <p class="quiz-explanation">A string enum takes an array of allowed words. A plain string accepts any text, and literal takes one value, not a list.</p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the Zod API reference sections on unions, discriminated unions, enums, and literals.<sup><a href="#r1">1</a></sup></p>
+
+<div class="ask"><strong>Ask the agent</strong> Describe the variants of one entity in your system. Ask me to design the discriminated union, and tell me which variant I would get wrong if I used a plain union.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1">Zod documentation, <a href="https://zod.dev/api">zod.dev/api</a> (unions, discriminated unions, enums, literals). The lab's <a href="../code/src/unions.ts">unions.ts</a> and its tests run these.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-errors-paths-and-messages.html">← Lesson 4: Errors, Paths, and Messages</a></span>
+  <span class="nav-next"><a href="0006-transforms-and-input-versus-output.html">Lesson 6: Transforms and Input vs Output →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/zod-cheatsheet.html">Cheat sheet</a> · <a href="../code/README.md">Lab code</a>
+</footer>
+</body>
+</html>

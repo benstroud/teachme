@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — Errors, Paths, and Messages</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 10</span><span>Zod</span></div>
+  <h1>Errors, Paths, and Messages</h1>
+  <p class="subtitle">A failed check produces a list of issues, each with a code, a path to the bad value, and a message. Learn to read that list, to shape it for a form or an API, and to write messages a person can act on.</p>
+</header>
+
+<section>
+<h2>The issues list</h2>
+<p>A <code>ZodError</code> holds an <code>issues</code> array. Each issue carries a <code>code</code>, a <code>path</code> to the bad value, and a <code>message</code>. The path is an array: object keys are strings, and array indices are numbers.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+<pre><code>const SignupForm = z.object({
+  username: z.string().min(3, "Username needs at least 3 characters"),
+  favoriteNumbers: z.array(z.number()),
+});
+
+const r = SignupForm.safeParse({ username: "ab", favoriteNumbers: [1, "x"] });
+// issues: path ["username"], and path ["favoriteNumbers", 1]</code></pre>
+
+<h2>Three shapes for the same errors</h2>
+<p>A flat list is rarely what a form needs. Zod gives you helpers that reshape the error for different consumers.<sup><a href="#r2">2</a></sup></p>
+<table>
+  <tr><th>Helper</th><th>Shape</th><th>Use it for</th></tr>
+  <tr><td><code>z.treeifyError</code></td><td>Nested to match the schema, with <code>properties</code> and <code>items</code></td><td>Per-field errors in deep forms</td></tr>
+  <tr><td><code>z.flattenError</code></td><td><code>formErrors</code> and <code>fieldErrors</code>, one level deep</td><td>Flat forms with top-level fields</td></tr>
+  <tr><td><code>z.prettifyError</code></td><td>A readable string with the path</td><td>Logs and command-line output</td></tr>
+</table>
+<p>The docs mark <code>z.formatError</code> as deprecated in favour of <code>z.treeifyError</code>.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Messages a person can use</h2>
+<p>Pass a message as the second argument to a check, such as <code>.min(3, "…")</code>, or set one on a schema with the <code>error</code> parameter. A message written for a developer ("expected string, received number") helps no one using the form. Write the message for the person who sees it.<sup><a href="#r3">3</a></sup></p>
+<pre><code>const Age = z.number({ error: "Age must be a number" });</code></pre>
+
+<aside class="note"><strong>Messages are not the contract</strong> Code should branch on the issue's <code>code</code> and <code>path</code>, not on the message text. Messages change with wording; codes and paths are the stable part you can test against.</aside>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Open <a href="../code/src/errors.ts"><code>errors.ts</code></a>. Run the form with <code>username: "ab"</code> and <code>favoriteNumbers: [1, "x"]</code>. Predict the path of each issue before you check it in the tests.</li>
+  <li>Decide which helper a sign-up form with one level of fields should use, and which a deep settings page should use. Give one reason each.</li>
+  <li>Rewrite one message in your own code so it tells the user what to do next, not what the validator expected.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">In an issue for the value "x" at <code>favoriteNumbers[1]</code>, what is the path?</p>
+    <button class="quiz-option">["favoriteNumbers.1"]</button>
+    <button class="quiz-option">"favoriteNumbers[1]"</button>
+    <button class="quiz-option">["favoriteNumbers", 1]</button>
+    <button class="quiz-option">[1, "favoriteNumbers"]</button>
+    <p class="quiz-explanation">The path is an array. Object keys are strings and array indices are numbers, so the path is <code>["favoriteNumbers", 1]</code>.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">Which helper keeps errors nested to match a deep schema?</p>
+    <button class="quiz-option">z.treeifyError</button>
+    <button class="quiz-option">z.flattenError</button>
+    <button class="quiz-option">z.prettifyError</button>
+    <button class="quiz-option">z.formatError</button>
+    <p class="quiz-explanation">treeifyError mirrors the schema, so object keys sit under properties and array entries under items. formatError is deprecated in its favour.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">What should code branch on, to stay correct when wording changes?</p>
+    <button class="quiz-option">The full message text</button>
+    <button class="quiz-option">The position of the issue in the list</button>
+    <button class="quiz-option">The length of the message</button>
+    <button class="quiz-option">The issue code and path</button>
+    <p class="quiz-explanation">Messages are wording and may change. The code and path are the stable parts you can test against.</p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the Zod error customization and error formatting pages.<sup><a href="#r2">2</a></sup><sup><a href="#r3">3</a></sup></p>
+
+<div class="ask"><strong>Ask the agent</strong> Show me a validation error your app currently displays. Ask me to rewrite the message for the person who sees it, and tell me which part of the path you would use to point at the field.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1">Zod documentation, <a href="https://zod.dev/basics">zod.dev/basics</a>, for <code>ZodError</code> and its <code>issues</code>.</li>
+    <li id="r2">Zod documentation, <a href="https://zod.dev/error-formatting">zod.dev/error-formatting</a>, for <code>treeifyError</code>, <code>flattenError</code>, <code>prettifyError</code>, and the deprecation of <code>formatError</code>.</li>
+    <li id="r3">Zod documentation, <a href="https://zod.dev/error-customization">zod.dev/error-customization</a>, for the <code>error</code> parameter and messages. The lab's <a href="../code/src/errors.ts">errors.ts</a> and its tests run these.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-objects-optional-and-defaults.html">← Lesson 3: Objects, Optional, and Defaults</a></span>
+  <span class="nav-next"><a href="0005-unions-enums-and-literals.html">Lesson 5: Unions, Enums, and Literals →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/zod-cheatsheet.html">Cheat sheet</a> · <a href="../code/README.md">Lab code</a>
+</footer>
+</body>
+</html>

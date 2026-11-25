@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — Schemas, parse, and safeParse</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 10</span><span>Zod</span></div>
+  <h1>Schemas, parse, and safeParse</h1>
+  <p class="subtitle">A schema is a value you build from Zod's functions. Two methods use it: <code>parse</code> throws on bad input, and <code>safeParse</code> returns a result you can branch on.</p>
+</header>
+
+<section>
+<h2>Build a schema</h2>
+<p>Zod builds schemas from functions such as <code>z.string()</code>, <code>z.number()</code>, and <code>z.object(...)</code>. Each schema is an ordinary value, so you can store it, pass it around, and combine it with others.<sup><a href="#r1">1</a></sup></p>
+<pre><code>import { z } from "zod";
+
+export const UserSchema = z.object({
+  name: z.string().min(1),
+  age: z.number().int().nonnegative(),
+  email: z.email(),
+});
+
+export type User = z.infer&lt;typeof UserSchema&gt;;</code></pre>
+<p><code>z.email()</code> is a top-level function in Zod 4. Lesson 10 covers the older method form.</p>
+
+<h2>parse: the value, or an exception</h2>
+<p><code>parse</code> returns the checked value when the input is valid. When it is not, it throws a <code>ZodError</code>. Use it where bad input should stop the work, such as during start-up when a config file is wrong.<sup><a href="#r1">1</a></sup></p>
+
+<h2>safeParse: a result you branch on</h2>
+<p><code>safeParse</code> never throws for invalid input. It returns an object with <code>success</code>. On success, <code>data</code> holds the value. On failure, <code>error</code> holds the <code>ZodError</code>. Use it at boundaries where you want to respond with an error rather than crash.<sup><a href="#r1">1</a></sup></p>
+<pre><code>const result = UserSchema.safeParse(body);
+if (!result.success) {
+  return { status: 400, issues: result.error.issues };
+}
+return { status: 201, user: result.data };</code></pre>
+
+<aside class="note"><strong>Parse returns a new value</strong> Zod returns a checked copy of the input. The result is the thing you should use from then on, not the original object.</aside>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Open the lab's <a href="../code/src/user.ts"><code>user.ts</code></a>. Find <code>parseUser</code> and <code>checkUser</code>. Say which one you would use in a command-line tool at start-up, and which one in a web handler.</li>
+  <li>Predict what <code>checkUser({ name: "", age: 1.5, email: "x" })</code> returns, then check it in the test file.</li>
+  <li>Change <code>nonnegative()</code> to <code>positive()</code> in your head. Say which inputs the schema would now reject that it accepted before.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">What does <code>safeParse</code> return for invalid input?</p>
+    <button class="quiz-option">It throws a ZodError that must be caught</button>
+    <button class="quiz-option">It quietly returns undefined to the caller</button>
+    <button class="quiz-option">It returns the input value unchanged</button>
+    <button class="quiz-option">It returns an object with success set to false</button>
+    <p class="quiz-explanation">On failure, <code>safeParse</code> returns a result with <code>success: false</code> and an <code>error</code>. It does not throw.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">Which type should the code use for a value that came from <code>UserSchema.parse</code>?</p>
+    <button class="quiz-option">The type inferred with z.infer from the schema</button>
+    <button class="quiz-option">Any, because the input was unknown</button>
+    <button class="quiz-option">A hand-written copy of the same fields</button>
+    <button class="quiz-option">The unknown type from the original input</button>
+    <p class="quiz-explanation">The inferred type comes from the same schema that checks the data, so the two stay in step.</p>
+  </div>
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">A web handler should respond with a 400 for a bad body and not crash. Which method fits best?</p>
+    <button class="quiz-option">parse, inside a try block that rethrows</button>
+    <button class="quiz-option">parse, with no error handling</button>
+    <button class="quiz-option">safeParse, then branch on success</button>
+    <button class="quiz-option">Check the body by hand before parsing</button>
+    <p class="quiz-explanation">safeParse returns the result, so the handler can branch without an exception and return a 400.</p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://zod.dev/basics">Zod basics page</a>, which covers <code>parse</code>, <code>safeParse</code>, and <code>z.infer</code>.<sup><a href="#r1">1</a></sup></p>
+
+<div class="ask"><strong>Ask the agent</strong> Show me a schema you would write for one of your data sources. Ask me to choose between parse and safeParse for each place it is used, and argue for the choice you think is wrong.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1">Zod documentation, <a href="https://zod.dev/basics">zod.dev/basics</a>. The lab's <a href="../code/src/user.ts">user.ts</a> and its tests are the runnable version.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-why-validate-at-runtime.html">← Lesson 1: Why Validate at Runtime</a></span>
+  <span class="nav-next"><a href="0003-objects-optional-and-defaults.html">Lesson 3: Objects, Optional, and Defaults →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/zod-cheatsheet.html">Cheat sheet</a> · <a href="../code/README.md">Lab code</a>
+</footer>
+</body>
+</html>

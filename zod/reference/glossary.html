@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zod Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Zod</span></div>
+  <h1>Glossary</h1>
+  <p class="subtitle">Terms as this set uses them. Each entry names the lessons where it appears, and the lab file that runs it.</p>
+</header>
+
+<section>
+<h2>Core</h2>
+<dl class="terms">
+
+  <dt id="schema">Schema</dt>
+  <dd>A value built with Zod's functions, such as <code>z.object</code>, that checks data at run time and derives a type. Lessons 1, 2.</dd>
+
+  <dt id="parse">parse</dt>
+  <dd>The method that returns the checked value, or throws a <code>ZodError</code> when the input is invalid. Lesson 2. Lab: <code>user.ts</code>.</dd>
+
+  <dt id="safeparse">safeParse</dt>
+  <dd>The method that returns an object with <code>success</code>, and <code>data</code> or <code>error</code>, without throwing. Lesson 2. Lab: <code>user.ts</code>.</dd>
+
+  <dt id="infer">z.infer</dt>
+  <dd>The TypeScript type of a schema's output, derived from the schema. Lessons 1, 2, 6.</dd>
+
+  <dt id="zoderror">ZodError</dt>
+  <dd>The error thrown by parse, and held by a failed safeParse. Its <code>issues</code> array lists each problem. Lesson 4.</dd>
+
+  <dt id="issue">Issue</dt>
+  <dd>One problem found by a check, with a <code>code</code>, a <code>path</code>, and a <code>message</code>. Lesson 4.</dd>
+
+  <dt id="path">Path</dt>
+  <dd>The array that locates an issue, such as <code>["favoriteNumbers", 1]</code>. Object keys are strings and array indices are numbers. Lesson 4. Lab: <code>errors.ts</code>.</dd>
+
+</dl>
+</section>
+
+<section>
+<h2>Shapes and choices</h2>
+<dl class="terms">
+
+  <dt id="strip">Strip</dt>
+  <dd>The default for <code>z.object</code>: unknown keys are removed from the result. Lesson 3. Lab: <code>objects.ts</code>.</dd>
+
+  <dt id="strict-object">z.strictObject</dt>
+  <dd>An object schema that rejects unknown keys. Lesson 3, Lesson 10.</dd>
+
+  <dt id="loose-object">z.looseObject</dt>
+  <dd>An object schema that keeps unknown keys in the result. Lesson 3, Lesson 10.</dd>
+
+  <dt id="optional">optional</dt>
+  <dd>Allows the value to be <code>undefined</code>. Lesson 3.</dd>
+
+  <dt id="nullable">nullable</dt>
+  <dd>Allows the value to be <code>null</code>. The key must still be present. Lesson 3.</dd>
+
+  <dt id="default">default</dt>
+  <dd>Fills in a value when the input is <code>undefined</code>. Lesson 3.</dd>
+
+  <dt id="discriminated-union">Discriminated union</dt>
+  <dd>A union whose branches share a key with a literal value, which picks the branch. Lesson 5. Lab: <code>unions.ts</code>.</dd>
+
+</dl>
+</section>
+
+<section>
+<h2>Transforming and checking</h2>
+<dl class="terms">
+
+  <dt id="transform">transform</dt>
+  <dd>A function that runs after a schema accepts the value, and returns the value the program uses. Lesson 6. Lab: <code>transforms.ts</code>.</dd>
+
+  <dt id="input-output">Input and output types</dt>
+  <dd>The type that goes into a schema, from <code>z.input</code>, and the type that comes out, from <code>z.output</code>. They can differ after a transform. Lesson 6.</dd>
+
+  <dt id="refine">refine</dt>
+  <dd>A check added to a schema, which returns true or false. The <code>path</code> option says which field it belongs to. Lesson 7. Lab: <code>refine.ts</code>.</dd>
+
+  <dt id="superrefine">superRefine</dt>
+  <dd>A check that receives a context and may add several issues through <code>ctx.addIssue</code>. Lesson 7.</dd>
+
+  <dt id="coerce">z.coerce</dt>
+  <dd>A schema that converts the input with a constructor such as <code>Number</code>, then checks it. Lesson 8. Lab: <code>coerce.ts</code>.</dd>
+
+  <dt id="preprocess">z.preprocess</dt>
+  <dd>A function that changes the input before the rest of the schema runs. Used here to turn an empty string into <code>undefined</code>. Lesson 8.</dd>
+
+</dl>
+</section>
+
+<section>
+<h2>Using it at the edges</h2>
+<dl class="terms">
+
+  <dt id="boundary">Boundary</dt>
+  <dd>The point where data enters the program, such as a request body or a config file. Parse here, and pass the typed result inward. Lesson 9.</dd>
+
+  <dt id="json-schema">JSON Schema</dt>
+  <dd>A standard description of a JSON shape, which <code>z.toJSONSchema</code> produces from a Zod schema. Lesson 9.</dd>
+
+  <dt id="treeify">z.treeifyError</dt>
+  <dd>Reshapes an error to match a nested schema. Lesson 4. Lab: <code>errors.ts</code>.</dd>
+
+  <dt id="flatten">z.flattenError</dt>
+  <dd>Reshapes an error into <code>formErrors</code> and <code>fieldErrors</code>, one level deep. Lesson 4.</dd>
+
+</dl>
+</section>
+
+<footer class="lesson-footer">
+  <a href="../../index.html">Course home</a> · <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="zod-cheatsheet.html">Cheat sheet</a> · <a href="../code/README.md">Lab code</a>
+</footer>
+</body>
+</html>

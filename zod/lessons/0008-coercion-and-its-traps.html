@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — Coercion and Its Traps</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 10</span><span>Zod</span></div>
+  <h1>Coercion and Its Traps</h1>
+  <p class="subtitle">Query strings and form fields arrive as text, so a number must be converted before it is checked. <code>z.coerce</code> does that conversion, and it is convenient precisely because it can turn bad input into good-looking values.</p>
+</header>
+
+<section>
+<h2>What coercion does</h2>
+<p><code>z.coerce.number()</code> converts the input with <code>Number(...)</code> before it checks the result. The docs note that the input type of a coerced schema is <code>unknown</code> by default.<sup><a href="#r1">1</a></sup></p>
+<pre><code>const Quantity = z.coerce.number().int().positive();
+Quantity.parse("3");   // 3</code></pre>
+
+<h2>The trap: empty means zero</h2>
+<p><code>Number("")</code> is <code>0</code>. A field that the user left blank becomes a valid number, if the schema allows zero. The check passes, and the program now believes the user asked for nothing, which is not the same as "not provided".</p>
+<pre><code>const Count = z.coerce.number().int().nonnegative();
+Count.parse("");   // 0, and it passes</code></pre>
+<p>The fix is to turn the empty string into <code>undefined</code> before the coercion, so the schema can reject it as missing. The lab uses <code>z.preprocess</code> for this.</p>
+<pre><code>const SafeQuantity = z.preprocess(
+  (v) =&gt; (v === "" ? undefined : v),
+  z.coerce.number().int().positive(),
+);</code></pre>
+
+<aside class="note"><strong>Coerce only where the input is text</strong> Use coercion at a boundary where you know the input is a string, such as a query string. Coercing a JSON body with a value that could be a string or a number hides the mistake you want to catch.</aside>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Open <a href="../code/src/coerce.ts"><code>coerce.ts</code></a>. Predict the result of <code>Count.parse("")</code> and <code>SafeQuantity.safeParse("")</code>, then check in the tests.</li>
+  <li>Find one query parameter in your code that is converted by hand. Decide whether <code>z.coerce</code> or <code>z.preprocess</code> fits, and say why.</li>
+  <li>Name one other input that coerces to a surprising value, such as <code>" "</code>, <code>"true"</code>, or <code>null</code>, and say what the schema should do with it.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">What does <code>z.coerce.number().nonnegative()</code> return for the empty string?</p>
+    <button class="quiz-option">An error, because the empty string is not a number</button>
+    <button class="quiz-option">undefined, because the input is missing</button>
+    <button class="quiz-option">0, which passes the check</button>
+    <button class="quiz-option">NaN, which fails the check</button>
+    <p class="quiz-explanation">Number("") is 0. Zero is nonnegative, so the value passes and the blank field is accepted as 0.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">Why does the <code>SafeQuantity</code> example use <code>z.preprocess</code>?</p>
+    <button class="quiz-option">To make the schema faster to run</button>
+    <button class="quiz-option">To turn an empty string into undefined before converting</button>
+    <button class="quiz-option">To disable the positive check on the number</button>
+    <button class="quiz-option">To write the error messages in another language</button>
+    <p class="quiz-explanation">Preprocess maps the empty string to undefined first, so a missing value is rejected rather than read as zero.</p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">Where is coercion most appropriate?</p>
+    <button class="quiz-option">Converting a query string, where every value is text</button>
+    <button class="quiz-option">Checking a JSON body that should already have typed numbers</button>
+    <button class="quiz-option">Validating an object that may contain functions</button>
+    <button class="quiz-option">Replacing every schema in an application</button>
+    <p class="quiz-explanation">A query string is text, so converting it is the job coercion does. A typed JSON body should be checked, not converted, so a wrong type is caught.</p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the Zod API reference section on coercion.<sup><a href="#r1">1</a></sup></p>
+
+<div class="ask"><strong>Ask the agent</strong> Show me a form or query handler you have written. Ask me to find each value that is coerced, and to predict what a blank or whitespace-only field becomes.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1">Zod documentation, <a href="https://zod.dev/api">zod.dev/api</a> (coercion). The lab's <a href="../code/src/coerce.ts">coerce.ts</a> and its tests show the empty-string trap.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-refinements-and-cross-field-rules.html">← Lesson 7: Refinements and Cross-Field Rules</a></span>
+  <span class="nav-next"><a href="0009-boundaries-and-json-schema.html">Lesson 9: Boundaries and JSON Schema →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/zod-cheatsheet.html">Cheat sheet</a> · <a href="../code/README.md">Lab code</a>
+</footer>
+</body>
+</html>
