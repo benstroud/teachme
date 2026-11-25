@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — Resources and Prompts</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 10</span><span>MCP v2</span></div>
+  <h1>Resources and Prompts</h1>
+  <p class="subtitle">Tools are for the model to call. Resources are context the application chooses to include. Prompts are templates the user picks. The same data can be any of the three, so pick by who should decide.</p>
+</header>
+
+<section>
+<h2>Who decides</h2>
+<p>The spec defines the three primitives by their controller, not by their content:<sup><a href="#r1">1</a></sup></p>
+<ul>
+  <li><strong>Tools</strong> are model-controlled. The model can discover and invoke them automatically.</li>
+  <li><strong>Resources</strong> are application-driven. The host decides how to incorporate them, through a UI selection or automatic inclusion.</li>
+  <li><strong>Prompts</strong> are user-controlled. The user selects them, often as a slash command.</li>
+</ul>
+<p>If you expose a note as a resource, the application shows it to the model when it judges the note relevant. If you expose it as a tool, the model decides to fetch it. Pick by the decision you want to keep.</p>
+
+<h2>A resource template</h2>
+<p>A template addresses a family of resources by URI. The lab's <code>notes://{id}</code> returns one note for each id:</p>
+<pre><code>server.registerResource(
+  "note",
+  new ResourceTemplate("notes://{id}", { list: undefined }),
+  { title: "Note", description: "One note by id", mimeType: "text/plain" },
+  async (uri, { id }) =&gt; {
+    const note = store.get(String(id));
+    if (!note) throw new Error(`No note with id ${String(id)}`);
+    return { contents: [{ uri: uri.href, mimeType: "text/plain", text: `${note.title}\n${note.body}` }] };
+  },
+);</code></pre>
+
+<p>The stdio test reads <code>notes://n1</code> and checks that the text begins with <em>Shopping</em>. The client never called a tool; it asked for a resource by URI.</p>
+
+<h2>A prompt</h2>
+<p>A prompt has arguments and returns messages. The user supplies the arguments; the server fills the template:</p>
+<pre><code>server.registerPrompt(
+  "summarize_note",
+  { description: "Ask the model to summarize one note", argsSchema: z.object({ id: z.string() }) },
+  async ({ id }) =&gt; {
+    const note = store.get(id);
+    const text = note ? `Summarize this note:\n${note.title}\n${note.body}` : `No note ${id}.`;
+    return { messages: [{ role: "user", content: { type: "text", text } }] };
+  },
+);</code></pre>
+
+<p>The lab test <code>a prompt is fetched with its arguments filled in</code> asks for <code>n2</code> and checks that the message mentions <em>Ideas</em>.</p>
+
+<aside class="note"><strong>Injection risk in prompts and resources</strong> Anything a server returns can end up in the model's context. The spec says implementations MUST carefully validate prompt inputs and outputs to prevent injection attacks.<sup><a href="#r2">2</a></sup> A note body that says "ignore your instructions" is data, and the host should treat it that way. Lesson 9 covers this.</aside>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Add a resource <code>notes://{id}/title</code> that returns only the title. Decide whether it needs its own template or can reuse the existing one, and say why.</li>
+  <li>Add a prompt <code>compare_notes</code> that takes two ids and asks the model to compare them. Write the test first.</li>
+  <li>Say, in one sentence, whether <code>search_notes</code> should be a tool or a resource with a parameter. Justify it with the controller rule above.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">Which primitive does the spec describe as application-driven?</p>
+    <button class="quiz-option">Tools</button>
+    <button class="quiz-option">Prompts</button>
+    <button class="quiz-option">Resources</button>
+    <button class="quiz-option">Sampling</button>
+    <p class="quiz-explanation">Resources are application-driven: the host decides how to incorporate them.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">In the lab, how does a client fetch a note's text through the resource template?</p>
+    <button class="quiz-option">It reads the URI <code>notes://n1</code></button>
+    <button class="quiz-option">It calls a tool named read_note</button>
+    <button class="quiz-option">It sends a sampling request</button>
+    <button class="quiz-option">It runs the summarize_note prompt</button>
+    <p class="quiz-explanation">The stdio test reads the resource by URI. No tool is involved.</p>
+  </div>
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">Why must a server validate what it returns in a resource or prompt?</p>
+    <button class="quiz-option">Because the client cannot parse text</button>
+    <button class="quiz-option">Because returned text can carry injected instructions</button>
+    <button class="quiz-option">Because the spec forbids returning text</button>
+    <button class="quiz-option">Because prompts must be encrypted</button>
+    <p class="quiz-explanation">Returned content reaches the model. The spec requires careful validation of prompt inputs and outputs to prevent injection.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://modelcontextprotocol.io/specification/latest/server/resources">resources specification</a> and the <a href="https://modelcontextprotocol.io/specification/latest/server/prompts">prompts specification</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Ask me to classify five things your team's assistant could do (look up an order, list open tickets, explain a policy, draft a reply, file a bug). For each, ask me to say whether it is a tool, a resource, or a prompt, and why.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://modelcontextprotocol.io/specification/latest/server/resources">MCP — Resources</a>, <a href="https://modelcontextprotocol.io/specification/latest/server/prompts">Prompts</a>, and <a href="https://modelcontextprotocol.io/specification/latest/server/tools">Tools</a> — who controls each primitive.</li>
+    <li id="r2"><a href="https://modelcontextprotocol.io/specification/latest/server/prompts">MCP — Prompts</a> — validation of prompt inputs and outputs to prevent injection.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-tools-in-depth.html">← Lesson 4: Tools in Depth</a></span>
+  <span class="nav-next"><a href="0006-consuming-a-server.html">Lesson 6: Consuming a Server →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/mcp-cheatsheet.html">Cheat sheet</a> · <a href="../code/README.md">Lab code</a>
+</footer>
+</body>
+</html>

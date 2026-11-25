@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — v1 and v2 Compared</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 10</span><span>MCP v2</span></div>
+  <h1>v1 and v2 Compared</h1>
+  <p class="subtitle">"v2" names the TypeScript SDK and the revision it implements, 2026-07-28. The biggest change is that the connection no longer starts with a handshake. Read the wire to see it.</p>
+</header>
+
+<section>
+<h2>Three names that get mixed up</h2>
+<table>
+  <tr><th>Name</th><th>What it is</th></tr>
+  <tr><td>The 2025 revision</td><td>The protocol revision dated 2025-11-25. The previous one, called "2025" in these lessons.</td></tr>
+  <tr><td>The 2026-07-28 revision</td><td>The current protocol revision. Dated, not numbered. There is no protocol "v2" version string.</td></tr>
+  <tr><td>SDK v1 and SDK v2</td><td>Two TypeScript SDK lines. v1 is one package, <code>@modelcontextprotocol/sdk</code> (1.32.2 at authoring). v2 is split into <code>@modelcontextprotocol/server</code> and <code>@modelcontextprotocol/client</code> (2.4.0 at authoring).</td></tr>
+</table>
+<p>The SDK package README says the v2 SDK is the stable line and implements the 2026-07-28 spec. The protocol versioning page confirms that revisions are identified by date.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<h2>What changed on the wire</h2>
+<p>The 2025 revision starts each session with an <code>initialize</code> exchange, then a notification. The 2026-07-28 revision removes that handshake. Each request declares its version and capabilities in <code>_meta</code>.<sup><a href="#r3">3</a></sup> These are real messages captured by the lab's tracer (<code>code/src/trace.ts</code>):</p>
+
+<pre><code>-&gt; {"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"trace-client","version":"1.0.0"}},"jsonrpc":"2.0","id":0}
+&lt;- {"jsonrpc":"2.0","id":0,"result":{"protocolVersion":"2025-11-25","capabilities":{...},"serverInfo":{"name":"notes-server","version":"1.0.0"}}}
+-&gt; {"jsonrpc":"2.0","method":"notifications/initialized"}
+-&gt; {"method":"tools/call","params":{"name":"add_numbers","arguments":{"a":1,"b":1}},"jsonrpc":"2.0","id":1}</code></pre>
+
+<pre><code>-&gt; {"method":"tools/call","params":{"name":"add_numbers","arguments":{"a":1,"b":1},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"trace-client","version":"1.0.0"},"io.modelcontextprotocol/clientCapabilities":{}}},"jsonrpc":"2.0","id":0}
+&lt;- {"jsonrpc":"2.0","id":0,"result":{"_meta":{"io.modelcontextprotocol/serverInfo":{"name":"notes-server","version":"1.0.0"}},"content":[{"type":"text","text":"2"}],"structuredContent":{"sum":2},"resultType":"complete"}}</code></pre>
+
+<p>The first trace has three messages before the work. The second starts straight at the work. Each result in the second trace carries <code>resultType</code>, which the spec says all results gain in this revision. Clients must treat a result without it from an older server as <code>"complete"</code>.<sup><a href="#r3">3</a></sup></p>
+
+<section class="task">
+<h2>Run both traces yourself</h2>
+<ol>
+  <li>In <code>code/</code>, run <code>npm install</code>, then <code>npm run build</code>.</li>
+  <li>Run <code>node dist/trace.js legacy</code>, then <code>node dist/trace.js pin</code>.</li>
+  <li>Find the <code>initialize</code> line in the first output and the <code>_meta</code> object in the second. Predict what changes if you call three tools instead of one, then check.</li>
+</ol>
+</section>
+
+<h2>Other changes in the 2026-07-28 revision</h2>
+<ul>
+  <li><strong>Discovery:</strong> <code>server/discover</code> is added, and servers must implement it. Clients may call it, but are not required to.<sup><a href="#r3">3</a></sup></li>
+  <li><strong>Input requests:</strong> server-initiated requests (roots, sampling, elicitation) are replaced by a multi-round-trip pattern, <code>input_required</code>. Lesson 7 covers it.<sup><a href="#r3">3</a></sup></li>
+  <li><strong>Transport:</strong> Streamable HTTP keeps one POST endpoint. The GET stream, <code>Mcp-Session-Id</code> sessions, and SSE resumability are removed.<sup><a href="#r3">3</a></sup></li>
+  <li><strong>Removed:</strong> <code>ping</code>, <code>logging/setLevel</code>, and roots-list-changed notifications.<sup><a href="#r3">3</a></sup></li>
+  <li><strong>Errors:</strong> renumbered. The changelog names <code>UnsupportedProtocolVersion</code> as moving from -32004 to -32022.<sup><a href="#r3">3</a></sup></li>
+</ul>
+
+<h2>Connection modes on a v2 client</h2>
+<p>The v2 client has three modes, and the default is not the modern one. It is worth knowing which one you are in:<sup><a href="#r4">4</a></sup></p>
+<table>
+  <tr><th>Mode</th><th>Behaviour</th></tr>
+  <tr><td><code>legacy</code> (default)</td><td>Runs the plain 2025 sequence, with no probe and no new headers</td></tr>
+  <tr><td><code>auto</code></td><td>Probes with <code>server/discover</code> first. Falls back to <code>initialize</code> when the server is legacy</td></tr>
+  <tr><td><code>{ pin: "2026-07-28" }</code></td><td>Modern revision only. Any other revision fails loudly</td></tr>
+</table>
+
+<h2>Deprecated, not yet removed</h2>
+<p>The deprecation registry lists sampling, roots, logging, dynamic client registration, and the HTTP+SSE transport. It says no feature has been removed under its policy yet, and gives earliest-removal rules, not schedules.<sup><a href="#r5">5</a></sup> Lesson 7 covers sampling and elicitation.</p>
+
+<section>
+<h2>Migration checklist (v1 SDK to v2)</h2>
+<ol>
+  <li>Replace <code>@modelcontextprotocol/sdk</code> with the <code>server</code> or <code>client</code> package, and import from the subpaths for stdio (<code>/stdio</code>).</li>
+  <li>Move raw-shape <code>inputSchema</code> objects to <code>z.object(...)</code>. The raw form is deprecated in v2.</li>
+  <li>Decide the connection mode explicitly. Do not rely on the default if you need the modern revision.</li>
+  <li>Check every result handler for <code>resultType</code>, and remove any code that calls <code>ping</code> or <code>logging/setLevel</code>.</li>
+  <li>Run an interop test against an older peer. The lab's <code>v1-lab/test/interop.test.js</code> is an example of both directions.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">What does the 2026-07-28 revision use in place of the <code>initialize</code> handshake?</p>
+    <button class="quiz-option">Nothing, the version is dropped entirely</button>
+    <button class="quiz-option">Each request carries its version and capabilities in _meta</button>
+    <button class="quiz-option">A mandatory server/discover call before every request</button>
+    <button class="quiz-option">A session cookie set by the transport</button>
+    <p class="quiz-explanation">The spec removes the handshake. Each request declares its protocol version and capabilities in <code>_meta</code>, as the trace shows.<sup><a href="#r3">3</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">Which package is the v2 TypeScript server built on?</p>
+    <button class="quiz-option">@modelcontextprotocol/sdk</button>
+    <button class="quiz-option">mcp-server</button>
+    <button class="quiz-option">@anthropic/mcp</button>
+    <button class="quiz-option">@modelcontextprotocol/server</button>
+    <p class="quiz-explanation">The v2 SDK splits into <code>server</code> and <code>client</code> packages. <code>@modelcontextprotocol/sdk</code> is the v1 single package.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">What is the default connection mode of the v2 client?</p>
+    <button class="quiz-option">legacy, the plain 2025 sequence</button>
+    <button class="quiz-option">pin to 2026-07-28</button>
+    <button class="quiz-option">auto, with a probe first</button>
+    <button class="quiz-option">stdio only, with no negotiation</button>
+    <p class="quiz-explanation">The client's <code>versionNegotiation</code> option defaults to <code>legacy</code>. Opt into <code>auto</code> or a pin for the modern revision.<sup><a href="#r4">4</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://modelcontextprotocol.io/specification/2026-07-28/changelog.md">2026-07-28 changelog</a>, then the <a href="https://ts.sdk.modelcontextprotocol.io/v2/migration/upgrade-to-v2">v2 migration guide</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Paste one of your v1 server files and ask me which lines change for v2, and which lines change only if you want the modern connection.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://modelcontextprotocol.io/specification/versioning">MCP — Versioning</a> — dated revisions; the current revision is 2026-07-28.</li>
+    <li id="r2"><a href="https://github.com/modelcontextprotocol/typescript-sdk">TypeScript SDK</a> — the v2 package READMEs state the split packages and the spec they implement.</li>
+    <li id="r3"><a href="https://modelcontextprotocol.io/specification/2026-07-28/changelog.md">MCP — 2026-07-28 Changelog</a> — removed handshake, <code>_meta</code>, <code>resultType</code>, <code>server/discover</code>, renumbered errors. The wire traces were recorded by the lab.</li>
+    <li id="r4"><a href="https://github.com/modelcontextprotocol/typescript-sdk">TypeScript SDK v2</a> — the <code>versionNegotiation</code> option and its three modes, from the client's type definitions. Verified by the lab's trace and interop tests.</li>
+    <li id="r5"><a href="https://modelcontextprotocol.io/specification/2026-07-28/deprecated.md">MCP — 2026-07-28 Deprecated features</a> — deprecations and earliest-removal rules.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-what-mcp-is.html">← Lesson 1: What MCP Is</a></span>
+  <span class="nav-next"><a href="0003-authoring-a-server.html">Lesson 3: Authoring a Server →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/mcp-cheatsheet.html">Cheat sheet</a> · <a href="../code/README.md">Lab code</a>
+</footer>
+</body>
+</html>

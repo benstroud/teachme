@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — What MCP Is</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 10</span><span>MCP v2</span></div>
+  <h1>What MCP Is</h1>
+  <p class="subtitle">The Model Context Protocol is a standard way for an AI application to reach outside data and actions. Learn the three roles and the three kinds of thing a server can offer.</p>
+</header>
+
+<section>
+<h2>The three roles</h2>
+<ul>
+  <li><strong>Host:</strong> <em>the AI application that coordinates and manages one or multiple MCP clients</em>. Examples are a chat app or an IDE assistant.</li>
+  <li><strong>Client:</strong> <em>a component that maintains a connection to an MCP server and obtains context from an MCP server</em>.</li>
+  <li><strong>Server:</strong> <em>a program that provides context to MCP clients</em>.</li>
+</ul>
+<p>The host creates one client for each server, and each client keeps its own connection.<sup><a href="#r1">1</a></sup> The server is the part you write. It exposes what it can offer, and the host decides how to use it.</p>
+
+<aside class="note"><strong>Why a standard</strong> The protocol docs describe MCP as a standard interface between an AI application and external systems, so a server written once can serve any compliant host.<sup><a href="#r2">2</a></sup> Without it, each host and each tool pair needs its own integration.</aside>
+
+<h2>Three things a server can offer</h2>
+<p>The specification defines three primitives. The difference is who decides when each one is used:<sup><a href="#r3">3</a></sup></p>
+<table>
+  <tr><th>Primitive</th><th>What it is</th><th>Who controls it</th></tr>
+  <tr><td>Tools</td><td>Functions the model can call, with arguments</td><td>The model discovers and invokes them automatically</td></tr>
+  <tr><td>Resources</td><td>Read-only context, addressed by URI</td><td>The application decides how to include them</td></tr>
+  <tr><td>Prompts</td><td>Parameterised message templates</td><td>The user selects them, often as a slash command</td></tr>
+</table>
+<p>The specification says "who decides when the prompt is used, not who authors its content". The same holds for each row: the control is about use, not authorship.<sup><a href="#r3">3</a></sup></p>
+
+<h2>What the protocol carries</h2>
+<p>Messages are JSON-RPC 2.0. A request names a method, such as <code>tools/call</code>, and gets a result or an error back. Lessons 3 to 5 cover each primitive with working code. Lesson 2 covers which version of the wire format you are speaking, which is the first thing to know before you debug anything.</p>
+
+<section class="task">
+<h2>Draw it (no code)</h2>
+<p>Pick an assistant you use, such as a chat app with file access. Name its host, its clients, and each server it connects to. For each server, list one capability and say which primitive it would be. Compare with lesson 10 when you finish.</p>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">Which role creates one client for each MCP server it connects to?</p>
+    <button class="quiz-option">The server</button>
+    <button class="quiz-option">The client</button>
+    <button class="quiz-option">The host</button>
+    <button class="quiz-option">The transport</button>
+    <p class="quiz-explanation">The host coordinates the clients, and each client maintains one connection to one server.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">Which primitive does the model discover and invoke on its own?</p>
+    <button class="quiz-option">Tools</button>
+    <button class="quiz-option">Resources</button>
+    <button class="quiz-option">Logs</button>
+    <button class="quiz-option">Prompts</button>
+    <p class="quiz-explanation">Tools are model-controlled. Resources are application-driven, and prompts are user-controlled.<sup><a href="#r3">3</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">Which primitive does the user select explicitly, for example as a slash command?</p>
+    <button class="quiz-option">Tools</button>
+    <button class="quiz-option">Resources</button>
+    <button class="quiz-option">Sampling</button>
+    <button class="quiz-option">Prompts</button>
+    <p class="quiz-explanation">Prompts are user-controlled. The spec's wording is about who decides when a prompt is used.<sup><a href="#r3">3</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://modelcontextprotocol.io/docs/learn/architecture">architecture overview</a>, then the <a href="https://modelcontextprotocol.io/specification/latest/server/tools">tools specification</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Ask me to take a tool you already use from another vendor and sort its features into tools, resources, and prompts. Ask where the boundaries are unclear.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://modelcontextprotocol.io/docs/learn/architecture">MCP — Architecture</a> — host, client, and server definitions; one client per server.</li>
+    <li id="r2"><a href="https://modelcontextprotocol.io/docs/getting-started/intro">MCP — Introduction</a> — the protocol as a standard for connecting AI applications to external systems.</li>
+    <li id="r3"><a href="https://modelcontextprotocol.io/specification/latest/server/tools">MCP — Tools</a>, <a href="https://modelcontextprotocol.io/specification/latest/server/resources">Resources</a>, and <a href="https://modelcontextprotocol.io/specification/latest/server/prompts">Prompts</a> — control by model, application, and user.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"></span>
+  <span class="nav-next"><a href="0002-v1-and-v2-compared.html">Lesson 2: v1 and v2 Compared →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/mcp-cheatsheet.html">Cheat sheet</a> · <a href="../code/README.md">Lab code</a>
+</footer>
+</body>
+</html>

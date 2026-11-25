@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — Deploying a Server</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 10</span><span>MCP v2</span></div>
+  <h1>Deploying a Server</h1>
+  <p class="subtitle">A server runs in one of two places: as a process on the user's machine, or as a network service many clients share. Each has different trust and different rules. Learn both, and the one checklist they share.</p>
+</header>
+
+<section>
+<h2>Two transports, two trust models</h2>
+<p>The architecture overview gives the practical difference: a local stdio server typically serves a single client, while a remote Streamable HTTP server typically serves many. Stdio has no network overhead, and it is the natural choice for a tool the user installs.<sup><a href="#r1">1</a></sup></p>
+<table>
+  <tr><th></th><th>stdio (local)</th><th>Streamable HTTP (remote)</th></tr>
+  <tr><td>Who starts it</td><td>The client, as a child process</td><td>An operator, as a long-running service</td></tr>
+  <tr><td>Clients</td><td>Usually one</td><td>Many</td></tr>
+  <tr><td>Authentication</td><td>Credentials from the environment, per the spec</td><td>OAuth for HTTP servers, per the spec</td></tr>
+  <tr><td>Main risk</td><td>Local compromise and one-click installs</td><td>Anyone who can reach the port</td></tr>
+</table>
+
+<h2>Serve over HTTP</h2>
+<p>The lab's <a href="../code/src/http.ts"><code>src/http.ts</code></a> wraps the same server in <code>createMcpHandler</code>. That returns a web-standard <code>fetch</code> function, which a Node HTTP server calls with each request:<sup><a href="#r2">2</a></sup></p>
+<pre><code>const handler = createMcpHandler(() =&gt; buildServer(store), { legacy: "reject" });
+
+const http = createServer(async (req, res) =&gt; {
+  // ...convert req to a web Request, then:
+  const rejected =
+    originValidationResponse(request, localhostAllowedOrigins()) ??
+    hostHeaderValidationResponse(request, localhostAllowedHostnames());
+  const response = rejected ?? (await handler.fetch(request));
+  res.writeHead(response.status, Object.fromEntries(response.headers));
+  res.end(Buffer.from(await response.arrayBuffer()));
+});
+http.listen(port, "127.0.0.1");</code></pre>
+
+<p>Two decisions in that code are security decisions. The server listens on <code>127.0.0.1</code>, not on every interface. And the Origin and Host checks run before any MCP logic. The spec says servers MUST validate the Origin header against DNS rebinding, and SHOULD bind only to localhost when running locally.<sup><a href="#r3">3</a></sup></p>
+
+<section>
+<h2>What the lab recorded</h2>
+<p>The HTTP test calls the server through the v2 client, pinned to 2026-07-28. It lists tools, and it calls <code>add_numbers</code> and gets <code>{ sum: 9 }</code>. A second request carries a foreign Origin and is refused:</p>
+<pre><code>foreign origin status: 403 {"jsonrpc":"2.0","error":{"code":-32000,"message":"Invalid Origin: evil.example"},"id":null}
+no origin status: 400</code></pre>
+<p>The 403 is the Origin check at work. The bare 400 appeared for a request with no Origin header and none of the MCP headers. The lab did not investigate that 400 further, so read only its status code, not a cause.</p>
+</section>
+
+<section>
+<h2>What a remote server must add</h2>
+<p>Binding to localhost is not enough for a server other people reach. The authorization spec says the authorization is OPTIONAL for MCP, but for HTTP it is the mechanism that identifies the caller. An HTTP server MUST implement OAuth 2.0 Protected Resource Metadata, and MUST accept only tokens issued for its own resource. Access tokens must never go in the query string.<sup><a href="#r4">4</a></sup></p>
+<p>Stdio servers should not follow the HTTP flow. They should read their credentials from the environment, which the spec states directly.<sup><a href="#r4">4</a></sup></p>
+
+<aside class="note"><strong>The lab's limits</strong> The lab's HTTP server has no OAuth. It is correct for a process bound to localhost, and it is not correct for a server on the internet. Lesson 9 lists what production needs.</aside>
+
+<h2>Configuration from the environment</h2>
+<p>The lab reads <code>PORT</code> and <code>HOST</code> from the environment, with defaults of 3000 and 127.0.0.1. A container image should take the same approach, with the host set explicitly, rather than edits to the source.</p>
+</section>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>In <code>code/</code>, run <code>npm run build</code>, then <code>PORT=3000 node dist/http.js</code>. Confirm it prints the listening URL.</li>
+  <li>In another terminal, send a <code>tools/list</code> POST with the header <code>origin: https://evil.example</code>, using the same headers as the lab's test. Confirm the 403.</li>
+  <li>Change <code>HOST</code> to <code>0.0.0.0</code> and run again. Decide, in one sentence, whether this server should be reachable from your network, and what must exist before you allow it.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">Why does the lab's HTTP server bind to 127.0.0.1 rather than all interfaces?</p>
+    <button class="quiz-option">Node cannot bind to any other address</button>
+    <button class="quiz-option">The spec says local servers SHOULD bind to localhost</button>
+    <button class="quiz-option">It makes the server faster</button>
+    <button class="quiz-option">Clients refuse non-localhost servers</button>
+    <p class="quiz-explanation">The spec says servers SHOULD bind only to localhost when running locally, and MUST validate Origin against DNS rebinding.<sup><a href="#r3">3</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">A request with a foreign Origin header reached the lab's HTTP server. What did it return?</p>
+    <button class="quiz-option">200 with the tool list</button>
+    <button class="quiz-option">401 Unauthorized</button>
+    <button class="quiz-option">500 Internal Server Error</button>
+    <button class="quiz-option">403 with an "Invalid Origin" JSON-RPC error</button>
+    <p class="quiz-explanation">The lab's probe returned 403 and error code -32000, "Invalid Origin". The check ran before MCP logic.</p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">What does the spec require an HTTP MCP server to implement for authorization?</p>
+    <button class="quiz-option">OAuth 2.0 Protected Resource Metadata (RFC 9728)</button>
+    <button class="quiz-option">A username and password typed into the client</button>
+    <button class="quiz-option">Access tokens in the URL query string</button>
+    <button class="quiz-option">No authorization, because MCP is optional</button>
+    <p class="quiz-explanation">The authorization spec says MCP servers MUST implement Protected Resource Metadata. Tokens must not appear in query strings.<sup><a href="#r4">4</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://modelcontextprotocol.io/specification/latest/basic/transports">transports specification</a>, then the <a href="https://modelcontextprotocol.io/specification/latest/basic/authorization">authorization specification</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Ask me to draft a deployment note for an MCP server your team will run: who can reach it, how it authenticates clients, and what it logs. Then ask which of those lines the lab does not yet have.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://modelcontextprotocol.io/docs/learn/architecture">MCP — Architecture</a> — stdio serves one client typically; Streamable HTTP serves many; stdio has no network overhead.</li>
+    <li id="r2"><a href="https://ts.sdk.modelcontextprotocol.io/v2/serving/http">MCP TypeScript SDK v2 — serving guide</a> and the <code>createMcpHandler</code> declaration. The Origin and Host helpers were read from the package's types.</li>
+    <li id="r3"><a href="https://modelcontextprotocol.io/specification/latest/basic/transports">MCP — Transports</a> — Origin validation, localhost binding. The 403 and 400 results were recorded by the lab.</li>
+    <li id="r4"><a href="https://modelcontextprotocol.io/specification/latest/basic/authorization">MCP — Authorization</a> — Protected Resource Metadata, audience validation, token placement, stdio credentials.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-input-requests-sampling-elicitation.html">← Lesson 7: Input Requests</a></span>
+  <span class="nav-next"><a href="0009-security-and-best-practices.html">Lesson 9: Security and Best Practices →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/mcp-cheatsheet.html">Cheat sheet</a> · <a href="../code/README.md">Lab code</a>
+</footer>
+</body>
+</html>

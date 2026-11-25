@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MCP v2 Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>MCP v2</span></div>
+  <h1>MCP v2 Cheat Sheet</h1>
+  <p class="subtitle">One page for building, consuming, and deploying. Items marked <em>verified</em> were checked by the lab's tests or recorded wire traces. Other items are cited to the specification or the SDK's types.</p>
+</header>
+
+<section>
+<h2>Commands (run from <code>code/</code>)</h2>
+<table class="ref">
+  <tr><th>Command</th><th>What it does</th></tr>
+  <tr><td>npm install</td><td>Install the v2 SDK packages and TypeScript</td></tr>
+  <tr><td>npm test</td><td>Build, then run the 8 stdio and HTTP tests (verified)</td></tr>
+  <tr><td>node dist/server.js</td><td>Run the stdio server (normally started by a client)</td></tr>
+  <tr><td>PORT=3000 node dist/http.js</td><td>Run the Streamable HTTP server on 127.0.0.1</td></tr>
+  <tr><td>node dist/trace.js legacy | pin</td><td>Print the wire messages for each connection mode (verified)</td></tr>
+  <tr><td>cd ../v1-lab &amp;&amp; npm test</td><td>Run the v1-to-v2 interop tests in both directions (verified)</td></tr>
+</table>
+</section>
+
+<section>
+<h2>Packages</h2>
+<table class="ref">
+  <tr><th>Package</th><th>Use</th></tr>
+  <tr><td><code>@modelcontextprotocol/server</code> 2.4.0</td><td><code>McpServer</code>, <code>createMcpHandler</code>, Origin and Host helpers</td></tr>
+  <tr><td><code>@modelcontextprotocol/server/stdio</code></td><td><code>serveStdio(factory)</code></td></tr>
+  <tr><td><code>@modelcontextprotocol/client</code> 2.4.0</td><td><code>Client</code>, <code>StreamableHTTPClientTransport</code></td></tr>
+  <tr><td><code>@modelcontextprotocol/client/stdio</code></td><td><code>StdioClientTransport</code></td></tr>
+  <tr><td><code>@modelcontextprotocol/sdk</code> 1.32.2</td><td>The v1 single package (comparison lab only)</td></tr>
+</table>
+</section>
+
+<section>
+<h2>Server: a tool</h2>
+<pre><code>server.registerTool(
+  "add_numbers",
+  {
+    description: "Add two numbers and return the sum.",
+    inputSchema: z.object({ a: z.number(), b: z.number() }),
+    outputSchema: z.object({ sum: z.number() }),
+    annotations: { readOnlyHint: true },
+  },
+  async ({ a, b }) =&gt; ({
+    content: [{ type: "text", text: String(a + b) }],
+    structuredContent: { sum: a + b },
+  }),
+);</code></pre>
+<p><strong>verified:</strong> a bad argument type returns <code>isError: true</code> with "Input validation error", not a protocol error.</p>
+</section>
+
+<section>
+<h2>Server: resource and prompt</h2>
+<pre><code>server.registerResource("note", new ResourceTemplate("notes://{id}", { list: undefined }),
+  { mimeType: "text/plain" },
+  async (uri, { id }) =&gt; ({ contents: [{ uri: uri.href, mimeType: "text/plain", text: "..." }] }));
+
+server.registerPrompt("summarize_note",
+  { description: "...", argsSchema: z.object({ id: z.string() }) },
+  async ({ id }) =&gt; ({ messages: [{ role: "user", content: { type: "text", text: "..." } }] }));</code></pre>
+</section>
+
+<section>
+<h2>Serve</h2>
+<pre><code>// stdio, one server per connection
+serveStdio(() =&gt; buildServer(store));
+
+// Streamable HTTP, localhost, with Origin and Host checks first
+const handler = createMcpHandler(() =&gt; buildServer(store), { legacy: "reject" });
+const rejected = originValidationResponse(request, localhostAllowedOrigins())
+  ?? hostHeaderValidationResponse(request, localhostAllowedHostnames());
+const response = rejected ?? (await handler.fetch(request));</code></pre>
+<p><strong>verified:</strong> a foreign Origin returns 403 with JSON-RPC error -32000 "Invalid Origin".</p>
+</section>
+
+<section>
+<h2>Client</h2>
+<pre><code>const client = new Client({ name: "app", version: "1.0.0" },
+  { versionNegotiation: { mode: { pin: "2026-07-28" } } });  // default is "legacy"
+await client.connect(new StdioClientTransport({ command: process.execPath, args: ["dist/server.js"] }));
+
+const { tools } = await client.listTools();
+const result = await client.callTool({ name: "add_numbers", arguments: { a: 2, b: 3 } });
+if (result.isError) { /* show the text, do not retry blindly */ }
+await client.readResource({ uri: "notes://n1" });
+await client.getPrompt({ name: "summarize_note", arguments: { id: "n2" } });</code></pre>
+</section>
+
+<section>
+<h2>Connection modes</h2>
+<table class="ref">
+  <tr><th>Mode</th><th>Wire behaviour</th></tr>
+  <tr><td><code>legacy</code> (default)</td><td><code>initialize</code>, <code>notifications/initialized</code>, then requests (verified)</td></tr>
+  <tr><td><code>auto</code></td><td>Probes with <code>server/discover</code>; falls back to <code>initialize</code> for a legacy server</td></tr>
+  <tr><td><code>{ pin: "2026-07-28" }</code></td><td>No handshake; <code>_meta</code> on each request; results carry <code>resultType</code> (verified)</td></tr>
+</table>
+</section>
+
+<section>
+<h2>Versions at a glance</h2>
+<table class="ref">
+  <tr><th></th><th>2025-11-25 revision</th><th>2026-07-28 revision</th></tr>
+  <tr><td>Start of session</td><td><code>initialize</code> handshake</td><td>None; <code>_meta</code> per request</td></tr>
+  <tr><td>Server-initiated requests</td><td>Allowed (sampling, elicitation, roots)</td><td>Replaced by <code>input_required</code></td></tr>
+  <tr><td>Discovery</td><td>Optional</td><td><code>server/discover</code>, required on servers</td></tr>
+  <tr><td>Streamable HTTP</td><td>GET stream, <code>Mcp-Session-Id</code>, resumability</td><td>One POST endpoint; sessions and GET removed</td></tr>
+  <tr><td>Sampling</td><td>Current</td><td>Deprecated</td></tr>
+</table>
+</section>
+
+<section>
+<h2>Decision in brief</h2>
+<table class="ref">
+  <tr><th>If it is</th><th>Choose</th></tr>
+  <tr><td>Know-how, a checklist, or a procedure with judgement</td><td>Skill</td></tr>
+  <tr><td>One local deterministic command, run through a shell</td><td>CLI</td></tr>
+  <tr><td>Used by many hosts, or behind a remote service with auth</td><td>MCP server over HTTP</td></tr>
+  <tr><td>Used by one desktop app with no shell</td><td>MCP server over stdio</td></tr>
+</table>
+<p>The five questions are in lesson 10. They are the author's judgment, not an official rule.</p>
+</section>
+
+<section>
+<h2>Lesson map</h2>
+<table class="ref">
+  <tr><th>#</th><th>Topic</th><th>Lesson</th></tr>
+  <tr><td>1</td><td>What MCP is</td><td><a href="../lessons/0001-what-mcp-is.html">0001</a></td></tr>
+  <tr><td>2</td><td>v1 and v2 compared</td><td><a href="../lessons/0002-v1-and-v2-compared.html">0002</a></td></tr>
+  <tr><td>3</td><td>Authoring a server</td><td><a href="../lessons/0003-authoring-a-server.html">0003</a></td></tr>
+  <tr><td>4</td><td>Tools in depth</td><td><a href="../lessons/0004-tools-in-depth.html">0004</a></td></tr>
+  <tr><td>5</td><td>Resources and prompts</td><td><a href="../lessons/0005-resources-and-prompts.html">0005</a></td></tr>
+  <tr><td>6</td><td>Consuming a server</td><td><a href="../lessons/0006-consuming-a-server.html">0006</a></td></tr>
+  <tr><td>7</td><td>Input requests, sampling, elicitation</td><td><a href="../lessons/0007-input-requests-sampling-elicitation.html">0007</a></td></tr>
+  <tr><td>8</td><td>Deploying a server</td><td><a href="../lessons/0008-deploying-a-server.html">0008</a></td></tr>
+  <tr><td>9</td><td>Security and best practices</td><td><a href="../lessons/0009-security-and-best-practices.html">0009</a></td></tr>
+  <tr><td>10</td><td>MCP, CLI, or Skill</td><td><a href="../lessons/0010-mcp-cli-or-skill.html">0010</a></td></tr>
+</table>
+</section>
+
+<footer class="lesson-footer">
+  <a href="../../index.html">Course home</a> · <a href="glossary.html">Glossary</a> · <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../code/README.md">Lab code</a>
+</footer>
+</body>
+</html>

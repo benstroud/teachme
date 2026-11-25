@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — Consuming a Server</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 10</span><span>MCP v2</span></div>
+  <h1>Consuming a Server</h1>
+  <p class="subtitle">A client connects, lists what the server offers, calls it, and checks every result. Learn the four calls, the connection mode you choose, and how to read a failed result.</p>
+</header>
+
+<section>
+<h2>Connect</h2>
+<p>A client needs a transport for the server it starts. For a local server that is <code>StdioClientTransport</code>, from the client package's <code>/stdio</code> subpath. Choose the connection mode in the client's options, since the default is the 2025 sequence:<sup><a href="#r1">1</a></sup></p>
+<pre><code>import { Client } from "@modelcontextprotocol/client";
+import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
+
+const client = new Client(
+  { name: "notes-app", version: "1.0.0" },
+  { versionNegotiation: { mode: "auto" } },
+);
+await client.connect(
+  new StdioClientTransport({ command: process.execPath, args: ["dist/server.js"] }),
+);</code></pre>
+
+<p>The lab's <a href="../code/src/test/stdio.test.ts"><code>stdio.test.ts</code></a> uses this exact pattern, in a helper called <code>connect()</code>.</p>
+
+<h2>Four calls</h2>
+<table>
+  <tr><th>You want</th><th>Call</th><th>Lab example</th></tr>
+  <tr><td>What tools exist</td><td><code>client.listTools()</code></td><td>Three tools, with annotations</td></tr>
+  <tr><td>Run one</td><td><code>client.callTool({ name, arguments })</code></td><td><code>add_numbers</code> returns <code>structuredContent</code></td></tr>
+  <tr><td>Read a resource by URI</td><td><code>client.readResource({ uri })</code></td><td><code>notes://n1</code></td></tr>
+  <tr><td>Fill a prompt</td><td><code>client.getPrompt({ name, arguments })</code></td><td><code>summarize_note</code></td></tr>
+</table>
+
+<h2>Read the result, not only the promise</h2>
+<p>A promise that resolves does not mean the tool succeeded. A tool execution error resolves with <code>isError: true</code>. Your code must check it:<sup><a href="#r2">2</a></sup></p>
+<pre><code>const result = await client.callTool({ name: "delete_note", arguments: { id: "missing" } });
+if (result.isError) {
+  // The message is for the model or for a human: show it, do not retry blindly.
+  const text = (result.content[0] as { text: string }).text;
+  throw new Error(`delete_note failed: ${text}`);
+}</code></pre>
+
+<aside class="note"><strong>Check structured output</strong> A successful call returns <code>structuredContent</code> for the typed value. The lab's test asserts <code>{ sum: 5 }</code> rather than parsing text, which is more robust. If the server's output schema changes, that test fails, which is the behaviour you want.</aside>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>In <code>code/</code>, run <code>npm test</code>. Find the test that checks <code>isError</code> on a missing note. Say which line makes the test pass.</li>
+  <li>Change the connection mode to <code>{ pin: "2026-07-28" }</code> and run the tests again. Predict which tests still pass, since the server supports both eras.</li>
+  <li>Write a client script that calls <code>search_notes</code> with <code>query: "milk"</code>, prints the hits, and exits. Use <code>process.exit(0)</code> at the end, and note why it is needed.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">A tool call's promise resolves, and the result has <code>isError: true</code>. What happened?</p>
+    <button class="quiz-option">The request was lost in transit</button>
+    <button class="quiz-option">The tool ran and reported a failure to the model</button>
+    <button class="quiz-option">The server process crashed hard</button>
+    <button class="quiz-option">The client is still connecting</button>
+    <p class="quiz-explanation">Tool execution errors are normal results with <code>isError: true</code>, so the model can read the message and correct its call.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">Which client option selects the modern 2026-07-28 revision and fails loudly for any other?</p>
+    <button class="quiz-option">versionNegotiation: { mode: "legacy" }</button>
+    <button class="quiz-option">versionNegotiation: { mode: "auto" }</button>
+    <button class="quiz-option">transport: "http2" with a pin</button>
+    <button class="quiz-option">versionNegotiation: { mode: { pin: "2026-07-28" } }</button>
+    <p class="quiz-explanation">The pin mode runs the modern revision and rejects anything else. <code>auto</code> probes and falls back, and <code>legacy</code> is the default.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">Which call gets a prompt with its arguments filled in?</p>
+    <button class="quiz-option">client.getPrompt({ name, arguments })</button>
+    <button class="quiz-option">client.listTools()</button>
+    <button class="quiz-option">client.readResource({ uri })</button>
+    <button class="quiz-option">client.sampling()</button>
+    <p class="quiz-explanation"><code>getPrompt</code> fills the template with the arguments you pass and returns the messages.</p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://ts.sdk.modelcontextprotocol.io/v2/clients/connect">v2 client guide on connecting</a>, then the <a href="https://modelcontextprotocol.io/specification/latest/server/tools">tools specification</a> section on tool results.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Ask me to design the error handling for a client that calls <code>delete_note</code> from a chat UI. Ask what the user should see when the note is missing, and what the model should see.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://ts.sdk.modelcontextprotocol.io/v2/clients/connect">MCP TypeScript SDK v2 — client guide</a> and the <code>versionNegotiation</code> option in <code>@modelcontextprotocol/client</code>. The modes were verified by the lab's wire traces.</li>
+    <li id="r2"><a href="https://modelcontextprotocol.io/specification/latest/server/tools">MCP — Tools</a> — tool execution errors as <code>isError: true</code> results.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-resources-and-prompts.html">← Lesson 5: Resources and Prompts</a></span>
+  <span class="nav-next"><a href="0007-input-requests-sampling-elicitation.html">Lesson 7: Input Requests →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/mcp-cheatsheet.html">Cheat sheet</a> · <a href="../code/README.md">Lab code</a>
+</footer>
+</body>
+</html>

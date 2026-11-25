@@ -4,3 +4,6 @@ node_modules/
 
 # Ignore Rust build output for the lab crate
 target/
+
+# Built output of the MCP lab
+mcp/code/dist/

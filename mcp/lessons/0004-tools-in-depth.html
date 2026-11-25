@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — Tools in Depth</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 10</span><span>MCP v2</span></div>
+  <h1>Tools in Depth</h1>
+  <p class="subtitle">A tool is a contract with a model. The schema, the description, the annotations, and the error shape all decide whether the model calls it correctly and whether the call is safe.</p>
+</header>
+
+<section>
+<h2>Two kinds of error</h2>
+<p>The spec separates two failure kinds. A protocol error is a JSON-RPC error object, such as an unknown method. A tool execution error is a normal result with <code>isError: true</code>, so the model can read the message and try again.<sup><a href="#r1">1</a></sup></p>
+<p>The lab proves the split with two calls. A wrong argument type and a missing note both come back as results, not as exceptions:</p>
+<pre><code>// Wrong type for a: schema validation fails inside the tool call.
+{ "content": [{ "type": "text", "text": "Input validation error: Invalid arguments for tool add_numbers: a: Invalid input: expected number, received string" }], "isError": true }
+
+// Missing note: the callback returns isError itself.
+{ "isError": true, "content": [{ "type": "text", "text": "No note with id missing" }] }</code></pre>
+
+<aside class="note"><strong>Write errors for the model</strong> The model reads the text of an <code>isError</code> result. Say what went wrong and what to try next, not just a code. Anthropic's tool guidance makes the same point: errors should be actionable.<sup><a href="#r3">3</a></sup></aside>
+
+<h2>Annotations are hints, not guarantees</h2>
+<p>The lab sets <code>readOnlyHint</code> on <code>add_numbers</code> and <code>destructiveHint</code> plus <code>idempotentHint</code> on <code>delete_note</code>. The stdio test reads them back from <code>tools/list</code>. These are the hint names the schema defines.<sup><a href="#r2">2</a></sup></p>
+<p>The spec is explicit about trust: clients MUST treat annotations as untrusted unless they come from a trusted server. A server that marks a dangerous tool as read-only has not made it safe.<sup><a href="#r1">1</a></sup> Lesson 9 returns to this.</p>
+
+<h2>Design the contract</h2>
+<p>Anthropic's guidance on tools for agents makes four points that apply directly to MCP tools:<sup><a href="#r3">3</a></sup></p>
+<ul>
+  <li><strong>Fewer, higher-level tools.</strong> One <code>search_notes</code> that returns matches beats three tools that list, filter, and fetch.</li>
+  <li><strong>Names that say what they do.</strong> Namespace by service and resource, so a model can tell <code>notes_search</code> from <code>calendar_search</code>.</li>
+  <li><strong>Return high-signal data.</strong> Return the fields the model needs, not internal IDs and MIME types, and offer a concise response when detail is not needed.</li>
+  <li><strong>Bound the output.</strong> Claude Code caps tool output at 25,000 tokens by default. Paginate or truncate in your own tool, rather than leaning on the host's cap.<sup><a href="#r4">4</a></sup></li>
+</ul>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Look at <code>search_notes</code> in <code>src/server.ts</code>. It returns <code>id</code> and <code>title</code> only. Decide whether the model needs the body, and say why.</li>
+  <li>Change <code>delete_note</code> so the error text tells the model which ids exist. Predict the new text, then make the stdio test that checks it.</li>
+  <li>Remove the <code>readOnlyHint</code> from <code>add_numbers</code>. Explain what a client should do differently, and what the server has still not guaranteed.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">A client sends <code>add_numbers</code> with <code>a</code> as a string. How does the v2 lab report it?</p>
+    <button class="quiz-option">A JSON-RPC protocol error with code -32602</button>
+    <button class="quiz-option">The connection closes with no reply at all</button>
+    <button class="quiz-option">A result with content but no error flag</button>
+    <button class="quiz-option">A result with isError: true and "Input validation error" text</button>
+    <p class="quiz-explanation">The lab records this as a tool execution error. The model receives the message and can correct its arguments.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">What must a client do with the <code>annotations</code> a server sends, unless the server is trusted?</p>
+    <button class="quiz-option">Trust them completely and skip confirmation</button>
+    <button class="quiz-option">Treat them as untrusted, unless the server is trusted</button>
+    <button class="quiz-option">Ignore them, since annotations are not in the spec</button>
+    <button class="quiz-option">Copy them into the tool's description</button>
+    <p class="quiz-explanation">The spec says clients MUST consider annotations untrusted unless they come from a trusted server.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">Which design follows the guidance for tools that agents use?</p>
+    <button class="quiz-option">Five small tools, one per database column</button>
+    <button class="quiz-option">Raw internal IDs and MIME types in every result</button>
+    <button class="quiz-option">One higher-level search tool with high-signal results</button>
+    <button class="quiz-option">Unbounded output, so nothing is ever cut off</button>
+    <p class="quiz-explanation">Fewer, higher-level tools with high-signal results and bounded output are the recommendations in Anthropic's tool guidance.<sup><a href="#r3">3</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://modelcontextprotocol.io/specification/latest/server/tools">MCP tools specification</a>, then <a href="https://www.anthropic.com/engineering/writing-tools-for-agents">Anthropic's post on writing tools for agents</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Describe a tool you would like an assistant to have. Ask me to write its name, description, schema, and annotations, then to critique the description as if I were the model choosing between it and a similar tool.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://modelcontextprotocol.io/specification/latest/server/tools">MCP — Tools</a> — protocol error versus tool execution error; annotations are untrusted unless the server is trusted. The lab's stdio tests record the behaviour.</li>
+    <li id="r2">The <code>ToolAnnotations</code> schema in <code>@modelcontextprotocol/core</code>, which defines <code>readOnlyHint</code>, <code>destructiveHint</code>, and <code>idempotentHint</code>.</li>
+    <li id="r3"><a href="https://www.anthropic.com/engineering/writing-tools-for-agents">Anthropic — Writing effective tools for agents</a> — consolidation, naming, high-signal returns, actionable errors.</li>
+    <li id="r4"><a href="https://code.claude.com/docs/en/mcp">Claude Code — MCP</a> — tool output capped at 25,000 tokens by default.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-authoring-a-server.html">← Lesson 3: Authoring a Server</a></span>
+  <span class="nav-next"><a href="0005-resources-and-prompts.html">Lesson 5: Resources and Prompts →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/mcp-cheatsheet.html">Cheat sheet</a> · <a href="../code/README.md">Lab code</a>
+</footer>
+</body>
+</html>

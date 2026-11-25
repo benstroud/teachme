@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — Authoring a Server</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 10</span><span>MCP v2</span></div>
+  <h1>Authoring a Server</h1>
+  <p class="subtitle">Build one server with <code>McpServer</code>, register a tool with a schema, and serve it over stdio. Everything later in the set adds to this file.</p>
+</header>
+
+<section>
+<h2>The shape of a server</h2>
+<p>A v2 server is an <code>McpServer</code> with capabilities registered on it, and a transport that carries its messages. For a local server, the transport is stdio: the client starts the server as a child process and talks to it over its standard input and output.<sup><a href="#r1">1</a></sup></p>
+<pre><code>import { McpServer } from "@modelcontextprotocol/server";
+import { serveStdio } from "@modelcontextprotocol/server/stdio";
+
+const server = new McpServer({ name: "notes-server", version: "1.0.0" });
+// ...server.registerTool(...), registerResource(...), registerPrompt(...)
+
+serveStdio(() =&gt; server);</code></pre>
+
+<p>The lab's <a href="../code/src/server.ts"><code>src/server.ts</code></a> builds the full version. Its entry point creates a new server per connection through a factory, so each client gets its own instance.</p>
+
+<h2>Register a tool</h2>
+<p>A tool has a name, a description, an input schema, and an async callback. The v2 API takes a <code>zod</code> schema through <code>z.object</code>. The raw-shape form is deprecated.<sup><a href="#r2">2</a></sup></p>
+<pre><code>server.registerTool(
+  "add_numbers",
+  {
+    title: "Add numbers",
+    description: "Add two numbers and return the sum.",
+    inputSchema: z.object({ a: z.number(), b: z.number() }),
+    outputSchema: z.object({ sum: z.number() }),
+    annotations: { readOnlyHint: true },
+  },
+  async ({ a, b }) =&gt; {
+    const sum = a + b;
+    return {
+      content: [{ type: "text", text: String(sum) }],
+      structuredContent: { sum },
+    };
+  },
+);</code></pre>
+
+<aside class="note"><strong>Two returns, one call</strong> The result has <code>content</code> for any client that reads text, and <code>structuredContent</code> for clients that read the typed object. The lab's stdio test checks <code>structuredContent</code> equals <code>{ sum: 5 }</code>. The spec says structured content SHOULD also be serialized as a text block for compatibility.<sup><a href="#r3">3</a></sup></aside>
+
+<h2>Check what the server offers</h2>
+<p>A client asks for the list with <code>tools/list</code>. The lab's stdio test lists three tools and reads back their annotations. The output includes the fields the spec defines: <code>name</code>, <code>title</code>, <code>description</code>, <code>inputSchema</code>, <code>outputSchema</code> and <code>annotations</code>.<sup><a href="#r3">3</a></sup></p>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>In <code>code/</code>, run <code>npm test</code>. Confirm all eight tests pass. Four of them are for the stdio server in this lesson.</li>
+  <li>Open <code>src/server.ts</code>. Add a tool <code>multiply_numbers</code> with the same shape as <code>add_numbers</code>, and an <code>outputSchema</code> of <code>{ product: number }</code>.</li>
+  <li>Write a test in <code>src/test/stdio.test.ts</code> that calls it with <code>a: 6, b: 7</code> and checks the product. Run <code>npm test</code> again.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">In a local v2 server, what carries the messages between client and server?</p>
+    <button class="quiz-option">stdio, where the client starts the server as a child process</button>
+    <button class="quiz-option">A shared database table both sides poll</button>
+    <button class="quiz-option">A WebSocket the server opens to the client</button>
+    <button class="quiz-option">A file written to the project directory</button>
+    <p class="quiz-explanation">For a local server the transport is stdio. The client launches the server process and exchanges JSON-RPC messages over its standard streams.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">Why does the lab's <code>serveStdio</code> call take a factory rather than a server?</p>
+    <button class="quiz-option">Factories are required by TypeScript for async code</button>
+    <button class="quiz-option">The factory makes the server faster to start</button>
+    <button class="quiz-option">It lets each connection get its own server instance</button>
+    <button class="quiz-option">It stores the server in a global variable</button>
+    <p class="quiz-explanation">The factory is called for each connection, so each client gets its own server instance. The SDK's type is <code>McpServerFactory</code>.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">Which input-schema form does the v2 SDK mark as deprecated?</p>
+    <button class="quiz-option">z.object(...) with zod schemas</button>
+    <button class="quiz-option">A plain raw-shape object of zod fields</button>
+    <button class="quiz-option">A JSON Schema object written by hand</button>
+    <button class="quiz-option">No form is deprecated</button>
+    <p class="quiz-explanation">The raw-shape form is deprecated in favour of <code>z.object(...)</code>, according to the SDK's type definitions.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://ts.sdk.modelcontextprotocol.io/v2/servers/tools">v2 server guide on tools</a>, then the <a href="https://ts.sdk.modelcontextprotocol.io/v2/serving/http">serving guide</a> for stdio and HTTP.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Paste the lab's <code>server.ts</code> and ask me which line would change if you wanted to serve the same tools over HTTP. Then check your answer in lesson 8.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://ts.sdk.modelcontextprotocol.io/v2/serving/http">MCP TypeScript SDK v2 — serving guide</a> and the <code>serveStdio</code> declaration in <code>@modelcontextprotocol/server</code>. The factory signature was read from the package's type definitions.</li>
+    <li id="r2">The <code>registerTool</code> overloads in <code>@modelcontextprotocol/server</code>, where the raw-shape form carries a deprecation note.</li>
+    <li id="r3"><a href="https://modelcontextprotocol.io/specification/latest/server/tools">MCP — Tools</a> — tool definition fields, and <code>structuredContent</code> with the text-block compatibility rule. The stdio test results come from the lab.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-v1-and-v2-compared.html">← Lesson 2: v1 and v2</a></span>
+  <span class="nav-next"><a href="0004-tools-in-depth.html">Lesson 4: Tools in Depth →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/mcp-cheatsheet.html">Cheat sheet</a> · <a href="../code/README.md">Lab code</a>
+</footer>
+</body>
+</html>

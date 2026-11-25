@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — Input Requests, Sampling, and Elicitation</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 10</span><span>MCP v2</span></div>
+  <h1>Input Requests, Sampling, and Elicitation</h1>
+  <p class="subtitle">Sometimes a server needs something from the human or the model mid-task. The 2026-07-28 revision changes how it asks, and sampling is on its way out. Learn the rules for asking safely.</p>
+</header>
+
+<section>
+<h2>A note on evidence</h2>
+<p>This lesson is cited, not yet exercised by the lab. The SDK exports the types and builders, and the changelog and specification describe the flow. The lab's tests do not yet run a multi-round-trip exchange. Treat the code in this lesson as the documented shape, and verify it before you ship.</p>
+</section>
+
+<section>
+<h2>Input requests replace server-initiated requests</h2>
+<p>In the 2025 revision, a server could send its own requests to the client, such as <code>elicitation/create</code>. The 2026-07-28 revision replaces these with a multi-round-trip pattern. The handler returns an <code>InputRequiredResult</code> (<code>resultType: "input_required"</code>) that lists what it needs. The client answers and retries the same operation with <code>inputResponses</code>.<sup><a href="#r1">1</a></sup></p>
+<pre><code>// Handler shape from the SDK's documentation: ask for confirmation before deleting.
+server.registerTool("deploy", { inputSchema: z.object({ env: z.string() }) }, async ({ env }, ctx) =&gt; {
+  const confirmationSchema = z.object({ confirm: z.boolean() });
+  const confirmed = acceptedContent(ctx.mcpReq.inputResponses, "confirm", confirmationSchema);
+  if (confirmed?.confirm !== true) {
+    return inputRequired({
+      inputRequests: {
+        confirm: inputRequired.elicit({
+          message: `Deploy to ${env}?`,
+          requestedSchema: confirmationSchema,
+        }),
+      },
+    });
+  }
+  return { content: [{ type: "text", text: `Deployed to ${env}` }] };
+});</code></pre>
+
+<p>Read it as a loop. The first call has no answer, so the tool asks. The client shows the question, collects the answer, and retries with it. The second call finds the answer and completes.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Elicitation: two modes</h2>
+<p>An elicitation asks the user for input. The spec defines two modes, and the choice matters for security:<sup><a href="#r3">3</a></sup></p>
+<table>
+  <tr><th>Mode</th><th>What it collects</th><th>Rule</th></tr>
+  <tr><td>form</td><td>Structured values, against a flat JSON Schema of strings, numbers, booleans, and enums</td><td>MUST NOT be used for passwords, API keys, or access tokens</td></tr>
+  <tr><td>url</td><td>The user is sent to an out-of-band URL to complete the step</td><td>Required for sensitive data. The client MUST NOT open the URL without the user's consent</td></tr>
+</table>
+<p>Clients SHOULD let users decline an elicitation at any time, and a response is one of <code>accept</code>, <code>decline</code>, or <code>cancel</code>.<sup><a href="#r3">3</a></sup></p>
+
+<aside class="note"><strong>The rule for secrets</strong> If the server needs a credential, it must send the user to a URL where the credential is entered out of band. A form field that asks for a password is the wrong design, even if the field is hidden.<sup><a href="#r3">3</a></sup></aside>
+
+<h2>Sampling is deprecated</h2>
+<p>Sampling lets a server ask the client's model for a completion, with no server-side API key. Under the 2026-07-28 revision it is deprecated, and new implementations SHOULD NOT adopt it. The deprecation registry gives an earliest-removal rule, not a date.<sup><a href="#r4">4</a></sup> The spec still says that a human SHOULD always be able to deny a sampling request, and that a client MUST respect <code>maxTokens</code>.<sup><a href="#r4">4</a></sup></p>
+
+<section class="task">
+<h2>Think it through (no code)</h2>
+<p>Your server needs an OAuth token for a third-party service on first use. Decide: form elicitation, URL elicitation, or a token in an environment variable set before launch. Justify the choice with the rule for sensitive data, and say what the user sees in each case.</p>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">Which elicitation mode must a server use to collect a password or API key?</p>
+    <button class="quiz-option">URL mode, sending the user to an out-of-band page</button>
+    <button class="quiz-option">Form mode, in a hidden field</button>
+    <button class="quiz-option">Sampling, with the key in the prompt</button>
+    <button class="quiz-option">Any mode, if the client encrypts it</button>
+    <p class="quiz-explanation">Form mode must not carry sensitive data. Sensitive input goes through URL mode.<sup><a href="#r3">3</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">What is the status of sampling under the 2026-07-28 revision?</p>
+    <button class="quiz-option">Required for every server, in every deployment</button>
+    <button class="quiz-option">Unchanged from the 2025 revision</button>
+    <button class="quiz-option">Deprecated, and new implementations SHOULD NOT adopt it</button>
+    <button class="quiz-option">Removed in the 2025 revision</button>
+    <p class="quiz-explanation">The 2026-07-28 sampling page marks it deprecated. The registry gives an earliest-removal rule, not a removal date.<sup><a href="#r4">4</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">In 2026-07-28, how does a server ask the user a question mid-task?</p>
+    <button class="quiz-option">It opens a second connection to the client</button>
+    <button class="quiz-option">It writes to the client's standard error stream</button>
+    <button class="quiz-option">It sends a server-initiated elicitation/create request</button>
+    <button class="quiz-option">It returns input_required, and the client retries with inputResponses</button>
+    <p class="quiz-explanation">Server-initiated requests are replaced by the input-required pattern. The client answers and retries.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read the <a href="https://modelcontextprotocol.io/specification/latest/client/elicitation">elicitation specification</a> and the <a href="https://modelcontextprotocol.io/specification/latest/client/sampling">sampling specification</a>, which carries the deprecation note.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Describe a confirmation step you want before a destructive action. Ask me to write it as an input-required exchange, then to find the step where a user could be tricked into approving the wrong thing.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://modelcontextprotocol.io/specification/2026-07-28/changelog.md">MCP — 2026-07-28 Changelog</a> — multi-round-trip requests replace server-initiated roots, sampling, and elicitation.</li>
+    <li id="r2">The <code>inputRequired</code>, <code>acceptedContent</code>, and <code>inputRequired.elicit</code> declarations in <code>@modelcontextprotocol/server</code>, including its documented example. Not exercised by the lab.</li>
+    <li id="r3"><a href="https://modelcontextprotocol.io/specification/latest/client/elicitation">MCP — Elicitation</a> — form and URL modes; sensitive-data rules; accept, decline, and cancel.</li>
+    <li id="r4"><a href="https://modelcontextprotocol.io/specification/latest/client/sampling">MCP — Sampling</a> and the <a href="https://modelcontextprotocol.io/specification/2026-07-28/deprecated.md">deprecation registry</a> — deprecation status and earliest-removal rule.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-consuming-a-server.html">← Lesson 6: Consuming a Server</a></span>
+  <span class="nav-next"><a href="0008-deploying-a-server.html">Lesson 8: Deploying a Server →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/mcp-cheatsheet.html">Cheat sheet</a> · <a href="../code/README.md">Lab code</a>
+</footer>
+</body>
+</html>

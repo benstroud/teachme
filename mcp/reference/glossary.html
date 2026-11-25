@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MCP v2 Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>MCP v2</span></div>
+  <h1>MCP v2 Glossary</h1>
+  <p class="subtitle">The canonical terms for this workspace. Use them in code comments and reviews so they match the specification.</p>
+</header>
+
+<section>
+<h2>Roles and revisions</h2>
+<dl class="terms">
+
+  <dt id="host">Host</dt>
+  <dd>The AI application that coordinates one or more MCP clients. Lesson 1.</dd>
+
+  <dt id="client">Client</dt>
+  <dd>A component that keeps one connection to one MCP server and obtains context from it. Lessons 1, 6.</dd>
+
+  <dt id="server">Server</dt>
+  <dd>A program that provides context to MCP clients through tools, resources, and prompts. Lessons 1, 3.</dd>
+
+  <dt id="revision">Protocol revision</dt>
+  <dd>A dated version of the specification, such as 2025-11-25 or 2026-07-28. There is no protocol version named "v2". Lesson 2.</dd>
+
+  <dt id="v2-sdk">v2 SDK</dt>
+  <dd>The TypeScript SDK line 2.x, split into <code>@modelcontextprotocol/server</code> and <code>@modelcontextprotocol/client</code>. It implements the 2026-07-28 revision. Lesson 2.</dd>
+
+</dl>
+</section>
+
+<section>
+<h2>Primitives</h2>
+<dl class="terms">
+
+  <dt id="tool">Tool</dt>
+  <dd>A function the model can discover and call, with an input schema, an optional output schema, and annotations. Model-controlled. Lessons 3, 4.</dd>
+
+  <dt id="resource">Resource</dt>
+  <dd>Read-only context addressed by URI, including templates such as <code>notes://{id}</code>. Application-driven. Lesson 5.</dd>
+
+  <dt id="prompt">Prompt</dt>
+  <dd>A parameterised message template the user selects. User-controlled. Lesson 5.</dd>
+
+  <dt id="annotations">Annotations</dt>
+  <dd>Hints about a tool, such as <code>readOnlyHint</code> and <code>destructiveHint</code>. Clients MUST treat them as untrusted unless the server is trusted. Lessons 4, 9.</dd>
+
+  <dt id="tool-error">Tool execution error</dt>
+  <dd>A normal result with <code>isError: true</code>, which the model can read and act on. Distinct from a protocol error. Lesson 4.</dd>
+
+</dl>
+</section>
+
+<section>
+<h2>Messages and connections</h2>
+<dl class="terms">
+
+  <dt id="json-rpc">JSON-RPC</dt>
+  <dd>The message format under MCP: requests with methods, and results or errors back. Lesson 1.</dd>
+
+  <dt id="meta">_meta</dt>
+  <dd>The per-request object where the 2026-07-28 revision carries the protocol version, client info, and capabilities. Lesson 2.</dd>
+
+  <dt id="result-type">resultType</dt>
+  <dd>A field on every result in 2026-07-28. Values include <code>complete</code> and <code>input_required</code>. Lessons 2, 7.</dd>
+
+  <dt id="legacy-mode">legacy (connection mode)</dt>
+  <dd>The client default: the 2025 handshake with <code>initialize</code> and <code>notifications/initialized</code>. Lesson 2.</dd>
+
+  <dt id="pin-mode">pin (connection mode)</dt>
+  <dd>The client option <code>{ pin: "2026-07-28" }</code>, which speaks only the modern revision and fails for any other. Lesson 6.</dd>
+
+  <dt id="stdio">stdio</dt>
+  <dd>The transport where the client starts the server as a child process and exchanges newline-delimited JSON over its standard streams. Lessons 3, 8.</dd>
+
+  <dt id="streamable-http">Streamable HTTP</dt>
+  <dd>The remote transport: one POST endpoint, with the Accept and MCP-Protocol-Version headers. Lesson 8.</dd>
+
+</dl>
+</section>
+
+<section>
+<h2>Input, consent, and security</h2>
+<dl class="terms">
+
+  <dt id="input-required">input_required</dt>
+  <dd>A result that asks the client for input. The client answers and retries with <code>inputResponses</code>. Replaces server-initiated requests in 2026-07-28. Lesson 7.</dd>
+
+  <dt id="elicitation">Elicitation</dt>
+  <dd>A request for user input, in form mode (structured, not for secrets) or URL mode (out-of-band, required for sensitive data). Lesson 7.</dd>
+
+  <dt id="sampling">Sampling</dt>
+  <dd>A server request for a model completion through the client. Deprecated in 2026-07-28. Lesson 7.</dd>
+
+  <dt id="protected-resource-metadata">Protected Resource Metadata</dt>
+  <dd>The RFC 9728 document an HTTP MCP server MUST implement, so clients can find its authorization server. Lesson 8.</dd>
+
+  <dt id="origin-validation">Origin validation</dt>
+  <dd>Checking the Origin header against allowed hosts before serving a request, to block DNS rebinding. Lesson 8.</dd>
+
+  <dt id="token-passthrough">Token passthrough</dt>
+  <dd>Accepting or forwarding a token that was not issued for the server. The spec says servers MUST NOT accept such tokens. Lesson 9.</dd>
+
+</dl>
+</section>
+
+<footer class="lesson-footer">
+  <a href="../../index.html">Course home</a> · <a href="mcp-cheatsheet.html">Cheat sheet</a> · <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a>
+</footer>
+</body>
+</html>

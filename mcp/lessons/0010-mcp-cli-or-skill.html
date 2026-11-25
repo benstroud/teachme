@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 10 — MCP, CLI, or Skill</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 10 of 10</span><span>MCP v2</span></div>
+  <h1>MCP, CLI, or Skill</h1>
+  <p class="subtitle">When a capability could be a server, a command, or a skill, the choice has real costs in context, security, reuse, and effort. This lesson gives a decision method, and says plainly where it is the author's judgment.</p>
+</header>
+
+<section>
+<h2>An honest starting point</h2>
+<p>No official source compares the three. The MCP docs say when to connect a server, and the Claude Code docs describe skills and their context cost. Neither says which to pick. The framework below is the author's judgment, built from the cited facts about each option. Treat it as a checklist to argue with, not a rule.</p>
+</section>
+
+<section>
+<h2>The facts each option starts from</h2>
+<table>
+  <tr><th></th><th>MCP server</th><th>CLI</th><th>Agent skill</th></tr>
+  <tr><td>What it is</td><td>A running process that offers tools, resources, and prompts over a protocol</td><td>A program the agent runs through a shell</td><td>A folder with a <code>SKILL.md</code> of instructions, optionally with scripts and reference files</td></tr>
+  <tr><td>Context cost</td><td>Tool definitions load into context, unless tool search defers them</td><td>Only the help text the agent reads, when it reads it</td><td>Name and description are always listed; the body loads only when used</td></tr>
+  <tr><td>Reuse across hosts</td><td>Any compliant client can connect</td><td>Any agent with a shell can run it</td><td>Works where the skill loader exists</td></tr>
+  <tr><td>Auth and remote use</td><td>Built for it: OAuth over HTTP, per the spec</td><td>Credentials in the environment; no protocol for remote auth</td><td>Instructions only; no auth mechanism of its own</td></tr>
+  <tr><td>Trust surface</td><td>Tools, annotations, and output all reach the model</td><td>The command runs with the user's permissions</td><td>Instructions shape behaviour and any scripts run</td></tr>
+</table>
+<p>The Claude Code docs give the context figures: skill descriptions are always in the listing, bodies load on use, and tool definitions can be deferred through tool search to keep MCP context low.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<h2>Five questions, in order</h2>
+<p>Ask them about one capability at a time. The first "yes" usually settles it.</p>
+<ol>
+  <li><strong>Is it know-how rather than an action?</strong> A checklist, a house style, a multi-step procedure with judgement. Write a <em>skill</em>. The body costs nothing until it is needed.</li>
+  <li><strong>Is it one local, deterministic command that you already run by hand?</strong> Expose a <em>CLI</em>. Add a skill that documents when to use it, if the agent needs guidance.</li>
+  <li><strong>Does more than one kind of host need it, or does it sit behind a remote service with real authentication?</strong> Build an <em>MCP server</em>. This is where the protocol's shared auth and reuse pay off.</li>
+  <li><strong>Must the model call it many times with typed, validated inputs and outputs?</strong> Build an <em>MCP tool</em> with a schema. A CLI with JSON output is the cheaper alternative if the host always has a shell.</li>
+  <li><strong>Must it run where there is no shell?</strong> A chat app or a sandboxed host cannot run your CLI, so use an <em>MCP server</em>.</li>
+</ol>
+
+<section>
+<h2>Worked examples</h2>
+<table>
+  <tr><th>Capability</th><th>Choice</th><th>Why</th></tr>
+  <tr><td>Our release checklist, with judgement about exceptions</td><td>Skill</td><td>It is know-how. The body loads only when someone releases.</td></tr>
+  <tr><td>Lint this repo and report findings</td><td>CLI</td><td>Deterministic, local, already exists. A skill can say when to run it.</td></tr>
+  <tr><td>Search the company ticket system for many assistants</td><td>MCP server over HTTP with OAuth</td><td>Many hosts, remote service, real authentication.</td></tr>
+  <tr><td>Search our docs from a desktop chat app that has no shell</td><td>MCP server over stdio</td><td>No shell available; one local user.</td></tr>
+  <tr><td>Delete production records on request</td><td>Do not expose it as a tool yet</td><td>Destructive and high-impact. Add consent and audit first, or keep it a human task.</td></tr>
+</table>
+</section>
+
+<aside class="note"><strong>When not to build a server</strong> If the only user is you, in one editor, with a shell, a CLI is almost always cheaper. A server is a process to start, secure, version, and update. Build it when the reuse, the auth, or the lack of a shell justifies that cost.</aside>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Pick three capabilities from your own work. For each, answer the five questions and write the choice.</li>
+  <li>For the one you would make an MCP server, list which lesson 9 rules apply, and which you would have to build before shipping.</li>
+  <li>For the one you would make a CLI, decide whether it needs a skill, and what the skill's description would say.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">A team wants its release checklist, with judgement about exceptions, available to its assistant. Which fits best?</p>
+    <button class="quiz-option">An MCP server with one tool per checklist item</button>
+    <button class="quiz-option">A cron job that prints the checklist</button>
+    <button class="quiz-option">A CLI with a --release flag</button>
+    <button class="quiz-option">An agent skill with a SKILL.md</button>
+    <p class="quiz-explanation">Checklists with judgement are know-how, which a skill carries. A skill's body loads only when it is used, so it costs little until needed.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">Which fact is the strongest reason to build an MCP server rather than a CLI?</p>
+    <button class="quiz-option">MCP is faster to start than a shell command</button>
+    <button class="quiz-option">Many hosts need it, behind a remote service with real auth</button>
+    <button class="quiz-option">MCP servers need no validation at all</button>
+    <button class="quiz-option">CLIs can never print structured JSON output</button>
+    <p class="quiz-explanation">Reuse across hosts and remote authentication are where the protocol's shared design pays off. Speed and output format are not the reasons.<sup><a href="#r3">3</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">When is a CLI usually the cheaper choice?</p>
+    <button class="quiz-option">When one developer runs a local, deterministic command with a shell</button>
+    <button class="quiz-option">When the host has no shell at all</button>
+    <button class="quiz-option">When many clients must share one remote service</button>
+    <button class="quiz-option">When the capability is a long procedure with judgement</button>
+    <p class="quiz-explanation">A CLI avoids running and securing a server process. It fits a single user with a shell. The other three cases favour MCP or a skill.</p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read <a href="https://code.claude.com/docs/en/skills">the skills documentation</a> and <a href="https://code.claude.com/docs/en/mcp">the MCP documentation</a> in Claude Code, then Anthropic's <a href="https://www.anthropic.com/engineering/writing-tools-for-agents">post on writing tools for agents</a>. None of them makes this choice for you.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Describe a capability in your own work and argue the other side. Ask me to apply the five questions to it, and tell me where the framework gives a wrong answer.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1"><a href="https://code.claude.com/docs/en/mcp">Claude Code — MCP</a> — "Connect a server when you find yourself copying data into chat from another tool"; tool search defers definitions to keep context low.</li>
+    <li id="r2"><a href="https://code.claude.com/docs/en/skills">Claude Code — Agent Skills</a> — descriptions always listed; bodies load on use; scripts run rather than read into context.</li>
+    <li id="r3"><a href="https://modelcontextprotocol.io/docs/learn/architecture">MCP — Architecture</a> — stdio typically one client, Streamable HTTP many; OAuth for remote tokens. The five questions and the worked examples are the author's judgment.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0009-security-and-best-practices.html">← Lesson 9: Security and Best Practices</a></span>
+  <span class="nav-next"><a href="../reference/mcp-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/mcp-cheatsheet.html">Cheat sheet</a> · <a href="../code/README.md">Lab code</a>
+</footer>
+</body>
+</html>
