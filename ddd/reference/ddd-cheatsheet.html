@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Domain-Driven Design Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Domain-Driven Design</span></div>
+  <h1>Domain-Driven Design Cheat Sheet</h1>
+  <p class="subtitle">One page to keep open while modelling. Every entry traces to a lesson and to the book's chapters. Definitions are summaries; check them against the text.</p>
+</header>
+
+<section>
+<h2>The book at a glance</h2>
+<table class="ref">
+  <tr><th>Part</th><th>Chapters</th><th>Lessons</th></tr>
+  <tr><td>I. Putting the Domain Model to Work</td><td>1 Crunching Knowledge; 2 Communication and the Use of Language; 3 Binding Model and Implementation</td><td>1, 2, 3</td></tr>
+  <tr><td>II. The Building Blocks of a Model-Driven Design</td><td>4 Isolating the Domain; 5 A Model Expressed in Software; 6 The Life Cycle of a Domain Object; 7 Using the Language: An Extended Example</td><td>4, 5, 6</td></tr>
+  <tr><td>III. Refactoring Toward Deeper Insight</td><td>8 Breakthrough; 9 Making Implicit Concepts Explicit; 10 Supple Design; 11 Applying Analysis Patterns; 12 Relating Design Patterns to the Model; 13 Refactoring Toward Deeper Insight</td><td>7, 8</td></tr>
+  <tr><td>IV. Strategic Design</td><td>14 Maintaining Model Integrity; 15 Distillation; 16 Large-Scale Structure; 17 Bringing the Strategy Together</td><td>9, 10</td></tr>
+</table>
+<p>Chapters 7, 11, 12, 13, and 17 are not covered by a lesson in this set.</p>
+</section>
+
+<section>
+<h2>Choosing a building block</h2>
+<table class="ref">
+  <tr><th>Ask</th><th>Choose</th><th>Lesson</th></tr>
+  <tr><td>Is it the same thing over time, even as its attributes change?</td><td>Entity</td><td>5</td></tr>
+  <tr><td>Is it defined only by its attributes, and freely replaceable?</td><td>Value object</td><td>5</td></tr>
+  <tr><td>Is it an operation that belongs to no single object?</td><td>Domain service</td><td>5</td></tr>
+  <tr><td>Must a set of objects keep a rule together?</td><td>Aggregate, with one root</td><td>6</td></tr>
+  <tr><td>Is creation more involved than a constructor call?</td><td>Factory</td><td>6</td></tr>
+  <tr><td>Does the application need to load and save aggregates?</td><td>Repository</td><td>6</td></tr>
+</table>
+</section>
+
+<section>
+<h2>Checks before you ship a rule</h2>
+<table class="ref">
+  <tr><th>Check</th><th>Smell if it fails</th><th>Lesson</th></tr>
+  <tr><td>The domain layer imports nothing from UI, SQL, or HTTP</td><td>Rules untestable without infrastructure</td><td>4</td></tr>
+  <tr><td>Objects hold behaviour, not only fields</td><td>Anemic model; rules in services</td><td>4</td></tr>
+  <tr><td>Every term in code matches the expert's word</td><td>Translation step; lost meaning</td><td>2</td></tr>
+  <tr><td>Repeated business conditions have a name</td><td>Implicit concept</td><td>7</td></tr>
+  <tr><td>Method names say what they mean</td><td>Mechanism-named interface</td><td>8</td></tr>
+  <tr><td>Transactions stay within one aggregate</td><td>Cross-aggregate consistency problems</td><td>6</td></tr>
+</table>
+</section>
+
+<section>
+<h2>Strategy</h2>
+<table class="ref">
+  <tr><th>Question</th><th>Answer</th><th>Lesson</th></tr>
+  <tr><td>Where does one model stop being true?</td><td>A bounded context boundary, usually where the language changes</td><td>9</td></tr>
+  <tr><td>How do two contexts relate?</td><td>Name the relationship on the context map, from the real power balance</td><td>9</td></tr>
+  <tr><td>Where should the best modelling effort go?</td><td>The core domain</td><td>10</td></tr>
+  <tr><td>What do generic areas need?</td><td>An existing solution, not a custom model</td><td>10</td></tr>
+</table>
+</section>
+
+<section>
+<h2>Sources</h2>
+<p>Eric Evans, <em>Domain-Driven Design: Tackling Complexity in the Heart of Software</em> (Addison-Wesley, 2003). Fowler's bliki pages on Ubiquitous Language, Anemic Domain Model, DDD Aggregate, and Bounded Context. See <a href="../RESOURCES.md">RESOURCES.md</a>.</p>
+</section>
+
+<footer class="lesson-footer">
+  <a href="../../index.html">Course home</a> · <a href="../MISSION.md">Mission</a> · <a href="glossary.html">Glossary</a> · <a href="../RESOURCES.md">Resources</a>
+</footer>
+</body>
+</html>

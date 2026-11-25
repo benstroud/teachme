@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 9 — Bounded Contexts and Context Maps</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 9 of 10</span><span>Domain-Driven Design</span></div>
+  <h1>Bounded Contexts and Context Maps</h1>
+  <p class="subtitle">One model cannot serve a whole large system. Evans divides the system into contexts, each with a model that is unified inside its boundary, and then maps how the contexts relate.</p>
+</header>
+
+<section>
+<h2>Why one model is not enough</h2>
+<p>Part IV, <em>Strategic Design</em>, starts from a plain claim: total unification of the domain model for a large system will not be feasible or cost-effective. The book's answer is to divide the system into bounded contexts, each with its own unified model, and to be explicit about how the contexts relate.<sup><a href="#r2">2</a></sup><sup><a href="#r1">1</a></sup></p>
+<p>Fowler reads this as the core of the strategic part of DDD. The same word means different things in different parts of a system, and the boundary is often drawn where the language changes.<sup><a href="#r2">2</a></sup></p>
+
+<h2>A bounded context</h2>
+<p>A bounded context is the boundary within which one model applies and the ubiquitous language has one meaning. Inside it, <em>customer</em> means one thing. Across the boundary, <em>customer</em> may mean something else, and the two contexts need a translation.</p>
+<table>
+  <tr><th>Context</th><th>"Customer" means</th><th>Cares about</th></tr>
+  <tr><td>Sales</td><td>A prospect or account with a pipeline</td><td>Opportunities and discounts</td></tr>
+  <tr><td>Billing</td><td>A party that receives invoices</td><td>Payment terms and tax</td></tr>
+  <tr><td>Support</td><td>A person with open tickets</td><td>History and contact details</td></tr>
+</table>
+
+<h2>The context map</h2>
+<p>A context map is a picture of the contexts and the relationships between them. Evans names several relationships in Part IV. Among them are the shared kernel, where two contexts share a small part of the model, the customer/supplier relationship, the conformist, and the anticorruption layer, which protects one model from the meaning of another. Others include the open host service and the published language.<sup><a href="#r1">1</a></sup></p>
+<p>Choose the relationship from the real power balance between teams, not from the diagram you would like. A conformist relationship is often the honest answer when the other team will not change.</p>
+
+<aside class="note"><strong>The boundary is a team decision</strong> Contexts are usually drawn by where the language changes and where a team works. A context that spans three teams with three languages is probably two contexts.</aside>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Pick a large system you know. List three contexts, and for each, the one word that means something different across the boundary.</li>
+  <li>For one pair of contexts, choose a relationship from this lesson. Justify it using who can change what.</li>
+  <li>Say where the translation between the two contexts should live, and why it should not live inside either model.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">What is a bounded context?</p>
+    <button class="quiz-option">A boundary where one model applies and the language has one meaning</button>
+    <button class="quiz-option">A single microservice that owns one database</button>
+    <button class="quiz-option">A folder holding all of the project's classes</button>
+    <button class="quiz-option">A rule that limits the number of users per system</button>
+    <p class="quiz-explanation">A bounded context is a boundary of model and language, not a deployment unit or a folder. Inside it, a term has one meaning.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">What does a context map show?</p>
+    <button class="quiz-option">The network topology of the servers</button>
+    <button class="quiz-option">The order in which the code is compiled</button>
+    <button class="quiz-option">The contexts and the relationships between them</button>
+    <button class="quiz-option">The estimated cost of each feature</button>
+    <p class="quiz-explanation">A context map depicts the bounded contexts and the relationships between them. It is a strategic picture, not an infrastructure diagram.</p>
+  </div>
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">Why does the anticorruption layer matter in this lesson?</p>
+    <button class="quiz-option">It makes one model the official model of the whole company</button>
+    <button class="quiz-option">It removes the need for any translation between contexts</button>
+    <button class="quiz-option">It merges two contexts into one</button>
+    <button class="quiz-option">It protects one model from the meaning of another context</button>
+    <p class="quiz-explanation">The anticorruption layer translates between models so the meaning of another context does not leak into yours.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read Part IV, chapter 14 of Evans's book, <em>Maintaining Model Integrity</em>, then Fowler's piece on bounded contexts.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<div class="ask"><strong>Ask the agent</strong> Describe the teams and systems in your work. Ask me to propose contexts and a context map, then argue against my boundaries using the language test.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1">Eric Evans, <em>Domain-Driven Design: Tackling Complexity in the Heart of Software</em> (Addison-Wesley, 2003), Part IV, chapter 14 <em>Maintaining Model Integrity</em>. The relationship names are the author's summary and should be checked against the chapter. See <a href="../RESOURCES.md">RESOURCES.md</a>.</li>
+    <li id="r2">Martin Fowler, "Bounded Context", bliki, dated 15 January 2014. <a href="https://martinfowler.com/bliki/BoundedContext.html">martinfowler.com/bliki/BoundedContext.html</a>.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0008-supple-design.html">← Lesson 8: Supple Design</a></span>
+  <span class="nav-next"><a href="0010-distillation-and-large-scale-structure.html">Lesson 10: Distillation and Large-Scale Structure →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/ddd-cheatsheet.html">Cheat sheet</a>
+</footer>
+</body>
+</html>

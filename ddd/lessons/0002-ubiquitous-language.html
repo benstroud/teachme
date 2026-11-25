@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 — Ubiquitous Language</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 2 of 10</span><span>Domain-Driven Design</span></div>
+  <h1>Ubiquitous Language</h1>
+  <p class="subtitle">The team uses one language for the domain, in conversation, in documents, and in the code. Where the words disagree, the model is wrong, and the disagreement is the thing to fix.</p>
+</header>
+
+<section>
+<h2>What the term means</h2>
+<p>Evans calls the shared vocabulary of the team the <strong>ubiquitous language</strong>. It is ubiquitous because it appears everywhere the model does: in the code's class and method names, in the meeting room, in the requirements, and in the tests. Fowler describes it as a common, rigorous language built between developers and users, based on the domain model used in the software.<sup><a href="#r2">2</a></sup><sup><a href="#r1">1</a></sup></p>
+<p>The rigour matters. Fowler notes that software does not cope well with ambiguity, so the terms must be precise enough for the code to use them.<sup><a href="#r2">2</a></sup></p>
+
+<h2>Where it lives</h2>
+<table>
+  <tr><th>Place</th><th>What the language looks like</th></tr>
+  <tr><td>Conversation</td><td>A domain expert says "a claim is reopened", and the developer uses the same phrase</td></tr>
+  <tr><td>Code</td><td><code>claim.reopen()</code>, not <code>claim.setStatus("OPEN")</code></td></tr>
+  <tr><td>Documents</td><td>Requirements and tests name the same concepts the code does</td></tr>
+  <tr><td>Diagrams</td><td>Boxes carry the domain's names, not the team's internal shorthand</td></tr>
+</table>
+
+<h2>Experts object, developers listen</h2>
+<p>Fowler quotes Evans on a practical rule: domain experts should object to terms or structures that are awkward or inadequate to convey their understanding.<sup><a href="#r2">2</a></sup> If an expert hears a developer say "entity record" and winces, the code has drifted from the business. The objection is useful data, not a style complaint.</p>
+
+<aside class="note"><strong>Watch for translation</strong> When a developer says "the user" but the expert says "the applicant", every conversation has a silent translation step. Translation is where meanings get lost. Pick the expert's word and use it everywhere.</aside>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Take the five nouns from lesson 1. For each, find where it appears in some code you have written, such as a class name, a variable, or a column.</li>
+  <li>Mark every place where the code uses a different word for the same idea. Write down which word the business would use.</li>
+  <li>Rename one of them in the code, or write a short note proposing the rename. Predict which conversations get easier, and which get harder.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">What does "ubiquitous" mean in the ubiquitous language?</p>
+    <button class="quiz-option">The language is easy to learn for newcomers</button>
+    <button class="quiz-option">The language is written in a universal notation</button>
+    <button class="quiz-option">The language is the same across every project in a company</button>
+    <button class="quiz-option">The language appears throughout the team's work, including the code</button>
+    <p class="quiz-explanation">The language is ubiquitous because it is used in conversation, documents, diagrams, and code alike. It is not a shared standard across projects.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">A domain expert says "the applicant". The code says <code>user</code>. What is the most useful next step?</p>
+    <button class="quiz-option">Rename the code to use "applicant" everywhere it means the same thing</button>
+    <button class="quiz-option">Keep <code>user</code>, since it is the standard programming word</button>
+    <button class="quiz-option">Add a comment that explains the difference</button>
+    <button class="quiz-option">Ask the expert to use the developers' word instead</button>
+    <p class="quiz-explanation">The model should use the domain's word. A comment explains a mismatch but leaves the translation step in place, which is where meanings get lost.</p>
+  </div>
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">According to Fowler's summary of Evans, what should a domain expert do with an awkward term?</p>
+    <button class="quiz-option">Accept it, because developers know the code best</button>
+    <button class="quiz-option">Hide it from the team's documentation</button>
+    <button class="quiz-option">Object to it, because it fails to convey the domain</button>
+    <button class="quiz-option">Replace it with a number or a code</button>
+    <p class="quiz-explanation">Fowler quotes Evans that domain experts should object to terms or structures that are awkward or inadequate to convey domain understanding.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read Part I, chapter 2 of Evans's book, <em>Communication and the Use of Language</em>, then Fowler's short piece on the ubiquitous language.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<div class="ask"><strong>Ask the agent</strong> Paste a list of your team's terms and ask me which ones look like translation steps. Ask me to suggest the expert's likely word for each, and tell me where I am guessing.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1">Eric Evans, <em>Domain-Driven Design: Tackling Complexity in the Heart of Software</em> (Addison-Wesley, 2003), Part I, chapter 2 <em>Communication and the Use of Language</em>. See <a href="../RESOURCES.md">RESOURCES.md</a>.</li>
+    <li id="r2">Martin Fowler, "Ubiquitous Language", bliki, dated 31 October 2006. <a href="https://martinfowler.com/bliki/UbiquitousLanguage.html">martinfowler.com/bliki/UbiquitousLanguage.html</a>.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0001-why-domain-driven-design.html">← Lesson 1: Why Domain-Driven Design</a></span>
+  <span class="nav-next"><a href="0003-binding-model-and-implementation.html">Lesson 3: Binding Model and Implementation →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/ddd-cheatsheet.html">Cheat sheet</a>
+</footer>
+</body>
+</html>

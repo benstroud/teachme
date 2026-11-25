@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 5 — A Model Expressed in Software</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 5 of 10</span><span>Domain-Driven Design</span></div>
+  <h1>A Model Expressed in Software</h1>
+  <p class="subtitle">Entities, value objects, services, and modules are the building blocks Evans uses to put a model into code. Each one answers a question about identity, equality, or responsibility.</p>
+</header>
+
+<section>
+<h2>The building blocks</h2>
+<p>Part II of the book turns from the principle to the parts. The chapter <em>A Model Expressed in Software</em> describes the main patterns a team uses to write a model in code: entities, value objects, services, and modules.<sup><a href="#r1">1</a></sup> The choice between them is a question about what the object is.</p>
+
+<table>
+  <tr><th>Building block</th><th>Ask yourself</th><th>Example</th></tr>
+  <tr><td>Entity</td><td>Is it the same thing over time, even as its attributes change?</td><td>A customer who changes address is still the same customer</td></tr>
+  <tr><td>Value object</td><td>Is it defined only by its attributes, and can it be replaced freely?</td><td>A money amount of 10 GBP, or an address</td></tr>
+  <tr><td>Service</td><td>Is it an operation that belongs to no single object?</td><td>Transferring money between two accounts</td></tr>
+  <tr><td>Module</td><td>Does this group of concepts make sense together and carry a domain name?</td><td>A "billing" module, not a "utils" module</td></tr>
+</table>
+
+<h2>Entities: identity matters</h2>
+<p>An entity has an identity that persists through change. Two claim records with the same fields but different identifiers are two different claims. Make the identity explicit in code, and compare entities by it.</p>
+
+<h2>Value objects: the attributes are the thing</h2>
+<p>A value object has no identity of its own. Two money values of the same amount and currency are equal, and you can replace one with another. Value objects should be immutable, so any operation returns a new value rather than changing the old one. This also removes a whole class of bugs where a shared object changes under someone else.</p>
+
+<pre><code>class Money {
+  constructor(readonly amount: number, readonly currency: string) {
+    if (amount < 0) throw new Error("Money cannot be negative");
+  }
+  add(other: Money): Money {
+    if (other.currency !== this.currency) throw new Error("Currency mismatch");
+    return new Money(this.amount + other.amount, this.currency);
+  }
+  equals(other: Money): boolean {
+    return this.amount === other.amount && this.currency === other.currency;
+  }
+}</code></pre>
+
+<h2>Services and modules</h2>
+<p>A domain service is an operation that is part of the model but does not naturally belong to one entity or value. Keep it named in the domain's terms. A module groups related concepts under a name the business would recognise. Module names such as <code>utils</code> or <code>helpers</code> are a warning that no concept lives there.</p>
+
+<aside class="note"><strong>Entity or value object?</strong> When in doubt, ask whether two instances with identical attributes should be treated as the same. If yes, a value object. If the business tracks each one separately, an entity.</aside>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>From the Money example, add a <code>subtract</code> method. Decide what it should do if the result is negative, and say which rule it enforces.</li>
+  <li>Take three objects from a system you know. Label each as entity, value object, service, or module, and give one reason for each label.</li>
+  <li>Find one object you labelled as an entity that you could make a value object. Say what the business would lose if you did.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">Two address records have identical fields. Which building block fits an address that needs no identity of its own?</p>
+    <button class="quiz-option">Entity, because every record needs an identifier</button>
+    <button class="quiz-option">Module, because addresses are grouped by region</button>
+    <button class="quiz-option">Value object, because it is defined only by its attributes</button>
+    <button class="quiz-option">Service, because addresses are validated</button>
+    <p class="quiz-explanation">A value object is defined by its attributes. Two equal addresses are interchangeable, so no identity is needed.</p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">Why should a value object such as <code>Money</code> return a new value instead of changing itself?</p>
+    <button class="quiz-option">Shared values cannot change under other code that holds them</button>
+    <button class="quiz-option">Immutable objects are always faster to create</button>
+    <button class="quiz-option">Databases only store immutable values</button>
+    <button class="quiz-option">The language forbids mutation of any class</button>
+    <p class="quiz-explanation">Immutability stops a shared value from changing unexpectedly. Operations return a new value, so each holder keeps the value it was given.</p>
+  </div>
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">Which module name best follows this lesson's advice?</p>
+    <button class="quiz-option">utils</button>
+    <button class="quiz-option">helpers</button>
+    <button class="quiz-option">common</button>
+    <button class="quiz-option">billing</button>
+    <p class="quiz-explanation">A module should carry a name the business would recognise. Generic names such as utils, helpers, or common suggest that no concept lives there.</p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read Part II, chapter 5 of Evans's book, <em>A Model Expressed in Software</em>.<sup><a href="#r1">1</a></sup></p>
+
+<div class="ask"><strong>Ask the agent</strong> Give me three objects from your code and ask me to classify each one. Then ask me to argue against my classification, and tell me which argument you find strongest.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1">Eric Evans, <em>Domain-Driven Design: Tackling Complexity in the Heart of Software</em> (Addison-Wesley, 2003), Part II, chapter 5 <em>A Model Expressed in Software</em>. See <a href="../RESOURCES.md">RESOURCES.md</a>.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0004-isolating-the-domain.html">← Lesson 4: Isolating the Domain</a></span>
+  <span class="nav-next"><a href="0006-aggregates-factories-repositories.html">Lesson 6: Aggregates, Factories, Repositories →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/ddd-cheatsheet.html">Cheat sheet</a>
+</footer>
+</body>
+</html>

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Domain-Driven Design Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Reference</span><span>Domain-Driven Design</span></div>
+  <h1>Glossary</h1>
+  <p class="subtitle">Terms as this set uses them. Each entry names the lessons where it appears. Definitions are the author's summaries of the book, to be checked against the chapters.</p>
+</header>
+
+<section>
+<h2>Strategy and language</h2>
+<dl class="terms">
+
+  <dt id="ubiquitous-language">Ubiquitous language</dt>
+  <dd>The shared vocabulary of a team, used in conversation, documents, diagrams, and code. Where words disagree, the model is wrong. Lessons 1, 2.</dd>
+
+  <dt id="bounded-context">Bounded context</dt>
+  <dd>The boundary within which one model applies and the ubiquitous language has one meaning. Usually drawn where the language changes. Lesson 9.</dd>
+
+  <dt id="context-map">Context map</dt>
+  <dd>A picture of the bounded contexts and the relationships between them, such as shared kernel, customer/supplier, conformist, or anticorruption layer. Lesson 9.</dd>
+
+  <dt id="core-domain">Core domain</dt>
+  <dd>The part of the domain that makes the business distinctive. It gets the best modelling. Lesson 10.</dd>
+
+  <dt id="generic-subdomain">Generic subdomain</dt>
+  <dd>A problem many businesses share. Adopt an existing solution rather than modelling it in depth. Lesson 10.</dd>
+
+  <dt id="supporting-subdomain">Supporting subdomain</dt>
+  <dd>Necessary for the business and specific to it, but not a differentiator. Keep it simple and replaceable. Lesson 10.</dd>
+
+</dl>
+</section>
+
+<section>
+<h2>Building blocks</h2>
+<dl class="terms">
+
+  <dt id="entity">Entity</dt>
+  <dd>An object defined by an identity that persists through change of its attributes. Lesson 5.</dd>
+
+  <dt id="value-object">Value object</dt>
+  <dd>An object defined only by its attributes, with no identity of its own. Should be immutable. Lesson 5.</dd>
+
+  <dt id="domain-service">Domain service</dt>
+  <dd>An operation that is part of the model but belongs to no single entity or value. Named in the domain's terms. Lesson 5.</dd>
+
+  <dt id="module">Module</dt>
+  <dd>A group of related concepts under a name the business would recognise. Generic names such as utils are a warning. Lesson 5.</dd>
+
+  <dt id="aggregate">Aggregate</dt>
+  <dd>A cluster of domain objects treated as one unit, with a root that outside code references. Holds the invariants. Transactions do not cross aggregate boundaries. Lesson 6.</dd>
+
+  <dt id="factory">Factory</dt>
+  <dd>Creates an aggregate or entity in a valid state, when creation is more complicated than a constructor call. Lesson 6.</dd>
+
+  <dt id="repository">Repository</dt>
+  <dd>Gives the application access to aggregates as if they were in a collection, hiding how they are stored. Lesson 6.</dd>
+
+  <dt id="specification">Specification</dt>
+  <dd>A named predicate that states whether an object satisfies a condition. The value is the name. Lesson 7.</dd>
+
+</dl>
+</section>
+
+<section>
+<h2>Design quality and refactoring</h2>
+<dl class="terms">
+
+  <dt id="anemic-model">Anemic domain model</dt>
+  <dd>Objects that hold data while their rules sit in services. An anti-pattern, because it loses the benefits of a domain model. Lesson 4.</dd>
+
+  <dt id="layered-architecture">Layered architecture</dt>
+  <dd>The domain layer depends on nothing outside itself. Interface, application, and infrastructure layers sit around it. Lesson 4.</dd>
+
+  <dt id="breakthrough">Breakthrough</dt>
+  <dd>A sudden, deeper insight into the domain that lets the model and code be reshaped into something simpler and more accurate. Lesson 7.</dd>
+
+  <dt id="implicit-concept">Implicit concept</dt>
+  <dd>A concept the code uses, often as a repeated condition or a pair of values that travel together, without naming it. Lesson 7.</dd>
+
+  <dt id="intention-revealing-interface">Intention-revealing interface</dt>
+  <dd>A name that says what an operation means for the business, not how it changes the data. Lesson 8.</dd>
+
+  <dt id="side-effect-free-function">Side-effect-free function</dt>
+  <dd>A query that returns a value and changes no state, so it can be called freely. Lesson 8.</dd>
+
+  <dt id="supple-design">Supple design</dt>
+  <dd>A design developers can combine and change without fear. Built from intention-revealing interfaces, side-effect-free functions, assertions, and closed operations. Lesson 8.</dd>
+
+</dl>
+</section>
+
+<footer class="lesson-footer">
+  <a href="../../index.html">Course home</a> · <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="ddd-cheatsheet.html">Cheat sheet</a>
+</footer>
+</body>
+</html>

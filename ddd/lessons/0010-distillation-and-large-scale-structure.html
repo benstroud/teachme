@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 10 — Distillation and Large-Scale Structure</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 10 of 10</span><span>Domain-Driven Design</span></div>
+  <h1>Distillation and Large-Scale Structure</h1>
+  <p class="subtitle">Not every part of a system deserves the same effort. Distillation finds the core domain, where the competitive value lies, and gives it the best modelling. Large-scale structure then organises the whole system around that core.</p>
+</header>
+
+<section>
+<h2>Distillation</h2>
+<p>The chapter <em>Distillation</em> in Part IV asks a practical question: which parts of the model are the heart of the business? Evans separates the domain into the core domain, which the business builds for competitive advantage, and the rest. The rest is either generic, meaning the same kind of thing many businesses need, or supporting, meaning it is necessary but not distinctive.<sup><a href="#r1">1</a></sup></p>
+<table>
+  <tr><th>Kind</th><th>What it is</th><th>Where effort goes</th></tr>
+  <tr><td>Core domain</td><td>What makes the business distinctive</td><td>Your best modelling, your best people</td></tr>
+  <tr><td>Supporting</td><td>Necessary, specific to you, not a differentiator</td><td>Adequate, simple, and replaceable</td></tr>
+  <tr><td>Generic</td><td>The same problem as everyone else</td><td>Bought or adopted, not modelled from scratch</td></tr>
+</table>
+<p>A payroll calculation is often generic, a pricing rule that makes your business unusual may be the core, and a product catalogue may be supporting. The same subject can be core in one company and generic in another, so the decision depends on the business, not the topic.</p>
+
+<h2>Large-scale structure</h2>
+<p>The chapter <em>Large-Scale Structure</em> describes how to organise a whole system once its parts are known. Evans uses the idea of a system metaphor: a shared picture that helps people understand how the parts fit, and responsibility layers that keep the structure from tangling.<sup><a href="#r1">1</a></sup> The structure is not a fixed architecture. It is a set of agreed principles that let a team change one part without breaking the whole.</p>
+
+<aside class="note"><strong>Effort follows the core</strong> The practical rule is to spend the most design effort on the core domain, and to keep the rest simple enough that nobody is tempted to over-model it. Over-modelling a supporting subdomain is a common and expensive mistake.</aside>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Take the bounded contexts from lesson 9. Label each as core, supporting, or generic, and give one reason for each label.</li>
+  <li>Choose the core context. Say what modelling effort it should receive that the others should not.</li>
+  <li>Find one supporting or generic area where you are over-modelling. Propose a simpler approach, and say what you would lose.</li>
+</ol>
+</section>
+
+<p>This is the last lesson in the set. The next step is to take one real system and apply the whole sequence, from the domain's language to its context map.</p>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">What is the core domain, in this lesson's terms?</p>
+    <button class="quiz-option">The part of the system written in the most common language</button>
+    <button class="quiz-option">The part of the model that makes the business distinctive</button>
+    <button class="quiz-option">The database schema that every other part depends on</button>
+    <button class="quiz-option">The first module that was written in the project</button>
+    <p class="quiz-explanation">The core domain is the distinctive part of the business. It is where competitive advantage lies, so it gets the best modelling.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">A generic subdomain is best handled by which approach?</p>
+    <button class="quiz-option">A carefully modelled domain layer built from scratch</button>
+    <button class="quiz-option">Custom rules invented for every edge case</button>
+    <button class="quiz-option">Merging it into the core domain</button>
+    <button class="quiz-option">Adopting an existing solution rather than modelling it from scratch</button>
+    <p class="quiz-explanation">A generic subdomain is a problem many businesses share. Effort is better spent adopting a proven solution than modelling it in depth.</p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">Why is over-modelling a supporting subdomain a mistake?</p>
+    <button class="quiz-option">It spends best modelling effort where the business gains little</button>
+    <button class="quiz-option">It makes the core domain harder to change</button>
+    <button class="quiz-option">Supporting code cannot be tested properly</button>
+    <button class="quiz-option">It forces the team to use a generic subdomain</button>
+    <p class="quiz-explanation">Effort is limited. Spending it on a supporting area takes it away from the core, where it matters most.</p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read Part IV, chapter 15 of Evans's book, <em>Distillation</em>, then chapter 16, <em>Large-Scale Structure</em>.<sup><a href="#r1">1</a></sup></p>
+
+<div class="ask"><strong>Ask the agent</strong> List the parts of a system you know. Ask me to label each as core, supporting, or generic, and to argue against the label you think I should not have chosen.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1">Eric Evans, <em>Domain-Driven Design: Tackling Complexity in the Heart of Software</em> (Addison-Wesley, 2003), Part IV, chapters 15 <em>Distillation</em> and 16 <em>Large-Scale Structure</em>. The subdomain categories are the author's summary and should be checked against the chapter. See <a href="../RESOURCES.md">RESOURCES.md</a>.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0009-bounded-contexts-and-context-maps.html">← Lesson 9: Bounded Contexts and Context Maps</a></span>
+  <span class="nav-next"><a href="../reference/ddd-cheatsheet.html">Cheat sheet →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/ddd-cheatsheet.html">Cheat sheet</a>
+</footer>
+</body>
+</html>

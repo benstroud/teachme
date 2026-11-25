@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 8 — Supple Design</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 8 of 10</span><span>Domain-Driven Design</span></div>
+  <h1>Supple Design</h1>
+  <p class="subtitle">A supple design is one that developers can use, combine, and change without fear. Its interfaces say what they do, its functions have no hidden side effects, and its rules are stated so they can be checked.</p>
+</header>
+
+<section>
+<h2>What supple means</h2>
+<p>Part III's chapter <em>Supple Design</em> describes code that is easy to work with, not just correct. The book's aim is for developers to be able to combine the model's parts in ways the original authors did not plan, and trust the result. A rigid design breaks when it is combined. A supple one bends without splitting.<sup><a href="#r1">1</a></sup></p>
+
+<h2>Habits that make a design supple</h2>
+<table>
+  <tr><th>Habit</th><th>What it looks like</th></tr>
+  <tr><td>Intention-revealing interfaces</td><td>A method is named for what it means, such as <code>reopen()</code>, not for how it changes a field</td></tr>
+  <tr><td>Side-effect-free functions</td><td>A query returns a value and changes nothing, so it can be called freely</td></tr>
+  <tr><td>Assertions</td><td>Rules are stated as conditions the code checks, such as "a paid invoice cannot be edited"</td></tr>
+  <tr><td>Closure of operations</td><td>An operation on a value returns the same kind of value, so it can be chained</td></tr>
+  <tr><td>Declarative design</td><td>Code states what must be true, and leaves the how to the building block</td></tr>
+</table>
+
+<h2>Before and after</h2>
+<pre><code>// Hard to use: the name hides the effect, and the caller must know the field
+invoice.setStatus("OPEN");
+
+// Intention-revealing: the name says what the business means
+invoice.reopen();
+
+// A side-effect-free query can be called anywhere
+invoice.isOverdue(today);</code></pre>
+
+<aside class="note"><strong>Closure of operation</strong> A common example is numeric addition: adding two numbers gives a number, so you can combine any number of additions. A money operation that returns a money value does the same for the domain.</aside>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Find one method in your code whose name describes how it works, not what it means. Propose a name that reveals intent.</li>
+  <li>Find one function that both returns a value and changes state. Split it into a query and a command, and say which call sites change.</li>
+  <li>Choose one rule and write it as an assertion. Say where it is checked, and what the caller sees if it fails.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">Which name is an intention-revealing interface?</p>
+    <button class="quiz-option">setStatus("OPEN")</button>
+    <button class="quiz-option">reopen()</button>
+    <button class="quiz-option">updateRow(7)</button>
+    <button class="quiz-option">flip()</button>
+    <p class="quiz-explanation">reopen() says what the business means. The other names describe the mechanism or a field, which hides the intent.</p>
+  </div>
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">Why is a side-effect-free function easier to combine?</p>
+    <button class="quiz-option">It runs faster than any other function</button>
+    <button class="quiz-option">It can only be called once per request</button>
+    <button class="quiz-option">It requires no parameters at all</button>
+    <button class="quiz-option">It changes nothing, so callers can use it freely</button>
+    <p class="quiz-explanation">A query that changes nothing can be called in any order and any number of times, which is part of what makes a design supple.</p>
+  </div>
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">What is the main purpose of an assertion in a supple design?</p>
+    <button class="quiz-option">To slow down the program for logging output</button>
+    <button class="quiz-option">To replace the need for any unit tests</button>
+    <button class="quiz-option">To state a rule that the code checks and enforces</button>
+    <button class="quiz-option">To count how often a method is called</button>
+    <p class="quiz-explanation">An assertion states a rule as a checkable condition. It makes the rule visible in the code and fails when it is broken.</p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read Part III, chapter 10 of Evans's book, <em>Supple Design</em>.<sup><a href="#r1">1</a></sup></p>
+
+<div class="ask"><strong>Ask the agent</strong> Show me three methods from your code and ask me to rename them so each reveals intent. Ask me to point out any that I renamed in a way that still hides the mechanism.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1">Eric Evans, <em>Domain-Driven Design: Tackling Complexity in the Heart of Software</em> (Addison-Wesley, 2003), Part III, chapter 10 <em>Supple Design</em>. See <a href="../RESOURCES.md">RESOURCES.md</a>.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0007-making-concepts-explicit.html">← Lesson 7: Making Concepts Explicit</a></span>
+  <span class="nav-next"><a href="0009-bounded-contexts-and-context-maps.html">Lesson 9: Bounded Contexts and Context Maps →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/ddd-cheatsheet.html">Cheat sheet</a>
+</footer>
+</body>
+</html>

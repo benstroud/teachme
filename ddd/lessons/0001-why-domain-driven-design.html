@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — Why Domain-Driven Design</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 1 of 10</span><span>Domain-Driven Design</span></div>
+  <h1>Why Domain-Driven Design</h1>
+  <p class="subtitle">Most hard software is hard because the rules of the business are hard, not because the technology is. Evans's book starts there, and asks you to put the business model at the centre of the design.</p>
+</header>
+
+<section>
+<h2>The problem the book names</h2>
+<p>Evans's title says what the book is about: <em>tackling complexity in the heart of software</em>. The complexity he means is the complexity of the domain, the subject the software serves, such as insurance claims, shipping, or clinical scheduling. Its rules, exceptions, and vocabulary are what make a project difficult.<sup><a href="#r1">1</a></sup></p>
+<p>When the code does not reflect those rules, the project slows down. Developers translate business requests into a structure that does not match them, and every change costs more than it should.</p>
+
+<h2>The book's central claim</h2>
+<p>The book argues that the most valuable thing a team can build is a <strong>model</strong> of the domain, and that the model should drive the design of the software. Part I, <em>Putting the Domain Model to Work</em>, starts with the work of finding that model, which Evans calls crunching knowledge, and then with the communication that makes it useful.<sup><a href="#r1">1</a></sup></p>
+
+<aside class="note"><strong>What a model is here</strong> It is not a diagram for a meeting, and it is not the database schema. It is a set of concepts and rules that the team agrees on, and that the code expresses directly. A diagram that nobody reads is not a model.</aside>
+
+<h2>Worked example: one word, three meanings</h2>
+<p>Imagine a shipping company. Sales says a <em>shipment</em> is what a customer ordered. Operations says it is a set of parcels on one truck. Billing says it is the unit that gets an invoice. A developer who merges these into one <code>Shipment</code> class will spend months handling the cases where the three meanings disagree.</p>
+<p>The DDD response is not to pick the winning meaning. It is to notice the three meanings, name each one in the model, and decide where each applies. Lesson 2 returns to this, and lesson 9 shows how the boundaries between meanings are drawn.</p>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Pick a system you know. List five nouns that people in that system use, such as <em>order</em>, <em>account</em>, <em>visit</em>, or <em>case</em>.</li>
+  <li>For each noun, write down what two different people would say it means. Mark any noun where the meanings differ.</li>
+  <li>For the noun with the most different meanings, write one sentence that a developer could check in the code: "a X is ..., and it is not ...".</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">According to Evans's book, what is the most valuable thing to build at the centre of a complex software project?</p>
+    <button class="quiz-option">A faster database with a richer query language</button>
+    <button class="quiz-option">A framework that hides the business rules</button>
+    <button class="quiz-option">A model of the domain that drives the design</button>
+    <button class="quiz-option">A set of generic utility libraries</button>
+    <p class="quiz-explanation">The book centres the design on a model of the domain. Technology choices come after that, and the model is what makes them worth making.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">In the shipping example, why is merging "shipment" into one class a mistake?</p>
+    <button class="quiz-option">The groups use one word for three meanings, and merging hides them</button>
+    <button class="quiz-option">Shipments should never be stored as a single class</button>
+    <button class="quiz-option">A single class can only ever hold one meaning</button>
+    <button class="quiz-option">The word is too short to be a useful name</button>
+    <p class="quiz-explanation">The same word carries three meanings. Forcing them into one structure creates the cases where they disagree, which is the complexity DDD asks you to name and separate.</p>
+  </div>
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">Which statement best describes a model in this lesson's sense?</p>
+    <button class="quiz-option">A diagram kept for the architecture review</button>
+    <button class="quiz-option">Concepts and rules the team agrees on, which the code expresses</button>
+    <button class="quiz-option">The database schema generated from the tables</button>
+    <button class="quiz-option">A list of every feature the product has</button>
+    <p class="quiz-explanation">A model is shared concepts and rules that appear in the code. A diagram or schema can support it, but neither is the model by itself.</p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read Part I of Evans's book, chapter 1, <em>Crunching Knowledge</em>, and chapter 2, <em>Communication and the Use of Language</em>. Both are short enough to read in a sitting. The chapter titles are listed in <a href="../RESOURCES.md">RESOURCES.md</a>.</p>
+
+<div class="ask"><strong>Ask the agent</strong> Describe a system you work on and ask me to find the nouns with more than one meaning. Then ask me where the meanings should be separated, and tell me where my suggestion is wrong.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1">Eric Evans, <em>Domain-Driven Design: Tackling Complexity in the Heart of Software</em> (Addison-Wesley, 2003), Part I, chapters 1 and 2. Chapter titles from the publisher's table of contents, see <a href="../RESOURCES.md">RESOURCES.md</a>.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"></span>
+  <span class="nav-next"><a href="0002-ubiquitous-language.html">Lesson 2: Ubiquitous Language →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/ddd-cheatsheet.html">Cheat sheet</a>
+</footer>
+</body>
+</html>

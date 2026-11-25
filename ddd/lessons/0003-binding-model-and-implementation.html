@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 — Binding Model and Implementation</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 3 of 10</span><span>Domain-Driven Design</span></div>
+  <h1>Binding Model and Implementation</h1>
+  <p class="subtitle">A model that lives only on a whiteboard drifts from the code within weeks. Evans's point in Part I is that the model and the implementation must be bound together, so each change to one shows up in the other.</p>
+</header>
+
+<section>
+<h2>The drift problem</h2>
+<p>Teams often build a model, write code, and then forget the model. The code grows its own structure, the diagrams go out of date, and the words in the meetings stop matching the words in the code. Evans's third chapter in Part I, <em>Binding Model and Implementation</em>, argues against that split: the code should be a faithful expression of the model, and the model should be refined by what the code reveals.<sup><a href="#r1">1</a></sup></p>
+
+<h2>The loop</h2>
+<p>The practice the book describes is a cycle. A developer and an expert explore a concept together. They express it in code. Writing the code exposes a contradiction or a gap. The team goes back to the model, refines it, and the code changes to match. Each pass makes the model more accurate, and the code more honest about the domain.</p>
+<table>
+  <tr><th>Step</th><th>What happens</th><th>Smell when it fails</th></tr>
+  <tr><td>Explore</td><td>Developers and experts talk through a rule</td><td>Developers guess the rule and never check it</td></tr>
+  <tr><td>Express</td><td>The rule becomes a class, method, or test</td><td>The rule lives in a comment, not in code</td></tr>
+  <tr><td>Expose</td><td>Writing the code finds a contradiction</td><td>Contradictions are patched with flags and exceptions</td></tr>
+  <tr><td>Refine</td><td>The model changes, and the code follows</td><td>The model changes, but the code is left as it was</td></tr>
+</table>
+
+<aside class="note"><strong>Why the code must be the model</strong> A model that is not in the code cannot be tested, checked, or enforced. The code is the only part of the model that runs every day, so it is where the model earns its keep.</aside>
+
+<h2>A small example of binding</h2>
+<p>Suppose the expert says: "A claim can only be paid once, and only after a surveyor approves it." A drifted implementation stores a status string and lets any function change it. A bound implementation has a method that refuses the second payment, and a test that states the surveyor rule. The difference shows up the first time a new developer changes the flow.</p>
+<pre><code>class Claim {
+  private paid = false;
+  private surveyorApproved = false;
+
+  approveBySurveyor(): void {
+    this.surveyorApproved = true;
+  }
+
+  pay(): void {
+    if (!this.surveyorApproved) {
+      throw new Error("A claim needs surveyor approval before payment");
+    }
+    if (this.paid) {
+      throw new Error("A claim can only be paid once");
+    }
+    this.paid = true;
+  }
+}</code></pre>
+<p>The rule is now in one place, named after the domain, and it fails loudly. That is the binding Evans means.</p>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Find one rule in a system you know that lives in a comment, a spreadsheet, or someone's memory. Write it as one sentence in the domain's words.</li>
+  <li>Predict where in the code the rule would best live, and which class or function should own it.</li>
+  <li>Write a short test, in any language, that would fail if someone broke the rule. Say which part of the loop the test helps with.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">What does the binding loop describe?</p>
+    <button class="quiz-option">Writing the full design before writing any code</button>
+    <button class="quiz-option">Explore a concept, express it in code, then refine the model</button>
+    <button class="quiz-option">Generating all code from a database schema</button>
+    <button class="quiz-option">Freezing the model once the first release ships</button>
+    <p class="quiz-explanation">The loop runs in both directions. The code tests the model, and the model improves the code. Neither is finished first.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">In the claim example, why is the "paid once" rule better as a method than a status string?</p>
+    <button class="quiz-option">Methods run faster than string comparisons do</button>
+    <button class="quiz-option">Status strings cannot be stored in a database</button>
+    <button class="quiz-option">Only methods can be properly unit tested</button>
+    <button class="quiz-option">The rule is enforced where it lives, and fails loudly</button>
+    <p class="quiz-explanation">The rule is in one place, named after the domain, and it refuses the invalid action. A status string lets any caller set the state without checking the rule.</p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">Which sign means the model and the implementation have drifted apart?</p>
+    <button class="quiz-option">Rules are kept as comments, and the diagrams are out of date</button>
+    <button class="quiz-option">Developers and experts talk about a rule and then write it in code</button>
+    <button class="quiz-option">A failing test catches a broken business rule</button>
+    <button class="quiz-option">The model changes when the code reveals a contradiction</button>
+    <p class="quiz-explanation">Rules living in comments and out-of-date diagrams are the sign of drift. The other three are the binding working as intended.</p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read Part I, chapter 3 of Evans's book, <em>Binding Model and Implementation</em>.<sup><a href="#r1">1</a></sup></p>
+
+<div class="ask"><strong>Ask the agent</strong> Paste a rule from your own code and ask me to suggest a name, a home, and a test. Then ask me what would break if the rule moved into a service.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1">Eric Evans, <em>Domain-Driven Design: Tackling Complexity in the Heart of Software</em> (Addison-Wesley, 2003), Part I, chapter 3 <em>Binding Model and Implementation</em>. See <a href="../RESOURCES.md">RESOURCES.md</a>.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0002-ubiquitous-language.html">← Lesson 2: Ubiquitous Language</a></span>
+  <span class="nav-next"><a href="0004-isolating-the-domain.html">Lesson 4: Isolating the Domain →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/ddd-cheatsheet.html">Cheat sheet</a>
+</footer>
+</body>
+</html>

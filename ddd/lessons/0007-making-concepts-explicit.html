@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 7 — Making Concepts Explicit</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 7 of 10</span><span>Domain-Driven Design</span></div>
+  <h1>Making Concepts Explicit</h1>
+  <p class="subtitle">Some of the most important ideas in a domain are never named. They hide in conditions, in comments, and in arguments passed around. Part III starts by finding them, naming them, and giving them a place in the model.</p>
+</header>
+
+<section>
+<h2>Refactoring toward deeper insight</h2>
+<p>Part III of the book, <em>Refactoring Toward Deeper Insight</em>, begins with the idea of a breakthrough: a moment when the team sees a simpler, more accurate model, and the code can be reshaped around it.<sup><a href="#r1">1</a></sup> The later chapter on making implicit concepts explicit describes how such breakthroughs are prepared: the team looks for concepts the code is already using without naming.</p>
+
+<h2>Signs of an implicit concept</h2>
+<ul>
+  <li>A condition repeats in several places, such as <code>if (order.total &gt; 1000 &amp;&amp; order.customer.isNew)</code>.</li>
+  <li>A comment explains a rule that the code does not enforce.</li>
+  <li>A pair of values always travels together, such as an amount and a currency, or a start and an end.</li>
+  <li>A method is hard to name, because the concept it implements has no name yet.</li>
+</ul>
+
+<h2>Worked example: the implicit rule</h2>
+<p>Suppose a condition appears in three places:</p>
+<pre><code>if (order.total &gt; 1000 &amp;&amp; order.customer.isNew) { requireApproval(order); }</code></pre>
+<p>The rule is "a large first order needs approval". It has a business name, and the code does not use it. Making it explicit means giving the concept a home:</p>
+<pre><code>class Order {
+  requiresApproval(): boolean {
+    return this.total() &gt; 1000 &amp;&amp; this.customer.isNew();
+  }
+}
+// The three call sites now read: if (order.requiresApproval()) { ... }</code></pre>
+<p>The condition is now in one place, has a name the business recognises, and can be tested. The model is the same, but it is more honest about what it knows.</p>
+
+<aside class="note"><strong>Specifications</strong> When a rule must be checked on its own, or combined with others, Evans describes a specification: a named predicate that says whether an object satisfies a condition. The useful part is the name, not the mechanism.</aside>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Find a repeated condition in code you know. Write down the business rule it encodes, in one sentence.</li>
+  <li>Name the concept. Say whether it belongs on an existing object, a value object, or a new service, and why.</li>
+  <li>Rewrite the call sites to use the new name. Say which test you would write first, and what would fail if someone changed the rule.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">Which sign most clearly points to an implicit concept?</p>
+    <button class="quiz-option">The class has a constructor</button>
+    <button class="quiz-option">The file has more than one hundred lines</button>
+    <button class="quiz-option">The same business condition repeats in several places</button>
+    <button class="quiz-option">The project uses a particular test runner</button>
+    <p class="quiz-explanation">A repeated business condition is the clearest sign of a concept the code uses but never names.</p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">What is the benefit of naming the "large first order" rule as a method?</p>
+    <button class="quiz-option">The rule lives in one place with a business name</button>
+    <button class="quiz-option">The rule becomes faster to evaluate at runtime</button>
+    <button class="quiz-option">The rule no longer needs to be tested at all</button>
+    <button class="quiz-option">The database can index the rule directly</button>
+    <p class="quiz-explanation">A named concept gives the rule one home and a name the team shares. It does not change performance, and it still needs tests.</p>
+  </div>
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">What does "breakthrough" describe in Part III?</p>
+    <button class="quiz-option">A release that ships to all customers at once</button>
+    <button class="quiz-option">A complete rewrite of the database layer</button>
+    <button class="quiz-option">A new framework adopted by the team</button>
+    <button class="quiz-option">A sudden, deeper insight that reshapes the model and code</button>
+    <p class="quiz-explanation">In the book, a breakthrough is a deeper understanding of the domain that makes the design simpler and more accurate, and the code follows it.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read Part III, chapter 8 of Evans's book, <em>Breakthrough</em>, then chapter 9, <em>Making Implicit Concepts Explicit</em>.<sup><a href="#r1">1</a></sup></p>
+
+<div class="ask"><strong>Ask the agent</strong> Paste a function from your code with a condition inside it. Ask me to find the implicit concept, propose a name, and argue for and against giving it its own class.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1">Eric Evans, <em>Domain-Driven Design: Tackling Complexity in the Heart of Software</em> (Addison-Wesley, 2003), Part III, chapters 8 <em>Breakthrough</em> and 9 <em>Making Implicit Concepts Explicit</em>. See <a href="../RESOURCES.md">RESOURCES.md</a>.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0006-aggregates-factories-repositories.html">← Lesson 6: Aggregates, Factories, Repositories</a></span>
+  <span class="nav-next"><a href="0008-supple-design.html">Lesson 8: Supple Design →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/ddd-cheatsheet.html">Cheat sheet</a>
+</footer>
+</body>
+</html>

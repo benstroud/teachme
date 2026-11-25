@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 — Isolating the Domain</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 4 of 10</span><span>Domain-Driven Design</span></div>
+  <h1>Isolating the Domain</h1>
+  <p class="subtitle">The business rules should not depend on the screen, the database, or the framework. Keeping them apart is what lets the model stay readable, and it is also where anemic models come from when the separation is done badly.</p>
+</header>
+
+<section>
+<h2>Why separate the domain</h2>
+<p>Evans's chapter <em>Isolating the Domain</em> begins Part II, which covers the building blocks of a model-driven design. Its concern is that domain logic gets tangled with everything around it: request handling, SQL, serialisation, and UI state. Once that happens, the model cannot be read on its own, and changing the database can silently change a business rule.<sup><a href="#r1">1</a></sup></p>
+<p>The usual remedy is layering. The domain layer holds the model. Layers above it handle the user interface and the application's workflow. Layers below it handle storage and external services. The domain layer depends on nothing outside itself.</p>
+
+<h2>A layered view</h2>
+<table>
+  <tr><th>Layer</th><th>Holds</th><th>Must not hold</th></tr>
+  <tr><td>User interface</td><td>Screens, request parsing, view models</td><td>Business rules such as "a claim can only be paid once"</td></tr>
+  <tr><td>Application</td><td>Use cases that coordinate steps, such as "approve and pay"</td><td>The rules themselves</td></tr>
+  <tr><td>Domain</td><td>Entities, value objects, rules, domain services</td><td>SQL, HTTP, framework decorators, logging calls</td></tr>
+  <tr><td>Infrastructure</td><td>Database adapters, message clients, file access</td><td>Decisions about what the business allows</td></tr>
+</table>
+
+<h2>The anemic model warning</h2>
+<p>Isolation done badly produces an anemic model. The objects become bags of data with getters and setters, and every rule moves into services that operate on them. Fowler describes this as an anti-pattern. The objects look like a domain model, but they carry none of its benefits, and the mapping to the database often becomes the main cost.<sup><a href="#r2">2</a></sup></p>
+<p>Fowler's concern is about where the behaviour sits. A thin service layer that coordinates work is fine. A service that holds most of the rules has pulled them away from the objects that should own them, and he warns that this drifts toward transaction scripts.<sup><a href="#r2">2</a></sup></p>
+
+<pre><code>// Anemic: data on the object, rules in a service
+class Invoice { total = 0; paid = false; }
+class InvoiceService {
+  pay(invoice: Invoice) { invoice.paid = true; }
+}
+
+// Richer: the object owns the rule it enforces
+class Invoice {
+  private paid = false;
+  constructor(private readonly total: number) {}
+  pay(): void {
+    if (this.paid) throw new Error("Invoice already paid");
+    this.paid = true;
+  }
+}</code></pre>
+
+<aside class="note"><strong>Thin services are fine</strong> The problem is not that services exist. Application services that orchestrate a use case belong in the application layer. The warning is about domain rules that live in services instead of in the objects that the rules are about.</aside>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Take a feature in code you know. Mark each line as UI, application, domain, or infrastructure.</li>
+  <li>Find one domain rule that sits in the wrong layer. Move it, in your head or in a sketch, to the object it belongs to.</li>
+  <li>Say what you would have to change to test that rule without a database. Write the test's first line.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="2">
+    <p class="quiz-prompt">Which of these belongs in the domain layer, according to this lesson?</p>
+    <button class="quiz-option">An SQL query that loads a customer row</button>
+    <button class="quiz-option">The HTTP handler that parses a request body</button>
+    <button class="quiz-option">The rule that an invoice can only be paid once</button>
+    <button class="quiz-option">A logging call that records each payment</button>
+    <p class="quiz-explanation">The business rule belongs in the domain. SQL, HTTP parsing, and logging belong to infrastructure or the interface layers.</p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">What is the main warning about an anemic domain model?</p>
+    <button class="quiz-option">The objects hold data, but the rules sit in services</button>
+    <button class="quiz-option">The objects use too many private fields</button>
+    <button class="quiz-option">Services cannot coordinate more than one object</button>
+    <button class="quiz-option">The database cannot store plain data objects</button>
+    <p class="quiz-explanation">Fowler's point is that behaviour pulled out of the objects into services costs the model its benefits, and tends toward transaction scripts.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">Why does isolating the domain help testing?</p>
+    <button class="quiz-option">Domain code runs faster in production systems</button>
+    <button class="quiz-option">Rules can be checked without a database, server, or UI</button>
+    <button class="quiz-option">It removes the need for any tests</button>
+    <button class="quiz-option">Every layer can use the same test runner</button>
+    <p class="quiz-explanation">When the domain depends on nothing outside itself, its rules can be exercised directly, which is the practical gain of the separation.</p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read Part II, chapter 4 of Evans's book, <em>Isolating the Domain</em>, then Fowler's piece on the anemic domain model.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<div class="ask"><strong>Ask the agent</strong> Show me a class from your code and ask me which of its methods are rules and which are plumbing. Ask me to argue the other side for any method I put in a service.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1">Eric Evans, <em>Domain-Driven Design: Tackling Complexity in the Heart of Software</em> (Addison-Wesley, 2003), Part II, chapter 4 <em>Isolating the Domain</em>. See <a href="../RESOURCES.md">RESOURCES.md</a>.</li>
+    <li id="r2">Martin Fowler, "Anemic Domain Model", bliki, dated 25 November 2003. <a href="https://martinfowler.com/bliki/AnemicDomainModel.html">martinfowler.com/bliki/AnemicDomainModel.html</a>.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0003-binding-model-and-implementation.html">← Lesson 3: Binding Model and Implementation</a></span>
+  <span class="nav-next"><a href="0005-a-model-expressed-in-software.html">Lesson 5: A Model Expressed in Software →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/ddd-cheatsheet.html">Cheat sheet</a>
+</footer>
+</body>
+</html>

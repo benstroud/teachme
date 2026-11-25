@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 6 — Aggregates, Factories, Repositories</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<header class="lesson-header">
+  <div class="lesson-meta"><span>Lesson 6 of 10</span><span>Domain-Driven Design</span></div>
+  <h1>Aggregates, Factories, Repositories</h1>
+  <p class="subtitle">Objects change over time, and their rules must hold at every step. Aggregates draw the boundary for consistency, factories create valid objects, and repositories give them back without leaking storage into the model.</p>
+</header>
+
+<section>
+<h2>The life cycle</h2>
+<p>Part II's chapter <em>The Life Cycle of a Domain Object</em> covers how objects are created, changed, stored, and removed while keeping the model's rules intact.<sup><a href="#r1">1</a></sup> Three patterns carry most of that work: aggregates, factories, and repositories.</p>
+
+<h2>Aggregates</h2>
+<p>An aggregate is a cluster of domain objects that can be treated as a single unit. It has one root, and references from outside the aggregate go only to that root. Fowler's summary makes two points that matter in practice: outside code should hold only the root, and transactions should not cross aggregate boundaries.<sup><a href="#r2">2</a></sup></p>
+<p>The aggregate is where the invariants live. An order and its line items form one aggregate if the rule "the total equals the sum of the lines" must always hold. Outside code cannot add a line that bypasses the total, because the only way in is through the root.</p>
+
+<pre><code>class Order {
+  private lines: { sku: string; amount: number }[] = [];
+
+  addLine(sku: string, amount: number): void {
+    if (amount <= 0) throw new Error("A line needs a positive amount");
+    this.lines.push({ sku, amount });
+  }
+
+  total(): number {
+    return this.lines.reduce((sum, line) => sum + line.amount, 0);
+  }
+}
+// Outside code holds an Order, never a bare line. The total cannot drift.</code></pre>
+
+<aside class="note"><strong>Not a collection class</strong> Fowler warns that an aggregate is sometimes confused with a generic collection. An aggregate is a domain concept, such as an order or a clinic visit. A collection is a generic container, and it has no rules of its own.<sup><a href="#r2">2</a></sup></aside>
+
+<h2>Factories</h2>
+<p>A factory creates an aggregate or an entity in a valid state. When creation is complicated, the factory holds the rules for it, so callers cannot build a half-formed object. A factory is worth its cost when creating the object takes more than a constructor call can express.</p>
+
+<h2>Repositories</h2>
+<p>A repository gives the application access to aggregates as if they were in a collection. Callers ask for an order by its identifier and save it back. The storage details, such as SQL or a document store, sit behind the repository's interface, so the model does not depend on them.</p>
+<pre><code>interface OrderRepository {
+  findById(id: string): Promise&lt;Order | undefined&gt;;
+  save(order: Order): Promise&lt;void&gt;;
+}</code></pre>
+
+<section class="task">
+<h2>Your task (one attempt)</h2>
+<ol>
+  <li>Take the Order example. Name one invariant that the root must enforce, and say what would break if outside code could add lines directly.</li>
+  <li>Decide whether a customer and their addresses should be one aggregate or two. Justify your answer with a rule that must hold together, and say what happens to transactions if you are wrong.</li>
+  <li>Sketch a repository interface for one aggregate in a system you know. List only the methods the application needs.</li>
+</ol>
+</section>
+</section>
+
+<section>
+<h2>Check yourself</h2>
+<div class="quiz-section">
+
+  <div class="quiz-question" data-correct="1">
+    <p class="quiz-prompt">What does Fowler say about transactions and aggregates?</p>
+    <button class="quiz-option">A transaction should always span several aggregates for consistency</button>
+    <button class="quiz-option">Transactions should not cross aggregate boundaries</button>
+    <button class="quiz-option">Transactions are irrelevant to aggregates</button>
+    <button class="quiz-option">Each line item needs its own transaction</button>
+    <p class="quiz-explanation">Fowler's summary says transactions should not cross aggregate boundaries. The aggregate is the unit of consistency.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="3">
+    <p class="quiz-prompt">Outside code only holds the order root, never a line item. Why?</p>
+    <button class="quiz-option">Line items cannot be read from the database</button>
+    <button class="quiz-option">The language forbids references to nested objects</button>
+    <button class="quiz-option">Line items are always stored in a separate table</button>
+    <button class="quiz-option">So that all changes pass through the root, which keeps the invariants</button>
+    <p class="quiz-explanation">Routing all changes through the root is how the aggregate enforces its rules. A bypassed line could break the total.<sup><a href="#r2">2</a></sup></p>
+  </div>
+
+  <div class="quiz-question" data-correct="0">
+    <p class="quiz-prompt">What is the job of a repository in this lesson?</p>
+    <button class="quiz-option">To give the application aggregates, hiding how they are stored</button>
+    <button class="quiz-option">To hold the business rules for the aggregate</button>
+    <button class="quiz-option">To render the aggregate on screen</button>
+    <button class="quiz-option">To send events to other services</button>
+    <p class="quiz-explanation">A repository provides access to aggregates as a collection-like interface, so storage stays outside the model.<sup><a href="#r1">1</a></sup></p>
+  </div>
+
+</div>
+</section>
+
+<section>
+<h2>Primary source (read this next)</h2>
+<p>Read Part II, chapter 6 of Evans's book, <em>The Life Cycle of a Domain Object</em>, then Fowler's note on DDD aggregates.<sup><a href="#r1">1</a></sup><sup><a href="#r2">2</a></sup></p>
+
+<div class="ask"><strong>Ask the agent</strong> Describe an aggregate in your own system. Ask me to find the invariants it must protect, and to say where its boundary is too wide or too narrow.</div>
+</section>
+
+<footer class="citation">
+  <ol>
+    <li id="r1">Eric Evans, <em>Domain-Driven Design: Tackling Complexity in the Heart of Software</em> (Addison-Wesley, 2003), Part II, chapter 6 <em>The Life Cycle of a Domain Object</em>. See <a href="../RESOURCES.md">RESOURCES.md</a>.</li>
+    <li id="r2">Martin Fowler, "DDD Aggregate", bliki, dated 23 April 2013. <a href="https://martinfowler.com/bliki/DDD_Aggregate.html">martinfowler.com/bliki/DDD_Aggregate.html</a>.</li>
+  </ol>
+</footer>
+
+<nav class="lesson-nav">
+  <span class="nav-prev"><a href="0005-a-model-expressed-in-software.html">← Lesson 5: A Model Expressed in Software</a></span>
+  <span class="nav-next"><a href="0007-making-concepts-explicit.html">Lesson 7: Making Concepts Explicit →</a></span>
+</nav>
+
+<footer class="lesson-footer">
+  <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a> · <a href="../reference/glossary.html">Glossary</a> · <a href="../reference/ddd-cheatsheet.html">Cheat sheet</a>
+</footer>
+</body>
+</html>
